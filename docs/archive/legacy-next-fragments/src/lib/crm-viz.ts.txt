@@ -1,0 +1,52 @@
+/**
+ * CRM — Token màu cho biểu đồ (đã chạy qua validator của skill dataviz).
+ * Vị trí thật trong project: src/lib/crm-viz.ts
+ *
+ * ĐÃ KIỂM ĐỊNH (node scripts/validate_palette.js):
+ *  - Sequential 1 hue (blue 100→700): dùng cho heatmap Sale × Trạng thái.
+ *  - Ordinal 5 bước: light "#86b6ef,#5598e7,#2a78d6,#1c5cab,#104281" (PASS trên #ffffff)
+ *                    dark  "#cde2fb,#9ec5f4,#6da7ec,#3987e5,#256abf" (PASS trên #0f172a)
+ *  - Series đơn (slot-1 blue): light #2a78d6 (4.42:1) · dark #3987e5 (4.91:1) — PASS
+ *  - Cặp 2 series (blue ↔ orange): PASS all-pairs cả 2 mode (ΔE CVD 24.7 / 26.8).
+ *
+ * Vì sao Funnel 8 bước dùng 1 hue thay vì ramp 8 bước: ramp blue chỉ cho tối đa
+ * 5 bước còn giữ được ΔL ≥ 0.06 + đầu sáng ≥ 2:1. 8 bước LUÔN FAIL. Thứ tự
+ * của phễu đã được vị trí + độ dài thanh mang, nên 1 hue là lựa chọn hợp lệ.
+ */
+
+/** Series đơn — mọi thanh cùng một màu (identity do tiêu đề chart mang). */
+export const VIZ_SERIES_1 = { light: '#2a78d6', dark: '#3987e5' };
+
+/** Series thứ 2 khi cần so sánh 2 đường (VD: cập nhật hôm nay vs trung bình). */
+export const VIZ_SERIES_2 = { light: '#eb6834', dark: '#d95926' };
+
+/** Sequential blue 100→700 — dùng cho heatmap (magnitude liên tục). */
+export const VIZ_SEQUENTIAL = [
+  '#cde2fb', '#9ec5f4', '#6da7ec', '#3987e5', '#256abf', '#184f95', '#0d366b',
+];
+
+/** Status token (cố định, luôn kèm icon + nhãn chữ — không bao giờ chỉ dựa vào màu). */
+export const VIZ_STATUS = {
+  good: '#0ca30c',
+  warning: '#fab219',
+  serious: '#ec835a',
+  critical: '#d03b3b',
+};
+
+/** Ink & chrome — text KHÔNG BAO GIỜ mang màu series. */
+export const VIZ_INK = {
+  grid: { light: '#e1e0d9', dark: '#2c2c2a' },
+  axis: { light: '#c3c2b7', dark: '#383835' },
+  muted: '#898781',
+};
+
+/**
+ * Chọn bước sequential theo tỉ lệ 0..1 cho ô heatmap.
+ * Trả về { bg, fg } — chữ trong ô chọn trắng/mực theo độ sáng nền (ngoại lệ hợp lệ
+ * duy nhất cho việc đặt text trên vùng màu).
+ */
+export function seqStep(ratio: number): { bg: string; fg: string; index: number } {
+  if (ratio <= 0) return { bg: 'transparent', fg: 'currentColor', index: -1 };
+  const idx = Math.min(VIZ_SEQUENTIAL.length - 1, Math.max(0, Math.round(ratio * (VIZ_SEQUENTIAL.length - 1))));
+  return { bg: VIZ_SEQUENTIAL[idx], fg: idx >= 3 ? '#ffffff' : '#0b0b0b', index: idx };
+}

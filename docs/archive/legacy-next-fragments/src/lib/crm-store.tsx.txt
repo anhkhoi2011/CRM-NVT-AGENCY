@@ -1,0 +1,793 @@
+'use client';
+
+/**
+ * CRM Store — NGUỒN DỮ LIỆU DUY NHẤT cho Sale / Leader / Admin (spec #54.15).
+ * Vị trí thật trong project: src/lib/crm-store.tsx
+ *
+ * Không có state riêng theo Role. Mọi Role đọc cùng một `db`; khác biệt chỉ nằm ở
+ * bộ lọc phạm vi (visibleCustomers) và kiểm tra quyền (canUpdateStatus).
+ *
+ * 54.4 REAL-TIME: localStorage = "CRM Database", BroadcastChannel + sự kiện `storage`
+ * = kênh đẩy. Mở 2 tab (Sale ở tab A, Leader ở tab B) → cập nhật ở A hiện ngay ở B.
+ * Khi lên production: đổi 2 hàm `persist()` / `subscribe()` sang REST + WebSocket/SSE,
+ * toàn bộ phần còn lại giữ nguyên (xem CRM-README.md).
+ */
+
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useAppStore } from './store';
+import {
+  CrmActionResult, CrmAuditLog, CrmNotification, CrmRealtimeEvent, CrmRole, CrmSettings,
+  Customer, CustomerStatus, CustomerStatusHistory, TimelineEvent,
+} from './crm-types';
+import {
+  CRM_CUSTOMERS, CRM_DEFAULT_SETTINGS, CRM_STAFF, CRM_STATUS_HISTORY,
+  CUSTOMER_STATUSES, SALE_TEAMS,
+} from './crm-data';
+
+const LS_KEY = 'tcn-crm-db-v1';
+const CHANNEL_NAME = 'tcn-crm-realtime';
+
+export interface CrmDb {
+  statuses: CustomerStatus[];
+  customers: Customer[];
+  history: CustomerStatusHistory[];
+  /** Timeline event không phát sinh từ status: note, assignment, api, activity. */
+  events: TimelineEvent[];
+  notifications: CrmNotification[];
+  auditLogs: CrmAuditLog[];
+  settings: CrmSettings;
+}
+
+const INITIAL_DB: CrmDb = {
+  statuses: CUSTOMER_STATUSES,
+  customers: CRM_CUSTOMERS,
+  history: CRM_STATUS_HISTORY,
+  events: [],
+  notifications: [],
+  auditLogs: [],
+  settings: CRM_DEFAULT_SETTINGS,
+};
+
+/* ---------- Thời gian: dd/MM/yyyy HH:mm (đồng bộ với store gốc) ---------- */
+
+function pad(n: number) { return String(n).padStart(2, '0'); }
+
+export function vnStamp(d = new Date()): string {
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** Parse "dd/MM/yyyy HH:mm" → epoch ms. Trả 0 nếu không parse được (không throw). */
+export function parseVn(s?: string): number {
+  if (!s) return 0;
+  const m = s.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[,\s]+(\d{1,2}):(\d{2}))?/);
+  if (!m) return 0;
+  return new Date(+m[3], +m[2] - 1, +m[1], m[4] ? +m[4] : 0, m[5] ? +m[5] : 0).getTime();
+}
+
+export function timeAgo(stamp: string): string {
+  const diff = Date.now() - parseVn(stamp);
+  if (diff < 0 || !Number.isFinite(diff)) return stamp;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'vừa xong';
+  if (mins < 60) return `${mins} phút trước`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} giờ trước`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} ngày trước`;
+  return stamp.split(' ')[0];
+}
+
+/* ---------- Danh tính CRM của người đang đăng nhập ---------- */
+
+export interface CrmIdentity {
+  phone: string;
+  name: string;
+  role: CrmRole;
+  /** Chỉ có với SALE. */
+  leaderPhone?: string;
+  isAdmin: boolean;
+  isLeader: boolean;
+  isSale: boolean;
+  /** SĐT các Sale mà người này được xem (Leader: team của mình; Sale: chính mình; Admin: tất cả). */
+  scopeSalePhones: string[] | 'ALL';
+}
+
+interface CrmContextType {
+  db: CrmDb;
+  me: CrmIdentity | null;
+  /** 54.8 — danh sách khách trong phạm vi quyền của người đang đăng nhập. */
+  visibleCustomers: Customer[];
+  statusById: Record<string, CustomerStatus>;
+  activeStatuses: CustomerStatus[];
+  staff: typeof CRM_STAFF;
+  teams: typeof SALE_TEAMS;
+  /** 54.4 — sự kiện real-time gần nhất (toast). */
+  liveFeed: CrmRealtimeEvent[];
+  unreadCount: number;
+  myNotifications: CrmNotification[];
+
+  /* Quyền */
+  canUpdateStatus: (customer: Customer) => boolean;
+  canViewCustomer: (customer: Customer) => boolean;
+  canConfigStatuses: boolean;
+
+  /* 54.2 / 54.7 / 54.12 */
+  updateCustomerStatus: (customerId: string, statusId: string, note?: string, channel?: 'WEB' | 'API') => CrmActionResult;
+  addCustomerNote: (customerId: string, note: string) => CrmActionResult;
+  assignCustomer: (customerId: string, salePhone: string | null) => CrmActionResult;
+
+  /* 54.1 — Admin cấu hình trạng thái */
+  createStatus: (data: Partial<CustomerStatus>) => CrmActionResult;
+  updateStatus: (id: string, data: Partial<CustomerStatus>) => CrmActionResult;
+  deleteStatus: (id: string) => CrmActionResult;
+  toggleStatusActive: (id: string) => CrmActionResult;
+  moveStatus: (id: string, dir: -1 | 1) => CrmActionResult;
+
+  /* 54.6 */
+  getTimeline: (customerId: string) => TimelineEvent[];
+  getStatusHistory: (customerId: string) => CustomerStatusHistory[];
+
+  /* 54.9 / 54.10 */
+  statusDistribution: (salePhone?: string) => { status: CustomerStatus; count: number }[];
+  salePerformance: () => {
+    phone: string; name: string; leaderPhone?: string; total: number;
+    byStatus: Record<string, number>; won: number; lost: number; conversion: number;
+  }[];
+
+  /* Tiện ích */
+  markNotificationsRead: () => void;
+  updateSettings: (data: Partial<CrmSettings>) => void;
+  resetCrmData: () => void;
+  dismissLiveEvent: (id: string) => void;
+}
+
+const CrmContext = createContext<CrmContextType | undefined>(undefined);
+
+/** Đọc DB từ localStorage; nếu chưa có / lỗi thì trả seed. */
+function loadDb(): CrmDb {
+  if (typeof window === 'undefined') return INITIAL_DB;
+  try {
+    const raw = window.localStorage.getItem(LS_KEY);
+    if (!raw) return INITIAL_DB;
+    const parsed = JSON.parse(raw) as Partial<CrmDb>;
+    // Merge phòng trường hợp schema mở rộng sau này.
+    return {
+      statuses: parsed.statuses?.length ? parsed.statuses : INITIAL_DB.statuses,
+      customers: parsed.customers?.length ? parsed.customers : INITIAL_DB.customers,
+      history: parsed.history || [],
+      events: parsed.events || [],
+      notifications: parsed.notifications || [],
+      auditLogs: parsed.auditLogs || [],
+      settings: { ...INITIAL_DB.settings, ...(parsed.settings || {}) },
+    };
+  } catch {
+    return INITIAL_DB;
+  }
+}
+
+export function CrmProvider({ children }: { children: React.ReactNode }) {
+  // 54.11 — orders/payments đến từ store nền tảng: hệ trạng thái ĐỘC LẬP, chỉ nối vào timeline.
+  const { user, orders: platformOrders } = useAppStore();
+
+  // Khởi tạo bằng seed để SSR và lần render đầu ở client giống nhau (tránh hydration mismatch),
+  // sau đó mới nạp dữ liệu đã lưu trong effect.
+  const [db, setDb] = useState<CrmDb>(INITIAL_DB);
+  const [hydrated, setHydrated] = useState(false);
+  const [liveFeed, setLiveFeed] = useState<CrmRealtimeEvent[]>([]);
+  const channelRef = useRef<BroadcastChannel | null>(null);
+  /** Cờ chặn vòng lặp: khi chính tab này ghi thì bỏ qua sự kiện dội lại. */
+  const selfWriteRef = useRef(0);
+
+  useEffect(() => {
+    setDb(loadDb());
+    setHydrated(true);
+  }, []);
+
+  /* ---------- 54.4 Real-time: ghi DB + phát sự kiện ---------- */
+
+  const persist = useCallback((next: CrmDb, event?: CrmRealtimeEvent) => {
+    selfWriteRef.current = Date.now();
+    try {
+      window.localStorage.setItem(LS_KEY, JSON.stringify(next));
+    } catch {
+      // Vượt quota → vẫn giữ state trong RAM, chỉ mất khả năng đồng bộ đa tab.
+    }
+    if (event) {
+      try {
+        channelRef.current?.postMessage(event);
+      } catch {}
+    }
+  }, []);
+
+  /** Nhận sự kiện từ tab khác → nạp lại DB (đúng mô hình "1 database, mọi role cùng thấy"). */
+  useEffect(() => {
+    if (!hydrated) return;
+
+    let ch: BroadcastChannel | null = null;
+    if (typeof BroadcastChannel !== 'undefined') {
+      ch = new BroadcastChannel(CHANNEL_NAME);
+      channelRef.current = ch;
+      ch.onmessage = (msg: MessageEvent<CrmRealtimeEvent>) => {
+        setDb(loadDb());
+        const ev = msg.data;
+        if (ev) setLiveFeed(prev => [ev, ...prev].slice(0, 5));
+      };
+    }
+
+    // Fallback cho browser không có BroadcastChannel.
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== LS_KEY) return;
+      if (Date.now() - selfWriteRef.current < 300) return;
+      setDb(loadDb());
+    };
+    window.addEventListener('storage', onStorage);
+
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      ch?.close();
+      channelRef.current = null;
+    };
+  }, [hydrated]);
+
+  /* ---------- Danh tính & phạm vi quyền (54.8) ---------- */
+
+  const me: CrmIdentity | null = useMemo(() => {
+    if (!user) return null;
+    const staff = CRM_STAFF.find(s => s.phone === user.phone);
+    const role: CrmRole = staff?.role || (user.role as CrmRole);
+    const isAdmin = role === 'SUPER_ADMIN' || role === 'ADMIN';
+    const isLeader = role === 'LEADER';
+    const isSale = role === 'SALE';
+
+    let scope: string[] | 'ALL' = [];
+    if (isAdmin) scope = 'ALL';
+    else if (isLeader) {
+      scope = SALE_TEAMS.filter(t => t.leaderPhone === user.phone).flatMap(t => t.memberPhones);
+    } else if (isSale) scope = [user.phone];
+
+    return {
+      phone: user.phone,
+      name: user.name,
+      role,
+      leaderPhone: staff?.leaderPhone,
+      isAdmin, isLeader, isSale,
+      scopeSalePhones: scope,
+    };
+  }, [user]);
+
+  const statusById = useMemo(() => {
+    const map: Record<string, CustomerStatus> = {};
+    db.statuses.forEach(s => { map[s.id] = s; });
+    return map;
+  }, [db.statuses]);
+
+  const activeStatuses = useMemo(
+    () => db.statuses.filter(s => s.isActive).sort((a, b) => a.sortOrder - b.sortOrder),
+    [db.statuses],
+  );
+
+  const canViewCustomer = useCallback((c: Customer) => {
+    if (!me) return false;
+    if (me.scopeSalePhones === 'ALL') return true;
+    if (!c.assignedSalePhone) return me.isAdmin;
+    return me.scopeSalePhones.includes(c.assignedSalePhone);
+  }, [me]);
+
+  const visibleCustomers = useMemo(
+    () => (me ? db.customers.filter(canViewCustomer) : []),
+    [db.customers, me, canViewCustomer],
+  );
+
+  /** 54.8 — Sale: chỉ khách của mình. Leader: cần Admin cấp quyền. Admin: tất cả. */
+  const canUpdateStatus = useCallback((c: Customer) => {
+    if (!me) return false;
+    if (me.isAdmin) return true;
+    if (me.isSale) return c.assignedSalePhone === me.phone;
+    if (me.isLeader) {
+      if (!db.settings.leaderCanUpdateStatus) return false;
+      return !!c.assignedSalePhone && me.scopeSalePhones !== 'ALL' && me.scopeSalePhones.includes(c.assignedSalePhone);
+    }
+    return false;
+  }, [me, db.settings.leaderCanUpdateStatus]);
+
+  const canConfigStatuses = !!me?.isAdmin;
+
+  /* ---------- 54.12 — Luồng cập nhật trạng thái (9 bước) ---------- */
+
+  const updateCustomerStatus = useCallback((
+    customerId: string,
+    statusId: string,
+    note?: string,
+    channel: 'WEB' | 'API' = 'WEB',
+  ): CrmActionResult => {
+    // Bước 1: Authentication
+    if (!me) return { success: false, message: 'Chưa đăng nhập.', code: 'UNAUTHENTICATED' };
+
+    // Bước 3: Kiểm tra Customer
+    const customer = db.customers.find(c => c.id === customerId);
+    if (!customer) return { success: false, message: 'Không tìm thấy khách hàng.', code: 'NOT_FOUND' };
+
+    // Bước 2 + 4: Permission & quyền với chính khách này
+    if (!canViewCustomer(customer)) {
+      return { success: false, message: 'Khách hàng không thuộc phạm vi quản lý của bạn.', code: 'FORBIDDEN' };
+    }
+    if (!canUpdateStatus(customer)) {
+      const why = me.isLeader && !db.settings.leaderCanUpdateStatus
+        ? 'Leader chưa được Admin cấp quyền cập nhật trạng thái.'
+        : 'Bạn không có quyền cập nhật trạng thái khách hàng này.';
+      return { success: false, message: why, code: 'FORBIDDEN' };
+    }
+
+    const target = db.statuses.find(s => s.id === statusId || s.code === statusId);
+    if (!target) return { success: false, message: 'Trạng thái không tồn tại.', code: 'INVALID_STATUS' };
+    if (!target.isActive) return { success: false, message: `Trạng thái "${target.name}" đang bị tắt.`, code: 'INVALID_STATUS' };
+    if (customer.currentStatusId === target.id && !note) {
+      return { success: false, message: 'Trạng thái không thay đổi.', code: 'NO_CHANGE' };
+    }
+
+    const at = vnStamp();
+    const oldStatusId = customer.currentStatusId;
+    const oldStatus = statusById[oldStatusId];
+
+    // Bước 5: Cập nhật Status (một bản ghi duy nhất — mọi Role đọc cùng chỗ)
+    const customers = db.customers.map(c =>
+      c.id === customerId
+        ? { ...c, currentStatusId: target.id, statusUpdatedAt: at, lastNote: note || c.lastNote }
+        : c,
+    );
+
+    // Bước 6: Tạo Status History (append-only)
+    const historyRow: CustomerStatusHistory = {
+      id: `hist-${customerId}-${Date.now()}`,
+      customerId,
+      oldStatusId,
+      newStatusId: target.id,
+      changedBy: me.phone,
+      changedByName: me.name,
+      changedByRole: me.role,
+      note,
+      ip: channel === 'API' ? 'api-client' : 'browser-session',
+      channel,
+      createdAt: at,
+    };
+
+    // Bước 7: Audit Log
+    const audit: CrmAuditLog = {
+      id: `audit-${Date.now()}`,
+      actorPhone: me.phone,
+      actorRole: me.role,
+      action: 'customer.status.update',
+      entity: 'customer',
+      entityId: customerId,
+      before: oldStatus?.name,
+      after: target.name,
+      channel,
+      createdAt: at,
+    };
+
+    // Bước 8: Notification cho Leader + Admin nếu trạng thái được cấu hình notify (54.13)
+    const notifications: CrmNotification[] = [];
+    if (target.notifyOnChange) {
+      const recipients = new Set<string>();
+      const sale = CRM_STAFF.find(s => s.phone === customer.assignedSalePhone);
+      if (sale?.leaderPhone) recipients.add(sale.leaderPhone);
+      SALE_TEAMS.filter(t => customer.assignedSalePhone && t.memberPhones.includes(customer.assignedSalePhone))
+        .forEach(t => recipients.add(t.leaderPhone));
+      if (db.settings.notifyAdminsOnMilestone) {
+        CRM_STAFF.filter(s => s.role === 'ADMIN' || s.role === 'SUPER_ADMIN').forEach(s => recipients.add(s.phone));
+        recipients.add('0567960777'); // Super Admin của hệ thống gốc
+        recipients.add('0933445566'); // Admin phụ
+      }
+      recipients.delete(me.phone);
+      recipients.forEach(phone => {
+        notifications.push({
+          id: `ntf-${phone}-${Date.now()}-${Math.floor(notifications.length)}`,
+          recipientPhone: phone,
+          title: `${me.name} vừa cập nhật trạng thái`,
+          body: `${customer.name} → "${target.name}"`,
+          customerId,
+          statusId: target.id,
+          read: false,
+          createdAt: at,
+        });
+      });
+    }
+
+    const next: CrmDb = {
+      ...db,
+      customers,
+      history: [historyRow, ...db.history],
+      auditLogs: [audit, ...db.auditLogs].slice(0, 500),
+      notifications: [...notifications, ...db.notifications].slice(0, 200),
+    };
+
+    setDb(next);
+    persist(next, {
+      id: `ev-${Date.now()}`,
+      type: 'STATUS_CHANGED',
+      customerId,
+      customerName: customer.name,
+      statusName: target.name,
+      statusColor: target.color,
+      actorName: me.name,
+      actorRole: me.role,
+      at,
+    });
+
+    // Bước 9: response
+    return { success: true, message: `Đã cập nhật "${customer.name}" → ${target.name}`, code: 'OK' };
+  }, [db, me, canViewCustomer, canUpdateStatus, statusById, persist]);
+
+  /* ---------- 54.7 — Thêm ghi chú (vào timeline, không đổi trạng thái) ---------- */
+
+  const addCustomerNote = useCallback((customerId: string, note: string): CrmActionResult => {
+    if (!me) return { success: false, message: 'Chưa đăng nhập.', code: 'UNAUTHENTICATED' };
+    const customer = db.customers.find(c => c.id === customerId);
+    if (!customer) return { success: false, message: 'Không tìm thấy khách hàng.', code: 'NOT_FOUND' };
+    if (!canUpdateStatus(customer)) {
+      return { success: false, message: 'Bạn không có quyền ghi chú cho khách hàng này.', code: 'FORBIDDEN' };
+    }
+    if (!note.trim()) return { success: false, message: 'Ghi chú đang để trống.', code: 'NO_CHANGE' };
+
+    const at = vnStamp();
+    const event: TimelineEvent = {
+      id: `evt-${Date.now()}`,
+      customerId,
+      kind: 'NOTE',
+      title: 'Ghi chú',
+      detail: note.trim(),
+      actorName: me.name,
+      actorRole: me.role,
+      createdAt: at,
+    };
+    const next: CrmDb = {
+      ...db,
+      events: [event, ...db.events],
+      customers: db.customers.map(c => (c.id === customerId ? { ...c, lastNote: note.trim() } : c)),
+    };
+    setDb(next);
+    persist(next, {
+      id: `ev-${Date.now()}`, type: 'NOTE_ADDED', customerId, customerName: customer.name,
+      actorName: me.name, actorRole: me.role, at,
+    });
+    return { success: true, message: 'Đã lưu ghi chú vào timeline.', code: 'OK' };
+  }, [db, me, canUpdateStatus, persist]);
+
+  /* ---------- Phân bổ khách cho Sale (Admin / Leader) ---------- */
+
+  const assignCustomer = useCallback((customerId: string, salePhone: string | null): CrmActionResult => {
+    if (!me) return { success: false, message: 'Chưa đăng nhập.', code: 'UNAUTHENTICATED' };
+    if (!me.isAdmin && !me.isLeader) {
+      return { success: false, message: 'Chỉ Admin hoặc Leader được phân bổ khách hàng.', code: 'FORBIDDEN' };
+    }
+    const customer = db.customers.find(c => c.id === customerId);
+    if (!customer) return { success: false, message: 'Không tìm thấy khách hàng.', code: 'NOT_FOUND' };
+    if (me.isLeader && salePhone && me.scopeSalePhones !== 'ALL' && !me.scopeSalePhones.includes(salePhone)) {
+      return { success: false, message: 'Chỉ được phân bổ cho Sale trong team của bạn.', code: 'FORBIDDEN' };
+    }
+
+    const at = vnStamp();
+    const saleName = CRM_STAFF.find(s => s.phone === salePhone)?.name || 'Chưa phân bổ';
+    const event: TimelineEvent = {
+      id: `evt-${Date.now()}`,
+      customerId,
+      kind: 'ASSIGNMENT',
+      title: 'Phân bổ Sale',
+      detail: `${CRM_STAFF.find(s => s.phone === customer.assignedSalePhone)?.name || 'Chưa phân bổ'} → ${saleName}`,
+      actorName: me.name,
+      actorRole: me.role,
+      createdAt: at,
+    };
+    const next: CrmDb = {
+      ...db,
+      customers: db.customers.map(c => (c.id === customerId ? { ...c, assignedSalePhone: salePhone } : c)),
+      events: [event, ...db.events],
+      auditLogs: [{
+        id: `audit-${Date.now()}`, actorPhone: me.phone, actorRole: me.role,
+        action: 'customer.assign', entity: 'customer', entityId: customerId,
+        before: customer.assignedSalePhone || '—', after: salePhone || '—',
+        channel: 'WEB', createdAt: at,
+      }, ...db.auditLogs].slice(0, 500),
+    };
+    setDb(next);
+    persist(next, {
+      id: `ev-${Date.now()}`, type: 'CUSTOMER_ASSIGNED', customerId, customerName: customer.name,
+      actorName: me.name, actorRole: me.role, at,
+    });
+    return { success: true, message: `Đã phân bổ ${customer.name} cho ${saleName}.`, code: 'OK' };
+  }, [db, me, persist]);
+
+  /* ---------- 54.1 — Admin cấu hình danh sách trạng thái ---------- */
+
+  const commitStatuses = useCallback((statuses: CustomerStatus[], action: string, entityId: string, before?: string, after?: string) => {
+    if (!me) return;
+    const at = vnStamp();
+    const next: CrmDb = {
+      ...db,
+      statuses,
+      auditLogs: [{
+        id: `audit-${Date.now()}`, actorPhone: me.phone, actorRole: me.role,
+        action, entity: 'customer_status', entityId, before, after,
+        channel: 'WEB', createdAt: at,
+      }, ...db.auditLogs].slice(0, 500),
+    };
+    setDb(next);
+    persist(next, { id: `ev-${Date.now()}`, type: 'STATUS_CONFIG_CHANGED', actorName: me.name, actorRole: me.role, at });
+  }, [db, me, persist]);
+
+  const createStatus = useCallback((data: Partial<CustomerStatus>): CrmActionResult => {
+    if (!canConfigStatuses) return { success: false, message: 'Chỉ Admin được cấu hình trạng thái.', code: 'FORBIDDEN' };
+    const name = (data.name || '').trim();
+    if (!name) return { success: false, message: 'Tên trạng thái không được để trống.', code: 'INVALID_STATUS' };
+
+    // Sinh code từ tên: bỏ dấu tiếng Việt (lọc combining marks U+0300–U+036F), slug hoá.
+    const code = (data.code || name)
+      .toLowerCase()
+      .normalize('NFD')
+      .split('')
+      .filter(ch => { const cp = ch.charCodeAt(0); return cp < 0x300 || cp > 0x36f; })
+      .join('')
+      .replace(/đ/g, 'd')
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_|_$/g, '');
+    if (db.statuses.some(s => s.code === code)) {
+      return { success: false, message: `Mã "${code}" đã tồn tại.`, code: 'INVALID_STATUS' };
+    }
+
+    const at = vnStamp();
+    const status: CustomerStatus = {
+      id: `st-${Date.now()}`,
+      code,
+      name,
+      description: data.description || '',
+      color: data.color || '#64748b',
+      kind: data.kind || 'PIPELINE',
+      isFunnelStage: data.isFunnelStage ?? false,
+      sortOrder: Math.max(0, ...db.statuses.map(s => s.sortOrder)) + 1,
+      isActive: data.isActive ?? true,
+      notifyOnChange: data.notifyOnChange ?? false,
+      createdAt: at,
+      updatedAt: at,
+    };
+    commitStatuses([...db.statuses, status], 'customer_status.create', status.id, undefined, name);
+    return { success: true, message: `Đã tạo trạng thái "${name}".`, code: 'OK' };
+  }, [canConfigStatuses, db.statuses, commitStatuses]);
+
+  const updateStatus = useCallback((id: string, data: Partial<CustomerStatus>): CrmActionResult => {
+    if (!canConfigStatuses) return { success: false, message: 'Chỉ Admin được cấu hình trạng thái.', code: 'FORBIDDEN' };
+    const current = db.statuses.find(s => s.id === id);
+    if (!current) return { success: false, message: 'Trạng thái không tồn tại.', code: 'NOT_FOUND' };
+
+    const statuses = db.statuses.map(s =>
+      s.id === id ? { ...s, ...data, id: s.id, code: s.code, updatedAt: vnStamp() } : s,
+    );
+    commitStatuses(statuses, 'customer_status.update', id, current.name, data.name || current.name);
+    return { success: true, message: 'Đã lưu trạng thái.', code: 'OK' };
+  }, [canConfigStatuses, db.statuses, commitStatuses]);
+
+  /** 54.1 — chỉ xóa được khi KHÔNG có khách nào đang dùng và không phải trạng thái hệ thống. */
+  const deleteStatus = useCallback((id: string): CrmActionResult => {
+    if (!canConfigStatuses) return { success: false, message: 'Chỉ Admin được cấu hình trạng thái.', code: 'FORBIDDEN' };
+    const current = db.statuses.find(s => s.id === id);
+    if (!current) return { success: false, message: 'Trạng thái không tồn tại.', code: 'NOT_FOUND' };
+    if (current.isSystem) return { success: false, message: `"${current.name}" là trạng thái hệ thống, không thể xóa.`, code: 'FORBIDDEN' };
+
+    const inUse = db.customers.filter(c => c.currentStatusId === id).length;
+    if (inUse > 0) {
+      return { success: false, message: `Không thể xóa: ${inUse} khách hàng đang ở trạng thái này. Hãy tắt trạng thái thay vì xóa.`, code: 'IN_USE' };
+    }
+    // Lịch sử vẫn tham chiếu tới status đã xóa → chặn xóa để timeline không bị mất nhãn (54.5: không được xóa lịch sử).
+    const inHistory = db.history.some(h => h.newStatusId === id || h.oldStatusId === id);
+    if (inHistory) {
+      return { success: false, message: 'Không thể xóa: trạng thái này đã có trong lịch sử khách hàng. Hãy tắt (ẩn) trạng thái.', code: 'IN_USE' };
+    }
+
+    commitStatuses(db.statuses.filter(s => s.id !== id), 'customer_status.delete', id, current.name, undefined);
+    return { success: true, message: `Đã xóa trạng thái "${current.name}".`, code: 'OK' };
+  }, [canConfigStatuses, db.statuses, db.customers, db.history, commitStatuses]);
+
+  const toggleStatusActive = useCallback((id: string): CrmActionResult => {
+    if (!canConfigStatuses) return { success: false, message: 'Chỉ Admin được cấu hình trạng thái.', code: 'FORBIDDEN' };
+    const current = db.statuses.find(s => s.id === id);
+    if (!current) return { success: false, message: 'Trạng thái không tồn tại.', code: 'NOT_FOUND' };
+    if (current.isActive) {
+      const inUse = db.customers.filter(c => c.currentStatusId === id).length;
+      if (inUse > 0) {
+        return { success: false, message: `Đang có ${inUse} khách ở trạng thái này — tắt sẽ khiến Sale không chọn được nữa (dữ liệu cũ vẫn giữ). Chuyển khách sang trạng thái khác trước.`, code: 'IN_USE' };
+      }
+    }
+    const statuses = db.statuses.map(s => (s.id === id ? { ...s, isActive: !s.isActive, updatedAt: vnStamp() } : s));
+    commitStatuses(statuses, 'customer_status.toggle', id, current.isActive ? 'active' : 'inactive', current.isActive ? 'inactive' : 'active');
+    return { success: true, message: current.isActive ? `Đã tắt "${current.name}".` : `Đã bật "${current.name}".`, code: 'OK' };
+  }, [canConfigStatuses, db.statuses, db.customers, commitStatuses]);
+
+  const moveStatus = useCallback((id: string, dir: -1 | 1): CrmActionResult => {
+    if (!canConfigStatuses) return { success: false, message: 'Chỉ Admin được cấu hình trạng thái.', code: 'FORBIDDEN' };
+    const sorted = [...db.statuses].sort((a, b) => a.sortOrder - b.sortOrder);
+    const idx = sorted.findIndex(s => s.id === id);
+    if (idx < 0) return { success: false, message: 'Trạng thái không tồn tại.', code: 'NOT_FOUND' };
+    const swapIdx = idx + dir;
+    if (swapIdx < 0 || swapIdx >= sorted.length) return { success: false, message: 'Đã ở vị trí đầu/cuối.', code: 'NO_CHANGE' };
+
+    [sorted[idx], sorted[swapIdx]] = [sorted[swapIdx], sorted[idx]];
+    const renumbered = sorted.map((s, i) => ({ ...s, sortOrder: i + 1 }));
+    commitStatuses(renumbered, 'customer_status.reorder', id);
+    return { success: true, message: 'Đã đổi thứ tự.', code: 'OK' };
+  }, [canConfigStatuses, db.statuses, commitStatuses]);
+
+  /* ---------- 54.5 / 54.6 — Lịch sử & Timeline ---------- */
+
+  const getStatusHistory = useCallback((customerId: string) => {
+    return db.history
+      .filter(h => h.customerId === customerId)
+      .sort((a, b) => parseVn(b.createdAt) - parseVn(a.createdAt));
+  }, [db.history]);
+
+  /** Gộp Status + Assignment + Note + Order + Payment thành một timeline (54.6). */
+  const getTimeline = useCallback((customerId: string): TimelineEvent[] => {
+    const customer = db.customers.find(c => c.id === customerId);
+
+    const fromStatus: TimelineEvent[] = db.history
+      .filter(h => h.customerId === customerId)
+      .map(h => {
+        const st = statusById[h.newStatusId];
+        const old = h.oldStatusId ? statusById[h.oldStatusId] : null;
+        return {
+          id: h.id,
+          customerId,
+          kind: h.channel === 'SYSTEM' ? 'SYSTEM' : 'STATUS',
+          title: st?.name || h.newStatusId,
+          detail: h.note || (old ? `Chuyển từ "${old.name}"` : undefined),
+          actorName: h.changedByName,
+          actorRole: h.channel === 'SYSTEM' ? 'SYSTEM' : h.changedByRole,
+          createdAt: h.createdAt,
+          statusColor: st?.color,
+        } as TimelineEvent;
+      });
+
+    const fromEvents = db.events.filter(e => e.customerId === customerId);
+
+    // 54.11 — Order/Payment là hệ trạng thái ĐỘC LẬP, chỉ được nối vào timeline để đối chiếu.
+    const fromOrders: TimelineEvent[] = [];
+    if (customer?.linkedUserPhone || customer?.phone) {
+      const phone = customer.linkedUserPhone || customer.phone;
+      platformOrders
+        .filter(o => o.userId === phone)
+        .forEach(o => {
+          fromOrders.push({
+            id: `tl-ord-${o.id}`,
+            customerId,
+            kind: 'ORDER',
+            title: `Đơn hàng ${o.orderNumber}`,
+            detail: `${o.productName} · ${o.total.toLocaleString('vi-VN')}đ · Order status: ${o.status}`,
+            actorName: 'Hệ thống bán hàng',
+            actorRole: 'SYSTEM',
+            createdAt: o.createdAt,
+          });
+          if (o.status === 'COMPLETED') {
+            fromOrders.push({
+              id: `tl-pay-${o.id}`,
+              customerId,
+              kind: 'PAYMENT',
+              title: 'Thanh toán thành công',
+              detail: `${o.total.toLocaleString('vi-VN')}đ qua ${o.paymentMethod}`,
+              actorName: 'Cổng thanh toán',
+              actorRole: 'SYSTEM',
+              createdAt: o.updatedAt || o.createdAt,
+            });
+          }
+        });
+    }
+
+    return [...fromStatus, ...fromEvents, ...fromOrders]
+      .sort((a, b) => parseVn(b.createdAt) - parseVn(a.createdAt));
+  }, [db.history, db.events, db.customers, statusById, platformOrders]);
+
+  /* ---------- 54.9 — Thống kê khách theo trạng thái ---------- */
+
+  const statusDistribution = useCallback((salePhone?: string) => {
+    const pool = salePhone
+      ? visibleCustomers.filter(c => c.assignedSalePhone === salePhone)
+      : visibleCustomers;
+    const counts: Record<string, number> = {};
+    pool.forEach(c => { counts[c.currentStatusId] = (counts[c.currentStatusId] || 0) + 1; });
+    return [...db.statuses]
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map(status => ({ status, count: counts[status.id] || 0 }));
+  }, [visibleCustomers, db.statuses]);
+
+  /* ---------- 54.10 — Báo cáo theo Sale ---------- */
+
+  const salePerformance = useCallback(() => {
+    const scope = me?.scopeSalePhones === 'ALL'
+      ? CRM_STAFF.filter(s => s.role === 'SALE').map(s => s.phone)
+      : (me?.scopeSalePhones as string[]) || [];
+
+    return scope.map(phone => {
+      const staff = CRM_STAFF.find(s => s.phone === phone);
+      const mine = visibleCustomers.filter(c => c.assignedSalePhone === phone);
+      const byStatus: Record<string, number> = {};
+      let won = 0, lost = 0;
+      mine.forEach(c => {
+        byStatus[c.currentStatusId] = (byStatus[c.currentStatusId] || 0) + 1;
+        const kind = statusById[c.currentStatusId]?.kind;
+        if (kind === 'WON') won++;
+        else if (kind === 'LOST') lost++;
+      });
+      return {
+        phone,
+        name: staff?.name || phone,
+        leaderPhone: staff?.leaderPhone,
+        total: mine.length,
+        byStatus,
+        won,
+        lost,
+        conversion: mine.length ? (won / mine.length) * 100 : 0,
+      };
+    }).sort((a, b) => b.total - a.total);
+  }, [me, visibleCustomers, statusById]);
+
+  /* ---------- Notification & settings ---------- */
+
+  const myNotifications = useMemo(
+    () => (me ? db.notifications.filter(n => n.recipientPhone === me.phone) : []),
+    [db.notifications, me],
+  );
+  const unreadCount = myNotifications.filter(n => !n.read).length;
+
+  const markNotificationsRead = useCallback(() => {
+    if (!me) return;
+    const next: CrmDb = {
+      ...db,
+      notifications: db.notifications.map(n => (n.recipientPhone === me.phone ? { ...n, read: true } : n)),
+    };
+    setDb(next);
+    persist(next);
+  }, [db, me, persist]);
+
+  const updateSettings = useCallback((data: Partial<CrmSettings>) => {
+    if (!me?.isAdmin) return;
+    const next: CrmDb = { ...db, settings: { ...db.settings, ...data } };
+    setDb(next);
+    persist(next, { id: `ev-${Date.now()}`, type: 'STATUS_CONFIG_CHANGED', actorName: me.name, actorRole: me.role, at: vnStamp() });
+  }, [db, me, persist]);
+
+  const resetCrmData = useCallback(() => {
+    if (!me?.isAdmin) return;
+    setDb(INITIAL_DB);
+    persist(INITIAL_DB, { id: `ev-${Date.now()}`, type: 'STATUS_CONFIG_CHANGED', actorName: me.name, actorRole: me.role, at: vnStamp() });
+  }, [me, persist]);
+
+  const dismissLiveEvent = useCallback((id: string) => {
+    setLiveFeed(prev => prev.filter(e => e.id !== id));
+  }, []);
+
+  /** Toast tự tắt sau 6 giây. */
+  useEffect(() => {
+    if (liveFeed.length === 0) return;
+    const t = setTimeout(() => setLiveFeed(prev => prev.slice(0, -1)), 6000);
+    return () => clearTimeout(t);
+  }, [liveFeed]);
+
+  return (
+    <CrmContext.Provider value={{
+      db, me, visibleCustomers, statusById, activeStatuses,
+      staff: CRM_STAFF, teams: SALE_TEAMS,
+      liveFeed, unreadCount, myNotifications,
+      canUpdateStatus, canViewCustomer, canConfigStatuses,
+      updateCustomerStatus, addCustomerNote, assignCustomer,
+      createStatus, updateStatus, deleteStatus, toggleStatusActive, moveStatus,
+      getTimeline, getStatusHistory,
+      statusDistribution, salePerformance,
+      markNotificationsRead, updateSettings, resetCrmData, dismissLiveEvent,
+    }}>
+      {children}
+    </CrmContext.Provider>
+  );
+}
+
+export function useCrmStore() {
+  const ctx = useContext(CrmContext);
+  if (!ctx) throw new Error('useCrmStore must be used within a CrmProvider');
+  return ctx;
+}

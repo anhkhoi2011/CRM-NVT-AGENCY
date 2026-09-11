@@ -1,0 +1,23 @@
+Chạy CRM (có nhận webhook landing page) — DÙNG CÁCH NÀY:
+node docs/architecture/16-webhook-server.cjs
+http://localhost:4173/demo.html
+http://192.168.1.25:4173/demo.html
+
+Chạy CRM chỉ để xem giao diện (KHÔNG nhận được webhook):
+python -m http.server 4173
+python -m http.server 4173 --bind 0.0.0.0
+
+| Admin – Start | `0933445566` | `admin123` |
+| Leader | `0977000001` | `leader123` |
+| Sale | `0966000001` | `sale123` |
+
+Webhook landing page (LadiPage):
+- URL dán vào LadiPage: https://nvtagency.vn/api/data-sources/webhook/ds-1789015513831-ZPKFFVK9S9A/
+- Test trên máy này:     http://localhost:4173/api/data-sources/webhook/ds-1789015513831-ZPKFFVK9S9A/
+- Mỗi website có một mã riêng, xem và tạo mã trong CRM → mục Websites.
+- Chỉ lấy họ tên + SĐT + email. Data rơi vào Chia Leader → Thứ tự data mới vào.
+- Chi tiết cấu hình: docs/architecture/19-ladipage-webhook-setup.md
+
+Kiểm tra tự động:
+node docs/architecture/17-webhook-server-test.cjs     (server webhook)
+node docs/architecture/18-webhook-consumer-test.cjs   (nối thật server ↔ CRM)

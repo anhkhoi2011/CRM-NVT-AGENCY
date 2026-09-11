@@ -1,0 +1,360 @@
+[
+  {
+    "id": "WHE-1789030324116-D815AB",
+    "slug": "DS-1789015513831-ZPKFFVK9S9A",
+    "receivedAt": "2026-09-10 15:52",
+    "contentType": "application/json",
+    "status": "INVALID",
+    "problems": [
+      "thiếu họ tên",
+      "số điện thoại không hợp lệ"
+    ],
+    "matchedKeys": {
+      "name": "",
+      "phone": "",
+      "email": "Email"
+    },
+    "customer": {
+      "name": "",
+      "phone": "",
+      "email": "tructiep@gmail.com"
+    },
+    "raw": {
+      "H? v� t�n": "Ki?m Tra Tr?c Ti?p",
+      "S? di?n tho?i": "0912999888",
+      "Email": "tructiep@gmail.com",
+      "IP": "203.0.113.77",
+      "utm_source": "facebook",
+      "ladi_form_id": "FORM-9"
+    },
+    "dedupeKey": "5bea4a8c90ce863df56f7839f2478d03d60b3dcc911a219de63a6d73df0cc1c0",
+    "retryCount": 1,
+    "consumedAt": ""
+  },
+  {
+    "id": "WHE-1789030324392-BF5DCA",
+    "slug": "DS-1789015513831-ZPKFFVK9S9A",
+    "receivedAt": "2026-09-10 15:52",
+    "contentType": "application/x-www-form-urlencoded",
+    "status": "INVALID",
+    "problems": [
+      "thiếu họ tên"
+    ],
+    "matchedKeys": {
+      "name": "",
+      "phone": "phone",
+      "email": ""
+    },
+    "customer": {
+      "name": "",
+      "phone": "0912777666",
+      "email": ""
+    },
+    "raw": {
+      "phone": "0912777666"
+    },
+    "dedupeKey": "d93b10c3375f7f3c5029c801e662f9714045b862a510fa645a2a691213382fb6",
+    "retryCount": 0,
+    "consumedAt": ""
+  },
+  {
+    "id": "WHE-1789030324968-2F6B85",
+    "slug": "DS-1789015513831-ZPKFFVK9S9A",
+    "receivedAt": "2026-09-10 15:52",
+    "contentType": "application/json",
+    "status": "INVALID",
+    "problems": [
+      "thiếu họ tên"
+    ],
+    "matchedKeys": {
+      "name": "",
+      "phone": "phone",
+      "email": ""
+    },
+    "customer": {
+      "name": "",
+      "phone": "0912555444",
+      "email": ""
+    },
+    "raw": {
+      "phone": "0912555444"
+    },
+    "dedupeKey": "19fd9217620338dee3849182ae8bb9a5f55dd08ed8cf34a92be1ba5279b54153",
+    "retryCount": 0,
+    "consumedAt": ""
+  },
+  {
+    "id": "WHE-1789030416630-5F1547",
+    "slug": "DS-1789015513831-ZPKFFVK9S9A",
+    "receivedAt": "2026-09-10 15:53",
+    "contentType": "application/json",
+    "status": "NEW",
+    "problems": [],
+    "matchedKeys": {
+      "name": "Họ và tên",
+      "phone": "Số điện thoại",
+      "email": "Email"
+    },
+    "customer": {
+      "name": "Kiểm Tra Trực Tiếp",
+      "phone": "0912999888",
+      "email": "tructiep@gmail.com"
+    },
+    "raw": {
+      "Họ và tên": "Kiểm Tra Trực Tiếp",
+      "Số điện thoại": "0912999888",
+      "Email": "tructiep@gmail.com",
+      "IP": "203.0.113.77",
+      "utm_source": "facebook",
+      "ladi_form_id": "FORM-9"
+    },
+    "dedupeKey": "84f7e2602a5a814e9e8f04d7f32a74ea08f658b7a667406382d6b7f9036f8ec4",
+    "retryCount": 0,
+    "consumedAt": ""
+  },
+  {
+    "id": "WHE-1789039738575-C3B261",
+    "slug": "DS-1789902464947-TN30ESRUIJM",
+    "receivedAt": "2026-09-10 18:28",
+    "contentType": "application/json",
+    "status": "NEW",
+    "problems": [],
+    "matchedKeys": {
+      "name": "Họ và Tên",
+      "phone": "Số Điện Thoại",
+      "email": "Email"
+    },
+    "customer": {
+      "name": "sdfs",
+      "phone": "0964582173",
+      "email": "ngokhoi2ds4@gmail.com"
+    },
+    "raw": {
+      "Họ và Tên": "sdfs",
+      "Email": "ngokhoi2ds4@gmail.com",
+      "Số Điện Thoại": "0964582173",
+      "ladi_form_id": "FORM2357",
+      "ip": "171.243.48.28",
+      "message_id": "7af41379-ad45-11f1-9555-bf55e70d36eb",
+      "message_time": "1789064935236",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
+      "data_fbp": "fb.1.1789017979762.745211657584544981",
+      "event_id": "ladi.1789039733676.55612093599",
+      "link": "https://www.hoangphucacademy.vn/",
+      "url_page": "https://www.hoangphucacademy.vn/"
+    },
+    "dedupeKey": "aa5294cceb8bc33fe1acc9694f8a2d42be31270d7c33954661840779193db585",
+    "retryCount": 0,
+    "consumedAt": ""
+  },
+  {
+    "id": "WHE-1789041658945-DFFD7C",
+    "slug": "DS-1789902464947-TN30ESRUIJM",
+    "receivedAt": "2026-09-10 19:00",
+    "contentType": "application/json",
+    "status": "NEW",
+    "problems": [],
+    "matchedKeys": {
+      "name": "Họ và Tên",
+      "phone": "Số Điện Thoại",
+      "email": "Email"
+    },
+    "customer": {
+      "name": "1",
+      "phone": "0964582173",
+      "email": "ngokhoi2ds4@gmail.com"
+    },
+    "raw": {
+      "Họ và Tên": "1",
+      "Email": "ngokhoi2ds4@gmail.com",
+      "Số Điện Thoại": "0964582173",
+      "ladi_form_id": "FORM2357",
+      "ip": "171.243.48.28",
+      "message_id": "f5170c21-ad49-11f1-8f53-923715931d50",
+      "message_time": "1789066858134",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
+      "data_fbp": "fb.1.1789017979762.745211657584544981",
+      "event_id": "ladi.1789041656588.48768302831",
+      "link": "https://www.hoangphucacademy.vn/",
+      "url_page": "https://www.hoangphucacademy.vn/"
+    },
+    "dedupeKey": "ace9a6025c8bf1bce07bae9014a5452d9717239f00dcd77eab195c731120816d",
+    "retryCount": 0,
+    "consumedAt": ""
+  },
+  {
+    "id": "WHE-1789041701681-52EB92",
+    "slug": "DS-1789902464947-TN30ESRUIJM",
+    "receivedAt": "2026-09-10 19:01",
+    "contentType": "application/json",
+    "status": "NEW",
+    "problems": [],
+    "matchedKeys": {
+      "name": "Họ và Tên",
+      "phone": "Số Điện Thoại",
+      "email": "Email"
+    },
+    "customer": {
+      "name": "1",
+      "phone": "0964582173",
+      "email": "ngokhoi2ds4@gmail.com"
+    },
+    "raw": {
+      "Họ và Tên": "1",
+      "Email": "ngokhoi2ds4@gmail.com",
+      "Số Điện Thoại": "0964582173",
+      "ladi_form_id": "FORM2358",
+      "ip": "171.243.48.28",
+      "message_id": "0f52922b-ad4a-11f1-b124-fda9b375b751",
+      "message_time": "1789066902145",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
+      "data_fbp": "fb.1.1789017979762.745211657584544981",
+      "event_id": "ladi.1789041700596.58723301668",
+      "link": "https://www.hoangphucacademy.vn/",
+      "url_page": "https://www.hoangphucacademy.vn/"
+    },
+    "dedupeKey": "b2dd4e1c1db4b99f346fe4884ab06244985b6a392b1e57adeb5824e00097beb0",
+    "retryCount": 0,
+    "consumedAt": ""
+  },
+  {
+    "id": "WHE-1789041739101-210EBA",
+    "slug": "DS-1789902464947-TN30ESRUIJM",
+    "receivedAt": "2026-09-10 19:02",
+    "contentType": "application/json",
+    "status": "NEW",
+    "problems": [],
+    "matchedKeys": {
+      "name": "Họ và Tên",
+      "phone": "Số Điện Thoại",
+      "email": "Email"
+    },
+    "customer": {
+      "name": "123452",
+      "phone": "0964586573",
+      "email": "ngokhoi2ds4@gmail.com"
+    },
+    "raw": {
+      "Họ và Tên": "123452",
+      "Email": "ngokhoi2ds4@gmail.com",
+      "Số Điện Thoại": "0964586573",
+      "ladi_form_id": "FORM2358",
+      "ip": "171.243.48.28",
+      "message_id": "241e3f16-ad4a-11f1-a5cf-09e549a0b715",
+      "message_time": "1789066937034",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
+      "data_fbp": "fb.1.1789017979762.745211657584544981",
+      "event_id": "ladi.1789041735482.55013506373",
+      "link": "https://www.hoangphucacademy.vn/",
+      "url_page": "https://www.hoangphucacademy.vn/"
+    },
+    "dedupeKey": "44b385ce67f52c497c7697f20aa35da60566953e55ec3afc2d5b418a38fd7f37",
+    "retryCount": 0,
+    "consumedAt": ""
+  },
+  {
+    "id": "WHE-1789041754310-E83CAB",
+    "slug": "DS-1789902464947-TN30ESRUIJM",
+    "receivedAt": "2026-09-10 19:02",
+    "contentType": "application/json",
+    "status": "NEW",
+    "problems": [],
+    "matchedKeys": {
+      "name": "Họ và Tên",
+      "phone": "Số Điện Thoại",
+      "email": "Email"
+    },
+    "customer": {
+      "name": "123452",
+      "phone": "0964586573",
+      "email": "ngokhd@gmail.com"
+    },
+    "raw": {
+      "Họ và Tên": "123452",
+      "Email": "ngokhd@gmail.com",
+      "Số Điện Thoại": "0964586573",
+      "ladi_form_id": "FORM2358",
+      "ip": "171.243.48.28",
+      "message_id": "2cdd5286-ad4a-11f1-8af1-45e6826ee4b3",
+      "message_time": "1789066951708",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
+      "data_fbp": "fb.1.1789017979762.745211657584544981",
+      "event_id": "ladi.1789041750155.60383312577",
+      "link": "https://www.hoangphucacademy.vn/",
+      "url_page": "https://www.hoangphucacademy.vn/"
+    },
+    "dedupeKey": "2afdd1d1fdf0b78e83967ddd6422e979c9e9479a7527e4c8b601dda4188618b3",
+    "retryCount": 0,
+    "consumedAt": ""
+  },
+  {
+    "id": "WHE-1789041794887-364397",
+    "slug": "DS-1789902464947-TN30ESRUIJM",
+    "receivedAt": "2026-09-10 19:03",
+    "contentType": "application/json",
+    "status": "NEW",
+    "problems": [],
+    "matchedKeys": {
+      "name": "Họ và Tên",
+      "phone": "Số Điện Thoại",
+      "email": "Email"
+    },
+    "customer": {
+      "name": "123452sa",
+      "phone": "0961286573",
+      "email": "ngoa@gmail.com"
+    },
+    "raw": {
+      "Họ và Tên": "123452sa",
+      "Email": "ngoa@gmail.com",
+      "Số Điện Thoại": "0961286573",
+      "ladi_form_id": "FORM2358",
+      "ip": "171.243.48.28",
+      "message_id": "455a0df0-ad4a-11f1-9800-bbe03f08238a",
+      "message_time": "1789066992791",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
+      "data_fbp": "fb.1.1789017979762.745211657584544981",
+      "event_id": "ladi.1789041791239.14180324809",
+      "link": "https://www.hoangphucacademy.vn/",
+      "url_page": "https://www.hoangphucacademy.vn/"
+    },
+    "dedupeKey": "c1c0b78b41b0f54aff236ba5e5f2a788f333416176e1cb7fbaf7d28c38fc1628",
+    "retryCount": 0,
+    "consumedAt": ""
+  },
+  {
+    "id": "WHE-1789042299057-912BAF",
+    "slug": "DS-1789902464947-TN30ESRUIJM",
+    "receivedAt": "2026-09-10 19:11",
+    "contentType": "application/json",
+    "status": "NEW",
+    "problems": [],
+    "matchedKeys": {
+      "name": "Họ và Tên",
+      "phone": "Số Điện Thoại",
+      "email": "Email"
+    },
+    "customer": {
+      "name": "123452sa",
+      "phone": "0961223473",
+      "email": "ngoasdfsd@gmail.com"
+    },
+    "raw": {
+      "Họ và Tên": "123452sa",
+      "Email": "ngoasdfsd@gmail.com",
+      "Số Điện Thoại": "0961223473",
+      "ladi_form_id": "FORM2358",
+      "ip": "171.243.48.28",
+      "message_id": "71b5d7f2-ad4b-11f1-8862-76c76524b7a6",
+      "message_time": "1789067496709",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36",
+      "data_fbp": "fb.1.1789017979762.745211657584544981",
+      "event_id": "ladi.1789042295147.73795950803",
+      "link": "https://www.hoangphucacademy.vn/",
+      "url_page": "https://www.hoangphucacademy.vn/"
+    },
+    "dedupeKey": "76cb2a270bbb2bd4a9a2ca1949a0e0719dc27c6752727a9c880e2a41a441c9ec",
+    "retryCount": 0,
+    "consumedAt": ""
+  }
+]

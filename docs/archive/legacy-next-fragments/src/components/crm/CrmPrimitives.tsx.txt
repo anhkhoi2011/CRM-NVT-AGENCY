@@ -1,0 +1,134 @@
+'use client';
+
+/**
+ * CRM — UI primitives dùng chung cho mọi Role.
+ * Vị trí thật trong project: src/components/crm/CrmPrimitives.tsx
+ *
+ * Nguyên tắc dataviz áp dụng ở đây:
+ *  - Badge trạng thái = chấm màu + CHỮ, không bao giờ chỉ dựa vào màu.
+ *  - Text luôn dùng token chữ (slate/navy), không mang màu series.
+ */
+
+import React from 'react';
+import { AlertTriangle, CheckCircle2, Info, XCircle } from 'lucide-react';
+import { CustomerStatus, CrmRole, StatusKind } from '@/lib/crm-types';
+
+export const crmCard = 'bg-white dark:bg-slate-900 rounded-2xl border border-borderSoft dark:border-slate-800';
+export const crmTh = 'px-4 py-3 text-left text-[10px] font-extrabold uppercase tracking-wider text-slate-400 dark:text-slate-500';
+export const crmTd = 'px-4 py-3';
+export const crmInput = 'w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-brand-500';
+
+export const ROLE_LABEL: Record<string, string> = {
+  SUPER_ADMIN: 'Super Admin',
+  ADMIN: 'Admin',
+  LEADER: 'Leader',
+  SALE: 'Sale',
+  USER: 'Khách hàng',
+  SYSTEM: 'Hệ thống',
+};
+
+/** Chip vai trò — dùng màu nền nhạt cố định theo role (UI chrome, không phải màu dữ liệu). */
+export function RoleChip({ role, className = '' }: { role: CrmRole | 'SYSTEM'; className?: string }) {
+  const tone: Record<string, string> = {
+    SUPER_ADMIN: 'bg-purple-50 text-purple-700 dark:bg-purple-500/10 dark:text-purple-300',
+    ADMIN: 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300',
+    LEADER: 'bg-cyan-50 text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-300',
+    SALE: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300',
+    USER: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
+    SYSTEM: 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400',
+  };
+  return (
+    <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full whitespace-nowrap ${tone[role] || tone.USER} ${className}`}>
+      {ROLE_LABEL[role] || role}
+    </span>
+  );
+}
+
+/**
+ * Badge trạng thái khách hàng. Màu do Admin cấu hình (54.1) và luôn đi kèm tên
+ * trạng thái, nên màu chỉ là kênh phụ — người mù màu vẫn đọc được.
+ */
+export function CustomerStatusBadge({ status, size = 'sm' }: { status?: CustomerStatus; size?: 'sm' | 'md' }) {
+  if (!status) {
+    return <span className="text-[11px] font-semibold text-slate-400">— chưa có trạng thái —</span>;
+  }
+  const pad = size === 'md' ? 'px-3 py-1.5 text-xs' : 'px-2.5 py-1 text-[11px]';
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full font-bold whitespace-nowrap bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 ${pad} ${status.isActive ? '' : 'opacity-60'}`}
+      title={status.description || status.name}
+    >
+      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: status.color }} aria-hidden />
+      {status.name}
+      {!status.isActive && <span className="text-[9px] font-extrabold text-slate-400">(đã tắt)</span>}
+    </span>
+  );
+}
+
+/** Nhãn nhóm nghiệp vụ — icon + chữ (status token không bao giờ chỉ có màu). */
+export function KindTag({ kind }: { kind: StatusKind }) {
+  const map: Record<StatusKind, { label: string; cls: string; Icon: React.ElementType }> = {
+    PIPELINE: { label: 'Đang chạy', cls: 'text-blue-700 bg-blue-50 dark:text-blue-300 dark:bg-blue-500/10', Icon: Info },
+    WON: { label: 'Chốt được', cls: 'text-emerald-700 bg-emerald-50 dark:text-emerald-300 dark:bg-emerald-500/10', Icon: CheckCircle2 },
+    LOST: { label: 'Mất khách', cls: 'text-rose-700 bg-rose-50 dark:text-rose-300 dark:bg-rose-500/10', Icon: XCircle },
+    NEUTRAL: { label: 'Trung tính', cls: 'text-amber-700 bg-amber-50 dark:text-amber-300 dark:bg-amber-500/10', Icon: AlertTriangle },
+  };
+  const { label, cls, Icon } = map[kind];
+  return (
+    <span className={`inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full ${cls}`}>
+      <Icon className="w-3 h-3" aria-hidden /> {label}
+    </span>
+  );
+}
+
+/** Stat tile — label thường, value đậm, delta có dấu. Không dùng tabular-nums cho số lớn. */
+export function StatTile({ label, value, sub, tone = 'default' }: {
+  label: string; value: string; sub?: string; tone?: 'default' | 'good' | 'warn' | 'bad';
+}) {
+  const valueTone: Record<string, string> = {
+    default: 'text-navy-900 dark:text-white',
+    good: 'text-emerald-700 dark:text-emerald-400',
+    warn: 'text-amber-700 dark:text-amber-400',
+    bad: 'text-rose-700 dark:text-rose-400',
+  };
+  return (
+    <div className={`${crmCard} p-4`}>
+      <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{label}</div>
+      <div className={`text-2xl font-black tracking-tight mt-1 ${valueTone[tone]}`}>{value}</div>
+      {sub && <div className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">{sub}</div>}
+    </div>
+  );
+}
+
+/** Thông báo kết quả hành động — icon + chữ. */
+export function ResultBanner({ result, onClose }: {
+  result: { success: boolean; message: string } | null;
+  onClose?: () => void;
+}) {
+  if (!result) return null;
+  const good = result.success;
+  return (
+    <div
+      role="status"
+      className={`flex items-start gap-2.5 p-3 rounded-2xl text-xs font-medium ${
+        good
+          ? 'bg-emerald-50 border border-emerald-200 text-emerald-800 dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-300'
+          : 'bg-rose-50 border border-rose-200 text-rose-800 dark:bg-rose-500/10 dark:border-rose-500/30 dark:text-rose-300'}`}
+    >
+      {good ? <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" /> : <XCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />}
+      <span className="flex-1">{result.message}</span>
+      {onClose && (
+        <button onClick={onClose} className="text-[10px] font-extrabold underline opacity-70 hover:opacity-100">Đóng</button>
+      )}
+    </div>
+  );
+}
+
+export function CrmEmpty({ text }: { text: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-12 gap-2 text-slate-400 dark:text-slate-500">
+      <Info className="w-6 h-6" />
+      <div className="text-sm font-semibold">{text}</div>
+    </div>
+  );
+}
