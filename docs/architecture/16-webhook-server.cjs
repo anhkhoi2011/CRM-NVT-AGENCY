@@ -9,7 +9,7 @@
  *  2. Nhận data landing page thật tại:
  *        POST /api/data-sources/webhook/ds-<13 số>-<11 ký tự A-Z0-9>/
  *     LadiPage gọi endpoint này. Data được ghi vào inbox bất biến trên đĩa,
- *     CRM (14-crm-complete-demo.js) đọc inbox rồi đưa vào Chia Leader.
+ *     CRM (14-crm-complete.js) đọc inbox rồi đưa vào Chia Leader.
  *
  * Không có dependency ngoài. Node >= 18 (dùng fetch/global có sẵn).
  */
@@ -509,7 +509,9 @@ function handleSessionContext(request, response) {
 
 async function serveStatic(request, response, urlPathname) {
   const decoded = decodeURIComponent(urlPathname);
-  let relative = decoded === '/' ? '/demo.html' : decoded;
+  let relative = decoded === '/' ? '/index.html' : decoded;
+  if (relative === '/demo.html') relative = '/index.html';
+  if (relative === '/docs/architecture/14-crm-complete-demo.html') relative = '/docs/architecture/14-crm-complete.html';
   const absolute = path.resolve(REPO_ROOT, `.${path.posix.normalize(relative)}`);
 
   // Chặn path traversal: phải nằm trong REPO_ROOT.
@@ -521,7 +523,7 @@ async function serveStatic(request, response, urlPathname) {
   try {
     const stat = await fsp.stat(absolute);
     if (stat.isDirectory()) {
-      return serveStatic(request, response, `${relative.replace(/\/$/, '')}/demo.html`);
+      return serveStatic(request, response, `${relative.replace(/\/$/, '')}/index.html`);
     }
     const extension = path.extname(absolute).toLowerCase();
     const body = await fsp.readFile(absolute);
@@ -622,3 +624,4 @@ function warnShadowed() {
 }
 
 // selfCheckHealth() được gọi trong callback của server.listen — gọi ở đây sẽ đua với bind.
+

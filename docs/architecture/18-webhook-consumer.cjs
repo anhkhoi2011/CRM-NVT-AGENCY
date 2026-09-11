@@ -1,15 +1,15 @@
 /**
  * Test END-TO-END cho luồng landing page → CRM.
- * Chạy: node docs/architecture/18-webhook-consumer-test.cjs
+ * Chạy: node docs/architecture/18-webhook-consumer.cjs
  *
- * Khác 17-webhook-server-test.cjs (chỉ thử server), file này nối THẬT hai nửa:
+ * Khác 17-webhook-server.cjs (chỉ thử server), file này nối THẬT hai nửa:
  *   1. spawn 16-webhook-server.cjs và POST payload đúng kiểu LadiPage
- *   2. nạp 14-crm-complete-demo.js vào vm sandbox với fetch trỏ vào server đó
+ *   2. nạp 14-crm-complete.js vào vm sandbox với fetch trỏ vào server đó
  *   3. đăng nhập Admin, chạy pullWebhookInbox(), kiểm tra khách có vào
  *      hàng chờ "Chia Leader → Thứ tự data mới vào" hay không
  *
  * Không có jsdom, không có dependency: dùng lại đúng DOM shim của
- * 14-crm-smoke-test.cjs.
+ * 14-crm-smoke.cjs.
  *
  * Mọi test chạy trên CÙNG một server nên inbox dồn dần. `bootDemo()` vì thế
  * luôn "prime" cursor + vòng consumed bằng toàn bộ inbox hiện có trước, rồi
@@ -26,16 +26,16 @@ const path = require('node:path');
 const vm = require('node:vm');
 
 const SERVER = path.join(__dirname, '16-webhook-server.cjs');
-const DEMO = path.join(__dirname, '14-crm-complete-demo.js');
+const DEMO = path.join(__dirname, '14-crm-complete.js');
 const PORT = 4198;
 const BASE = `http://127.0.0.1:${PORT}`;
 const inboxFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'crm-e2e-')), 'inbox.json');
 
-const CURSOR_KEY = 'nvt-crm-webhook-cursor-v1';
-const CONSUMED_KEY = 'nvt-crm-webhook-consumed-v1';
+const CURSOR_KEY = 'nvt-crm-webhook-cursor-v2';
+const CONSUMED_KEY = 'nvt-crm-webhook-consumed-v2';
 
-const SLUG_WEB1 = 'ds-1789015513831-ZPKFFVK9S9A'; // của website WEB-1 trong seed
-const SLUG_WEB2 = 'ds-1789015514002-QM7TXB4KD2R'; // của website WEB-2 trong seed
+const SLUG_WEB1 = 'ds-1789015513831-ZPKFFVK9S9A'; // của website WEB-NVT trong seed
+const SLUG_WEB2 = 'ds-1789902464947-TN30ESRUIJM'; // của website WEB-NVT-2 trong seed
 const SLUG_ORPHAN = 'ds-1789015599999-ORPHAN00001'; // hợp lệ nhưng không website nào nhận
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -124,7 +124,7 @@ function bootDemo(role = 'ADMIN') {
     URL: { createObjectURL: () => 'blob:test', revokeObjectURL() {} },
     window: {
       matchMedia: () => ({ matches: false }), addEventListener() {}, scrollTo() {},
-      confirm: () => true, location: { origin: BASE, href: `${BASE}/demo.html` }
+      confirm: () => true, location: { origin: BASE, href: `${BASE}/` }
     },
     // setTimeout PHẢI hoãn thật. Shim đồng bộ của smoke test sẽ làm vòng poll
     // tự nối lại thành chuỗi microtask không bao giờ nhường quyền điều khiển.
@@ -182,9 +182,9 @@ check('data LadiPage vào đúng hàng chờ "Chia Leader" của website khớp 
   assert.equal(customer.name, 'Nguyễn Landing Page');
   assert.equal(customer.phone, '0912001002');
   assert.equal(customer.email, 'landing@gmail.com');
-  assert.equal(customer.websiteId, 'WEB-1', 'phải quy đúng website theo mã webhook');
+  assert.equal(customer.websiteId, 'WEB-NVT', 'phải quy đúng website theo mã webhook');
   assert.equal(customer.source, 'Landing Page');
-  assert.equal(customer.note, 'Data từ nvtagency.vn', 'note mặc định theo domain, không chứa slug');
+  assert.equal(customer.note, 'Data từ nvtagency.top', 'note mặc định theo domain, không chứa slug');
   assert.ok(!customer.note.includes(SLUG_WEB1.toUpperCase()), 'slug là khóa truy cập — không được vào note');
 
   // Quy tắc đã chốt: landing page KHÔNG thu IP.
@@ -227,17 +227,17 @@ check('mã webhook không khớp website nào → hàng UNATTRIBUTED, không t�
   assert.equal(run('webhookPending[0].customer.name'), 'Khách Không Nguồn');
   // Slug là khóa truy cập: không được rơi vào audit log.
   assert.ok(!run('JSON.stringify(state.audit)').includes(SLUG_ORPHAN.toUpperCase()), 'slug không được xuất hiện trong audit log');
-  assert.ok(demo.localStorage.getItem('nvt-crm-webhook-pending-v1').includes(SLUG_ORPHAN.toUpperCase()), 'hàng chờ phải được persist để không mất khi reload');
+  assert.ok(demo.localStorage.getItem('nvt-crm-webhook-pending-v2').includes(SLUG_ORPHAN.toUpperCase()), 'hàng chờ phải được persist để không mất khi reload');
 
-  // Admin quy nguồn thủ công vào WEB-2 → khách vào hàng chờ.
-  run("resolveWebhookPending(webhookPending[0].id, 'WEB-2')");
+  // Admin quy nguồn thủ công vào WEB-NVT-2 → khách vào hàng chờ.
+  run("resolveWebhookPending(webhookPending[0].id, 'WEB-NVT-2')");
   assert.equal(run('webhookPending.length'), 0);
   const resolved = newest(run);
   assert.equal(resolved.name, 'Khách Không Nguồn');
-  assert.equal(resolved.websiteId, 'WEB-2');
+  assert.equal(resolved.websiteId, 'WEB-NVT-2');
   assert.equal(resolved.source, 'Landing Page');
   assert.equal(resolved.ipAddress, 'Chưa xác định');
-  assert.equal(resolved.campaign, 'FB-DATA-09', 'phải theo campaignId của website được quy nguồn');
+  assert.equal(resolved.campaign, 'UNATTRIBUTED', 'website chưa có campaignId phải giữ UNATTRIBUTED');
   assert.equal(resolved.leaderId, null, 'quy nguồn rồi vẫn phải chờ chia Leader');
   assert.equal(inQueue(run, resolved.id), true);
   assert.equal(run('state.audit.some(item => item.action === "ASSIGN_WEBSITE_SOURCE")'), true);
@@ -293,7 +293,7 @@ check('x-www-form-urlencoded (content type MẶC ĐỊNH của LadiPage) vẫn v
   assert.equal(outcome.tally.created, 1, JSON.stringify(outcome));
   const customer = newest(run);
   assert.equal(customer.name, 'Lê Form Urlencoded');
-  assert.equal(customer.websiteId, 'WEB-1');
+  assert.equal(customer.websiteId, 'WEB-NVT');
   assert.equal(inQueue(run, customer.id), true);
 });
 
@@ -376,7 +376,7 @@ check('mục Websites hiện panel trạng thái đồng bộ webhook', async ()
   assert.ok(html.includes('16-webhook-server.cjs'), 'phải chỉ dẫn cách chạy server');
   // URL webhook vẫn hiện trong danh mục website như người dùng đã yêu cầu.
   assert.ok(html.includes(SLUG_WEB1), 'mã webhook phải hiện ở danh mục website');
-  assert.ok(html.includes(`https://apex.vn/api/data-sources/webhook/${SLUG_WEB1}/`), 'phải hiện URL công khai để dán vào LadiPage');
+  assert.ok(html.includes(`https://nvtagency.top/api/data-sources/webhook/${SLUG_WEB1}/`), 'phải hiện URL công khai để dán vào LadiPage');
   assert.ok(html.includes(`${BASE}/api/data-sources/webhook/${SLUG_WEB1}/`), 'phải hiện URL nội bộ để test trên máy này');
   assert.ok(html.includes('application/json'), 'phải nói rõ nhận application/json');
 });

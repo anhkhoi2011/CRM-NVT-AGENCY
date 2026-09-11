@@ -1,6 +1,6 @@
 ﻿'use strict';
 
-const STORAGE_KEY = 'nvt-crm-complete-v2';
+const STORAGE_KEY = 'nvt-crm-production-v1';
 const SESSION_KEY = 'nvt-crm-session-v1';
 const THEME_KEY = 'nvt-crm-theme-v1';
 
@@ -12,24 +12,11 @@ const ACCOUNTS = [
 
 const STAFF_SEED = [
   { id: 'l1', name: 'Phạm Thu Hà', role: 'LEADER', teamId: 'T2', initials: 'PH' },
-  { id: 'l2', name: 'Đoàn Thu Trang', role: 'LEADER', teamId: 'T3', initials: 'DT' },
-  { id: 's1', name: 'Nguyễn Thị Mai', role: 'SALE', teamId: 'T2', leaderId: 'l1', initials: 'NM', target: 95000000 },
-  { id: 's2', name: 'Lê Hoàng Long', role: 'SALE', teamId: 'T2', leaderId: 'l1', initials: 'LL', target: 85000000 },
-  { id: 's3', name: 'Vũ Hải Nam', role: 'SALE', teamId: 'T2', leaderId: 'l1', initials: 'VN', target: 80000000 },
-  { id: 's4', name: 'Trần Minh Khang', role: 'SALE', teamId: 'T3', leaderId: 'l2', initials: 'TK', target: 90000000 }
+  { id: 's1', name: 'Nguyễn Thị Mai', role: 'SALE', teamId: 'T2', leaderId: 'l1', initials: 'NM' }
 ];
 let STAFF = structuredClone(STAFF_SEED);
 
-let PRODUCTS = [
-  { id: 'p1', sku: 'ADS-TT-01', name: 'TikTok Ads Starter', category: 'Quảng cáo', price: 4500000 },
-  { id: 'p2', sku: 'WEB-LP-02', name: 'Landing Page Chuyển Đổi', category: 'Website', price: 6900000 },
-  { id: 'p3', sku: 'WEB-CORP-03', name: 'Website Doanh Nghiệp Pro', category: 'Website', price: 15800000 },
-  { id: 'p4', sku: 'CRM-SET-04', name: 'CRM Setup & Automation', category: 'CRM', price: 12500000 },
-  { id: 'p5', sku: 'SEO-CNT-05', name: 'SEO Content 20 Bài', category: 'Nội dung', price: 7800000 },
-  { id: 'p6', sku: 'ADS-FB-06', name: 'Facebook Ads Growth', category: 'Quảng cáo', price: 5900000 },
-  { id: 'p7', sku: 'AUTO-ZA-07', name: 'Zalo OA Automation', category: 'Automation', price: 8500000 },
-  { id: 'p8', sku: 'VID-TT-08', name: 'Video TikTok 12 Clip', category: 'Nội dung', price: 9600000 }
-];
+let PRODUCTS = [];
 
 const CUSTOMER_SEED = [
   { id: 'CUS-01024', name: 'Nguyễn Văn Minh', phone: '0901842161', email: 'minh.nguyen@gmail.com', source: 'TikTok Ads', campaign: 'TT-TRADING-09', status: 'CONSULTING', saleId: 's1', leaderId: 'l1', teamId: 'T2', createdAt: '2026-09-03 14:01', updatedAt: '2026-09-07 10:42', note: 'Đã hẹn gọi lại tối nay' },
@@ -96,20 +83,22 @@ CUSTOM_FIELD_SEED.forEach(field => field.options.forEach(option => {
 
 const NAVIGATION = {
   ADMIN: [
-    ['Vận hành', [['dashboard', 'Tổng quan', '◫'], ['customers', 'Khách hàng tổng', '♙'], ['distribution', 'Chia Leader', '⇄'], ['websites', 'Websites', '◇']]],
+    ['Vận hành', [['dashboard', 'Tổng quan', '◫'], ['customers', 'Khách hàng tổng', '♙'], ['distribution', 'Data', '⇄'], ['websites', 'Websites', '◇']]],
     ['Kinh doanh', [['orders', 'Đơn hàng', '▤'], ['products', 'Sản phẩm', '□'], ['revenue', 'Doanh thu', '₫'], ['marketing', 'Dữ liệu', '⌁']]],
     ['Tổ chức', [['team', 'Đội ngũ', '♧']]],
     ['Hệ thống', [['attendance', 'Điểm danh', '✓'], ['notifications', 'Thông báo', '●'], ['audit', 'User log', '◉'], ['settings', 'Cài đặt', '⚙']]]
   ],
   LEADER: [
     ['Vận hành', [['dashboard', 'Tổng quan đội', '◫'], ['customers', 'Khách hàng Team', '♙']]],
-    ['Kinh doanh', [['orders', 'Đơn hàng', '▤'], ['products', 'Sản phẩm', '□'], ['revenue', 'Doanh thu', '₫']]],
-    ['Đội nhóm', [['distribution', 'Chia Sale', '⇄'], ['team', 'Hiệu suất Sale', '♧'], ['attendance', 'Điểm danh', '✓'], ['notifications', 'Thông báo', '●']]]
+    ['Kinh doanh', [['orders', 'Đơn hàng', '▤'], ['revenue', 'Doanh thu', '₫']]],
+    ['Đội nhóm', [['team', 'Hiệu suất Sale', '♧'], ['care', 'Chăm sóc khách', '❦'], ['attendance', 'Điểm danh', '✓'], ['notifications', 'Thông báo', '●']]],
+    ['Cá nhân', [['profile', 'Hồ sơ của tôi', '●']]]
   ],
+  UNASSIGNED: [['Cá nhân', [['dashboard', 'Tổng quan', '◫'], ['profile', 'Hồ sơ của tôi', '●'], ['notifications', 'Thông báo', '●']]]],
   SALE: [
     ['Khách hàng của tôi', [['dashboard', 'Tổng quan', '◫'], ['customers', 'Khách của tôi', '♙'], ['accept', 'Data chờ nhận', '⤓']]],
-    ['Kinh doanh', [['orders', 'Đơn của tôi', '▤'], ['products', 'Sản phẩm đơn của tôi', '□'], ['revenue', 'Doanh thu của tôi', '₫']]],
-    ['Cá nhân', [['attendance', 'Điểm danh', '✓'], ['notifications', 'Thông báo', '●']]]
+    ['Kinh doanh', [['orders', 'Đơn của tôi', '▤'], ['revenue', 'Doanh thu của tôi', '₫']]],
+    ['Cá nhân', [['attendance', 'Điểm danh', '✓'], ['notifications', 'Thông báo', '●'], ['profile', 'Hồ sơ của tôi', '●']]]
   ]
 };
 
@@ -129,6 +118,7 @@ function shiftStamp(value, minutes) {
 }
 
 function makeOrders() {
+  if (!PRODUCTS.length) return [];
   const assigned = CUSTOMER_SEED.filter(customer => customer.saleId);
   return Array.from({ length: 46 }, (_, index) => {
     const customer = assigned[(index * 3 + 1) % assigned.length];
@@ -216,70 +206,51 @@ function defaultWebsiteIdForCustomer(customer) {
 }
 
 function initialState() {
-  const customers = CUSTOMER_SEED.map((customer, index) => ({ ...structuredClone(customer), websiteId: defaultWebsiteIdForCustomer(customer), customFields: seedCustomerCustomFields(index) }));
+  // Production starts empty; records arrive through the Sale/LadiPage import flow.
+  const customers = [];
   return {
-    version: 2,
+    version: 3,
     optionPaletteVersion: 2,
     members: structuredClone(STAFF_SEED),
-    registrations: [
-      { id: 'REG-1', name: 'Đinh Minh Anh', phone: '0911223344', email: 'minhanh@nvt.vn', requestedRole: 'SALE', teamId: 'T2', registeredAt: '2026-09-07 09:20', status: 'PENDING' },
-      { id: 'REG-2', name: 'Nguyễn Hoài An', phone: '0988776655', email: 'hoaian@nvt.vn', requestedRole: 'SALE', teamId: 'T3', registeredAt: '2026-09-06 15:10', status: 'PENDING' }
-    ],
+    registrations: [],
+    registeredAccounts: [],
+    disabledAccountIds: [],
     customFieldDefinitions: structuredClone(CUSTOM_FIELD_SEED),
     customers,
     customerFieldHistory: makeFieldHistory(customers),
     assignmentHistory: makeAssignmentHistory(customers),
     resubmissions: [],
     notes: makeCustomerNotes(),
-    imports: [
-      { id: 'IMP-1', source: 'Subdata', filename: 'subdata-data-september', records: 128, importedAt: '2026-09-07 08:30', actor: 'Start', status: 'SUCCESS' }
-    ],
-    products: structuredClone(PRODUCTS),
+    imports: [],
+    products: [],
     productCategories: ['Chỉ báo', 'Khóa học', 'Quảng cáo', 'Website', 'CRM', 'Automation', 'Nội dung', 'Dịch vụ khác'],
     attendance: [],
     dataOffers: [],
     orders: [],
-    traffic: makeTrafficEvents(),
-    tasks: makeTasks(),
-    notifications: [
-      { id: 'NT-1', role: 'OWN', saleId: 's1', title: 'Data mới từ TikTok Ads', text: 'Đặng Quốc Bảo vừa để lại thông tin tư vấn.', at: '2026-09-07 08:42', readBy: [] },
-      { id: 'NT-2', role: 'TEAM', teamId: 'T2', title: 'SLA sắp quá hạn', text: 'Có 2 data Team T2 cần liên hệ trong 30 phút.', at: '2026-09-07 09:20', readBy: [] },
-      { id: 'NT-3', role: 'OWN', saleId: 's1', title: 'Nhắc lịch gọi lại', text: 'Nguyễn Văn Minh hẹn gọi lại lúc 16:30.', at: '2026-09-07 10:00', readBy: [] },
-      { id: 'NT-4', role: 'ADMIN', title: 'Đối soát thanh toán', text: 'Có giao dịch chưa khớp cần Admin kiểm tra.', at: '2026-09-07 11:15', readBy: [] }
-    ],
-    audit: [
-      { id: 'AUD-1', actorId: 'u-admin', actor: 'Start', role: 'ADMIN', action: 'LOGIN', entity: 'SESSION', detail: 'Đăng nhập khu vực quản trị', at: '2026-09-07 08:00' },
-      { id: 'AUD-2', actorId: 'u-leader-1', actor: 'Phạm Thu Hà', role: 'LEADER', action: 'ASSIGN', entity: 'CUS-01015', detail: 'Nhận data vào Pool Team T2', at: '2026-09-07 09:50' }
-    ],
+    traffic: [],
+    tasks: [],
+    notifications: [],
+    audit: [],
     websites: [
-      { id: 'WEB-1', name: 'NVT Agency', domain: 'nvtagency.vn', status: 'PAUSED', provider: 'LANDING_API', endpoint: '', externalAccountId: '', campaignId: '', formId: '', webhookSlug: 'ds-1789015513831-ZPKFFVK9S9A', webhookUrlOverride: '', connectionStatus: 'UNCONFIGURED', domainVerificationStatus: 'UNVERIFIED', credentialConfigured: false, credentialLast4: '', lastVerifiedAt: '', lastError: '', lastSync: 'Chưa đồng bộ' },
-      { id: 'WEB-2', name: 'Landing Audit Marketing', domain: 'audit.nvtagency.vn', status: 'PAUSED', provider: 'FACEBOOK_FORMS', endpoint: '', externalAccountId: '', campaignId: 'FB-DATA-09', formId: '', webhookSlug: 'ds-1789015514002-QM7TXB4KD2R', webhookUrlOverride: '', connectionStatus: 'UNCONFIGURED', domainVerificationStatus: 'UNVERIFIED', credentialConfigured: false, credentialLast4: '', lastVerifiedAt: '', lastError: '', lastSync: 'Chưa đồng bộ' },
-      { id: 'WEB-3', name: 'Khoá học Growth', domain: 'growth.nvtagency.vn', status: 'PAUSED', provider: 'CUSTOM_WEBHOOK', endpoint: '', externalAccountId: '', campaignId: '', formId: '', webhookSlug: 'ds-1789015514188-HV3NCP9WYJ6', webhookUrlOverride: '', connectionStatus: 'UNCONFIGURED', domainVerificationStatus: 'UNVERIFIED', credentialConfigured: false, credentialLast4: '', lastVerifiedAt: '', lastError: '', lastSync: 'Chưa đồng bộ' }
+      { id: 'WEB-NVT', name: 'NVT Agency', domain: 'nvtagency.top', status: 'ACTIVE', provider: 'CUSTOM_WEBHOOK', endpoint: '', externalAccountId: '', campaignId: '', formId: '', webhookSlug: 'ds-1789015513831-ZPKFFVK9S9A', webhookUrlOverride: '', connectionStatus: 'PENDING_BACKEND', domainVerificationStatus: 'UNVERIFIED', credentialConfigured: false, credentialLast4: '', lastVerifiedAt: '', lastError: '', lastSync: 'Chưa đồng bộ' },
+      { id: 'WEB-NVT-2', name: 'NVT Agency - Nguồn 2', domain: 'nvtagency.top', status: 'ACTIVE', provider: 'CUSTOM_WEBHOOK', endpoint: '', externalAccountId: '', campaignId: '', formId: '', webhookSlug: 'ds-1789902464947-TN30ESRUIJM', webhookUrlOverride: '', connectionStatus: 'PENDING_BACKEND', domainVerificationStatus: 'UNVERIFIED', credentialConfigured: false, credentialLast4: '', lastVerifiedAt: '', lastError: '', lastSync: 'Chưa đồng bộ' }
     ],
-    integrations: [
-      { id: 'INT-SUBDATA', name: 'Subdata', provider: 'SUBDATA', type: 'CUSTOMER_DATA', endpoint: '', externalAccountId: '', status: 'UNCONFIGURED', credentialConfigured: false, credentialLast4: '', lastVerifiedAt: '', lastError: '', archived: false },
-      { id: 'INT-FACEBOOK', name: 'Facebook Forms', provider: 'FACEBOOK', type: 'DATA_INTAKE', endpoint: '', externalAccountId: '', status: 'UNCONFIGURED', credentialConfigured: false, credentialLast4: '', lastVerifiedAt: '', lastError: '', archived: false }
-    ],
+    integrations: [],
     leaderDistribution: {
       enabled: true,
-      enabledLeaderIds: ['l1', 'l2'],
-      weights: { l1: 1, l2: 1 },
+      enabledLeaderIds: ['l1'],
+      weights: { l1: 1 },
       sourceRules: []
     },
     saleDistributionByLeader: {
-      l1: { enabledSaleIds: ['s1', 's2', 's3'], weights: { s1: 1, s2: 1, s3: 1 } },
-      l2: { enabledSaleIds: ['s4'], weights: { s4: 1 } }
+      l1: { enabledSaleIds: ['s1'], weights: { s1: 1 } }
     },
-    settings: { leaderCanUpdate: true, notifyMilestones: true, assignmentMode: 'MANUAL', saleAssignmentModes: {}, assignmentCursor: { leaders: 0, salesByTeam: {} }, slaMinutes: 30, monthlyTarget: 350000000, customAccent: '#e8572a', fontFamily: 'aptos', telegramBotToken: '', telegramChatId: '', webhookPublicBase: 'https://apex.vn', attendanceIp: '', attendanceDeadline: '09:00', attendanceLateGraceMinutes: 0, acceptTimeoutHours: 24 },
+    settings: { leaderCanUpdate: true, notifyMilestones: true, leaderAttendanceRequired: true, assignmentMode: 'MANUAL', saleAssignmentModes: {}, assignmentCursor: { leaders: 0, salesByTeam: {} }, slaMinutes: 30, customAccent: '#e8572a', fontFamily: 'aptos', dataBotToken: '', dataBotChatId: '', memberBotToken: '', memberBotChatId: '', webhookPublicBase: 'https://nvtagency.top', attendanceIp: '', attendanceDeadline: '09:00', acceptTimeoutHours: 24, notifyAccountCreated: true, notifyDataReceived: true },
     security: {
       adminPassword: 'admin123',
       twoFactorEnabled: false,
       twoFactorCode: '260907',
-      loginHistory: [
-        { id: 'LOGIN-1', ip: '113.161.72.24', device: 'Chrome · Windows 11', location: 'TP. Hồ Chí Minh', at: '2026-09-07 08:00', success: true },
-        { id: 'LOGIN-2', ip: '14.241.118.62', device: 'Edge · Windows 11', location: 'Hà Nội', at: '2026-09-06 19:42', success: true },
-        { id: 'LOGIN-3', ip: '171.244.54.10', device: 'Chrome · Android', location: 'Đà Nẵng', at: '2026-09-05 10:18', success: false }
-      ]
+      loginHistory: []
     }
   };
 }
@@ -504,21 +475,24 @@ function sanitizeSettings(settings, defaults) {
   return {
     leaderCanUpdate: typeof input.leaderCanUpdate === 'boolean' ? input.leaderCanUpdate : defaults.leaderCanUpdate,
     notifyMilestones: typeof input.notifyMilestones === 'boolean' ? input.notifyMilestones : defaults.notifyMilestones,
+    leaderAttendanceRequired: input.leaderAttendanceRequired !== false,
     assignmentMode,
     saleAssignmentModes,
     assignmentCursor: { leaders: cleanNumber(rawCursor.leaders, defaults.assignmentCursor.leaders, 0, Number.MAX_SAFE_INTEGER, true), salesByTeam },
     slaMinutes: cleanNumber(input.slaMinutes, defaults.slaMinutes, 5, 1440, true),
-    monthlyTarget: cleanNumber(input.monthlyTarget, defaults.monthlyTarget, 0, Number.MAX_SAFE_INTEGER, true),
     customAccent: /^#[0-9a-f]{6}$/i.test(input.customAccent) ? input.customAccent : (defaults.customAccent || '#e8572a'),
     fontFamily: cleanText(input.fontFamily, defaults.fontFamily || 'aptos', 40),
-    telegramBotToken: cleanText(input.telegramBotToken, '', 200),
-    telegramChatId: cleanText(input.telegramChatId, '', 100),
+    dataBotToken: cleanText(input.dataBotToken || input.telegramBotToken, '', 200),
+    dataBotChatId: cleanText(input.dataBotChatId || input.telegramChatId, '', 100),
+    memberBotToken: cleanText(input.memberBotToken, '', 200),
+    memberBotChatId: cleanText(input.memberBotChatId, '', 100),
     webhookPublicBase: cleanWebhookBase(input.webhookPublicBase, defaults.webhookPublicBase),
     attendanceIp: cleanText(input.attendanceIp, defaults.attendanceIp || '', 200),
     // Migration một lần: giờ chốt cũ 08:30 nâng lên 09:00 theo quy định mới.
     attendanceDeadline: (() => { const raw = cleanClockTime(input.attendanceDeadline, defaults.attendanceDeadline || '09:00'); return raw === '08:30' ? '09:00' : raw; })(),
     acceptTimeoutHours: cleanNumber(input.acceptTimeoutHours, defaults.acceptTimeoutHours || 8, 1, 72, true),
-    attendanceLateGraceMinutes: cleanNumber(input.attendanceLateGraceMinutes, defaults.attendanceLateGraceMinutes || 0, 0, 60, true)
+    notifyAccountCreated: input.notifyAccountCreated !== false,
+    notifyDataReceived: input.notifyDataReceived !== false
   };
 }
 
@@ -577,6 +551,8 @@ function normalizeMemberRecord(member) {
     teamId,
     leaderId: role === 'SALE' ? cleanId(member.leaderId) : null,
     initials: cleanText(member.initials, 'NV', 4).toUpperCase(),
+    avatar: /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(String(member.avatar || '')) ? String(member.avatar) : '',
+    createdBy: cleanText(member.createdBy, 'Hệ thống', 160),
     target: role === 'SALE' ? cleanNumber(member.target, 80000000, 0, Number.MAX_SAFE_INTEGER, true) : 0,
     active: typeof member.active === 'boolean' ? member.active : true
   };
@@ -604,6 +580,8 @@ function normalizeCustomerRecord(customer, members = STAFF, websites = [], field
     ipAddress: cleanText(customer.ipAddress || customer.ip, 'Chưa xác định', 64),
     source: dataTerminology(cleanText(customer.source, 'Direct / Referral', 120)),
     campaign: dataTerminology(cleanText(customer.campaign, 'DIRECT', 160)),
+    landingPageName: cleanText(customer.landingPageName || customer.landingPage || websites.find(website => website.id === websiteId)?.domain, 'Chưa xác định landing page', 200),
+    productName: cleanText(customer.productName || customer.product || customer.sanpham, 'Chưa xác định sản phẩm', 200),
     websiteId,
     status: Object.hasOwn(STATUS_META, customer.status) ? customer.status : 'NEW',
     saleId: sale?.id || null,
@@ -776,7 +754,7 @@ function normalizeWebsiteRecord(item) {
 
 const WEBHOOK_SLUG_PATTERN = /^ds-\d{13}-[A-Z0-9]{11}$/;
 const WEBHOOK_SUFFIX_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-const DEFAULT_WEBHOOK_BASE = 'https://apex.vn';
+const DEFAULT_WEBHOOK_BASE = 'https://nvtagency.top';
 
 function randomWebhookSuffix(length) {
   const cryptoRef = typeof crypto !== 'undefined' && crypto ? crypto : null;
@@ -842,7 +820,7 @@ function webhookPanelMarkup(website) {
   const urlRow = url
     ? `<div class="webhook-url-row"><input class="mono webhook-url" id="webhookUrl-${escapeHtml(website.id)}" readonly value="${escapeHtml(url)}" aria-label="Webhook URL của ${escapeHtml(website.name)}"><button class="button button-small" type="button" data-copy-webhook="${escapeHtml(website.id)}">Sao chép</button><button class="button button-small" type="button" data-edit-webhook="${escapeHtml(website.id)}">Sửa URL</button></div>`
     : `<div class="webhook-url-row"><span class="webhook-empty">Chưa có mã webhook</span><button class="button button-small button-primary" type="button" data-generate-webhook="${escapeHtml(website.id)}">Tạo mã webhook</button></div>`;
-  return `<div class="webhook-box"><div class="webhook-box-head"><b>Webhook nhận data landing page</b><span class="webhook-tag mono">POST · application/json${overridden ? ' · URL tùy chỉnh' : ''}</span></div>${urlRow}<div class="credential-hint">Dán URL này vào LadiPage (Lưu data → API). Server chỉ lấy <b>họ tên, SĐT, email</b>; data rơi thẳng vào <b>Chia Leader → Thứ tự data mới vào</b>.${localUrl && localUrl !== url ? `<br><span class="mono">Test nội bộ: ${escapeHtml(localUrl)}</span>` : ''}${website.lastError ? `<br>${escapeHtml(website.lastError)}` : `<br>Lần nhận cuối: ${escapeHtml(website.lastSync)}`}</div></div>`;
+  return `<div class="webhook-box"><div class="webhook-box-head"><b>Webhook nhận data landing page</b><span class="webhook-tag mono">POST · application/json${overridden ? ' · URL tùy chỉnh' : ''}</span></div>${urlRow}<div class="credential-hint">Dán URL này vào LadiPage (Lưu data → API). Server chỉ lấy <b>họ tên, SĐT, email</b>; data rơi thẳng vào <b>Data → Thứ tự data mới vào</b>.${localUrl && localUrl !== url ? `<br><span class="mono">Test nội bộ: ${escapeHtml(localUrl)}</span>` : ''}${website.lastError ? `<br>${escapeHtml(website.lastError)}` : `<br>Lần nhận cuối: ${escapeHtml(website.lastSync)}`}</div></div>`;
 }
 
 /* ------------------------------------------------- webhook inbox consumer
@@ -850,7 +828,7 @@ function webhookPanelMarkup(website) {
    tĩnh này không tự bịa inbox: nó chỉ ĐỌC inbox của server bằng cursor rồi
    đưa bản ghi status NEW qua đúng ingestCustomer() — cùng một ống dẫn như
    sale tạo khách thủ công, nên dedupe theo SĐT, luật chia theo nguồn và
-   hàng chờ "Chia Leader → Thứ tự data mới vào" đều giữ nguyên hành vi.
+   hàng chờ "Data → Thứ tự data mới vào" đều giữ nguyên hành vi.
 
    Chỉ Admin chạy consumer: ingestCustomer phân nhánh theo role đang đăng nhập
    (SALE → gắn thẳng vào sale đó, LEADER → gắn vào team đó). Chạy dưới role
@@ -861,9 +839,9 @@ function webhookPanelMarkup(website) {
    audit log. Nó chỉ nằm trong localStorage của Admin, ngang hàng với
    state.websites[].webhookSlug vốn đã được lưu ở đó.
 -------------------------------------------------------------------------- */
-const WEBHOOK_CURSOR_KEY = 'nvt-crm-webhook-cursor-v1';
-const WEBHOOK_CONSUMED_KEY = 'nvt-crm-webhook-consumed-v1';
-const WEBHOOK_PENDING_KEY = 'nvt-crm-webhook-pending-v1';
+const WEBHOOK_CURSOR_KEY = 'nvt-crm-webhook-cursor-v2';
+const WEBHOOK_CONSUMED_KEY = 'nvt-crm-webhook-consumed-v2';
+const WEBHOOK_PENDING_KEY = 'nvt-crm-webhook-pending-v2';
 const WEBHOOK_CONSUMED_RING = 400;
 const WEBHOOK_PENDING_CAP = 200;
 const WEBHOOK_FETCH_TIMEOUT_MS = 8000;
@@ -881,7 +859,7 @@ const WEBHOOK_TRANSPORT_META = {
 
 const WEBHOOK_INTAKE_CONTEXT = { intakeType: 'API', sourceLabel: 'Landing page webhook' };
 
-let webhookTransport = { mode: 'idle', detail: 'Đăng nhập bằng tài khoản Admin để bắt đầu đồng bộ data landing page.', checkedAt: '' };
+let webhookTransport = { mode: 'idle', detail: '', checkedAt: '' };
 let webhookPending = loadWebhookPending();
 let webhookEventSource = null;
 let webhookPollTimer = null;
@@ -1136,7 +1114,7 @@ function webhookPendingModal() {
     const meta = problemMeta[item.problem] || problemMeta.UNATTRIBUTED;
     return `<tr><td class="mono">${escapeHtml(item.receivedAt || '—')}</td><td><div class="cell-main">${escapeHtml(item.customer.name || 'Không có họ tên')}</div><div class="cell-sub">${escapeHtml(item.customer.phone || 'không có SĐT')}${item.customer.email ? ` · ${escapeHtml(item.customer.email)}` : ''}</div></td><td><span class="status status-${meta[1]}">${meta[0]}</span><div class="cell-sub">${escapeHtml(item.reason)}</div></td><td><select data-pending-website="${escapeHtml(item.id)}" aria-label="Chọn website để quy nguồn cho data này">${options}</select></td><td><button class="button button-small button-primary" type="button" data-resolve-pending="${escapeHtml(item.id)}">Quy nguồn</button> <button class="button button-small" type="button" data-drop-pending="${escapeHtml(item.id)}">Bỏ qua</button></td></tr>`;
   }).join('');
-  openModal(`Data landing page chờ xử lý · ${webhookPending.length}`, `<div class="credential-hint">Đây là các bản ghi <b>server webhook đã nhận thật</b> nhưng CRM chưa đưa được vào tệp khách: hoặc mã webhook chưa gắn với website nào, hoặc dữ liệu không qua được bước kiểm tra tạo khách. Chọn website rồi bấm <b>Quy nguồn</b> — bản ghi đi qua đúng ống dẫn tạo khách và xuất hiện ở <b>Chia Leader → Thứ tự data mới vào</b>. Không bản ghi nào bị âm thầm gán cho một website mặc định.</div><div class="table-wrap"><table><thead><tr><th>Thời điểm nhận</th><th>Khách hàng</th><th>Vấn đề</th><th>Quy vào website</th><th></th></tr></thead><tbody>${rows}</tbody></table></div><div class="modal-actions"><button class="button" type="button" data-close-modal>Đóng</button></div>`);
+  openModal(`Data landing page chờ xử lý · ${webhookPending.length}`, `<div class="credential-hint">Đây là các bản ghi <b>server webhook đã nhận thật</b> nhưng CRM chưa đưa được vào tệp khách: hoặc mã webhook chưa gắn với website nào, hoặc dữ liệu không qua được bước kiểm tra tạo khách. Chọn website rồi bấm <b>Quy nguồn</b> — bản ghi đi qua đúng ống dẫn tạo khách và xuất hiện ở <b>Data → Thứ tự data mới vào</b>. Không bản ghi nào bị âm thầm gán cho một website mặc định.</div><div class="table-wrap"><table><thead><tr><th>Thời điểm nhận</th><th>Khách hàng</th><th>Vấn đề</th><th>Quy vào website</th><th></th></tr></thead><tbody>${rows}</tbody></table></div><div class="modal-actions"><button class="button" type="button" data-close-modal>Đóng</button></div>`);
   $$('[data-pending-website]').forEach(select => {
     const item = webhookPending.find(row => row.id === select.dataset.pendingWebsite);
     const suggested = item ? websiteByWebhookSlug(item.slug) : null;
@@ -1188,7 +1166,7 @@ function dropWebhookPending(id) {
   toast(`Đã bỏ qua data của ${removed.customer.name || 'khách không tên'}`);
 }
 
-// Hiện ở hàng chờ "Chia Leader" để Admin thấy ngay có data landing page chưa
+// Hiện ở hàng chờ "Data" để Admin thấy ngay có data landing page chưa
 // vào được tệp khách, thay vì phải đi vòng qua mục Websites.
 function webhookQueueNoticeMarkup() {
   if (!webhookPending.length) return '';
@@ -1265,14 +1243,17 @@ function sanitizeSecurity(security, defaults) {
 function loadState() {
   const defaults = initialState();
   try {
+    // The previous storage key belonged to the sample CRM and must never be reused.
+    localStorage.removeItem('nvt-crm-complete-v2');
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (saved && saved.version === 2) {
+    if (saved && saved.version === 3) {
       const settings = sanitizeSettings(saved.settings, defaults.settings);
       let members = uniqueRecords(saved.members, defaults.members, normalizeMemberRecord);
       const leaderIds = new Set(members.filter(member => member.role === 'LEADER').map(member => member.id));
       members = members.filter(member => member.role === 'LEADER' || leaderIds.has(member.leaderId));
       if (!members.length) members = structuredClone(defaults.members);
       const websites = uniqueRecords(saved.websites, defaults.websites, normalizeWebsiteRecord);
+      if (!websites.length) websites.push(...structuredClone(defaults.websites));
       let customFieldDefinitions = uniqueRecords(saved.customFieldDefinitions, defaults.customFieldDefinitions, normalizeCustomFieldDefinition);
       customFieldDefinitions = customFieldDefinitions.filter(field => !['googleDocs', 'DATE', 'NUMBER', 'URL'].includes(field.id) && !['DATE', 'NUMBER', 'URL'].includes(field.type));
       if (!customFieldDefinitions.some(field => field.id === 'customerLevel')) customFieldDefinitions.unshift(structuredClone(CUSTOM_FIELD_SEED[0]));
@@ -1298,10 +1279,12 @@ function loadState() {
       const leaderDistribution = sanitizeLeaderDistribution(saved.leaderDistribution, members, defaults.leaderDistribution);
       const saleDistributionByLeader = sanitizeSaleDistribution(saved.saleDistributionByLeader, members, defaults.saleDistributionByLeader);
       return {
-        version: 2,
+        version: 3,
         optionPaletteVersion: 2,
         members,
-        registrations: uniqueRecords(saved.registrations, defaults.registrations, normalizeRegistrationRecord),
+        registrations: [],
+        registeredAccounts: Array.isArray(saved.registeredAccounts) ? saved.registeredAccounts.filter(item => item && cleanId(item.id) && item.phone && item.password).map(item => ({ id: cleanId(item.id), name: cleanText(item.name, 'Tài khoản mới', 160), phone: cleanText(item.phone, '', 20), email: cleanText(item.email, '', 254), password: cleanText(item.password, '', 200), role: ['LEADER','SALE'].includes(item.role) ? item.role : 'UNASSIGNED', initials: cleanText(item.initials, 'NV', 4).toUpperCase(), scope: item.role === 'LEADER' ? 'TEAM' : item.role === 'SALE' ? 'OWN' : 'NONE', teamId: cleanId(item.teamId) || '', leaderId: cleanId(item.leaderId) || null, saleId: cleanId(item.saleId) || null, memberId: cleanId(item.memberId) || null, active: item.active !== false })) : defaults.registeredAccounts,
+        disabledAccountIds: Array.isArray(saved.disabledAccountIds) ? saved.disabledAccountIds.filter(id => cleanId(id)) : defaults.disabledAccountIds,
         customFieldDefinitions,
         customers,
         customerFieldHistory,
@@ -1309,7 +1292,7 @@ function loadState() {
         resubmissions: uniqueRecords(saved.resubmissions, defaults.resubmissions, item => normalizeResubmissionRecord(item, customerIds, websites)),
         notes: uniqueRecords(saved.notes, defaults.notes, item => normalizeNoteRecord(item, customerIds)),
         imports: uniqueRecords(saved.imports, defaults.imports, normalizeImportRecord),
-        products: Array.isArray(saved.products) ? saved.products.filter(item => item && item.id && item.name).map(item => ({ id: cleanId(item.id), sku: cleanText(item.sku, '', 60), name: cleanText(item.name, 'Sản phẩm', 200), category: cleanText(item.category, 'Khác', 100), price: Math.max(0, Number(item.price) || 0), active: item.active !== false })) : defaults.products,
+        products: Array.isArray(saved.products) ? saved.products.filter(item => item && item.id && item.name).map(item => ({ id: cleanId(item.id), sku: cleanText(item.sku, '', 60), name: cleanText(item.name, 'Sản phẩm', 200), category: cleanText(item.category, 'Khác', 100), price: Math.max(0, Number(item.price) || 0), type: item.type === 'RENTAL' ? 'RENTAL' : 'SALE', rentalMonths: [1, 3, 6, 12].includes(Number(item.rentalMonths)) ? Number(item.rentalMonths) : null, active: item.active !== false })) : defaults.products,
         productCategories: Array.isArray(saved.productCategories) && saved.productCategories.length ? [...new Set(saved.productCategories.map(item => cleanText(item, '', 100)).filter(Boolean))] : defaults.productCategories,
         attendance: uniqueRecords(saved.attendance, defaults.attendance, item => normalizeAttendanceRecord(item, members)),
         dataOffers: uniqueRecords(saved.dataOffers, defaults.dataOffers, item => normalizeDataOfferRecord(item, customerIds, members)),
@@ -1715,14 +1698,17 @@ function sourceScopePanel(title = 'Nguồn khách hàng trong phạm vi') {
   </div>`;
 }
 
-function trafficDonut(rows) {
-  const metric = currentAccount.role === 'ADMIN' ? 'sessions' : 'leads';
+function distributionDonut(rows, metric, label) {
   const rawTotal = rows.reduce((sum, row) => sum + row[metric], 0);
   const total = rawTotal || 1;
   let cursor = 0;
   const stops = rows.map(row => { const start = cursor; cursor += row[metric] / total * 100; return `${row.color} ${start.toFixed(1)}% ${cursor.toFixed(1)}%`; }).join(',');
   const background = rawTotal ? `conic-gradient(${stops})` : 'var(--panel-2)';
-  return `<div class="donut-layout"><div class="donut" style="background:${background}"><div class="donut-center"><b>${number(rawTotal)}</b><small>${metric === 'sessions' ? 'phiên truy cập' : 'data mới'}</small></div></div><div class="legend">${rows.slice(0, 6).map(row => `<div class="legend-row"><i style="background:${row.color}"></i><span>${escapeHtml(row.source)}</span><b>${rawTotal ? ((row[metric] / rawTotal) * 100).toFixed(1).replace('.', ',') : '0,0'}%</b></div>`).join('')}</div></div>`;
+  return `<div class="donut-layout"><div class="donut" style="background:${background}"><div class="donut-center"><b>${number(rawTotal)}</b><small>${escapeHtml(label)}</small></div></div><div class="legend">${rows.slice(0, 8).map(row => `<div class="legend-row"><i style="background:${row.color}"></i><span>${escapeHtml(row.name || row.source)}</span><b>${rawTotal ? ((row[metric] / rawTotal) * 100).toFixed(1).replace('.', ',') : '0,0'}%</b></div>`).join('')}</div></div>`;
+}
+
+function trafficDonut(rows) {
+  return distributionDonut(rows, currentAccount.role === 'ADMIN' ? 'sessions' : 'leads', currentAccount.role === 'ADMIN' ? 'phiên truy cập' : 'data mới');
 }
 
 function saleDashboardView(current, previous) {
@@ -1766,8 +1752,6 @@ function dashboardView() {
   const dueToday = scopedTasks().filter(task => task.status === 'OPEN' && dateOnly(task.dueAt) === dayIso(0)).length;
   const slaBreaches = slaBreachedCustomers().length;
   const unassigned = scopedCustomers().filter(isPoolCustomer).length;
-  const monthlyTarget = currentAccount.role === 'SALE' ? activeStaff().find(person => person.id === currentAccount.saleId)?.target || 1 : currentAccount.role === 'LEADER' ? activeStaff().filter(person => person.teamId === currentAccount.teamId && person.role === 'SALE').reduce((sum, person) => sum + person.target, 0) : state.settings.monthlyTarget;
-  const periodTarget = Math.round(monthlyTarget * Math.min(currentPeriodBounds().days, 30) / 30);
   const scopeTitle = currentAccount.role === 'ADMIN' ? 'Toàn hệ thống' : currentAccount.role === 'LEADER' ? `Team ${currentAccount.teamId}` : `Cá nhân ${currentAccount.name}`;
   return pageHead(`Tổng quan · ${scopeTitle}`, 'Doanh thu, sản phẩm và acquisition dùng cùng kỳ; cảnh báo công việc là trạng thái vận hành hiện tại.') + dateFilter() +
     `<div class="kpi-grid">
@@ -1776,7 +1760,7 @@ function dashboardView() {
       ${kpiCard('◎', 'Giá trị đơn TB', money(current.aov, true), 'Doanh thu thuần / lượt thanh toán', delta(current.aov, previous.aov))}
       ${kpiCard('□', 'Sản phẩm bán ra', number(current.units), 'Tổng số lượng sản phẩm', delta(current.units, previous.units))}
       ${kpiCard('↗', 'Data CRM mới', number(current.leads), currentAccount.role === 'ADMIN' ? `${number(current.trackedLeads)} form gửi · ${number(current.sessions)} sessions` : 'Khách mới trong phạm vi', delta(current.leads, previous.leads))}
-      ${kpiCard('%', 'Paid / data trong kỳ', `${current.conversion.toFixed(1).replace('.', ',')}%`, `Mục tiêu kỳ ${money(periodTarget, true)}`, delta(current.conversion, previous.conversion))}
+      ${kpiCard('%', 'Paid / data trong kỳ', `${current.conversion.toFixed(1).replace('.', ',')}%`, 'Tỷ lệ chuyển đổi trong kỳ', delta(current.conversion, previous.conversion))}
     </div>
     <div class="grid grid-2">
       <section class="panel"><div class="panel-head"><div><div class="panel-title">Doanh thu từng ngày</div><div class="panel-sub">Doanh thu thuần từ đơn PAID · hover điểm để xem chi tiết</div></div><span class="scope-chip" style="color:var(--ink);background:var(--panel-2)">${currentPeriodBounds().days}D</span></div><div class="panel-body">${revenueChart(series)}</div><div class="chart-summary"><div><small>Cao nhất</small><b>${money(Math.max(...series.map(item => item.revenue)), true)}</b></div><div><small>Trung bình/ngày</small><b>${money(Math.round(current.revenue / currentPeriodBounds().days), true)}</b></div><div><small>Chiết khấu</small><b>${money(series.reduce((sum, item) => sum + item.discount, 0), true)}</b></div><div><small>Hoàn tiền</small><b>${money(series.reduce((sum, item) => sum + item.refunds, 0), true)}</b></div></div></section>
@@ -1786,7 +1770,7 @@ function dashboardView() {
       <section class="panel"><div class="panel-head"><div><div class="panel-title">Sản phẩm bán ra</div><div class="panel-sub">Xếp hạng theo doanh thu thuần · ${escapeHtml(periodLabel())}</div></div><button class="button button-small" data-view-jump="revenue">Xem báo cáo</button></div><div class="panel-body">${products.slice(0, 6).map((product, index) => { const share = current.revenue > 0 ? product.revenue / current.revenue * 100 : 0; return `<div class="rank-row"><span class="rank">#${index + 1}</span><div><b>${escapeHtml(product.name)}</b><small>${product.units} sản phẩm · ${product.paidOrders} đơn · ${share.toFixed(1).replace('.', ',')}% doanh thu</small><div class="progress"><i style="width:${Math.max(share, 0)}%"></i></div></div><div class="rank-value"><b>${money(product.revenue, true)}</b><small>${deltaBadge(delta(product.revenue, product.previousRevenue))}</small></div></div>`; }).join('') || '<div class="empty"><b>Chưa bán sản phẩm</b><span>Không có lượt thanh toán trong kỳ.</span></div>'}</div></section>
       <div class="grid">
         <section class="panel"><div class="panel-head"><div><div class="panel-title">Pipeline khách hàng</div><div class="panel-sub">${allCustomers.length} khách · ${escapeHtml(periodLabel())}</div></div></div><div class="panel-body">${statuses.length ? `<div class="pipeline">${statuses.map(item => `<div class="pipeline-row"><span>${escapeHtml(STATUS_META[item.key].label)}</span><div class="progress"><i style="width:${item.count / maxStatus * 100}%;background:${STATUS_META[item.key].color}"></i></div><b>${item.count}</b></div>`).join('')}</div>` : '<div class="empty"><b>Chưa có data mới</b><span>Không có khách được tạo trong kỳ.</span></div>'}</div></section>
-        <section class="panel"><div class="panel-head"><div><div class="panel-title">Việc cần xử lý</div><div class="panel-sub">Lịch chăm sóc đã được gộp vào hồ sơ khách hàng</div></div></div><div class="alert-list"><button class="alert-row" data-view-jump="customers"><span class="alert-icon">!</span><span><b>${overdue} lịch chăm sóc quá hạn</b><p>Mở khách hàng để xử lý follow-up.</p></span><strong>${overdue}</strong></button><button class="alert-row" data-view-jump="customers"><span class="alert-icon">S</span><span><b>${slaBreaches} data vượt SLA ${state.settings.slaMinutes} phút</b><p>Data mới chưa được chăm sóc đúng hạn.</p></span><strong>${slaBreaches}</strong></button><button class="alert-row" data-view-jump="customers"><span class="alert-icon">⌚</span><span><b>${dueToday} lịch đến hạn hôm nay</b><p>Cuộc gọi và proposal cần hoàn tất.</p></span><strong>${dueToday}</strong></button><button class="alert-row" data-view-jump="distribution"><span class="alert-icon">↯</span><span><b>${unassigned} data chưa phân Leader</b><p>Xử lý theo thứ tự trong mục Chia Leader.</p></span><strong>${unassigned}</strong></button></div></section>
+        <section class="panel"><div class="panel-head"><div><div class="panel-title">Việc cần xử lý</div><div class="panel-sub">Lịch chăm sóc đã được gộp vào hồ sơ khách hàng</div></div></div><div class="alert-list"><button class="alert-row" data-view-jump="customers"><span class="alert-icon">!</span><span><b>${overdue} lịch chăm sóc quá hạn</b><p>Mở khách hàng để xử lý follow-up.</p></span><strong>${overdue}</strong></button><button class="alert-row" data-view-jump="customers"><span class="alert-icon">S</span><span><b>${slaBreaches} data vượt SLA ${state.settings.slaMinutes} phút</b><p>Data mới chưa được chăm sóc đúng hạn.</p></span><strong>${slaBreaches}</strong></button><button class="alert-row" data-view-jump="customers"><span class="alert-icon">⌚</span><span><b>${dueToday} lịch đến hạn hôm nay</b><p>Cuộc gọi và proposal cần hoàn tất.</p></span><strong>${dueToday}</strong></button><button class="alert-row" data-view-jump="distribution"><span class="alert-icon">↯</span><span><b>${unassigned} data chưa phân Leader</b><p>Xử lý theo thứ tự trong mục Data.</p></span><strong>${unassigned}</strong></button></div></section>
       </div>
     </div>
     <section class="panel" style="margin-top:14px"><div class="panel-head"><div><div class="panel-title">Đơn hàng gần nhất</div><div class="panel-sub">Tổng đơn, sản phẩm và thanh toán đối chiếu cùng nguồn dữ liệu</div></div><button class="button button-small" data-view-jump="orders">Tất cả đơn</button></div>${ordersTable(current.orders.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 7))}</section>`;
@@ -1859,13 +1843,14 @@ function quickStatusControl(customer) {
 }
 
 function quickSaleControl(customer) {
+  if (currentAccount.role !== 'ADMIN') return customer.saleId ? `<b>${escapeHtml(staffName(customer.saleId))}</b>` : '<span class="status status-pending">Ch\u01b0a ph\u00e2n Sale</span>';
   if (currentAccount.role === 'SALE') return customer.saleId ? `<b>${escapeHtml(staffName(customer.saleId))}</b>` : '<span class="status status-pending">Chưa phân Sale</span>';
   const sales = activeStaff().filter(person => person.role === 'SALE' && (currentAccount.role === 'ADMIN' || (person.leaderId === currentAccount.leaderId && person.teamId === currentAccount.teamId)));
   return `<select class="quick-sale-select" data-quick-sale="${escapeHtml(customer.id)}" aria-label="Sale phụ trách của ${escapeHtml(customer.name)}"><option value="">— Chưa phân Sale —</option>${sales.map(sale => `<option value="${escapeHtml(sale.id)}" ${customer.saleId === sale.id ? 'selected' : ''}>${escapeHtml(sale.name)}</option>`).join('')}</select>`;
 }
 
 function quickAssignSale(customerId, saleId) {
-  if (!['ADMIN', 'LEADER'].includes(currentAccount.role)) return;
+  if (currentAccount.role !== 'ADMIN') return;
   const customer = customerById(customerId);
   const sale = activeStaff().find(person => person.id === saleId && person.role === 'SALE');
   if (!customer || !sale || (currentAccount.role === 'LEADER' && (sale.leaderId !== currentAccount.leaderId || sale.teamId !== currentAccount.teamId))) { toast('Sale không hợp lệ trong phạm vi tài khoản'); render(); return; }
@@ -1974,7 +1959,7 @@ function customersView() {
   const sourceCell = customer => currentAccount.role === 'ADMIN' ? (() => { const landing = customerLanding(customer); return `<td><div class="cell-main">${escapeHtml(landing?.domain || 'Chưa xác định')}</div><div class="cell-sub">${escapeHtml(customer.source)} · ${escapeHtml(customer.campaign)}</div></td>`; })() : '';
   const columnCount = 7 + tableFields.length + (currentAccount.role === 'ADMIN' ? 1 : 0);
   return pageHead(title, 'Quản lý trạng thái, Sale phụ trách, ghi chú, lịch chăm sóc và sản phẩm đã mua trên cùng hồ sơ.', createButton) +
-    `<section class="panel customer-table-panel"><div class="toolbar"><input id="customerSearch" type="search" placeholder="Tên, SĐT, email, mã CRM, Level, ghi chú..." value="${escapeHtml(globalQuery)}"><select id="customerStatusFilter"><option value="ALL">Tất cả trạng thái</option>${Object.entries(STATUS_META).map(([key, meta]) => `<option value="${key}" ${customerStatusFilter === key ? 'selected' : ''}>${escapeHtml(meta.label)}</option>`).join('')}</select>${customerOwnerOptions()}<span class="spacer"></span><span class="data-note">${customers.length} khách · ${tableFields.length} cột nghiệp vụ</span></div><div class="table-wrap"><table class="customer-data-table"><thead><tr><th>Ngày data</th><th>Khách hàng</th>${sourceHeader}<th>Team / Leader</th><th>Sale phụ trách</th>${tableFields.map(field => `<th>${escapeHtml(field.label)}</th>`).join('')}<th>Trạng thái</th><th>Ghi chú mới nhất</th><th></th></tr></thead><tbody>${customers.map(customer => { const leader = STAFF.find(person => person.id === customer.leaderId); const dataDate = dataDateParts(customer.createdAt); return `<tr><td class="data-date-cell"><b>${escapeHtml(dataDate.date)}</b><small>${escapeHtml(dataDate.time)}</small></td><td><div class="cell-main">${escapeHtml(customer.name)}</div><div class="cell-sub">${currentAccount.role === 'SALE' && !customer.saleAcceptedAt ? (() => { const offer = state.dataOffers.find(o => o.customerId === customer.id && o.saleId === currentAccount.saleId && o.status === 'PENDING'); return offer ? `<span class="status status-pending">⏱ còn ${Math.floor(offerMinutesLeft(offer) / 60)}h${offerMinutesLeft(offer) % 60}p</span>` : '<span class="status status-pending">Chờ nhận data</span>'; })() : escapeHtml(customer.phone)}</div></td>${sourceCell(customer)}<td><div class="cell-main">${escapeHtml(leader?.name || 'Chưa phân Leader')}</div>${leader ? `<div class="cell-sub">Team ${escapeHtml(customer.teamId)}</div>` : ''}</td><td class="col-staff">${customer.saleId ? `<div class="cell-main">${escapeHtml(staffName(customer.saleId))}</div>${customer.saleAcceptedAt ? '' : '<div class="cell-sub">Chờ Sale nhận data</div>'}` : '<span class="status status-pending">Chưa phân Sale</span>'}</td>${tableFields.map(field => `<td>${customFieldTableControl(field, customer)}</td>`).join('')}<td>${quickStatusControl(customer)}</td><td><div class="cell-main mono">${escapeHtml(customer.updatedAt.slice(5))}</div><div class="cell-sub note-preview">${escapeHtml(customer.note)}</div></td><td>${currentAccount.role === 'SALE' && !customer.saleAcceptedAt ? `<button class="button button-small button-primary" data-accept-data="${escapeHtml(customer.id)}">Nhận data</button>` : ''}<button class="button button-small" data-open-customer="${escapeHtml(customer.id)}">Chi tiết</button></td></tr>`; }).join('') || `<tr><td colspan="${columnCount}"><div class="empty"><b>Không tìm thấy khách hàng</b><span>Hãy thử từ khóa hoặc bộ lọc khác.</span></div></td></tr>`}</tbody></table></div></section>${currentAccount.role === 'ADMIN' ? `<section class="panel" style="margin-top:14px"><div class="panel-head"><div><div class="panel-title">Lịch sử kết nối & cập nhật data</div><div class="panel-sub">Subdata, PDF, CSV và JSON · bản ghi trùng được lưu thành lần gửi lại</div></div><button class="button button-small" id="importCustomersSecondaryButton">+ Nguồn data</button></div><div class="table-wrap"><table><thead><tr><th>Thời gian</th><th>Nguồn</th><th>File / Endpoint</th><th>Số bản ghi</th><th>Người thực hiện</th><th>Trạng thái</th></tr></thead><tbody>${state.imports.slice(0, 8).map(item => `<tr><td class="mono">${escapeHtml(item.importedAt)}</td><td><b>${escapeHtml(item.source)}</b></td><td>${escapeHtml(item.filename)}</td><td>${number(item.records)}</td><td>${escapeHtml(item.actor)}</td><td>${item.status === 'SUCCESS' ? '<span class="status status-paid">Thành công</span>' : '<span class="status status-cancelled">Thất bại</span>'}</td></tr>`).join('')}</tbody></table></div></section>` : ''}`;
+    `<section class="panel customer-table-panel"><div class="toolbar"><input id="customerSearch" type="search" placeholder="Tên, SĐT, email, mã CRM, Level, ghi chú..." value="${escapeHtml(globalQuery)}"><select id="customerStatusFilter"><option value="ALL">Tất cả trạng thái</option>${Object.entries(STATUS_META).map(([key, meta]) => `<option value="${key}" ${customerStatusFilter === key ? 'selected' : ''}>${escapeHtml(meta.label)}</option>`).join('')}</select>${customerOwnerOptions()}<span class="spacer"></span><span class="data-note">${customers.length} khách · ${tableFields.length} cột nghiệp vụ</span></div><div class="table-wrap"><table class="customer-data-table"><thead><tr><th>Ngày data</th><th>Khách hàng</th>${sourceHeader}<th>Team / Leader</th><th>Sale phụ trách</th>${tableFields.map(field => `<th>${escapeHtml(field.label)}</th>`).join('')}<th>Trạng thái</th><th>Ghi chú mới nhất</th><th></th></tr></thead><tbody>${customers.map(customer => { const leader = STAFF.find(person => person.id === customer.leaderId); const dataDate = dataDateParts(customer.createdAt); return `<tr><td class="data-date-cell"><b>${escapeHtml(dataDate.date)}</b><small>${escapeHtml(dataDate.time)}</small></td><td><div class="cell-main">${escapeHtml(customer.name)}</div><div class="cell-sub">${currentAccount.role === 'SALE' && !customer.saleAcceptedAt ? (() => { const offer = state.dataOffers.find(o => o.customerId === customer.id && o.saleId === currentAccount.saleId && o.status === 'PENDING'); return offer ? `<span class="status status-pending">⏱ còn ${Math.floor(offerMinutesLeft(offer) / 60)}h${offerMinutesLeft(offer) % 60}p</span>` : '<span class="status status-pending">Chờ nhận data</span>'; })() : escapeHtml(customer.phone)}</div></td>${sourceCell(customer)}<td><div class="cell-main">${escapeHtml(leader?.name || 'Chưa phân Leader')}</div>${leader ? `<div class="cell-sub">Team ${escapeHtml(customer.teamId)}</div>` : ''}</td><td class="col-staff">${customer.saleId ? `<div class="cell-main">${escapeHtml(staffName(customer.saleId))}</div>${customer.saleAcceptedAt ? '' : '<div class="cell-sub">Chờ Sale nhận data</div>'}` : '<span class="status status-pending">Chưa phân Sale</span>'}</td>${tableFields.map(field => `<td>${customFieldTableControl(field, customer)}</td>`).join('')}<td>${quickStatusControl(customer)}</td><td><div class="cell-main mono">${escapeHtml(customer.updatedAt.slice(5))}</div><div class="cell-sub note-preview">${escapeHtml(customer.note)}</div></td><td>${currentAccount.role === 'SALE' && !customer.saleAcceptedAt ? `<button class="button button-small button-primary" data-accept-data="${escapeHtml(customer.id)}">Nhận data</button>` : ''}<button class="button button-small" data-open-customer="${escapeHtml(customer.id)}">Chi tiết</button></td></tr>`; }).join('') || `<tr><td colspan="${columnCount}"><div class="empty"><b>Không tìm thấy khách hàng</b><span>Hãy thử từ khóa hoặc bộ lọc khác.</span></div></td></tr>`}</tbody></table></div></section>${currentAccount.role === 'ADMIN' ? `<section class="panel" style="margin-top:14px"><div class="panel-head"><div><div class="panel-title">Lịch sử kết nối & cập nhật data</div></div><button class="button button-small" id="importCustomersSecondaryButton">+ Nguồn data</button></div><div class="table-wrap"><table><thead><tr><th>Thời gian</th><th>Nguồn</th><th>File / Endpoint</th><th>Số bản ghi</th><th>Người thực hiện</th><th>Trạng thái</th></tr></thead><tbody>${state.imports.slice(0, 8).map(item => `<tr><td class="mono">${escapeHtml(item.importedAt)}</td><td><b>${escapeHtml(item.source)}</b></td><td>${escapeHtml(item.filename)}</td><td>${number(item.records)}</td><td>${escapeHtml(item.actor)}</td><td>${item.status === 'SUCCESS' ? '<span class="status status-paid">Thành công</span>' : '<span class="status status-cancelled">Thất bại</span>'}</td></tr>`).join('')}</tbody></table></div></section>` : ''}`;
 }
 
 function poolView() {
@@ -2019,7 +2004,7 @@ function distributionView() {
   } else {
     body = `<section class="panel"><div class="panel-head"><div><div class="panel-title">Sale nhận data trong từng Team</div><div class="panel-sub">Leader chỉ có thể chia cho Sale đã được Admin bật ở đây</div></div><select id="distributionLeaderSelect">${leaders.map(leader => `<option value="${escapeHtml(leader.id)}" ${leader.id === distributionLeaderId ? 'selected' : ''}>${escapeHtml(leader.name)} · ${escapeHtml(leader.teamId)}</option>`).join('')}</select></div><div class="field-manager">${sales.map(sale => `<div class="field-manager-row"><div class="avatar">${escapeHtml(sale.initials)}</div><div><b>${escapeHtml(sale.name)}</b><small>${escapeHtml(sale.teamId)} · đang phụ trách ${assignmentLoad(sale)} khách</small></div><label class="weight-control">Tỷ trọng<input class="weight-input" type="number" min="1" max="100" value="${saleConfig.weights[sale.id] || 1}" data-distribution-weight="SALE:${escapeHtml(sale.id)}"></label><label class="member-switch"><input type="checkbox" data-distribution-member="SALE:${escapeHtml(sale.id)}" ${enabledSales.has(sale.id) ? 'checked' : ''}><span>${enabledSales.has(sale.id) ? 'Đang nhận' : 'Tạm tắt'}</span></label></div>`).join('') || '<div class="empty"><b>Leader chưa có Sale</b><span>Thêm hoặc điều chuyển Sale tại mục Đội ngũ.</span></div>'}</div></section>`;
   }
-  return pageHead('Chia Leader', 'Kiểm soát tuyến phân data từ nguồn vào Leader, rồi từ Leader xuống Sale; lịch sử phụ trách cũ luôn được giữ.') + `<div class="distribution-tabs">${tabs.map(([id, label]) => `<button class="distribution-tab ${distributionTab === id ? 'active' : ''}" data-distribution-tab="${id}">${label}</button>`).join('')}</div>${body}`;
+  return pageHead('Data', 'Kiểm soát tuyến phân data từ nguồn vào Leader, rồi từ Leader xuống Sale; lịch sử phụ trách cũ luôn được giữ.') + `<div class="distribution-tabs">${tabs.map(([id, label]) => `<button class="distribution-tab ${distributionTab === id ? 'active' : ''}" data-distribution-tab="${id}">${label}</button>`).join('')}</div>${body}`;
 }
 
 function toggleLeaderDistribution() {
@@ -2098,31 +2083,34 @@ function ordersView() {
 }
 
 function productsView() {
-  const rows = PRODUCTS.filter(product => currentAccount.role === 'ADMIN' || product.active !== false);
-  const actions = currentAccount.role === 'ADMIN' ? '<button class="button" id="manageProductCategoriesButton">Danh mục</button><button class="button button-primary" id="newProductButton">+ Thêm sản phẩm</button>' : '';
-  return pageHead('Sản phẩm', '', actions) +
-    `<section class="panel"><div class="table-wrap"><table><thead><tr><th>Sản phẩm</th><th>Mã SKU</th><th>Danh mục</th><th>Đơn giá</th><th>Trạng thái</th>${currentAccount.role === 'ADMIN' ? '<th></th>' : ''}</tr></thead><tbody>${rows.map(product => `<tr><td><div class="cell-main">${escapeHtml(product.name)}</div></td><td class="mono">${escapeHtml(product.sku || '—')}</td><td><span class="status status-info">${escapeHtml(product.category)}</span></td><td><b>${money(product.price)}</b></td><td>${product.active !== false ? '<span class="status status-active">Đang bán</span>' : '<span class="status status-pending">Ngừng bán</span>'}</td>${currentAccount.role === 'ADMIN' ? `<td><button class="button button-small" data-edit-product="${escapeHtml(product.id)}">Sửa</button><button class="button button-small" data-toggle-product="${escapeHtml(product.id)}">${product.active !== false ? 'Ngừng bán' : 'Bán lại'}</button><button class="button button-small button-danger" data-delete-product="${escapeHtml(product.id)}">Xóa</button></td>` : ''}</tr>`).join('') || '<tr><td colspan="6"><div class="empty"><b>Chưa có sản phẩm</b><span>Admin cần tạo sản phẩm trước khi lập đơn.</span></div></td></tr>'}</tbody></table></div></section>`;
+  if (currentAccount.role !== 'ADMIN') return accessDeniedView('Chỉ Admin được quản lý danh mục và sản phẩm.');
+  const rows = PRODUCTS;
+  const actions = '<button class="button" id="manageProductCategoriesButton">Danh mục</button><button class="button button-primary" id="newProductButton">+ Thêm sản phẩm</button>';
+  return pageHead('Sản phẩm', 'Quản lý sản phẩm bán và sản phẩm cho thuê.', actions) +
+    `<section class="panel"><div class="table-wrap"><table><thead><tr><th>Sản phẩm</th><th>Mã SKU</th><th>Loại</th><th>Gói thuê</th><th>Danh mục</th><th>Đơn giá</th><th>Trạng thái</th><th></th></tr></thead><tbody>${rows.map(product => `<tr><td><div class="cell-main">${escapeHtml(product.name)}</div></td><td class="mono">${escapeHtml(product.sku || '—')}</td><td><span class="status ${product.type === 'RENTAL' ? 'status-pending' : 'status-info'}">${product.type === 'RENTAL' ? 'Thuê' : 'Bán'}</span></td><td>${product.type === 'RENTAL' ? (product.rentalMonths || '—') + ' tháng' : '—'}</td><td>${escapeHtml(product.category)}</td><td><b>${money(product.price)}</b></td><td>${product.active !== false ? '<span class="status status-active">Đang bán</span>' : '<span class="status status-pending">Ngừng bán</span>'}</td><td><button class="button button-small" data-edit-product="${escapeHtml(product.id)}">Sửa</button><button class="button button-small" data-toggle-product="${escapeHtml(product.id)}">${product.active !== false ? 'Ngừng bán' : 'Bán lại'}</button><button class="button button-small button-danger" data-delete-product="${escapeHtml(product.id)}">Xóa</button></td></tr>`).join('') || '<tr><td colspan="8"><div class="empty"><b>Chưa có sản phẩm</b><span>Admin cần tạo sản phẩm trước khi lập đơn.</span></div></td></tr>'}</tbody></table></div></section>`;
 }
 
 function productModal(id = null) {
   if (currentAccount.role !== 'ADMIN') return;
   const existing = id ? productById(id) : null;
-  const item = existing || { name: '', sku: '', category: '', price: 0 };
+  const item = existing || { name: '', sku: '', category: '', price: 0, type: 'SALE', rentalMonths: null };
   const categories = [...state.productCategories];
   if (item.category && !categories.includes(item.category)) categories.push(item.category);
-  openModal(existing ? 'Sửa sản phẩm' : 'Thêm sản phẩm', `<form id="productForm"><div class="form-grid"><label class="form-field">Tên sản phẩm *<input id="productName" required maxlength="200" value="${escapeHtml(item.name)}"></label><label class="form-field">Mã SKU<input id="productSku" maxlength="60" value="${escapeHtml(item.sku)}"></label><label class="form-field">Danh mục *<select id="productCategory" required><option value="">Chọn danh mục</option>${categories.map(category => `<option value="${escapeHtml(category)}" ${category === item.category ? 'selected' : ''}>${escapeHtml(category)}</option>`).join('')}</select></label><label class="form-field">Đơn giá *<input id="productPrice" type="number" required min="0" step="1000" value="${item.price}"></label></div><div class="modal-actions"><button class="button" type="button" data-close-modal>Hủy</button><button class="button button-primary" type="submit">Lưu sản phẩm</button></div></form>`);
+  openModal(existing ? 'Sửa sản phẩm' : 'Thêm sản phẩm', `<form id="productForm"><div class="form-grid"><label class="form-field">Tên sản phẩm *<input id="productName" required maxlength="200" value="${escapeHtml(item.name)}"></label><label class="form-field">Mã SKU<input id="productSku" maxlength="60" value="${escapeHtml(item.sku)}"></label><label class="form-field">Loại sản phẩm *<select id="productType"><option value="SALE" ${item.type !== 'RENTAL' ? 'selected' : ''}>Bán</option><option value="RENTAL" ${item.type === 'RENTAL' ? 'selected' : ''}>Thuê</option></select></label><label class="form-field">Gói thuê<select id="productRentalMonths"><option value="">Không áp dụng</option><option value="1" ${item.rentalMonths === 1 ? 'selected' : ''}>1 tháng</option><option value="3" ${item.rentalMonths === 3 ? 'selected' : ''}>3 tháng</option><option value="6" ${item.rentalMonths === 6 ? 'selected' : ''}>6 tháng</option><option value="12" ${item.rentalMonths === 12 ? 'selected' : ''}>12 tháng</option></select></label><label class="form-field">Danh mục *<select id="productCategory" required><option value="">Chọn danh mục</option>${categories.map(category => `<option value="${escapeHtml(category)}" ${category === item.category ? 'selected' : ''}>${escapeHtml(category)}</option>`).join('')}</select></label><label class="form-field">Đơn giá *<input id="productPrice" type="number" required min="0" step="1000" value="${item.price}"></label></div><div class="modal-actions"><button class="button" type="button" data-close-modal>Hủy</button><button class="button button-primary" type="submit">Lưu sản phẩm</button></div></form>`);
+  const syncRental = () => { $('#productRentalMonths').disabled = $('#productType').value !== 'RENTAL'; if ($('#productType').value !== 'RENTAL') $('#productRentalMonths').value = ''; };
+  $('#productType').addEventListener('change', syncRental); syncRental();
   $('#productForm').onsubmit = event => {
     event.preventDefault();
-    const values = { name: $('#productName').value.trim(), sku: $('#productSku').value.trim(), category: $('#productCategory').value.trim(), price: Number($('#productPrice').value) };
+    const type = $('#productType').value === 'RENTAL' ? 'RENTAL' : 'SALE';
+    const rentalMonths = type === 'RENTAL' ? Number($('#productRentalMonths').value) : null;
+    const values = { name: $('#productName').value.trim(), sku: $('#productSku').value.trim(), category: $('#productCategory').value.trim(), price: Number($('#productPrice').value), type, rentalMonths: [1,3,6,12].includes(rentalMonths) ? rentalMonths : null };
     if (!values.name || !values.category || !Number.isFinite(values.price) || values.price < 0) return;
+    if (values.type === 'RENTAL' && !values.rentalMonths) { toast('Sản phẩm thuê phải chọn gói 1, 3, 6 hoặc 12 tháng'); return; }
     if (values.sku && PRODUCTS.some(product => product.id !== id && product.sku && normalize(product.sku) === normalize(values.sku))) { toast('Mã SKU đã tồn tại'); return; }
     if (existing) Object.assign(existing, values); else PRODUCTS.unshift({ id: `PRD-${Date.now()}`, ...values, active: true });
-    state.products = PRODUCTS;
-    audit(existing ? 'EDIT_PRODUCT' : 'CREATE_PRODUCT', existing?.id || PRODUCTS[0].id, values.name);
-    saveState(); closeModal(); render();
+    state.products = PRODUCTS; audit(existing ? 'EDIT_PRODUCT' : 'CREATE_PRODUCT', existing?.id || PRODUCTS[0].id, values.name); saveState(); closeModal(); render();
   };
 }
-
 function toggleProduct(id) {
   if (currentAccount.role !== 'ADMIN') return;
   const product = productById(id); if (!product) return;
@@ -2168,7 +2156,20 @@ function revenueView() {
 }
 
 function marketingView() {
-  const canViewTraffic = currentAccount.role === 'ADMIN';
+  const customers = scopedCustomers().filter(customer => inCurrentPeriod(customer.createdAt));
+  const productSales = productPerformance(scopedOrders()).filter(item => item.paidOrders || item.refunds);
+  const makeDistribution = (key, fallback) => {
+    const grouped = new Map();
+    customers.forEach(customer => {
+      const name = customer[key] || fallback;
+      const item = grouped.get(name) || { name, data: 0, color: FIELD_COLORS[grouped.size % FIELD_COLORS.length] };
+      item.data += 1;
+      grouped.set(name, item);
+    });
+    return Array.from(grouped.values()).sort((a, b) => b.data - a.data);
+  };
+  return pageHead('\u0110\u1eef li\u1ec7u', 'Th\u1ed1ng k\u00ea data th\u1ef1c t\u1ebf theo landing page v\u00e0 s\u1ea3n ph\u1ea9m.') + dateFilter() +
+    `<div class="grid grid-2"><section class="panel"><div class="panel-head"><div><div class="panel-title">Data theo landing page</div><div class="panel-sub">D\u1eef li\u1ec7u \u0111\u00e3 nh\u1eadp trong k\u1ef3</div></div></div><div class="panel-body">${distributionDonut(makeDistribution('landingPageName', 'Ch\u01b0a x\u00e1c \u0111\u1ecbnh landing page'), 'data', 'data')}</div></section><section class="panel"><div class="panel-head"><div><div class="panel-title">Doanh thu theo s\u1ea3n ph\u1ea9m</div><div class="panel-sub">S\u1ea3n ph\u1ea9m \u0111\u00e3 b\u00e1n trong k\u1ef3 \u00b7 x\u1ebfp theo doanh thu v\u00e0 s\u1ed1 l\u01b0\u1ee3ng</div></div></div><div class="table-wrap"><table><thead><tr><th>S\u1ea3n ph\u1ea9m</th><th>SL b\u00e1n</th><th>\u0110\u01a1n \u0111\u00e3 thanh to\u00e1n</th><th>Doanh thu</th><th>Ho\u00e0n</th></tr></thead><tbody>${productSales.map(item => '<tr><td><div class="cell-main">' + escapeHtml(item.name) + '</div><div class="cell-sub">' + escapeHtml(item.sku || '') + '</div></td><td>' + number(item.units) + '</td><td>' + number(item.paidOrders) + '</td><td><b>' + money(item.revenue) + '</b></td><td>' + number(item.refunds) + '</td></tr>').join('') || '<tr><td colspan="5"><div class="empty"><b>Ch\u01b0a c\u00f3 s\u1ea3n ph\u1ea9m b\u00e1n ra</b><span>Doanh thu s\u1ebd xu\u1ea5t hi\u1ec7n sau khi c\u00f3 \u0111\u01a1n thanh to\u00e1n.</span></div></td></tr>'}</tbody></table></div></section></div>`;
   const sources = sourcePerformance();
   const totals = sources.reduce((acc, source) => ({ sessions: acc.sessions + source.sessions, trackedLeads: acc.trackedLeads + source.trackedLeads, leads: acc.leads + source.leads, paidOrders: acc.paidOrders + source.paidOrders, convertedCustomers: acc.convertedCustomers + source.convertedCustomers, revenue: acc.revenue + source.revenue, spend: acc.spend + source.spend }), { sessions: 0, trackedLeads: 0, leads: 0, paidOrders: 0, convertedCustomers: 0, revenue: 0, spend: 0 });
   const funnel = canViewTraffic
@@ -2192,8 +2193,7 @@ function salePerformanceRows() {
     const paid = payments.length;
     const periodCustomerIds = new Set(customers.map(customer => customer.id));
     const won = new Set(payments.filter(order => periodCustomerIds.has(order.customerId)).map(order => order.customerId)).size;
-    const periodTarget = person.target * Math.min(currentPeriodBounds().days, 30) / 30;
-    return { ...person, customers: customers.length, paid, revenue, conversion: customers.length ? won / customers.length * 100 : 0, overdue: tasks.filter(task => task.status === 'OVERDUE').length, targetRate: periodTarget ? revenue / periodTarget * 100 : 0 };
+    return { ...person, customers: customers.length, paid, revenue, conversion: customers.length ? won / customers.length * 100 : 0, overdue: tasks.filter(task => task.status === 'OVERDUE').length };
   }).sort((a, b) => b.revenue - a.revenue);
 }
 
@@ -2202,16 +2202,65 @@ function teamView() {
   const rows = salePerformanceRows();
   const teamRevenue = netRevenue(scopedOrders(), inCurrentPeriod);
   const members = currentAccount.role === 'ADMIN' ? activeStaff() : activeStaff().filter(person => person.teamId === currentAccount.teamId && (person.id === currentAccount.leaderId || person.leaderId === currentAccount.leaderId));
-  const actions = currentAccount.role === 'ADMIN' ? '<button class="button button-primary" id="newMemberButton">+ Thêm thành viên</button>' : '<button class="button" id="exportTeamButton">Xuất CSV</button>';
+  const actions = currentAccount.role === 'ADMIN' ? '<button class="button button-primary" id="newTeamButton">+ Tạo đội</button>' : '<button class="button" id="exportTeamButton">Xuất CSV</button>';
+  const unassignedAccounts = currentAccount.role === 'ADMIN' ? (state.registeredAccounts || []).filter(account => account.role === 'UNASSIGNED' && account.active !== false) : [];
   const teamCards = Array.from(new Set(members.map(member => member.teamId))).sort().map(teamId => { const leaders = members.filter(member => member.teamId === teamId && member.role === 'LEADER'); return `<section class="panel team-overview-card"><div class="panel-head"><div><div class="panel-title">Team ${escapeHtml(teamId)}</div><div class="panel-sub">${leaders.length} Leader · ${members.filter(member => member.teamId === teamId && member.role === 'SALE').length} Sale</div></div></div><div class="panel-body">${leaders.map(leader => { const sales = members.filter(member => member.role === 'SALE' && member.leaderId === leader.id); return `<details class="team-leader"><summary><span class="avatar">${escapeHtml(leader.initials)}</span><span><b>${escapeHtml(leader.name)}</b><small>Leader · ${sales.length} Sale · ${state.customers.filter(customer => customer.leaderId === leader.id).length} khách</small></span></summary><div class="team-sales">${sales.map(sale => `<button class="team-sale-row" type="button" data-team-member="${escapeHtml(sale.id)}"><span><b>${escapeHtml(sale.name)}</b><small>${number(state.customers.filter(customer => customer.saleId === sale.id).length)} khách phụ trách</small></span><strong>${money(netRevenue(state.orders.filter(order => order.saleId === sale.id), inCurrentPeriod), true)}</strong></button>`).join('') || '<div class="cell-sub">Chưa có Sale trực thuộc.</div>'}</div></details>`; }).join('') || '<div class="empty compact"><b>Chưa có Leader</b></div>'}</div></section>`; }).join('');
-  return pageHead(currentAccount.role === 'ADMIN' ? 'Đội ngũ & phân quyền' : `Nhân sự Team ${currentAccount.teamId}`, 'Thêm, xoá, chỉnh chức vụ và duyệt nhân sự từ danh sách đăng ký.', actions) + dateFilter() + `<div class="team-overview-grid">${teamCards}</div>` +
+  const unassignedHtml = unassignedAccounts.length ? `<section class="panel" style="margin-top:14px"><div class="panel-head"><div><div class="panel-title">Tài khoản chưa phân chức vụ</div><div class="panel-sub">Đăng ký thành công được dùng ngay; Admin có thể đưa vào đội sau.</div></div></div><div class="table-wrap"><table><thead><tr><th>Tài khoản</th><th>Số điện thoại</th><th>Email</th><th>Trạng thái</th><th></th></tr></thead><tbody>${unassignedAccounts.map(account => `<tr><td><b>${escapeHtml(account.name)}</b></td><td>${escapeHtml(account.phone)}</td><td>${escapeHtml(account.email)}</td><td><span class="status status-pending">Chưa phân chức vụ</span></td><td><button class="button button-small button-primary" data-assign-account="${escapeHtml(account.id)}">Phân chức vụ</button></td></tr>`).join('')}</tbody></table></div></section>` : '';
+  return pageHead(currentAccount.role === 'ADMIN' ? 'Đội ngũ' : `Nhân sự Team ${currentAccount.teamId}`, 'Tạo đội, chọn Leader và các Sale trực thuộc; quản lý thành viên từ danh sách đội.', actions) + dateFilter() + `<div class="team-overview-grid">${teamCards}</div>` + unassignedHtml +
     `<div class="kpi-grid" style="grid-template-columns:repeat(4,minmax(150px,1fr))">${kpiCard('♧', 'Thành viên', number(members.length), currentAccount.role === 'ADMIN' ? 'Toàn hệ thống' : `Team ${currentAccount.teamId}`)}${kpiCard('₫', 'Doanh thu đội', money(teamRevenue, true), periodLabel())}${kpiCard('♙', 'Khách đang phụ trách', number(rows.reduce((sum, row) => sum + row.customers, 0)), 'Tổng theo Sale')}${kpiCard('!', 'Lịch quá hạn', number(rows.reduce((sum, row) => sum + row.overdue, 0)), 'Trong hồ sơ khách')}</div>
-    <section class="panel"><div class="panel-head"><div><div class="panel-title">Danh sách nhân sự</div><div class="panel-sub">Chức vụ, tuyến quản lý và hiệu suất hiện tại</div></div>${currentAccount.role === 'ADMIN' ? '<button class="button button-small" id="exportTeamButton">Xuất CSV</button>' : ''}</div><div class="table-wrap"><table><thead><tr><th>Nhân sự</th><th>Chức vụ</th><th>Team</th><th>Quản lý trực tiếp</th><th>Khách hàng</th><th>Doanh thu kỳ</th>${currentAccount.role === 'ADMIN' ? '<th>Thao tác</th>' : ''}</tr></thead><tbody>${members.map(member => { const performance = rows.find(row => row.id === member.id); const directSales = member.role === 'LEADER' ? STAFF.filter(person => person.role === 'SALE' && person.leaderId === member.id).length : 0; return `<tr><td><div class="cell-main">${escapeHtml(member.name)}${['l1', 's1'].includes(member.id) ? ' <span class="account-link">Tài khoản hệ thống</span>' : ''}</div><div class="cell-sub">${escapeHtml(member.id)}</div></td><td><span class="status ${member.role === 'LEADER' ? 'status-info' : 'status-paid'}">${member.role}</span></td><td>${escapeHtml(member.teamId)}</td><td>${member.role === 'SALE' ? escapeHtml(staffName(member.leaderId)) : `${directSales} Sale trực thuộc`}</td><td>${member.role === 'SALE' ? number(performance?.customers || 0) : number(state.customers.filter(customer => customer.leaderId === member.id).length)}</td><td>${member.role === 'SALE' ? money(performance?.revenue || 0) : money(netRevenue(state.orders.filter(order => order.leaderId === member.id), inCurrentPeriod))}</td>${currentAccount.role === 'ADMIN' ? `<td><div class="panel-actions"><button class="button button-small" data-edit-member="${escapeHtml(member.id)}">Chỉnh sửa</button><button class="button button-small" data-reset-member-password="${escapeHtml(member.id)}">Mật khẩu</button><button class="button button-small button-danger" data-delete-member="${escapeHtml(member.id)}" ${['l1', 's1'].includes(member.id) ? 'disabled title="Tài khoản đăng nhập đang liên kết"' : ''}>Xoá</button></div></td>` : ''}</tr>`; }).join('')}</tbody></table></div></section>
-    ${currentAccount.role === 'ADMIN' ? `<section class="panel" style="margin-top:14px"><div class="panel-head"><div><div class="panel-title">Dữ liệu đăng ký chờ duyệt</div><div class="panel-sub">Duyệt hồ sơ rồi mới gán chức vụ và đưa vào đội ngũ</div></div><span class="nav-badge registration-badge">${state.registrations.filter(item => item.status === 'PENDING').length}</span></div><div class="table-wrap"><table><thead><tr><th>Ứng viên</th><th>Liên hệ</th><th>IP đăng ký</th><th>Phân quyền</th><th>Ngày đăng ký</th><th></th></tr></thead><tbody>${state.registrations.filter(item => item.status === 'PENDING').map(item => `<tr><td><b>${escapeHtml(item.name)}</b></td><td><div>${escapeHtml(item.phone)}</div><div class="cell-sub">${escapeHtml(item.email)}</div></td><td class="mono">${escapeHtml(item.ipAddress || 'Chưa xác định')}</td><td><span class="status status-pending">Chờ Admin gán</span></td><td class="mono">${escapeHtml(item.registeredAt)}</td><td><button class="button button-primary button-small" data-promote-registration="${escapeHtml(item.id)}">Duyệt & gán role</button></td></tr>`).join('') || '<tr><td colspan="5"><div class="empty compact"><b>Không còn đăng ký chờ duyệt</b><span>Tất cả hồ sơ đã được xử lý.</span></div></td></tr>'}</tbody></table></div></section>` : ''}`;
+    <section class="panel"><div class="panel-head"><div><div class="panel-title">Danh sách nhân sự</div><div class="panel-sub">Chức vụ, tuyến quản lý và hiệu suất hiện tại</div></div>${currentAccount.role === 'ADMIN' ? '<button class="button button-small" id="exportTeamButton">Xuất CSV</button>' : ''}</div><div class="table-wrap"><table><thead><tr><th>Nhân sự</th><th>Chức vụ</th><th>Team</th><th>Quản lý trực tiếp</th><th>Khách hàng</th><th>Doanh thu kỳ</th>${currentAccount.role === 'ADMIN' ? '<th>Thao tác</th>' : ''}</tr></thead><tbody>${members.map(member => { const performance = rows.find(row => row.id === member.id); const directSales = member.role === 'LEADER' ? STAFF.filter(person => person.role === 'SALE' && person.leaderId === member.id).length : 0; return `<tr><td><div class="cell-main">${escapeHtml(member.name)}${['l1', 's1'].includes(member.id) ? ' <span class="account-link">Tài khoản hệ thống</span>' : ''}</div><div class="cell-sub">${escapeHtml(member.id)}</div></td><td><span class="status ${member.role === 'LEADER' ? 'status-info' : 'status-paid'}">${member.role}</span></td><td>${escapeHtml(member.teamId)}</td><td>${member.role === 'SALE' ? escapeHtml(staffName(member.leaderId)) : `${directSales} Sale trực thuộc`}</td><td>${member.role === 'SALE' ? number(performance?.customers || 0) : number(state.customers.filter(customer => customer.leaderId === member.id).length)}</td><td>${member.role === 'SALE' ? money(performance?.revenue || 0) : money(netRevenue(state.orders.filter(order => order.leaderId === member.id), inCurrentPeriod))}</td>${currentAccount.role === 'ADMIN' ? `<td><div class="panel-actions"><button class="button button-small" data-edit-member="${escapeHtml(member.id)}">Chỉnh sửa</button><button class="button button-small" data-reset-member-password="${escapeHtml(member.id)}">Mật khẩu</button><button class="button button-small button-danger" data-delete-member="${escapeHtml(member.id)}">Xoá</button></div></td>` : ''}</tr>`; }).join('')}</tbody></table></div></section>`;
 }
 
 function memberInitials(name) {
   return String(name || 'NV').trim().split(/\s+/).slice(-2).map(part => part[0] || '').join('').toUpperCase().slice(0, 3) || 'NV';
+}
+
+function createTeamModal() {
+  if (currentAccount.role !== 'ADMIN') { toast('FORBIDDEN'); return; }
+  const leaders = activeStaff().filter(person => person.role === 'LEADER');
+  const sales = activeStaff().filter(person => person.role === 'SALE');
+  openModal('T\u1ea1o \u0111\u1ed9i', '<form id="teamCreateForm"><div class="form-grid"><label class="form-field">M\u00e3 \u0111\u1ed9i<input id="teamCreateId" required maxlength="20" pattern="[A-Za-z0-9_-]+" placeholder="T3"></label><label class="form-field">T\u00ean \u0111\u1ed9i<input id="teamCreateName" maxlength="80" placeholder="Team kinh doanh"></label><label class="form-field full">Ch\u1ecdn Leader<select id="teamCreateLeader" required><option value="">-- Ch\u1ecdn Leader --</option>' + leaders.map(leader => '<option value="' + escapeHtml(leader.id) + '">' + escapeHtml(leader.name) + ' \u00b7 ' + escapeHtml(leader.teamId) + '</option>').join('') + '</select></label><fieldset class="form-field full"><legend>Ch\u1ecdn Sale tr\u1ef1c thu\u1ed9c</legend><div class="quick-option-list">' + sales.map(sale => '<label><input type="checkbox" name="teamSales" value="' + escapeHtml(sale.id) + '"><span>' + escapeHtml(sale.name) + ' \u00b7 ' + escapeHtml(sale.teamId) + '</span></label>').join('') + '</div></fieldset></div><div class="credential-hint">M\u1ed7i Sale ch\u1ec9 thu\u1ed9c m\u1ed9t Leader. T\u1ea1o \u0111\u1ed9i s\u1ebd c\u1eadp nh\u1eadt Team v\u00e0 tuy\u1ebfn qu\u1ea3n l\u00fd cho c\u00e1c th\u00e0nh vi\u00ean \u0111\u00e3 ch\u1ecdn.</div><div class="modal-actions"><button class="button" type="button" data-close-modal>Hu\u1ef7</button><button class="button button-primary" type="submit">T\u1ea1o \u0111\u1ed9i</button></div></form>');
+  $('[data-close-modal]')?.addEventListener('click', closeModal);
+  $('#teamCreateForm').onsubmit = event => {
+    event.preventDefault();
+    const teamId = $('#teamCreateId').value.trim().toUpperCase();
+    const leaderId = $('#teamCreateLeader').value;
+    const selectedSales = $$('input[name="teamSales"]:checked').map(input => input.value);
+    const leader = activeStaff().find(person => person.id === leaderId && person.role === 'LEADER');
+    if (!/^[A-Z0-9_-]{1,20}$/.test(teamId) || activeStaff().some(person => person.teamId === teamId) || !leader) { toast('Mã đội hoặc Leader không hợp lệ'); return; }
+    leader.teamId = teamId;
+    leader.leaderId = null;
+    activeStaff().filter(person => person.role === 'SALE' && (person.leaderId === leader.id || selectedSales.includes(person.id))).forEach(sale => { sale.teamId = selectedSales.includes(sale.id) ? teamId : ''; sale.leaderId = selectedSales.includes(sale.id) ? leader.id : null; });
+    audit('CREATE_TEAM', teamId, leader.name + ' ? ' + selectedSales.length + ' Sale');
+    saveState(); closeModal(); render(); toast('Đã tạo đội ' + teamId);
+  };
+}
+
+function assignRegisteredAccountModal(accountId) {
+  if (currentAccount.role !== 'ADMIN') return;
+  const account = (state.registeredAccounts || []).find(item => item.id === accountId && item.role === 'UNASSIGNED');
+  if (!account) return;
+  const leaders = activeStaff().filter(person => person.role === 'LEADER');
+  const leaderOptions = leaders.map(leader => '<option value="' + escapeHtml(leader.id) + '">' + escapeHtml(leader.name) + ' · ' + escapeHtml(leader.teamId) + '</option>').join('');
+  openModal('Phân chức vụ cho tài khoản', '<form id="assignAccountForm"><div class="form-grid"><label class="form-field full">Họ tên<input id="assignAccountName" value="' + escapeHtml(account.name) + '" required maxlength="160"></label><label class="form-field">Chức vụ<select id="assignAccountRole"><option value="SALE">SALE</option><option value="LEADER">LEADER</option></select></label><label class="form-field">Team<input id="assignAccountTeam" value="T2" required maxlength="20"></label><label class="form-field">Leader trực tiếp<select id="assignAccountLeader"><option value="">Không áp dụng</option>' + leaderOptions + '</select></label></div><div class="modal-actions"><button class="button" type="button" data-close-modal>Huỷ</button><button class="button button-primary" type="submit">Lưu phân chức vụ</button></div></form>');
+  $('[data-close-modal]')?.addEventListener('click', closeModal);
+  $('#assignAccountForm').onsubmit = event => {
+    event.preventDefault();
+    const role = $('#assignAccountRole').value;
+    const teamId = $('#assignAccountTeam').value.trim().toUpperCase();
+    const leaderId = $('#assignAccountLeader').value || null;
+    const leader = leaderId && activeStaff().find(person => person.id === leaderId && person.role === 'LEADER');
+    const name = $('#assignAccountName').value.trim();
+    if (!name || !/^[A-Z0-9_-]{1,20}$/.test(teamId)) { toast('Thông tin không hợp lệ'); return; }
+    if (role === 'SALE' && (!leader || leader.teamId !== teamId)) { toast('Sale phải thuộc đúng Team của Leader'); return; }
+    const memberId = 'u-' + Date.now();
+    const member = { id: memberId, name, role, teamId, leaderId: role === 'SALE' ? leaderId : null, initials: memberInitials(name), createdBy: currentAccount.name, active: true };
+    state.members.push(member);
+    account.role = role; account.scope = role === 'LEADER' ? 'TEAM' : 'OWN'; account.teamId = teamId; account.leaderId = member.leaderId; account.saleId = role === 'SALE' ? memberId : null; account.memberId = memberId;
+    STAFF = state.members.filter(person => person.active !== false);
+    audit('ASSIGN_REGISTERED_ACCOUNT', account.id, name + ' · ' + role + ' · ' + teamId);
+    saveState(); closeModal(); render(); toast('Đã phân chức vụ và đưa tài khoản vào đội ngũ');
+  };
 }
 
 function teamMemberModal(id = null, registrationId = null) {
@@ -2221,7 +2270,8 @@ function teamMemberModal(id = null, registrationId = null) {
   const source = member || registration || { name: '', requestedRole: 'SALE', teamId: 'T2' };
   const role = member?.role || source.requestedRole || 'SALE';
   const leaders = activeStaff().filter(person => person.role === 'LEADER' && person.id !== id);
-  openModal(member ? 'Chỉnh sửa thành viên' : 'Thêm thành viên', `<form id="teamMemberForm"><div class="form-grid"><label class="form-field full">Họ tên<input id="memberName" required maxlength="160" value="${escapeHtml(source.name)}"></label><label class="form-field">Chức vụ<select id="memberRole"><option value="SALE" ${role === 'SALE' ? 'selected' : ''}>SALE</option><option value="LEADER" ${role === 'LEADER' ? 'selected' : ''}>LEADER</option></select></label><label class="form-field">Team<input id="memberTeam" required maxlength="20" value="${escapeHtml(source.teamId || 'T2')}"></label><label class="form-field">Leader trực tiếp<select id="memberLeader"><option value="">Không áp dụng</option>${leaders.map(leader => `<option value="${escapeHtml(leader.id)}" ${(member?.leaderId || '') === leader.id ? 'selected' : ''}>${escapeHtml(leader.name)} · ${escapeHtml(leader.teamId)}</option>`).join('')}</select></label><label class="form-field">Mục tiêu doanh thu<input id="memberTarget" type="number" min="0" step="1000000" value="${member?.target || 80000000}"></label></div>${['l1', 's1'].includes(id) ? '<div class="credential-hint">Tài khoản đăng nhập đang liên kết không thể đổi tên, chức vụ hoặc tuyến quản lý; Sale vẫn có thể chỉnh mục tiêu.</div>' : ''}<div class="modal-actions"><button class="button" type="button" data-close-modal>Huỷ</button><button class="button button-primary" type="submit">Lưu thành viên</button></div></form>`);
+  const leaderOptions = leaders.map(leader => '<option value="' + escapeHtml(leader.id) + '" ' + ((member?.leaderId || '') === leader.id ? 'selected' : '') + '>' + escapeHtml(leader.name) + ' · ' + escapeHtml(leader.teamId) + '</option>').join('');
+  openModal(member ? 'Chỉnh sửa thành viên' : 'Thêm thành viên', '<form id="teamMemberForm"><div class="form-grid"><label class="form-field full">Họ tên<input id="memberName" required maxlength="160" value="' + escapeHtml(source.name) + '"></label><label class="form-field">Chức vụ<select id="memberRole"><option value="SALE" ' + (role === 'SALE' ? 'selected' : '') + '>SALE</option><option value="LEADER" ' + (role === 'LEADER' ? 'selected' : '') + '>LEADER</option></select></label><label class="form-field">Team<input id="memberTeam" required maxlength="20" value="' + escapeHtml(source.teamId || 'T2') + '"></label><label class="form-field">Leader trực tiếp<select id="memberLeader"><option value="">Không áp dụng</option>' + leaderOptions + '</select></label></div><div class="modal-actions"><button class="button" type="button" data-close-modal>Huỷ</button><button class="button button-primary" type="submit">Lưu thành viên</button></div></form>');
   $('[data-close-modal]')?.addEventListener('click', closeModal);
   $('#teamMemberForm').onsubmit = event => { event.preventDefault(); saveTeamMember(id, registrationId); };
 }
@@ -2238,8 +2288,8 @@ function resetMemberPasswordModal(id) {
 
 function saveTeamMember(id = null, registrationId = null) {
   if (currentAccount.role !== 'ADMIN') return;
-  const existing = STAFF.find(person => person.id === id), name = $('#memberName').value.trim(), role = $('#memberRole').value, teamId = $('#memberTeam').value.trim().toUpperCase(), leaderId = $('#memberLeader').value || null, target = Math.round(Number($('#memberTarget').value));
-  if (!name || !['LEADER', 'SALE'].includes(role) || !/^[A-Z0-9_-]{1,20}$/.test(teamId) || !Number.isFinite(target) || target < 0) { toast('Thông tin nhân sự không hợp lệ'); return; }
+  const existing = STAFF.find(person => person.id === id), name = $('#memberName').value.trim(), role = $('#memberRole').value, teamId = $('#memberTeam').value.trim().toUpperCase(), leaderId = $('#memberLeader').value || null;
+  if (!name || !['LEADER', 'SALE'].includes(role) || !/^[A-Z0-9_-]{1,20}$/.test(teamId)) { toast('Thông tin nhân sự không hợp lệ'); return; }
   if (existing && ['l1', 's1'].includes(existing.id) && (name !== existing.name || role !== existing.role || teamId !== existing.teamId || (existing.role === 'SALE' && leaderId !== existing.leaderId))) { toast('Không thể đổi tên, chức vụ hoặc tuyến quản lý của tài khoản đăng nhập đang liên kết'); return; }
   if (existing?.role === 'LEADER' && role === 'SALE' && STAFF.some(person => person.role === 'SALE' && person.leaderId === existing.id)) { toast('Hãy chuyển các Sale trực thuộc sang Leader khác trước khi đổi chức vụ'); return; }
   const leader = role === 'SALE' ? STAFF.find(person => person.id === leaderId && person.role === 'LEADER' && person.active !== false) : null;
@@ -2258,10 +2308,10 @@ function saveTeamMember(id = null, registrationId = null) {
       STAFF.filter(person => person.role === 'SALE' && person.leaderId === previous.id).forEach(sale => { sale.teamId = teamId; state.customers.filter(customer => customer.saleId === sale.id).forEach(customer => { const before = assignmentSnapshot(customer); customer.teamId = teamId; recordAssignmentChange(customer, before, `Team của Leader ${name} thay đổi`, 'SYSTEM'); }); state.tasks.filter(task => task.ownerId === sale.id && task.status !== 'DONE').forEach(task => { task.teamId = teamId; }); });
       state.customers.filter(customer => customer.leaderId === previous.id).forEach(customer => { const before = assignmentSnapshot(customer); customer.teamId = teamId; recordAssignmentChange(customer, before, `Team của Leader ${name} thay đổi`, 'SYSTEM'); });
     }
-    Object.assign(existing, { name, role, teamId, leaderId: role === 'SALE' ? leader.id : null, initials: memberInitials(name), target: role === 'SALE' ? target : 0, active: true });
+    Object.assign(existing, { name, role, teamId, leaderId: role === 'SALE' ? leader.id : null, initials: memberInitials(name), active: true });
   } else {
     const memberId = `${role === 'LEADER' ? 'l' : 's'}-${Date.now()}`;
-    state.members.push({ id: memberId, name, role, teamId, leaderId: role === 'SALE' ? leader.id : null, initials: memberInitials(name), target: role === 'SALE' ? target : 0, active: true });
+    state.members.push({ id: memberId, name, role, teamId, leaderId: role === 'SALE' ? leader.id : null, initials: memberInitials(name), createdBy: currentAccount.name, active: true });
   }
   const registration = state.registrations.find(item => item.id === registrationId);
   if (registration) registration.status = 'APPROVED';
@@ -2271,7 +2321,7 @@ function saveTeamMember(id = null, registrationId = null) {
 }
 
 function deleteTeamMember(id) {
-  if (currentAccount.role !== 'ADMIN' || ['l1', 's1'].includes(id)) { toast('Không thể xoá tài khoản đăng nhập đang liên kết'); return; }
+  if (currentAccount.role !== 'ADMIN') { toast('FORBIDDEN · chỉ Admin được xoá thành viên'); return; }
   const member = STAFF.find(person => person.id === id);
   if (!member) return;
   if (member.role === 'LEADER' && STAFF.some(person => person.role === 'SALE' && person.leaderId === member.id)) { toast('Hãy chuyển các Sale sang Leader khác trước khi xoá'); return; }
@@ -2287,6 +2337,8 @@ function deleteTeamMember(id) {
     recordAssignmentChange(customer, previous, customer.note, 'SYSTEM');
   });
   member.active = false;
+  const linkedAccount = member.id === 'l1' ? ACCOUNTS.find(item => item.id === 'u-leader-1') : member.id === 's1' ? ACCOUNTS.find(item => item.id === 'u-sale-1') : state.registeredAccounts.find(item => item.memberId === member.id);
+  if (linkedAccount) state.disabledAccountIds = Array.from(new Set([...(state.disabledAccountIds || []), linkedAccount.id]));
   STAFF = state.members.filter(person => person.active !== false);
   audit('DELETE_MEMBER', id, `${member.name} · ${member.role}`);
   saveState(); render(); toast('Đã xoá thành viên khỏi đội ngũ và thu hồi khách liên quan');
@@ -2300,7 +2352,7 @@ function reportsView() {
     <article class="info-card"><div class="info-card-top"><h3>Acquisition</h3><span class="scope-chip" style="color:var(--ink);background:var(--panel-2)">${currentAccount.scope}</span></div><p>${currentAccount.role === 'ADMIN' ? 'Traffic và chuyển đổi data' : 'Data và chuyển đổi trong phạm vi'}</p><div class="stat-row"><div><small>${currentAccount.role === 'ADMIN' ? 'Sessions' : 'Phạm vi'}</small><b>${currentAccount.role === 'ADMIN' ? number(current.sessions) : currentAccount.scope}</b></div><div><small>Data</small><b>${number(current.leads)}</b></div><div><small>Paid / data</small><b>${current.conversion.toFixed(1)}%</b></div></div></article>
     <article class="info-card"><div class="info-card-top"><h3>Vận hành</h3><span class="scope-chip" style="color:var(--ink);background:var(--panel-2)">${dateRange}D</span></div><p>Lịch chăm sóc nằm trong từng hồ sơ khách</p><div class="stat-row"><div><small>Khách mới</small><b>${current.customers.length}</b></div><div><small>Lịch đến hạn</small><b>${periodTasks.length}</b></div><div><small>Quá hạn</small><b>${periodTasks.filter(task => task.status === 'OVERDUE').length}</b></div></div></article></div>
     <div class="grid grid-2" style="margin-top:14px"><section class="panel"><div class="panel-head"><div><div class="panel-title">Top sản phẩm</div><div class="panel-sub">Theo doanh thu trong kỳ</div></div></div><div class="panel-body">${products.slice(0, 5).map((product, index) => `<div class="rank-row"><span class="rank">#${index + 1}</span><div><b>${escapeHtml(product.name)}</b><small>${product.units} sản phẩm · ${product.paidOrders} lượt thanh toán</small></div><div class="rank-value"><b>${money(product.revenue, true)}</b></div></div>`).join('') || '<div class="empty"><b>Chưa có sản phẩm bán ra</b><span>Không phát sinh thanh toán trong kỳ.</span></div>'}</div></section><section class="panel"><div class="panel-head"><div><div class="panel-title">Top nguồn doanh thu</div><div class="panel-sub">Last-touch attribution</div></div></div><div class="panel-body">${sources.filter(source => source.paidOrders || source.revenue !== 0).slice(0, 5).map((source, index) => `<div class="rank-row"><span class="rank">#${index + 1}</span><div><b>${escapeHtml(source.source)}</b><small>${source.leads} data CRM · ${source.paidOrders} lượt thanh toán</small></div><div class="rank-value"><b>${money(source.revenue, true)}</b></div></div>`).join('') || '<div class="empty"><b>Chưa có doanh thu theo nguồn</b><span>Không phát sinh thanh toán hoặc hoàn tiền trong kỳ.</span></div>'}</div></section></div>
-    ${currentAccount.role !== 'SALE' ? `<section class="panel" style="margin-top:14px"><div class="panel-head"><div><div class="panel-title">Đóng góp theo Sale</div><div class="panel-sub">Chỉ hiển thị nhân sự trong phạm vi hiện tại</div></div></div><div class="panel-body">${sales.map(row => `<div class="rank-row"><span class="rank">${row.initials}</span><div><b>${escapeHtml(row.name)}</b><small>${row.customers} khách · ${row.paid} đơn · ${row.conversion.toFixed(1)}% chuyển đổi</small><div class="progress"><i style="width:${Math.min(row.targetRate, 100)}%"></i></div></div><div class="rank-value"><b>${money(row.revenue, true)}</b><small>${row.targetRate.toFixed(1)}% mục tiêu</small></div></div>`).join('')}</div></section>` : ''}`;
+     ${currentAccount.role !== 'SALE' ? `<section class="panel" style="margin-top:14px"><div class="panel-head"><div><div class="panel-title">Đóng góp theo Sale</div><div class="panel-sub">Chỉ hiển thị nhân sự trong phạm vi hiện tại</div></div></div><div class="panel-body">${sales.map(row => `<div class="rank-row"><span class="rank">${row.initials}</span><div><b>${escapeHtml(row.name)}</b><small>${row.customers} khách · ${row.paid} đơn · ${row.conversion.toFixed(1)}% chuyển đổi</small></div><div class="rank-value"><b>${money(row.revenue, true)}</b></div></div>`).join('')}</div></section>` : ''}`;
 }
 
 function websitesView() {
@@ -2324,13 +2376,28 @@ function integrationsView() {
 }
 
 function visibleNotifications() {
-  return state.notifications.filter(item => item.role === 'ALL' || (item.role === 'ADMIN' && currentAccount.role === 'ADMIN') || (item.role === 'LEADER' && currentAccount.role === 'LEADER' && item.leaderId === currentAccount.leaderId) || (item.role === 'TEAM' && currentAccount.role === 'LEADER' && item.teamId === currentAccount.teamId) || (item.role === 'OWN' && currentAccount.role === 'SALE' && item.saleId === currentAccount.saleId));
+  return state.notifications.filter(item => currentAccount.role === 'ADMIN' || item.role === 'ALL');
 }
 
 function notificationsView() {
   const items = visibleNotifications();
-  return pageHead('Thông báo', 'Thông báo được phân phối theo tài khoản, team và mốc nghiệp vụ.', `<button class="button" id="readAllButton">Đánh dấu đã đọc</button>`) +
+  const action = currentAccount.role === 'ADMIN' ? '<button class="button button-primary" id="newAnnouncementButton">Tạo thông báo</button>' : '<button class="button" id="readAllButton">Đánh dấu đã đọc</button>';
+  return pageHead('Thông báo', currentAccount.role === 'ADMIN' ? 'Admin tạo và quản lý thông báo chung cho toàn bộ đội ngũ.' : 'Thông báo chung từ Admin.', action) +
     `<section class="panel"><div class="alert-list">${items.map(item => { const read = item.readBy.includes(currentAccount.id); return `<button class="alert-row" data-read-notification="${escapeHtml(item.id)}" style="text-align:left;opacity:${read ? '.65' : '1'}"><span class="alert-icon">${read ? '✓' : '●'}</span><span><b>${escapeHtml(item.title)}</b><p>${escapeHtml(item.text)}</p><div class="cell-sub">${escapeHtml(item.at)}</div></span><strong>${read ? 'Đã đọc' : 'Mới'}</strong></button>`; }).join('') || `<div class="empty"><b>Không có thông báo</b><span>Tài khoản của bạn chưa có thông báo mới.</span></div>`}</div></section>`;
+}
+
+function newAnnouncementModal() {
+  if (currentAccount.role !== 'ADMIN') { toast('FORBIDDEN · chỉ Admin được tạo thông báo'); return; }
+  openModal('Tạo thông báo', `<form id="announcementForm"><div class="form-grid"><label class="form-field full">Tiêu đề<input id="announcementTitle" required maxlength="200"></label><label class="form-field full">Nội dung<textarea id="announcementText" required rows="5" maxlength="1000"></textarea></label></div><div class="modal-actions"><button class="button" type="button" data-close-modal>Hủy</button><button class="button button-primary" type="submit">Gửi thông báo</button></div></form>`);
+  $('#announcementForm').onsubmit = event => {
+    event.preventDefault();
+    const title = cleanText($('#announcementTitle').value.trim(), '', 200);
+    const text = cleanText($('#announcementText').value.trim(), '', 1000);
+    if (!title || !text) { toast('Nhập đủ tiêu đề và nội dung'); return; }
+    state.notifications.unshift({ id: `NT-${Date.now()}`, role: 'ALL', title, text, at: stamp(), readBy: [] });
+    audit('CREATE_ANNOUNCEMENT', 'NOTIFICATIONS', title);
+    saveState(); closeModal(); render(); toast('Đã gửi thông báo tới Leader và Sale');
+  };
 }
 
 function auditView() {
@@ -2369,8 +2436,10 @@ function settingsView() {
   const option = (value, label, selected) => `<option value="${value}" ${selected === value ? 'selected' : ''}>${label}</option>`;
   const fontOptions = [['arial','Arial'],['arialBlack','Arial Black'],['bahnschrift','Bahnschrift'],['calibri','Calibri'],['cambria','Cambria'],['candara','Candara'],['century','Century Gothic'],['comic','Comic Sans MS'],['consolas','Consolas'],['constantia','Constantia'],['corbel','Corbel'],['courier','Courier New'],['franklin','Franklin Gothic Medium'],['georgia','Georgia'],['impact','Impact'],['segoe','Segoe UI'],['tahoma','Tahoma'],['times','Times New Roman'],['trebuchet','Trebuchet MS'],['verdana','Verdana'],['beVietnam','Be Vietnam Pro'],['inter','Inter'],['roboto','Roboto'],['openSans','Open Sans'],['montserrat','Montserrat'],['poppins','Poppins'],['lato','Lato'],['nunito','Nunito'],['raleway','Raleway'],['oswald','Oswald'],['ubuntu','Ubuntu'],['rubik','Rubik'],['manrope','Manrope'],['dmSans','DM Sans'],['workSans','Work Sans'],['quicksand','Quicksand'],['notoSans','Noto Sans'],['notoSerif','Noto Serif'],['plex','IBM Plex Sans'],['merriweather','Merriweather'],['playfair','Playfair Display'],['sourceSans','Source Sans 3'],['fira','Fira Sans'],['firaCode','Fira Code']];
   const colorOptions = ['#e8572a','#157a4b','#246b9b','#7c3aed','#c026d3','#db2777','#dc2626','#ea580c','#ca8a04','#65a30d','#0891b2','#0f172a','#475569','#000000','#ffffff'];
+  const accountEvents = state.audit.filter(item => ['CREATE_MEMBER', 'APPROVE_REGISTRATION'].includes(item.action)).slice(0, 10);
+  const dataEvents = state.imports.slice(0, 10);
   return pageHead('Cài đặt CRM', '') +
-    `<section class="panel"><div class="panel-head"><div class="panel-title">Giao diện & Telegram</div></div><div class="panel-body"><div class="form-grid"><label class="form-field">Màu chủ đạo<select id="themeColorSelect">${colorOptions.map(color => `<option value="${color}" ${(settings.customAccent || '#e8572a') === color ? 'selected' : ''}>${color}</option>`).join('')}</select><input id="customAccentColor" type="color" value="${settings.customAccent || '#e8572a'}" style="height:38px;padding:3px;margin-top:6px"></label><label class="form-field">Font chữ<select id="fontFamilySelect">${fontOptions.map(([value,label]) => option(value,label,settings.fontFamily || 'aptos')).join('')}</select></label><label class="form-field">Telegram Bot Token<input id="telegramBotToken" type="password" value="${escapeHtml(settings.telegramBotToken || '')}" placeholder="123456:ABC..."></label><label class="form-field">Telegram Chat ID<input id="telegramChatId" value="${escapeHtml(settings.telegramChatId || '')}" placeholder="-100xxxxxxxxxx"></label></div><div class="credential-hint" style="margin-top:12px">Khi có tài khoản mới đăng ký, backend sẽ gửi thông báo vào bot Telegram này. Token phải được mã hóa và không trả về trình duyệt khi triển khai thật.</div><button class="button button-primary" id="saveAppearanceButton" style="margin-top:14px">Lưu cấu hình</button></div></section>`;
+     `<section class="panel"><div class="panel-head"><div class="panel-title">Giao diện & Telegram</div></div><div class="panel-body"><div class="form-grid"><label class="form-field">Màu chủ đạo<select id="themeColorSelect">${colorOptions.map(color => `<option value="${color}" ${(settings.customAccent || '#e8572a') === color ? 'selected' : ''}>${color}</option>`).join('')}</select><input id="customAccentColor" type="color" value="${settings.customAccent || '#e8572a'}" style="height:38px;padding:3px;margin-top:6px"></label><label class="form-field">Font chữ<select id="fontFamilySelect">${fontOptions.map(([value,label]) => option(value,label,settings.fontFamily || 'aptos')).join('')}</select></label><label class="form-field">Bot báo data · Token<input id="dataBotToken" type="password" value="${escapeHtml(settings.dataBotToken || '')}" placeholder="123456:ABC..."></label><label class="form-field">Bot báo data · Chat ID<input id="dataBotChatId" value="${escapeHtml(settings.dataBotChatId || '')}" placeholder="-100xxxxxxxxxx"></label><label class="form-field">Bot báo thành viên · Token<input id="memberBotToken" type="password" value="${escapeHtml(settings.memberBotToken || '')}" placeholder="123456:ABC..."></label><label class="form-field">Bot báo thành viên · Chat ID<input id="memberBotChatId" value="${escapeHtml(settings.memberBotChatId || '')}" placeholder="-100xxxxxxxxxx"></label></div><div class="credential-hint" style="margin-top:12px">Bot báo data nhận sự kiện data mới; bot báo thành viên nhận sự kiện tạo tài khoản.</div><label class="setting-toggle" style="display:flex;align-items:center;gap:8px;margin-top:16px"><input id="leaderAttendanceRequired" type="checkbox" ${settings.leaderAttendanceRequired !== false ? 'checked' : ''}><span>Leader bắt buộc điểm danh</span></label><button class="button button-primary" id="saveAppearanceButton" style="margin-top:14px">Lưu cấu hình</button></div></section><div class="grid grid-2" style="margin-top:14px"><section class="panel"><div class="panel-head"><div class="panel-title">Tài khoản mới</div></div><div class="panel-body">${accountEvents.map(item => `<div class="rank-row"><div><b>${escapeHtml(item.actor)}</b><small>${escapeHtml(item.detail)} · ${escapeHtml(item.at)}</small></div></div>`).join('') || '<div class="empty"><b>Chưa có tài khoản mới</b></div>'}</div></section><section class="panel"><div class="panel-head"><div class="panel-title">Data mới về</div></div><div class="panel-body">${dataEvents.map(item => `<div class="rank-row"><div><b>${escapeHtml(item.source)}</b><small>${escapeHtml(item.filename)} · ${number(item.records)} data · ${escapeHtml(item.importedAt)}</small></div></div>`).join('') || '<div class="empty"><b>Chưa có lượt nhập data</b></div>'}</div></section></div>`;
 }
 
 function timeToMinutes(time) {
@@ -2445,37 +2514,36 @@ function attendanceCalendarHtml(accountId) {
 }
 
 function attendanceView() {
+  if (currentAccount.role === 'LEADER' && state.settings.leaderAttendanceRequired === false) return accessDeniedView('Admin đã tắt điểm danh bắt buộc cho Leader.');
   const today = dayIso(0);
   const rows = state.attendance.filter(item => item.date === today && (currentAccount.role === 'ADMIN' || item.teamId === currentAccount.teamId)).sort((a, b) => a.at.localeCompare(b.at));
-  if (currentAccount.role === 'SALE') {
+  if (currentAccount.role !== 'ADMIN') {
     const myAccountId = attendanceAccountId();
     const mine = rows.find(item => item.accountId === myAccountId);
     return pageHead('Điểm danh', '', mine ? '' : '<button class="button button-primary" id="checkInButton">Điểm danh hôm nay</button>') +
       `<section class="panel"><div class="panel-body">${mine ? `<div class="kpi"><strong>${escapeHtml(mine.at.slice(11))}</strong><small>${mine.late ? `Đi muộn ${mine.lateMinutes || 0} phút` : 'Đúng giờ'} · ${mine.ipValid ? 'Đúng wifi' : 'Ngoài wifi'} · IP ${escapeHtml(mine.ip)}</small></div>` : '<div class="empty"><b>Chưa điểm danh</b><span>Bấm nút Điểm danh hôm nay ở góc phải trên.</span></div>'}</div></section>` +
-      `<section class="panel" style="margin-top:14px"><div class="panel-head"><div><div class="panel-title">Lịch điểm danh 3 tháng</div><div class="panel-sub">Quá giờ chốt ${escapeHtml(state.settings.attendanceDeadline || '09:00')}${state.settings.attendanceLateGraceMinutes ? ` + ${state.settings.attendanceLateGraceMinutes}p dung sai` : ''} sẽ bị gắn nhãn Đi muộn · Cuối tuần tô xám</div></div></div><div class="panel-body" style="padding:0">${attendanceCalendarHtml(myAccountId)}</div></section>`;
+      `<section class="panel" style="margin-top:14px"><div class="panel-head"><div><div class="panel-title">Lịch điểm danh 3 tháng</div><div class="panel-sub">Sau ${escapeHtml(state.settings.attendanceDeadline || '09:00')} sẽ bị gắn nhãn Đi muộn · Cuối tuần tô xám</div></div></div><div class="panel-body" style="padding:0">${attendanceCalendarHtml(myAccountId)}</div></section>`;
   }
-  const config = currentAccount.role === 'ADMIN' ? `<section class="panel" style="margin-bottom:14px"><div class="panel-body"><div class="form-grid"><label class="form-field">IP Wi-Fi cho phép · phân cách dấu phẩy<input id="attendanceIp" value="${escapeHtml(state.settings.attendanceIp || '')}" placeholder="Ví dụ 192.168.1.10, 113.161.2.3"></label><label class="form-field">Giờ vào làm · quá giờ báo trễ<input id="attendanceDeadline" type="time" value="${escapeHtml(state.settings.attendanceDeadline || '09:00')}"></label><label class="form-field">Dung sai trễ (phút)<input id="attendanceLateGraceMinutes" type="number" min="0" max="60" step="1" value="${escapeHtml(String(state.settings.attendanceLateGraceMinutes || 0))}" placeholder="0 = không dung sai"></label><label class="form-field">Số giờ chờ Sale nhận data<input id="acceptTimeoutHours" type="number" min="1" max="72" step="1" value="${escapeHtml(String(state.settings.acceptTimeoutHours || 8))}"></label></div><button class="button button-primary" id="saveAttendanceSettings" style="margin-top:12px">Lưu quy định</button></div></section>` : '';
+  const config = currentAccount.role === 'ADMIN' ? `<section class="panel" style="margin-bottom:14px"><div class="panel-body"><div class="form-grid"><label class="form-field">IP Wi-Fi cho phép · phân cách dấu phẩy<input id="attendanceIp" value="${escapeHtml(state.settings.attendanceIp || '')}" placeholder="Ví dụ 192.168.1.10, 113.161.2.3"></label><label class="form-field">Giờ vào làm · quá giờ báo trễ<input id="attendanceDeadline" type="time" value="${escapeHtml(state.settings.attendanceDeadline || '09:00')}"></label><label class="form-field">Số giờ chờ Sale nhận data<input id="acceptTimeoutHours" type="number" min="1" max="72" step="1" value="${escapeHtml(String(state.settings.acceptTimeoutHours || 8))}"></label></div><button class="button button-primary" id="saveAttendanceSettings" style="margin-top:12px">Lưu quy định</button></div></section>` : '';
   const checkedIds = new Set(rows.map(item => item.accountId));
-  const missing = activeStaff().filter(person => person.role === 'SALE' && (currentAccount.role === 'ADMIN' || (person.teamId === currentAccount.teamId && person.leaderId === currentAccount.leaderId)) && !checkedIds.has(person.id));
-  const actionCell = person => currentAccount.role === 'ADMIN' ? `<td><button class="button button-small" type="button" data-makeup-attendance="${escapeHtml(person.id)}">Ghi bù</button></td>` : '';
-  const body = rows.map(item => `<tr><td><b>${escapeHtml(item.name)}</b></td><td>${escapeHtml(item.teamId)}</td><td class="mono">${escapeHtml(item.at)}</td><td class="mono">${escapeHtml(item.ip)}</td><td>${item.ipValid ? '<span class="status status-paid">Đúng wifi</span>' : '<span class="status status-cancelled">Ngoài wifi</span>'}</td><td>${item.late ? `<span class="status status-cancelled">Đi muộn ${item.lateMinutes || 0}p</span>` : '<span class="status status-paid">Đúng giờ</span>'}</td>${currentAccount.role === 'ADMIN' ? `<td><button class="button button-small" type="button" data-edit-attendance="${escapeHtml(item.id)}">Sửa</button> <button class="button button-small button-danger" type="button" data-delete-attendance="${escapeHtml(item.id)}">Xóa</button></td>` : ''}</tr>`).join('') +
+  const missing = activeStaff().filter(person => ['SALE', 'LEADER'].includes(person.role) && (currentAccount.role === 'ADMIN' || (person.teamId === currentAccount.teamId && (person.leaderId === currentAccount.leaderId || person.id === currentAccount.leaderId))) && !checkedIds.has(person.id));
+  const actionCell = person => currentAccount.role === 'ADMIN' ? `<td><button class="button button-small" type="button" data-attendance-detail="${escapeHtml(person.id)}">Chi ti&#7871;t</button></td>` : '';
+  const body = rows.map(item => `<tr><td><b>${escapeHtml(item.name)}</b></td><td>${escapeHtml(item.teamId)}</td><td class="mono">${escapeHtml(item.at)}</td><td class="mono">${escapeHtml(item.ip)}</td><td>${item.ipValid ? '<span class="status status-paid">&#272;&#250;ng wifi</span>' : '<span class="status status-cancelled">Ngo&#224;i wifi</span>'}</td><td>${item.late ? `<span class="status status-cancelled">&#272;i mu&#7897;n ${item.lateMinutes || 0}p</span>` : '<span class="status status-paid">&#272;&#250;ng gi&#7901;</span>'}</td>${currentAccount.role === 'ADMIN' ? `<td><button class="button button-small" type="button" data-attendance-detail="${escapeHtml(item.accountId)}">Chi ti&#7871;t</button> <button class="button button-small" type="button" data-edit-attendance="${escapeHtml(item.id)}">S&#7917;a</button> <button class="button button-small button-danger" type="button" data-delete-attendance="${escapeHtml(item.id)}">X&#243;a</button></td>` : ''}</tr>`).join('') +
     missing.map(person => `<tr><td><b>${escapeHtml(person.name)}</b></td><td>${escapeHtml(person.teamId)}</td><td colspan="3"><span class="status status-pending">Chưa điểm danh</span></td><td></td>${actionCell(person)}</tr>`).join('');
   const cols = currentAccount.role === 'ADMIN' ? 7 : 6;
-  const historyHtml = attendanceHistoryHtml();
-  return pageHead('Điểm danh', '') + config + `<section class="panel"><div class="table-wrap"><table><thead><tr><th>Nhân viên</th><th>Team</th><th>Thời gian</th><th>IP</th><th>Wi-Fi</th><th>Kết quả</th>${currentAccount.role === 'ADMIN' ? '<th></th>' : ''}</tr></thead><tbody>${body || `<tr><td colspan="${cols}"><div class="empty"><b>Chưa có điểm danh hôm nay</b></div></td></tr>`}</tbody></table></div></section>${historyHtml}`;
+  return pageHead('Điểm danh', '') + config + `<section class="panel"><div class="table-wrap"><table><thead><tr><th>Nhân viên</th><th>Team</th><th>Thời gian</th><th>IP</th><th>Wi-Fi</th><th>Kết quả</th>${currentAccount.role === 'ADMIN' ? '<th></th>' : ''}</tr></thead><tbody>${body || `<tr><td colspan="${cols}"><div class="empty"><b>Chưa có điểm danh hôm nay</b></div></td></tr>`}</tbody></table></div></section>`;
 }
 
 function attendanceHistoryHtml() {
   const today = dayIso(0);
   const threeMonthsAgo = dayIso(90);
-  const sales = activeStaff().filter(person => person.role === 'SALE' && (currentAccount.role === 'ADMIN' || (person.teamId === currentAccount.teamId && person.leaderId === currentAccount.leaderId)));
-  const history = state.attendance.filter(item => item.date >= threeMonthsAgo && item.date <= today && sales.some(s => s.id === item.accountId)).sort((a, b) => b.date.localeCompare(a.date) || b.at.localeCompare(a.at));
-  if (!history.length) return '';
+  const staff = activeStaff().filter(person => ['SALE', 'LEADER'].includes(person.role));
+  const history = state.attendance.filter(item => item.date >= threeMonthsAgo && item.date <= today && staff.some(person => person.id === item.accountId)).sort((a, b) => b.date.localeCompare(a.date) || b.at.localeCompare(a.at));
   const rows = history.map(item => {
-    const sale = sales.find(s => s.id === item.accountId);
-    return `<tr><td><b>${escapeHtml(item.name)}</b></td><td>${escapeHtml(item.teamId)}</td><td class="mono">${escapeHtml(item.date)}</td><td class="mono">${escapeHtml(item.at.slice(11))}</td><td>${item.late ? `<span class="status status-cancelled">Muộn ${item.lateMinutes || 0}p</span>` : '<span class="status status-paid">Đúng giờ</span>'}</td><td>${item.ipValid ? '<span class="status status-paid">Đúng wifi</span>' : '<span class="status status-cancelled">Ngoài wifi</span>'}</td><td class="note-preview">${escapeHtml(item.note || '')}</td></tr>`;
+    const person = staff.find(member => member.id === item.accountId);
+    return `<tr><td><b>${escapeHtml(item.name)}</b><div class="cell-sub">${escapeHtml(person?.role || '')}</div></td><td>${escapeHtml(item.teamId)}</td><td class="mono">${escapeHtml(item.date)}</td><td class="mono">${escapeHtml(item.at.slice(11))}</td><td>${item.late ? `<span class="status status-cancelled">Muộn ${item.lateMinutes || 0}p</span>` : '<span class="status status-paid">Đúng giờ</span>'}</td><td>${item.ipValid ? '<span class="status status-paid">Đúng wifi</span>' : '<span class="status status-cancelled">Ngoài wifi</span>'}</td><td class="note-preview">${escapeHtml(item.note || '')}</td></tr>`;
   }).join('');
-  return `<section class="panel" style="margin-top:14px"><div class="panel-head"><div><div class="panel-title">Lịch sử điểm danh 3 tháng</div><div class="panel-sub">${history.length} bản ghi · từ ${escapeHtml(threeMonthsAgo)} đến ${escapeHtml(today)}</div></div></div><div class="table-wrap"><table><thead><tr><th>Nhân viên</th><th>Team</th><th>Ngày</th><th>Giờ</th><th>Kết quả</th><th>Wi-Fi</th><th>Ghi chú</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
+  return `<section class="panel" style="margin-top:14px"><div class="panel-head"><div><div class="panel-title">Bảng điểm danh chi tiết 3 tháng</div><div class="panel-sub">Admin xem Sale và Leader · ${history.length} bản ghi từ ${escapeHtml(threeMonthsAgo)} đến ${escapeHtml(today)}</div></div></div><div class="table-wrap"><table><thead><tr><th>Nhân sự</th><th>Team</th><th>Ngày</th><th>Giờ</th><th>Kết quả</th><th>Wi-Fi</th><th>Ghi chú</th></tr></thead><tbody>${rows || `<tr><td colspan="7"><div class="empty"><b>Chưa có dữ liệu điểm danh trong 3 tháng</b><span>Bảng sẽ tự cập nhật sau khi Sale hoặc Leader điểm danh.</span></div></td></tr>`}</tbody></table></div></section>`;
 }
 
 /* Bản ghi điểm danh trỏ vào NHÂN SỰ trong state.members (s1, l1…), không phải tài
@@ -2491,8 +2559,7 @@ function checkInToday() {
   const accountId = attendanceAccountId();
   if (state.attendance.some(item => item.date === date && item.accountId === accountId)) { toast('Hôm nay bạn đã điểm danh rồi'); return; }
   const at = stamp(), time = at.slice(11, 16), deadline = state.settings.attendanceDeadline || '09:00', ip = currentAccount.ip || '127.0.0.1';
-  const grace = state.settings.attendanceLateGraceMinutes || 0;
-  const deadlineMinutes = timeToMinutes(deadline) + grace;
+    const deadlineMinutes = timeToMinutes(deadline);
   const checkInMinutes = timeToMinutes(time);
   const late = checkInMinutes > deadlineMinutes;
   const lateMinutes = late ? checkInMinutes - timeToMinutes(deadline) : 0;
@@ -2500,23 +2567,33 @@ function checkInToday() {
   audit('CHECK_IN', date, `${time} · ${ip}${late ? ` · ĐI MUỘN ${lateMinutes}p` : ''}`);
   if (late && currentAccount.leaderId) state.notifications.unshift({ id: `NT-LATE-${date}-${currentAccount.id}`, role: 'LEADER', leaderId: currentAccount.leaderId, teamId: currentAccount.teamId, title: 'Sale điểm danh muộn', text: `${currentAccount.name} điểm danh lúc ${time} · trễ ${lateMinutes} phút · quá giờ chốt ${deadline}`, at, readBy: [] });
   saveState(); render();
-  toast(late ? `Đã điểm danh · ĐI MUỘN ${lateMinutes} phút (quá giờ chốt ${deadline} + ${grace}p dung sai)` : 'Đã điểm danh đúng giờ');
+  toast(late ? `Đã điểm danh · ĐI MUỘN ${lateMinutes} phút (quá giờ chốt ${deadline})` : 'Đã điểm danh đúng giờ');
 }
 
 function saveAttendanceSettings() {
   if (currentAccount.role !== 'ADMIN') { toast('FORBIDDEN · chỉ Admin được đổi quy định điểm danh'); return; }
   const deadline = cleanClockTime($('#attendanceDeadline')?.value, '');
   const hours = Number($('#acceptTimeoutHours')?.value);
-  const grace = Number($('#attendanceLateGraceMinutes')?.value);
   if (!deadline) { toast('Giờ vào làm không hợp lệ'); return; }
   if (!Number.isInteger(hours) || hours < 1 || hours > 72) { toast('Số giờ chờ nhận data phải từ 1 đến 72'); return; }
-  if (!Number.isInteger(grace) || grace < 0 || grace > 60) { toast('Dung sai trễ phải từ 0 đến 60 phút'); return; }
   state.settings.attendanceIp = cleanText($('#attendanceIp')?.value || '', '', 200);
   state.settings.attendanceDeadline = deadline;
-  state.settings.attendanceLateGraceMinutes = grace;
   state.settings.acceptTimeoutHours = hours;
-  audit('UPDATE_SETTING', 'ATTENDANCE', `giờ chốt ${deadline} · dung sai ${grace}p · wifi "${state.settings.attendanceIp || 'bỏ trống'}" · chờ nhận ${hours}h`);
+  audit('UPDATE_SETTING', 'ATTENDANCE', `giờ chốt ${deadline} · wifi "${state.settings.attendanceIp || 'bỏ trống'}" · chờ nhận ${hours}h`);
   saveState(); render(); toast('Đã lưu quy định điểm danh và nhận data');
+}
+
+function attendanceMemberDetailModal(memberId) {
+  if (currentAccount.role !== 'ADMIN') return;
+  const member = activeStaff().find(person => person.id === memberId);
+  if (!member) { toast('Kh?ng t?m th?y th?nh vi?n'); return; }
+  const from = dayIso(90), to = dayIso(0);
+  const records = state.attendance.filter(item => item.accountId === memberId && item.date >= from && item.date <= to).sort((a, b) => b.date.localeCompare(a.date));
+  const late = records.filter(item => item.late);
+  const outside = records.filter(item => item.ipValid === false);
+  const detailRows = records.map(item => '<tr><td class="mono">' + escapeHtml(item.date) + '</td><td class="mono">' + escapeHtml(item.at.slice(11)) + '</td><td>' + (item.late ? '<span class="status status-cancelled">?i mu?n ' + (item.lateMinutes || 0) + ' ph?t</span>' : '<span class="status status-paid">??ng gi?</span>') + '</td><td>' + (item.ipValid ? '<span class="status status-paid">??ng wifi</span>' : '<span class="status status-cancelled">Ngo?i wifi</span>') + '</td><td>' + escapeHtml(item.note || '') + '</td></tr>').join('');
+  openModal('Chi ti?t ?i?m danh ? ' + member.name, '<div class="kpi-grid" style="grid-template-columns:repeat(4,minmax(120px,1fr))"><article class="kpi"><strong>' + number(records.length) + '</strong><small>Ng?y ?? ch?m</small></article><article class="kpi"><strong>' + number(late.length) + '</strong><small>L?n ?i mu?n</small></article><article class="kpi"><strong>' + number(late.reduce((sum, item) => sum + (item.lateMinutes || 0), 0)) + 'p</strong><small>T?ng ph?t tr?</small></article><article class="kpi"><strong>' + number(outside.length) + '</strong><small>Ngo?i wifi</small></article></div><section class="panel" style="margin-top:14px"><div class="panel-head"><div><div class="panel-title">L?ch 3 th?ng c?a ' + escapeHtml(member.name) + '</div><div class="panel-sub">Xem t?ng ng?y ?i ??ng gi?, ?i mu?n ho?c ngh?</div></div></div><div class="panel-body" style="padding:0">' + attendanceCalendarHtml(memberId) + '</div></section><section class="panel" style="margin-top:14px"><div class="table-wrap"><table><thead><tr><th>Ng?y</th><th>Gi?</th><th>K?t qu?</th><th>Wi-Fi</th><th>Ghi ch?</th></tr></thead><tbody>' + (detailRows || '<tr><td colspan="5"><div class="empty"><b>Ch?a c? d? li?u</b></div></td></tr>') + '</tbody></table></div></section><div class="modal-actions"><button class="button" type="button" data-close-modal>??ng</button></div>');
+  $('[data-close-modal]')?.addEventListener('click', closeModal);
 }
 
 function attendanceEditModal(recordId = null, makeupSaleId = null) {
@@ -2541,11 +2618,10 @@ function attendanceEditModal(recordId = null, makeupSaleId = null) {
     if (!date) { toast('Ngày không hợp lệ'); return; }
     if (date > dayIso(0)) { toast('Không thể điểm danh cho ngày chưa tới'); return; }
     const deadline = state.settings.attendanceDeadline || '09:00';
-    const grace = state.settings.attendanceLateGraceMinutes || 0;
     const lateChoice = $('#attLate').value, wifiChoice = $('#attWifi').value;
     const ip = $('#attIp').value.trim() || (record ? record.ip : sessionIp('127.0.0.1'));
     const at = `${date} ${time || '00:00'}`;
-    const deadlineMinutes = timeToMinutes(deadline) + grace;
+    const deadlineMinutes = timeToMinutes(deadline);
     const checkInMinutes = time ? timeToMinutes(time) : 0;
     const late = lateChoice === 'AUTO' ? (time ? checkInMinutes > deadlineMinutes : false) : lateChoice === 'LATE';
     const lateMinutes = late ? Math.max(0, checkInMinutes - timeToMinutes(deadline)) : 0;
@@ -2573,6 +2649,16 @@ function deleteAttendanceRecord(id) {
   audit('DELETE_ATTENDANCE', id, `${record.name} · ${record.date}`);
   saveState(); render(); toast('Đã xóa bản ghi điểm danh');
 }
+function profileView() {
+  if (!['SALE', 'LEADER', 'UNASSIGNED'].includes(currentAccount.role)) return accessDeniedView('Trang hồ sơ này dành cho Sale và Leader.');
+  const member = activeStaff().find(person => person.id === (currentAccount.saleId || currentAccount.leaderId));
+  if (!member && currentAccount.role !== 'UNASSIGNED') return accessDeniedView('Không tìm thấy hồ sơ nhân sự.');
+  const profileName = member?.name || currentAccount.name;
+  const profileInitials = member?.initials || currentAccount.initials;
+  const avatar = member?.avatar ? `<img class="profile-avatar-large" src="${escapeHtml(member.avatar)}" alt="Avatar của ${escapeHtml(member.name)}">` : `<span class="profile-avatar-large profile-avatar-placeholder">${escapeHtml(profileInitials)}</span>`;
+  return pageHead('Hồ sơ của tôi', 'Cập nhật thông tin cá nhân và ảnh đại diện.', '') + `<section class="panel"><div class="panel-body"><form id="profileForm"><div class="profile-editor">${avatar}<div><label class="button button-small" for="profileAvatarInput">Đổi avatar</label><input id="profileAvatarInput" type="file" accept="image/png,image/jpeg,image/webp" class="is-hidden"><p class="cell-sub">Ảnh tối đa 1 MB, định dạng PNG/JPG/WebP.</p></div></div><div class="form-grid"><label class="form-field">Tên hiển thị<input id="profileDisplayName" maxlength="160" value="${escapeHtml(profileName)}"></label><label class="form-field">Vai trò<input disabled value="${escapeHtml(currentAccount.role)}"></label><label class="form-field">Đội<input disabled value="${escapeHtml(member?.teamId || 'Chưa phân')}"></label></div><div class="modal-actions"><button class="button button-primary" type="submit">Lưu hồ sơ</button></div></form></div></section>`;
+}
+
 function accessDeniedView(message) {
   return pageHead('Không có quyền truy cập', 'Backend production phải trả 403 cho thao tác này.') + `<section class="panel"><div class="empty"><b>403 · FORBIDDEN</b><span>${escapeHtml(message)}</span></div></section>`;
 }
@@ -2581,18 +2667,22 @@ const VIEW_RENDERERS = {
   dashboard: dashboardView, customers: customersView, pool: poolView, distribution: distributionView,
   orders: ordersView, products: productsView, revenue: revenueView, marketing: marketingView, team: teamView,
   websites: websitesView, integrations: integrationsView,
-  attendance: attendanceView, accept: acceptQueueView, notifications: notificationsView, audit: auditView, settings: settingsView
+  attendance: attendanceView, accept: acceptQueueView, notifications: notificationsView, audit: auditView, settings: settingsView, profile: profileView
 };
 
-function allowedViews() { return NAVIGATION[currentAccount.role].flatMap(([, items]) => items.map(item => item[0])); }
-function viewLabel(view) { return NAVIGATION[currentAccount.role].flatMap(([, items]) => items).find(item => item[0] === view)?.[1] || view; }
+function visibleNavigation() {
+  const groups = NAVIGATION[currentAccount.role] || [];
+  return groups.map(([name, items]) => [name, items.filter(item => !(currentAccount.role === 'LEADER' && item[0] === 'attendance' && state.settings.leaderAttendanceRequired === false))]).filter(([, items]) => items.length);
+}
+function allowedViews() { return visibleNavigation().flatMap(([, items]) => items.map(item => item[0])); }
+function viewLabel(view) { return visibleNavigation().flatMap(([, items]) => items).find(item => item[0] === view)?.[1] || view; }
 
 function newCustomerCount() {
   return currentAccount && currentAccount.role !== 'SALE' ? scopedCustomers().filter(isPoolCustomer).length : 0;
 }
 
 function renderNavigation() {
-  const groups = NAVIGATION[currentAccount.role];
+  const groups = visibleNavigation();
   $('#sideNav').innerHTML = groups.map(([group, items]) => `<div class="nav-group"><div class="nav-title">${escapeHtml(group)}</div>${items.map(([view, label, icon]) => { const badge = view === 'notifications' ? unreadCount() : view === 'pool' ? newCustomerCount() : view === 'accept' ? pendingOfferCount() : 0; const showBadge = view === 'pool' || view === 'accept' || badge > 0; return `<button type="button" class="nav-link ${currentView === view ? 'active' : ''}" data-view-link="${view}" ${currentView === view ? 'aria-current="page"' : ''}><span class="nav-icon">${icon}</span><span>${escapeHtml(label)}</span>${showBadge ? `<span class="nav-badge">${badge}</span>` : ''}</button>`; }).join('')}</div>`).join('');
   $('#mobileNav').innerHTML = groups.flatMap(([, items]) => items).map(([view, label]) => `<option value="${view}" ${currentView === view ? 'selected' : ''}>${escapeHtml(label)}${view === 'pool' ? ` (${newCustomerCount()})` : ''}</option>`).join('');
   $$('[data-view-link]').forEach(button => button.onclick = event => { event.preventDefault(); navigate(button.dataset.viewLink); });
@@ -2602,9 +2692,13 @@ function renderNavigation() {
 function unreadCount() { return currentAccount ? visibleNotifications().filter(item => !item.readBy.includes(currentAccount.id)).length : 0; }
 
 function updateSessionChrome() {
+  const sessionMember = activeStaff().find(person => person.id === (currentAccount.saleId || currentAccount.leaderId));
   $('#profileName').textContent = currentAccount.name;
+  const avatar = $('#profileAvatar');
+  avatar.textContent = sessionMember?.avatar ? '' : currentAccount.initials;
+  avatar.style.backgroundImage = sessionMember?.avatar ? `url("${sessionMember.avatar}")` : '';
+  avatar.classList.toggle('avatar-edit', ['SALE', 'LEADER'].includes(currentAccount.role));
   $('#profileRole').textContent = `${currentAccount.role} · ${currentAccount.scope}`;
-  $('#profileAvatar').textContent = currentAccount.initials;
   $('#sidebarRole').textContent = currentAccount.role;
   $('#sidebarScope').textContent = currentAccount.scope;
   $('#notificationCount').textContent = unreadCount();
@@ -2783,7 +2877,7 @@ function openCustomerDrawer(id) {
     head: `<h2>${escapeHtml(customer.name)}</h2><p>${currentAccount.role === 'SALE' && !customer.saleAcceptedAt ? '•••••' : escapeHtml(customer.phone)}</p>`,
     body: `${resubmissions.length ? `<div class="duplicate-alert"><b>DATA TRÙNG · ${resubmissions.length} lần gửi lại</b><span>${resubmissions[0].registeredAccount ? 'DATA đã đăng ký TK' : 'Đã giữ đúng người phụ trách trước đó'} · gần nhất ${escapeHtml(resubmissions[0].at)}</span></div>` : ''}<div class="section-label">Thông tin khách hàng</div><dl class="detail-grid"><dt>Email</dt><dd>${escapeHtml(customer.email || 'Chưa cập nhật')}</dd>${sourceDetails}<dt>IP truy cập</dt><dd class="mono">${escapeHtml(customer.ipAddress || 'Chưa xác định')}</dd><dt>Trạng thái</dt><dd>${statusBadge(customer.status)}</dd><dt>Team / Leader</dt><dd>${escapeHtml(customer.teamId || 'Khách mới')} · ${escapeHtml(staffName(customer.leaderId))}</dd><dt>Sale phụ trách</dt><dd>${escapeHtml(staffName(customer.saleId))}</dd><dt>Ngày tạo</dt><dd>${escapeHtml(customer.createdAt)}</dd><dt>Doanh thu thuần</dt><dd>${money(netRevenue(orders))}</dd><dt>Ghi chú gần nhất</dt><dd>${escapeHtml(customer.note)}</dd></dl>
       ${assignmentHtml}
-      <div class="section-label">Trạng thái khách hàng</div>${canUpdate ? `<form id="customerUpdateForm"><div class="inline-form"><select id="customerStatus">${Object.entries(STATUS_META).map(([key, meta]) => `<option value="${key}" ${customer.status === key ? 'selected' : ''}>${escapeHtml(meta.label)}</option>`).join('')}</select><button class="button button-primary" type="submit">Cập nhật trạng thái</button></div></form>` : `<div class="demo-warning">Tài khoản hiện tại chỉ được xem trạng thái.</div>`}
+      <div class="section-label">Trạng thái khách hàng</div>${canUpdate ? `<form id="customerUpdateForm"><div class="inline-form"><select id="customerStatus">${Object.entries(STATUS_META).map(([key, meta]) => `<option value="${key}" ${customer.status === key ? 'selected' : ''}>${escapeHtml(meta.label)}</option>`).join('')}</select><button class="button button-primary" type="submit">Cập nhật trạng thái</button></div></form>` : `<div class="form-hint">Tài khoản hiện tại chỉ được xem trạng thái.</div>`}
       <div class="section-label customer-business-section">Dữ liệu nghiệp vụ</div>${canUpdate ? `<form id="customerCustomFieldsForm"><div class="form-grid custom-field-grid">${activeCustomFields().filter(field => field.type === 'MULTI_SELECT' || field.type === 'NOTE').map(field => customFieldInput(field, customer.customFields?.[field.id])).join('')}</div><div class="modal-actions"><button class="button button-primary" type="submit">Lưu dữ liệu nghiệp vụ</button></div></form>` : `<div class="custom-field-readonly">${activeCustomFields().filter(field => field.type === 'MULTI_SELECT' || field.type === 'NOTE').map(field => `<div><small>${escapeHtml(field.label)}</small>${customFieldCell(field, customer.customFields?.[field.id])}</div>`).join('')}</div>`}
       <div class="section-label">Lịch sử Level khách hàng · Không ghi đè</div><div class="timeline level-history">${levelTimeline}</div>
       <div class="section-label section-label-with-action">Sản phẩm & đơn hàng đã mua <button class="button button-small" type="button" data-new-customer-product="${escapeHtml(customer.id)}">+ Thêm sản phẩm</button></div><div class="purchase-list">${orders.map(order => `<button class="purchase-row" type="button" data-customer-order="${escapeHtml(order.id)}"><span><b>${escapeHtml(order.productName)}</b><small>${escapeHtml(order.code)} · SL ${order.qty} · ${escapeHtml(order.createdAt)}</small></span><span class="right"><b>${money(order.total)}</b>${statusBadge(order.status, 'order')}</span></button>`).join('') || '<div class="empty compact"><b>Chưa mua sản phẩm</b><span>Khách hàng chưa có đơn hàng nào.</span></div>'}</div>
@@ -3040,6 +3134,8 @@ function ingestCustomer(record, context = {}) {
     ipAddress: cleanText(record.ipAddress || record.ip, 'Chưa xác định', 64),
     source: dataTerminology(cleanText(record.source, context.sourceLabel || 'Nhập thủ công', 120)),
     campaign: dataTerminology(cleanText(record.campaign, 'MANUAL-CRM', 160)),
+    landingPageName: cleanText(record.landingPageName || record.landingPage || website.domain, website.domain, 200),
+    productName: cleanText(record.productName || record.product || record.sanpham, 'Chưa xác định sản phẩm', 200),
     websiteId: website.id,
     status: Object.hasOwn(STATUS_META, record.status) ? record.status : 'NEW',
     saleId: null,
@@ -3106,31 +3202,43 @@ function recordCustomerImport(source, filename, records, status = 'SUCCESS') {
 }
 
 function customerImportModal() {
-  if (currentAccount.role !== 'ADMIN') { toast('FORBIDDEN · chỉ Admin được kết nối nguồn data'); return; }
-  // Thẻ SUBDATA bị ẩn cùng mục Tích hợp; chỉ giữ đường nhập file CSV/JSON.
-  openModal('Kết nối & cập nhật data', `<div class="import-grid"><section class="import-card"><span class="eyebrow">FILE IMPORT</span><h3>Tải CSV hoặc JSON</h3><p>CSV/JSON được đọc trực tiếp và kiểm tra trùng số điện thoại. PDF cần dịch vụ OCR/parser backend trước khi nhập.</p><form id="customerFileImportForm"><label class="file-drop">Chọn file dữ liệu<input id="customerImportFile" type="file" accept=".csv,.json,.pdf,application/pdf,text/csv,application/json" required><span>CSV · JSON tối đa 250 bản ghi/lần; PDF cần backend</span></label><button class="button button-primary button-block" type="submit">Kiểm tra & cập nhật data</button></form></section></div><div class="credential-hint">Mỗi bản ghi phải có websiteId hoặc landingPage/domain hợp lệ. Hệ thống không tự gán bản ghi thiếu nguồn sang Website A.</div>`);
-  // Nút Subdata không còn trong modal; chỉ bind khi thẻ được khôi phục để không ném lỗi.
-  const subdataIntegrationButton = $('#openSubdataIntegration');
-  if (subdataIntegrationButton) subdataIntegrationButton.onclick = () => { closeModal(); currentView = 'integrations'; render(); const item = state.integrations.find(integration => integration.provider === 'SUBDATA' && !integration.archived); configureIntegrationModal(item?.id || null); };
+  if (currentAccount.role !== 'ADMIN') { toast('FORBIDDEN · chỉ Admin được nhập data'); return; }
+  const websites = state.websites.filter(website => website.status === 'ACTIVE');
+  if (!websites.length) { toast('Hãy tạo hoặc bật ít nhất một website trước khi nhập data'); return; }
+  const websiteOptions = websites.map(website => `<option value="${escapeHtml(website.id)}">${escapeHtml(website.name)} · ${escapeHtml(website.domain)}</option>`).join('');
+  openModal('Nhập data từ file', `<div class="import-grid"><section class="import-card"><span class="eyebrow">FILE IMPORT</span><h3>Tải CSV hoặc JSON</h3><p>File bắt buộc có họ tên và số điện thoại.</p><form id="customerFileImportForm"><label class="form-field">Nguồn website<select id="customerImportWebsite">${websiteOptions}</select></label><label class="file-drop">Chọn file dữ liệu<input id="customerImportFile" type="file" accept=".csv,.json,text/csv,application/json" required><span>Định dạng cột: name, phone</span></label><button class="button button-primary button-block" type="submit">Nhập data</button></form></section></div>`);
   $('#customerFileImportForm').onsubmit = event => {
     event.preventDefault();
     const file = $('#customerImportFile')?.files?.[0];
-    if (!file) { toast('Hãy chọn file PDF, CSV hoặc JSON'); return; }
+    const websiteId = $('#customerImportWebsite')?.value;
+    if (!file || !websiteId) { toast('Hãy chọn nguồn website và file dữ liệu'); return; }
     const extension = file.name.split('.').pop().toLowerCase();
-    if (!['pdf', 'csv', 'json'].includes(extension)) { toast('Định dạng file chưa được hỗ trợ'); return; }
+    if (!['csv', 'json'].includes(extension)) { toast('Chỉ hỗ trợ file CSV hoặc JSON'); return; }
     const finish = records => {
-      const imported = addImportedCustomers(records, extension === 'pdf' ? 'PDF Import' : `File ${extension.toUpperCase()}`);
+      const validRecords = records.filter(record => {
+        const name = record.name || record.fullname || record.hoten || record.tenkhachhang;
+        const phone = record.phone || record.mobile || record.sodienthoai || record.sdt;
+        return String(name || '').trim() && String(phone || '').replace(/\D/g, '').length >= 8;
+      }).map(record => ({ ...record, websiteId: record.websiteId || websiteId }));
+      const invalid = records.length - validRecords.length;
+      if (!validRecords.length) { toast('File phải có ít nhất một bản ghi gồm họ tên và số điện thoại hợp lệ'); return; }
+      const imported = addImportedCustomers(validRecords, `File ${extension.toUpperCase()}`);
       recordCustomerImport(extension.toUpperCase(), file.name, imported);
-      saveState(); closeModal(); currentView = 'distribution'; distributionTab = 'QUEUE'; render(); toast(`Đã thêm ${imported} khách · ${lastImportStats.duplicates} DATA TRÙNG${lastImportStats.registeredDuplicates ? ` (${lastImportStats.registeredDuplicates} đã đăng ký TK)` : ''}`);
+      saveState(); closeModal(); currentView = 'distribution'; distributionTab = 'QUEUE'; render();
+      toast(`Đã thêm ${imported} khách${invalid ? ` · bỏ qua ${invalid} dòng thiếu họ tên hoặc SĐT` : ''}${lastImportStats.duplicates ? ` · ${lastImportStats.duplicates} data trùng` : ''}`);
     };
-    if (extension === 'pdf') { recordCustomerImport('PDF', file.name, 0, 'FAILED'); saveState(); toast('PDF chưa được nhập: cần backend OCR/parser trả dữ liệu có cấu trúc'); return; }
     const reader = new FileReader();
     reader.onerror = () => toast('Không thể đọc file đã chọn');
     reader.onload = () => {
       try {
         if (extension === 'json') { const data = JSON.parse(String(reader.result)); finish(Array.isArray(data) ? data : data.customers || []); return; }
-        const lines = String(reader.result).split(/\r?\n/).filter(Boolean), headers = lines.shift().split(',').map(value => normalize(value));
-        finish(lines.map(line => { const values = line.split(',').map(value => value.trim().replace(/^"|"$/g, '')); const row = Object.fromEntries(headers.map((header, index) => [header, values[index] || ''])); return { name: row.name || row.fullname || row.hoten || row.tenkhachhang, phone: row.phone || row.mobile || row.sodienthoai || row.sdt, email: row.email, source: row.source || row.nguon, campaign: row.campaign || row.chiendich, websiteId: row.websiteid, websiteDomain: row.landingpage || row.domain }; }));
+        const lines = String(reader.result).split(/\r?\n/).filter(Boolean);
+        const headers = lines.shift().split(',').map(value => normalize(value));
+        finish(lines.map(line => {
+          const values = line.split(',').map(value => value.trim().replace(/^"|"$/g, ''));
+          const row = Object.fromEntries(headers.map((header, index) => [header, values[index] || '']));
+          return { name: row.name || row.fullname || row.hoten || row.tenkhachhang, phone: row.phone || row.mobile || row.sodienthoai || row.sdt, email: row.email, source: row.source || row.nguon, campaign: row.campaign || row.chiendich, websiteId: row.websiteid };
+        }));
       } catch (error) { toast('File không đúng cấu trúc dữ liệu'); }
     };
     reader.readAsText(file, 'utf-8');
@@ -3158,7 +3266,7 @@ function newOrderModal(customerId = '') {
   const availableProducts = PRODUCTS.filter(product => product.active !== false);
   if (!customers.length) { toast('Chưa có khách được phân Sale để tạo đơn hàng'); return; }
   if (!availableProducts.length) { toast('Chưa có sản phẩm đang bán. Admin hãy tạo sản phẩm trước.'); return; }
-  openModal('Tạo đơn hàng', `<form id="newOrderForm"><div class="form-grid"><label class="form-field">Khách hàng<select id="newOrderCustomer">${customers.map(customer => `<option value="${escapeHtml(customer.id)}" ${customer.id === customerId ? 'selected' : ''}>${escapeHtml(customer.name)} · ${escapeHtml(customer.phone)}</option>`).join('')}</select></label><label class="form-field">Sản phẩm<select id="newOrderProduct">${availableProducts.map(product => `<option value="${escapeHtml(product.id)}">${escapeHtml(product.name)} · ${money(product.price)}</option>`).join('')}</select></label><label class="form-field">Số lượng<input id="newOrderQty" type="number" min="1" max="10" value="1"></label></div><div class="demo-warning">Đơn mới ở trạng thái Chờ thanh toán. Người phụ trách cập nhật khi khách đã thanh toán.</div><div class="modal-actions"><button class="button" type="button" data-close-modal>Huỷ</button><button class="button button-primary" type="submit">Tạo đơn</button></div></form>`);
+  openModal('Tạo đơn hàng', `<form id="newOrderForm"><div class="form-grid"><label class="form-field">Khách hàng<select id="newOrderCustomer">${customers.map(customer => `<option value="${escapeHtml(customer.id)}" ${customer.id === customerId ? 'selected' : ''}>${escapeHtml(customer.name)} · ${escapeHtml(customer.phone)}</option>`).join('')}</select></label><label class="form-field">Sản phẩm<select id="newOrderProduct">${availableProducts.map(product => `<option value="${escapeHtml(product.id)}">${escapeHtml(product.name)} · ${money(product.price)}</option>`).join('')}</select></label><label class="form-field">Số lượng<input id="newOrderQty" type="number" min="1" max="10" value="1"></label></div><div class="form-hint">Đơn mới ở trạng thái Chờ thanh toán.</div><div class="modal-actions"><button class="button" type="button" data-close-modal>Huỷ</button><button class="button button-primary" type="submit">Tạo đơn</button></div></form>`);
   $('[data-close-modal]')?.addEventListener('click', closeModal);
   $('#newOrderForm').onsubmit = event => { event.preventDefault(); const customer = customerById($('#newOrderCustomer').value), product = productById($('#newOrderProduct').value), requestedQty = Number($('#newOrderQty').value), qty = Math.floor(requestedQty); if (!customer || !canViewCustomer(customer) || !customer.saleId || !product || !Number.isFinite(requestedQty) || qty !== requestedQty || qty < 1 || qty > 10) { toast('Dữ liệu đơn hàng không hợp lệ'); return; } const id = `ORD-${Date.now()}`; const order = { id, code: `NVT-2609-${String(state.orders.length + 1200)}`, customerId: customer.id, customerName: customer.name, saleId: customer.saleId, leaderId: customer.leaderId, teamId: customer.teamId, source: orderSource(customer.source), campaign: customer.campaign || 'UNATTRIBUTED', websiteId: customer.websiteId || null, productId: product.id, productName: product.name, sku: product.sku, qty, unitPrice: product.price, subtotal: product.price * qty, discount: 0, total: product.price * qty, refund: 0, status: 'PENDING', createdAt: stamp(), paidAt: null, refundedAt: null, paymentReconciled: false, refundReconciled: null }; state.orders.unshift(order); audit('CREATE_ORDER', id, `${order.code} · ${order.productName}`); saveState(); closeModal(); render(); toast('Đã tạo đơn chờ thanh toán'); };
 }
@@ -3367,7 +3475,7 @@ function setAssignmentMode(mode) {
 }
 
 function bulkDistributePool(mode) {
-  if (!['ADMIN', 'LEADER'].includes(currentAccount.role) || !['ROUND_ROBIN', 'BALANCED'].includes(mode)) { toast('Không có quyền chia data'); return; }
+  if (currentAccount.role !== 'ADMIN' || !['ROUND_ROBIN', 'BALANCED'].includes(mode)) { toast('Không có quyền chia data'); return; }
   const pool = scopedCustomers().filter(isPoolCustomer).sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
   let distributed = 0;
   pool.forEach(customer => {
@@ -3704,7 +3812,7 @@ function reconcileAll() {
 }
 
 function toggleSetting(key) {
-  if (currentAccount.role !== 'ADMIN' || !['leaderCanUpdate', 'notifyMilestones'].includes(key)) { toast('FORBIDDEN · cài đặt không hợp lệ'); return; }
+  if (currentAccount.role !== 'ADMIN' || !['leaderCanUpdate', 'notifyMilestones', 'leaderAttendanceRequired'].includes(key)) { toast('FORBIDDEN · cài đặt không hợp lệ'); return; }
   state.settings[key] = !state.settings[key];
   audit('UPDATE_SETTING', key, state.settings[key] ? 'Bật' : 'Tắt');
   saveState(); render(); toast('Đã cập nhật cài đặt');
@@ -3712,13 +3820,12 @@ function toggleSetting(key) {
 
 function saveSettings() {
   if (currentAccount.role !== 'ADMIN') { toast('FORBIDDEN · chỉ Admin được đổi cài đặt'); return; }
-  const sla = Number($('#slaInput')?.value), target = Number($('#targetInput')?.value);
-  if (!Number.isInteger(sla) || sla < 5 || sla > 1440 || !Number.isFinite(target) || target < 0) { toast('SLA hoặc mục tiêu doanh thu không hợp lệ'); return; }
+  const sla = Number($('#slaInput')?.value);
+  if (!Number.isInteger(sla) || sla < 5 || sla > 1440) { toast('SLA không hợp lệ'); return; }
   state.settings.slaMinutes = sla;
-  state.settings.monthlyTarget = Math.round(target);
   refreshTaskStatuses();
-  audit('UPDATE_SETTING', 'SLA_TARGET', `${sla} phút · ${money(target)}`);
-  saveState(); render(); toast('Đã lưu SLA và mục tiêu doanh thu');
+  audit('UPDATE_SETTING', 'SLA', `${sla} phút`);
+  saveState(); render(); toast('Đã lưu SLA');
 }
 
 function toggleTwoFactor() {
@@ -3810,7 +3917,7 @@ function exportMarketing() {
 
 function exportTeam() {
   if (!assertCanExport()) return;
-  downloadCsv(`nvt-hieu-suat-sale-${periodFileToken()}.csv`, ['Sale', 'Team', 'Data mới', 'Đơn thanh toán', 'Doanh thu', 'Chuyển đổi %', 'Lịch quá hạn', 'Mục tiêu kỳ %'], salePerformanceRows().map(item => [item.name, item.teamId, item.customers, item.paid, item.revenue, item.conversion.toFixed(1), item.overdue, item.targetRate.toFixed(1)]));
+  downloadCsv(`nvt-hieu-suat-sale-${periodFileToken()}.csv`, ['Sale', 'Team', 'Data mới', 'Đơn thanh toán', 'Doanh thu', 'Chuyển đổi %', 'Lịch quá hạn'], salePerformanceRows().map(item => [item.name, item.teamId, item.customers, item.paid, item.revenue, item.conversion.toFixed(1), item.overdue]));
 }
 
 function exportFullReport() {
@@ -3822,7 +3929,7 @@ function exportFullReport() {
     ['Kinh doanh', 'AOV', snapshot.aov, '', '', ''],
     ...productPerformance(scopedOrders()).map(item => ['Sản phẩm', item.name, item.units, item.paidOrders, item.revenue, item.refunds]),
     ...(currentAccount.role === 'ADMIN' ? sourcePerformance().map(item => ['Nguồn', item.source, item.sessions, item.leads, item.revenue, item.spend]) : []),
-    ...salePerformanceRows().map(item => ['Sale', item.name, item.customers, item.paid, item.revenue, `${item.targetRate.toFixed(1)}%`])
+    ...salePerformanceRows().map(item => ['Sale', item.name, item.customers, item.paid, item.revenue, `${item.conversion.toFixed(1)}%`])
   ];
   downloadCsv(`nvt-bao-cao-${dateRange}-ngay-${currentAccount.scope.toLowerCase()}.csv`, ['Nhóm', 'Đối tượng / chỉ số', 'Sessions / SL', 'Data / Đơn', 'Doanh thu', 'Chi phí / Hoàn / Mục tiêu'], rows);
 }
@@ -3832,7 +3939,7 @@ function openSearchDrawer(value) {
   if (!query) { toast('Nhập từ khoá cần tìm'); return; }
   const customers = scopedCustomers().filter(item => normalize(customerSearchText(item)).includes(query)).slice(0, 6);
   const orders = scopedOrders().filter(item => normalize(`${item.code}${item.customerName}${item.productName}${item.sku}${currentAccount.role === 'ADMIN' ? item.source : ''}`).includes(query)).slice(0, 6);
-  const products = PRODUCTS.filter(item => normalize(`${item.name}${item.sku}${item.category}`).includes(query)).slice(0, 4);
+  const products = currentAccount.role === 'ADMIN' ? PRODUCTS.filter(item => normalize(`${item.name}${item.sku}${item.category}`).includes(query)).slice(0, 4) : [];
   const section = (title, body) => `<div class="section-label">${title}</div>${body}`;
   openDrawer({
     head: `<h2>Kết quả tìm kiếm</h2><p>${escapeHtml(raw)} · scope ${currentAccount.scope}</p>`,
@@ -3878,6 +3985,9 @@ function bindViewActions() {
   $('#importCustomersButton')?.addEventListener('click', customerImportModal);
   $('#importCustomersSecondaryButton')?.addEventListener('click', customerImportModal);
   $('#newOrderButton')?.addEventListener('click', newOrderModal);
+  $('#profileAvatar')?.addEventListener('click', () => { if (['SALE', 'LEADER'].includes(currentAccount.role)) navigate('profile'); });
+  $('#profileForm')?.addEventListener('submit', event => { event.preventDefault(); const member = activeStaff().find(person => person.id === (currentAccount.saleId || currentAccount.leaderId)); if (!member) return; const name = $('#profileDisplayName').value.trim(); if (!name) return; member.name = name; currentAccount.name = name; currentAccount.initials = name.split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase(); member.initials = currentAccount.initials; saveState(); render(); toast('Đã lưu hồ sơ'); });
+  $('#profileAvatarInput')?.addEventListener('change', event => { const file = event.target.files?.[0]; const member = activeStaff().find(person => person.id === (currentAccount.saleId || currentAccount.leaderId)); if (!file || !member) return; if (file.size > 1024 * 1024) { toast('Ảnh avatar không được vượt quá 1 MB'); return; } const reader = new FileReader(); reader.onload = () => { member.avatar = String(reader.result || ''); saveState(); render(); toast('Đã cập nhật avatar'); }; reader.readAsDataURL(file); });
   $('#newProductButton')?.addEventListener('click', () => productModal());
   $('#manageProductCategoriesButton')?.addEventListener('click', productCategoriesModal);
   $$('[data-edit-product]').forEach(button => button.onclick = () => productModal(button.dataset.editProduct));
@@ -3899,6 +4009,7 @@ function bindViewActions() {
   $$('[data-archive-integration]').forEach(button => button.onclick = () => archiveIntegration(button.dataset.archiveIntegration));
   $$('[data-restore-integration]').forEach(button => button.onclick = () => restoreIntegration(button.dataset.restoreIntegration));
   $$('[data-read-notification]').forEach(button => button.onclick = () => markNotificationRead(button.dataset.readNotification));
+  $('#newAnnouncementButton')?.addEventListener('click', newAnnouncementModal);
   $('#readAllButton')?.addEventListener('click', () => markNotificationRead());
   $('#reconcileAllButton')?.addEventListener('click', reconcileAll);
   $$('[data-toggle-setting]').forEach(button => button.onclick = () => toggleSetting(button.dataset.toggleSetting));
@@ -3906,17 +4017,18 @@ function bindViewActions() {
   $('#checkInButton')?.addEventListener('click', checkInToday);
   $('#saveAttendanceSettings')?.addEventListener('click', saveAttendanceSettings);
   $$('[data-accept-offer]').forEach(button => button.onclick = () => acceptDataOffer(button.dataset.acceptOffer));
+  $$('[data-attendance-detail]').forEach(button => button.onclick = () => attendanceMemberDetailModal(button.dataset.attendanceDetail));
   $$('[data-edit-attendance]').forEach(button => button.onclick = () => attendanceEditModal(button.dataset.editAttendance));
   $$('[data-delete-attendance]').forEach(button => button.onclick = () => deleteAttendanceRecord(button.dataset.deleteAttendance));
-  $$('[data-makeup-attendance]').forEach(button => button.onclick = () => attendanceEditModal(null, button.dataset.makeupAttendance));
-  $('#saveAppearanceButton')?.addEventListener('click', () => { state.settings.customAccent = $('#customAccentColor').value; state.settings.fontFamily = $('#fontFamilySelect').value; state.settings.telegramBotToken = $('#telegramBotToken').value.trim(); state.settings.telegramChatId = $('#telegramChatId').value.trim(); applyAppearanceSettings(); saveState(); render(); });
+  $('#saveAppearanceButton')?.addEventListener('click', () => { state.settings.leaderAttendanceRequired = $('#leaderAttendanceRequired')?.checked !== false; state.settings.customAccent = $('#customAccentColor').value; state.settings.fontFamily = $('#fontFamilySelect').value; state.settings.dataBotToken = $('#dataBotToken').value.trim(); state.settings.dataBotChatId = $('#dataBotChatId').value.trim(); state.settings.memberBotToken = $('#memberBotToken').value.trim(); state.settings.memberBotChatId = $('#memberBotChatId').value.trim(); applyAppearanceSettings(); saveState(); render(); });
   $('#toggleTwoFactorButton')?.addEventListener('click', toggleTwoFactor);
   $('#changePasswordButton')?.addEventListener('click', changePasswordModal);
-  $('#newMemberButton')?.addEventListener('click', () => teamMemberModal());
+  $('#newTeamButton')?.addEventListener('click', createTeamModal);
   $$('[data-edit-member]').forEach(button => button.onclick = () => teamMemberModal(button.dataset.editMember));
   $$('[data-reset-member-password]').forEach(button => button.onclick = () => resetMemberPasswordModal(button.dataset.resetMemberPassword));
   $$('[data-delete-member]').forEach(button => button.onclick = () => deleteTeamMember(button.dataset.deleteMember));
   $$('[data-promote-registration]').forEach(button => button.onclick = () => teamMemberModal(null, button.dataset.promoteRegistration));
+  $$('[data-assign-account]').forEach(button => button.onclick = () => assignRegisteredAccountModal(button.dataset.assignAccount));
   $('#exportCustomersButton')?.addEventListener('click', exportCustomers);
   $('#exportOrdersButton')?.addEventListener('click', exportOrders);
   $('#exportRevenueButton')?.addEventListener('click', exportRevenue);
@@ -3938,9 +4050,13 @@ function bindViewActions() {
   $$('[data-delete-source-rule]').forEach(button => button.onclick = () => deleteDistributionSourceRule(button.dataset.deleteSourceRule));
 }
 
+function registeredLoginAccounts() { return (state.registeredAccounts || []).filter(account => account.active !== false && !(state.disabledAccountIds || []).includes(account.id)); }
+function loginAccounts() { return [...ACCOUNTS.filter(account => !(state.disabledAccountIds || []).includes(account.id)), ...registeredLoginAccounts()]; }
 function credentialPassword(account) {
   return account.role === 'ADMIN' ? state.security.adminPassword : account.password;
 }
+function accountMember(account) { return state.members.find(member => member.id === (account.saleId || account.leaderId || account.memberId)); }
+function accountCanLogin(account) { return !!account && (account.role === 'ADMIN' || account.role === 'UNASSIGNED' || accountMember(account)?.active !== false); }
 
 function updateLoginTwoFactorField() {
   const phone = $('#loginPhone')?.value.replace(/\D/g, '');
@@ -3981,18 +4097,27 @@ async function submitRegistration() {
     if (message) { message.className = 'form-message error full'; message.textContent = 'Vui lòng kiểm tra số điện thoại, Gmail và mật khẩu (tối thiểu 8 ký tự).'; }
     return;
   }
-  const duplicate = state.registrations.some(item => item.status === 'PENDING' && (item.phone === phone || item.email.toLowerCase() === email)) || ACCOUNTS.some(account => account.phone === phone || account.email?.toLowerCase() === email);
+  const duplicate = state.registrations.some(item => item.status === 'PENDING' && (item.phone === phone || item.email.toLowerCase() === email)) || loginAccounts().some(account => account.phone === phone || account.email?.toLowerCase() === email);
   if (duplicate) { if (message) { message.className = 'form-message error full'; message.textContent = 'Thông tin này đã có hồ sơ đăng ký hoặc tài khoản trong hệ thống.'; } return; }
-  // Khách tự đăng ký từ web là một trong hai luồng ĐƯỢC lấy IP. Hỏi server
-  // trước khi ghi hồ sơ; không hỏi được thì giữ nhãn "chờ backend", không bịa.
+  // Đăng ký thành công được dùng ngay, không qua bước phê duyệt.
   await refreshSessionContext();
-  state.registrations.unshift({ id: `REG-${Date.now()}`, name: email.split('@')[0], phone, email, ipAddress: sessionIp('Chờ backend xác định'), requestedRole: 'PENDING', teamId: '', registeredAt: stamp(), status: 'PENDING' });
+  const id = `u-reg-${Date.now()}`;
+  const name = email.split('@')[0];
+  state.registeredAccounts.unshift({ id, name, phone, email, password, role: 'UNASSIGNED', initials: memberInitials(name), scope: 'NONE', teamId: '', leaderId: null, saleId: null, memberId: null, active: true, registeredAt: stamp() });
   saveState();
-  if (message) { message.className = 'form-message success full'; message.textContent = 'Đăng ký thành công. Tài khoản của bạn đang chờ Admin phê duyệt.'; }
   $('#registerForm')?.reset();
+  switchAuthMode('login');
+  $('#loginPhone').value = phone;
+  $('#loginPassword').value = password;
+  const loginMessage = $('#loginError');
+  if (loginMessage) {
+    loginMessage.className = 'form-error form-message success';
+    loginMessage.textContent = 'Đăng ký thành công. Vui lòng đăng nhập để sử dụng hệ thống.';
+  }
 }
 
 function captchaToken(formSelector) {
+  if (window.location?.protocol === 'file:') return '';
   const captcha = $(`${formSelector} .g-recaptcha`);
   if (!window.grecaptcha || !captcha) return '';
   const widgetId = $$('.g-recaptcha').indexOf(captcha);
@@ -4062,16 +4187,16 @@ function bindGlobalActions() {
   $('#loginForm').onsubmit = event => {
     event.preventDefault();
     const captcha = captchaToken('#loginForm');
-    if (window.grecaptcha && !captcha) { $('#loginError').textContent = 'Vui lòng xác minh CAPTCHA trước khi đăng nhập.'; return; }
+    if (window.location?.protocol !== 'file:' && window.grecaptcha && !captcha) { $('#loginError').textContent = 'Vui lòng xác minh CAPTCHA trước khi đăng nhập.'; return; }
     const identifier = $('#loginPhone').value.trim(), phone = identifier.replace(/\D/g, ''), email = identifier.toLowerCase(), password = $('#loginPassword').value;
-    const account = ACCOUNTS.find(item => item.phone === phone || item.email?.toLowerCase() === email);
-    if (!account || password !== credentialPassword(account)) { if (account) { recordAdminLogin(false, account); saveState(); } $('#loginError').textContent = 'Số điện thoại hoặc mật khẩu không đúng.'; return; }
+    const account = loginAccounts().find(item => item.phone === phone || item.email?.toLowerCase() === email);
+    if (!account || !accountCanLogin(account) || password !== credentialPassword(account)) { if (account) { recordAdminLogin(false, account); saveState(); } $('#loginError').textContent = 'Số điện thoại hoặc mật khẩu không đúng.'; return; }
     if (account.role === 'ADMIN' && state.security.twoFactorEnabled && $('#loginOtp').value.trim() !== state.security.twoFactorCode) { recordAdminLogin(false, account); saveState(); $('#loginError').textContent = 'Mã xác thực 2FA không đúng.'; updateLoginTwoFactorField(); return; }
     recordAdminLogin(true, account);
     $('#loginError').textContent = '';
     startSession(account);
   };
-  $('#registerForm')?.addEventListener('submit', event => { event.preventDefault(); const captcha = captchaToken('#registerForm'); if (window.grecaptcha && !captcha) { $('#registerMessage').className = 'form-message error full'; $('#registerMessage').textContent = 'Vui lòng xác minh CAPTCHA trước khi đăng ký.'; return; } submitRegistration(); });
+  $('#registerForm')?.addEventListener('submit', event => { event.preventDefault(); const captcha = captchaToken('#registerForm'); if (window.location?.protocol !== 'file:' && window.grecaptcha && !captcha) { $('#registerMessage').className = 'form-message error full'; $('#registerMessage').textContent = 'Vui lòng xác minh CAPTCHA trước khi đăng ký.'; return; } submitRegistration(); });
   $('#loginPhone').oninput = updateLoginTwoFactorField;
   $('#logoutButton').onclick = endSession;
   $('#notificationButton').onclick = () => navigate('notifications');
@@ -4113,7 +4238,7 @@ function initialize() {
   refreshSessionContext();
   try {
     const session = JSON.parse(sessionStorage.getItem(SESSION_KEY));
-    const account = ACCOUNTS.find(item => item.id === session?.accountId);
+    const account = loginAccounts().find(item => item.id === session?.accountId);
     if (account) { startSession(account, true); return; }
   } catch (error) {}
   $('#loginScreen').classList.remove('is-hidden');
@@ -4122,36 +4247,3 @@ function initialize() {
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initialize);
 else initialize();
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -9,7 +9,7 @@ Làm đúng thứ tự: chạy server → lấy URL trong CRM → dán vào Ladi
 node docs/architecture/16-webhook-server.cjs
 ```
 
-Mở CRM tại <http://localhost:4173/demo.html> (không mở bằng cách nhấp đúp file
+Mở CRM tại <http://localhost:4173/> (đường dẫn cũ <http://localhost:4173/demo.html> vẫn được hỗ trợ; không mở bằng cách nhấp đúp file
 HTML — xem §7). Server này vừa phục vụ file tĩnh vừa nhận webhook thật, không
 cần cài thêm gói nào.
 
@@ -35,7 +35,7 @@ Mỗi thẻ website có khối **Webhook nhận data landing page** chứa:
 URL có dạng:
 
 ```
-https://apex.vn/api/data-sources/webhook/ds-1789015513831-ZPKFFVK9S9A/
+https://nvtagency.top/api/data-sources/webhook/ds-1789015513831-ZPKFFVK9S9A/
 ```
 
 Phần `ds-...` là **mã webhook (slug)**, định dạng `ds-{13 chữ số}-{11 ký tự
@@ -178,7 +178,7 @@ curl -X POST "http://localhost:4173/api/data-sources/webhook/ds-1789015513831-ZP
 > ```
 >
 > LadiPage gửi UTF-8 chuẩn nên không gặp vấn đề này; test tự động
-> `18-webhook-consumer-test.cjs` cũng POST bằng Node nên tên trường có dấu
+> `18-webhook-consumer.cjs` cũng POST bằng Node nên tên trường có dấu
 > được kiểm tra đầy đủ.
 
 | Phản hồi | Ý nghĩa |
@@ -238,12 +238,12 @@ payload gốc.
 ## 9. Kiểm thử
 
 ```bash
-node docs/architecture/17-webhook-server-test.cjs     # 24 test phía server
-node docs/architecture/18-webhook-consumer-test.cjs   # 15 test nối CRM ↔ server
+node docs/architecture/17-webhook-server.cjs     # test phía server
+node docs/architecture/18-webhook-consumer.cjs   # test nối CRM ↔ server
 ```
 
 Test 18 chạy **end-to-end thật**: spawn server, POST payload đúng dáng
-LadiPage, rồi boot chính file `14-crm-complete-demo.js` trong sandbox với
+LadiPage, rồi boot chính file `14-crm-complete.js` trong sandbox với
 `fetch` trỏ vào server đang chạy, đăng nhập Admin và kéo inbox. Nó khẳng định
 khách rơi vào đúng hàng chờ Chia Leader, data vô chủ không bị gán nhầm
 website, retry không nhân đôi khách, IP không lọt vào khách landing page, và

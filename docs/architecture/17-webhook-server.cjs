@@ -1,6 +1,6 @@
 /**
  * Test HTTP thật cho 16-webhook-server.cjs.
- * Chạy: node docs/architecture/17-webhook-server-test.cjs
+ * Chạy: node docs/architecture/17-webhook-server.cjs
  *
  * Spawn server như một process con, POST thật bằng fetch, kiểm tra inbox.
  */
@@ -255,11 +255,27 @@ check('session-context trả IP thật cho luồng đăng ký web', async () => 
 });
 
 check('server phục vụ file tĩnh của repo', async () => {
-  const response = await fetch(`${BASE}/docs/architecture/14-crm-complete-demo.html`);
+  const response = await fetch(`${BASE}/`);
   assert.equal(response.status, 200);
   assert.match(response.headers.get('content-type'), /text\/html/);
   const text = await response.text();
-  assert.match(text, /14-crm-complete-demo\.js/);
+  assert.match(text, /docs\/architecture\/14-crm-complete\.html/);
+});
+
+check('đường dẫn demo cũ vẫn mở được để không gây 404', async () => {
+  const response = await fetch(`${BASE}/demo.html`);
+  assert.equal(response.status, 200);
+  assert.match(await response.text(), /docs\/architecture\/14-crm-complete\.html/);
+});
+
+check('trang CRM tải đủ CSS, JavaScript và hình ảnh', async () => {
+  const html = await (await fetch(`${BASE}/docs/architecture/14-crm-complete.html`)).text();
+  for (const asset of ['14-crm-complete.css', '14-crm-complete.js', 'login-bg.jpg', 'nvt-logo.jpg']) {
+    const response = await fetch(`${BASE}/docs/architecture/${asset}`);
+    assert.equal(response.status, 200, `${asset} phải tải được`);
+  }
+  assert.match(html, /href="\.\/14-crm-complete\.css"/);
+  assert.match(html, /src="\.\/14-crm-complete\.js"/);
 });
 
 check('chặn path traversal ra ngoài repo', async () => {
@@ -339,3 +355,4 @@ async function main() {
 }
 
 main();
+

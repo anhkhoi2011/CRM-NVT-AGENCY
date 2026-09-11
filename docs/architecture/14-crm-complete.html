@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="vi">
 <head>
   <meta charset="utf-8">
@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./14-crm-complete-demo.css">
+  <link rel="stylesheet" href="./14-crm-complete.css">
   <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 </head>
 <body>
@@ -81,10 +81,10 @@
   <div id="drawerRoot"></div>
   <div id="modalRoot"></div>
   <div id="toastRoot" class="toast-root" aria-live="polite"></div>
-  <script src="./14-crm-complete-demo.js" defer></script>
+  <script src="./14-crm-complete.js?v=20260911-4" defer></script>
   <script>
   /* ─────────────────────────────────────────────────────────────────────────
-     Danh mục "Chăm Sóc Khách" — bản vá chèn thêm, KHÔNG sửa 14-crm-complete-demo.js.
+     Danh mục "Chăm Sóc Khách" — bản vá chèn thêm, KHÔNG sửa 14-crm-complete.js.
 
      Nhóm theo cột "Phân loại khách hàng" (customerClass) đã có sẵn:
        Khách đã chuyển đổi            ← Premium, Whale
@@ -146,7 +146,10 @@
     function careView() {
       const field = state.customFieldDefinitions.find(item => item.id === 'customerClass' && item.active !== false);
       const query = normalize(globalQuery);
-      const pool = scopedCustomers().filter(customer => !query || normalize(customerSearchText(customer)).includes(query));
+      const allPool = scopedCustomers();
+      const activeCareTab = currentAccount.role === 'LEADER' && window.__nvtCareTab === 'TEAM' ? 'TEAM' : 'MINE';
+      const basePool = currentAccount.role === 'LEADER' ? (activeCareTab === 'TEAM' ? allPool : allPool.filter(customer => customer.leaderId === currentAccount.leaderId && !customer.saleId)) : allPool;
+      const pool = basePool.filter(customer => !query || normalize(customerSearchText(customer)).includes(query));
       const groups = careGroups(pool);
       const grouped = new Set(groups.flatMap(group => group.members.map(customer => customer.id)));
       const outside = pool.filter(customer => !grouped.has(customer.id));
@@ -168,7 +171,8 @@
         <div class="panel-body">${group.members.map(customer => careRow(customer, field)).join('') || `<div class="empty"><b>Chưa có khách</b><span>${escapeHtml(group.empty)}</span></div>`}</div>
       </section>`).join('<div style="height:14px"></div>');
 
-      return pageHead('Chăm Sóc Khách', '', '') +
+      const tabHtml = currentAccount.role === 'LEADER' ? `<div class="segmented" style="margin-bottom:14px"><button class="segment ${activeCareTab === 'MINE' ? 'active' : ''}" type="button" data-care-tab="MINE">Của tôi</button><button class="segment ${activeCareTab === 'TEAM' ? 'active' : ''}" type="button" data-care-tab="TEAM">Cả team</button></div>` : '';
+      return pageHead('Chăm Sóc Khách', '', '') + tabHtml +
         `<div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(190px,1fr));margin-bottom:14px">${strip}</div>` +
         `<div class="toolbar" style="border:1px solid var(--line);border-radius:12px;margin-bottom:14px;background:var(--panel)">
           <span class="data-note">${number(pool.length)} khách trong phạm vi · ${number(grouped.size)} đã vào 4 nhóm chăm sóc${query ? ` · đang lọc theo từ khóa “${escapeHtml(globalQuery)}”` : ''}</span>
@@ -194,6 +198,7 @@
 
     VIEW_RENDERERS.care = careView;
     insertCareNavigation();
+    document.addEventListener('click', event => { const tab = event.target.closest ? event.target.closest('[data-care-tab]') : null; if (!tab) return; window.__nvtCareTab = tab.dataset.careTab; render(); });
     // render() tự thoát khi chưa đăng nhập; nếu phiên được khôi phục thì
     // initialize() đã vẽ xong trước listener này, nên phải vẽ lại để nav mới hiện ra.
     render();
@@ -202,7 +207,7 @@
   <script>
   /* ─────────────────────────────────────────────────────────────────────────
      Danh mục sản phẩm · Trang thanh toán · Nhắc hạn thuê
-     Bản vá chèn thêm — KHÔNG sửa 14-crm-complete-demo.js (theo chốt của bạn).
+     Bản vá chèn thêm — KHÔNG sửa 14-crm-complete.js (theo chốt của bạn).
 
      Ba ràng buộc buộc phải làm kiểu này:
      • loadState() lọc đơn hàng và sản phẩm về đúng khuôn trường cố định, nên trường
@@ -241,13 +246,14 @@
     let seeded = false;
     CATALOG.forEach(item => {
       if (state.products.some(product => product.id === item.id || product.sku === item.sku)) return;
-      state.products.push({ id: item.id, sku: item.sku, name: item.name, category: item.category, price: item.price, active: true });
+      state.products.push({ id: item.id, sku: item.sku, name: item.name, category: item.category, price: item.price, type: item.sku.startsWith('IND-BF-R') ? 'RENTAL' : 'SALE', rentalMonths: item.sku.startsWith('IND-BF-R') ? Number(item.sku.match(/R(\d+)M$/)?.[1]) || null : null, active: true });
       seeded = true;
     });
     if (seeded) { saveState(); if (currentAccount) render(); }  // vẽ lại để danh mục mới hiện ngay
 
     // Kỳ thuê nằm trong SKU vì loadState() chỉ giữ id/sku/name/category/price/active.
     const rentalMonths = product => {
+      if (product && product.type === 'RENTAL' && [1, 3, 6, 12].includes(Number(product.rentalMonths))) return Number(product.rentalMonths);
       const match = /^IND-BF-R(\d+)M$/.exec(product && product.sku ? product.sku : '');
       return match ? Number(match[1]) : 0;
     };
@@ -274,7 +280,7 @@
       openModal('Trang thanh toán', `<form id="payForm">
         <div class="form-grid">
           <label class="form-field">Khách hàng<select id="payCustomer">${customers.map(customer => `<option value="${escapeHtml(customer.id)}" ${customer.id === customerId ? 'selected' : ''}>${escapeHtml(customer.name)} · ${escapeHtml(customer.phone)}</option>`).join('')}</select></label>
-          <label class="form-field">Sản phẩm<select id="payProduct">${products.map(product => `<option value="${escapeHtml(product.id)}">${escapeHtml(product.name)} · ${money(product.price)}</option>`).join('')}</select></label>
+          <label class="form-field">Sản phẩm<select id="payProduct">${products.map(product => `<option value="${escapeHtml(product.id)}">${escapeHtml(product.name)}${product.type === 'RENTAL' ? ` · Thuê ${product.rentalMonths || ''} tháng` : ''} · ${money(product.price)}</option>`).join('')}</select></label>
           <label class="form-field">Số lượng<input id="payQty" type="number" min="1" max="10" value="1"></label>
           <label class="form-field">Kênh thanh toán<select id="payMethod"><option>VietQR</option><option>Chuyển khoản</option><option>Ví doanh nghiệp</option></select></label>
         </div>
@@ -292,7 +298,7 @@
           <label class="form-field">Địa chỉ *<input id="payAddress" maxlength="240" placeholder="Số nhà, đường, phường/xã, tỉnh/thành"></label>
           <label class="form-field">MST doanh nghiệp<input id="payTax" inputmode="numeric" maxlength="13" placeholder="Bỏ trống nếu khách cá nhân"></label>
         </div>
-        <div class="demo-warning" id="paySummary"></div>
+        <div class="form-hint" id="paySummary"></div>
         <div class="modal-actions"><button class="button" type="button" data-close-modal>Huỷ</button><button class="button button-primary" type="submit">Tạo đơn thanh toán</button></div>
       </form>`);
       $('[data-close-modal]')?.addEventListener('click', closeModal);
@@ -380,7 +386,7 @@
       if (!pay || !body) return;
       const billing = pay.billing || {};
       const rental = pay.rental
-        ? `<dt>Kỳ thuê</dt><dd>${pay.rental.months} tháng · hết hạn ${vnDate(pay.rental.endsAt)}</dd>`
+        ? `<dt>Trạng thái</dt><dd><span class="status status-pending">Đang cho thuê</span></dd><dt>Kỳ thuê</dt><dd>${pay.rental.months} tháng · hết hạn ${vnDate(pay.rental.endsAt)}</dd>`
         : '';
       body.insertAdjacentHTML('beforeend', `<div class="section-label">Thanh toán & hóa đơn</div><dl class="detail-grid">
         <dt>Hình thức</dt><dd>${pay.mode === 'FULL' ? 'Thanh toán đủ' : `Đặt cọc ${money(pay.deposit)} · còn lại ${money(Math.max(0, pay.total - pay.deposit))}`}</dd>
@@ -426,7 +432,7 @@
   </script>
   <script>
   /* ─────────────────────────────────────────────────────────────────────────
-     Mục Websites gọn lại — bản vá chèn thêm, KHÔNG sửa 14-crm-complete-demo.js.
+     Mục Websites gọn lại — bản vá chèn thêm, KHÔNG sửa 14-crm-complete.js.
 
      • Bỏ khỏi thẻ website: dòng gợi ý "Dán URL này vào LadiPage…", dòng
        "Test nội bộ: …", dòng "Lần nhận cuối: …", nút "Cấu hình API", nút
@@ -445,8 +451,8 @@
     window.__nvtWebPatch = true;
 
     /* 1 · Domain webhook công khai: nvtagency thay cho apex */
-    if (state.settings.webhookPublicBase === 'https://apex.vn') {
-      state.settings.webhookPublicBase = 'https://nvtagency.vn';
+    if (!state.settings.webhookPublicBase || state.settings.webhookPublicBase === 'https://apex.vn' || state.settings.webhookPublicBase === 'https://nvtagency.vn') {
+      state.settings.webhookPublicBase = 'https://nvtagency.top';
       saveState();
     }
 
