@@ -245,7 +245,7 @@ function initialState() {
     saleDistributionByLeader: {
       l1: { enabledSaleIds: ['s1'], weights: { s1: 1 } }
     },
-    settings: { leaderCanUpdate: true, notifyMilestones: true, leaderAttendanceRequired: true, assignmentMode: 'MANUAL', saleAssignmentModes: {}, assignmentCursor: { leaders: 0, salesByTeam: {} }, slaMinutes: 30, customAccent: '#e8572a', fontFamily: 'aptos', dataBotToken: '', dataBotChatId: '', memberBotToken: '', memberBotChatId: '', webhookPublicBase: 'https://nvtagency.top', attendanceIp: '', attendanceDeadline: '09:00', acceptTimeoutHours: 24, notifyAccountCreated: true, notifyDataReceived: true },
+    settings: { leaderCanUpdate: true, notifyMilestones: true, leaderAttendanceRequired: true, assignmentMode: 'MANUAL', saleAssignmentModes: {}, assignmentCursor: { leaders: 0, salesByTeam: {} }, slaMinutes: 30, customAccent: '#e8572a', fontFamily: 'aptos', navigationFontSize: 12, contentFontSize: 14, dataBotToken: '', dataBotChatId: '', memberBotToken: '', memberBotChatId: '', webhookPublicBase: 'https://nvtagency.top', attendanceIp: '', attendanceDeadline: '09:00', acceptTimeoutHours: 24, notifyAccountCreated: true, notifyDataReceived: true },
     security: {
       adminPassword: 'admin123',
       twoFactorEnabled: false,
@@ -482,6 +482,8 @@ function sanitizeSettings(settings, defaults) {
     slaMinutes: cleanNumber(input.slaMinutes, defaults.slaMinutes, 5, 1440, true),
     customAccent: /^#[0-9a-f]{6}$/i.test(input.customAccent) ? input.customAccent : (defaults.customAccent || '#e8572a'),
     fontFamily: cleanText(input.fontFamily, defaults.fontFamily || 'aptos', 40),
+    navigationFontSize: cleanNumber(input.navigationFontSize, defaults.navigationFontSize || 12, 10, 16, true),
+    contentFontSize: cleanNumber(input.contentFontSize, defaults.contentFontSize || 14, 12, 20, true),
     dataBotToken: cleanText(input.dataBotToken || input.telegramBotToken, '', 200),
     dataBotChatId: cleanText(input.dataBotChatId || input.telegramChatId, '', 100),
     memberBotToken: cleanText(input.memberBotToken, '', 200),
@@ -2290,7 +2292,6 @@ function saveTeamMember(id = null, registrationId = null) {
   if (currentAccount.role !== 'ADMIN') return;
   const existing = STAFF.find(person => person.id === id), name = $('#memberName').value.trim(), role = $('#memberRole').value, teamId = $('#memberTeam').value.trim().toUpperCase(), leaderId = $('#memberLeader').value || null;
   if (!name || !['LEADER', 'SALE'].includes(role) || !/^[A-Z0-9_-]{1,20}$/.test(teamId)) { toast('Thông tin nhân sự không hợp lệ'); return; }
-  if (existing && ['l1', 's1'].includes(existing.id) && (name !== existing.name || role !== existing.role || teamId !== existing.teamId || (existing.role === 'SALE' && leaderId !== existing.leaderId))) { toast('Không thể đổi tên, chức vụ hoặc tuyến quản lý của tài khoản đăng nhập đang liên kết'); return; }
   if (existing?.role === 'LEADER' && role === 'SALE' && STAFF.some(person => person.role === 'SALE' && person.leaderId === existing.id)) { toast('Hãy chuyển các Sale trực thuộc sang Leader khác trước khi đổi chức vụ'); return; }
   const leader = role === 'SALE' ? STAFF.find(person => person.id === leaderId && person.role === 'LEADER' && person.active !== false) : null;
   if (role === 'SALE' && (!leader || leader.teamId !== teamId)) { toast('Sale phải thuộc đúng Team của Leader trực tiếp'); return; }
@@ -2428,6 +2429,8 @@ function applyAppearanceSettings() {
   document.documentElement.style.setProperty('--base-font-size', `${state.settings.fontSize || 14}px`);
   document.documentElement.style.setProperty('--base-font-weight', state.settings.fontBold ? '700' : '400');
   document.documentElement.style.setProperty('--base-font-style', state.settings.fontItalic ? 'italic' : 'normal');
+  document.documentElement.style.setProperty('--navigation-font-size', `${state.settings.navigationFontSize || 12}px`);
+  document.documentElement.style.setProperty('--content-font-size', `${state.settings.contentFontSize || 14}px`);
 }
 
 function settingsView() {
@@ -4116,16 +4119,8 @@ async function submitRegistration() {
   }
 }
 
-function captchaToken(formSelector) {
-  if (window.location?.protocol === 'file:') return '';
-  const captcha = $(`${formSelector} .g-recaptcha`);
-  if (!window.grecaptcha || !captcha) return '';
-  const widgetId = $$('.g-recaptcha').indexOf(captcha);
-  return widgetId >= 0 ? window.grecaptcha.getResponse(widgetId) || '' : '';
-}
-
 function startSession(account, restored = false) {
-  currentAccount = account;
+  currentAccount = hydrateSessionAccount(account);
   currentView = 'dashboard';
   dateRange = 7;
   datePreset = '7';
@@ -4186,8 +4181,6 @@ function bindGlobalActions() {
   $('#forgotPasswordButton')?.addEventListener('click', () => { $('#loginError').textContent = 'Vui lòng liên hệ Admin để cấp lại mật khẩu.'; });
   $('#loginForm').onsubmit = event => {
     event.preventDefault();
-    const captcha = captchaToken('#loginForm');
-    if (window.location?.protocol !== 'file:' && window.grecaptcha && !captcha) { $('#loginError').textContent = 'Vui lòng xác minh CAPTCHA trước khi đăng nhập.'; return; }
     const identifier = $('#loginPhone').value.trim(), phone = identifier.replace(/\D/g, ''), email = identifier.toLowerCase(), password = $('#loginPassword').value;
     const account = loginAccounts().find(item => item.phone === phone || item.email?.toLowerCase() === email);
     if (!account || !accountCanLogin(account) || password !== credentialPassword(account)) { if (account) { recordAdminLogin(false, account); saveState(); } $('#loginError').textContent = 'Số điện thoại hoặc mật khẩu không đúng.'; return; }
@@ -4196,7 +4189,7 @@ function bindGlobalActions() {
     $('#loginError').textContent = '';
     startSession(account);
   };
-  $('#registerForm')?.addEventListener('submit', event => { event.preventDefault(); const captcha = captchaToken('#registerForm'); if (window.location?.protocol !== 'file:' && window.grecaptcha && !captcha) { $('#registerMessage').className = 'form-message error full'; $('#registerMessage').textContent = 'Vui lòng xác minh CAPTCHA trước khi đăng ký.'; return; } submitRegistration(); });
+  $('#registerForm')?.addEventListener('submit', event => { event.preventDefault(); submitRegistration(); });
   $('#loginPhone').oninput = updateLoginTwoFactorField;
   $('#logoutButton').onclick = endSession;
   $('#notificationButton').onclick = () => navigate('notifications');
@@ -4220,6 +4213,122 @@ function bindGlobalActions() {
   });
   window.addEventListener('storage', event => { if (event.key === STORAGE_KEY && currentAccount) { state = loadState(); STAFF = state.members.filter(person => person.active !== false); refreshTaskStatuses(); render(); } });
 }
+
+/* Keep credential records and personnel profiles aligned. The member profile is
+   the durable source of display identity for Sale and Leader sessions. */
+function linkedAccountForMember(member) {
+  if (!member) return null;
+  return [...ACCOUNTS, ...(state.registeredAccounts || [])].find(account =>
+    account.memberId === member.id || account.saleId === member.id || account.leaderId === member.id
+  ) || null;
+}
+
+function synchronizeAccountIdentity(member) {
+  const account = linkedAccountForMember(member);
+  if (!account) return;
+  account.name = member.name;
+  account.initials = member.initials;
+  account.teamId = member.teamId;
+  account.memberId = member.id;
+  if (member.role === 'SALE') {
+    account.role = 'SALE';
+    account.scope = 'OWN';
+    account.saleId = member.id;
+    account.leaderId = member.leaderId;
+  } else {
+    account.role = 'LEADER';
+    account.scope = 'TEAM';
+    account.leaderId = member.id;
+    account.saleId = null;
+  }
+  if (currentAccount?.id === account.id) Object.assign(currentAccount, account);
+}
+
+function hydrateSessionAccount(account) {
+  const session = { ...account };
+  const member = accountMember(account);
+  if (member) {
+    session.name = member.name;
+    session.initials = member.initials;
+    session.teamId = member.teamId;
+    session.memberId = member.id;
+    if (member.role === 'SALE') {
+      session.role = 'SALE';
+      session.scope = 'OWN';
+      session.saleId = member.id;
+      session.leaderId = member.leaderId;
+    } else {
+      session.role = 'LEADER';
+      session.scope = 'TEAM';
+      session.leaderId = member.id;
+      session.saleId = null;
+    }
+  }
+  return session;
+}
+
+const baseSettingsView = settingsView;
+VIEW_RENDERERS.settings = function settingsViewWithTypographyControls() {
+  return baseSettingsView().replace(
+    '<label class="form-field">Bot báo data · Token',
+    `<label class="form-field font-size-control">Cỡ chữ danh mục<input id="navigationFontSize" type="range" min="10" max="16" step="1" value="${state.settings.navigationFontSize || 12}"><output id="navigationFontSizeValue">${state.settings.navigationFontSize || 12}px</output></label><label class="form-field font-size-control">Cỡ chữ nội dung<input id="contentFontSize" type="range" min="12" max="20" step="1" value="${state.settings.contentFontSize || 14}"><output id="contentFontSizeValue">${state.settings.contentFontSize || 14}px</output></label><label class="form-field">Bot báo data · Token`
+  );
+};
+
+const baseTeamView = teamView;
+VIEW_RENDERERS.team = function teamViewWithRegisteredAccounts() {
+  return baseTeamView().replace('Tài khoản chưa phân chức vụ', 'Tài khoản đăng ký chờ phân chức vụ');
+};
+
+const baseBindViewActions = bindViewActions;
+bindViewActions = function bindViewActionsWithProfileAndTypography() {
+  baseBindViewActions();
+  const bindFontSize = (inputId, outputId, settingKey) => {
+    const input = $(`#${inputId}`);
+    const output = $(`#${outputId}`);
+    if (!input) return;
+    const update = persist => {
+      state.settings[settingKey] = Number(input.value);
+      if (output) output.textContent = `${input.value}px`;
+      applyAppearanceSettings();
+      if (persist) saveState();
+    };
+    input.addEventListener('input', () => update(false));
+    input.addEventListener('change', () => update(true));
+  };
+  bindFontSize('navigationFontSize', 'navigationFontSizeValue', 'navigationFontSize');
+  bindFontSize('contentFontSize', 'contentFontSizeValue', 'contentFontSize');
+  $('#profileForm')?.addEventListener('submit', () => {
+    const member = activeStaff().find(person => person.id === (currentAccount.saleId || currentAccount.leaderId));
+    if (member) { synchronizeAccountIdentity(member); saveState(); }
+  });
+};
+
+const baseSubmitRegistration = submitRegistration;
+submitRegistration = async function submitRegistrationWithAdminNotification() {
+  const before = state.registeredAccounts.length;
+  await baseSubmitRegistration();
+  if (state.registeredAccounts.length === before) return;
+  const account = state.registeredAccounts[0];
+  state.notifications.unshift({
+    id: `NT-REGISTER-${Date.now()}`,
+    role: 'ADMIN',
+    title: 'Tài khoản mới chờ phân chức vụ',
+    text: `${account.name} · ${account.phone} · mở Đội ngũ để phân Sale hoặc Leader`,
+    at: stamp(),
+    readBy: []
+  });
+  audit('REGISTER_ACCOUNT', account.id, `${account.name} · chờ phân chức vụ`);
+  saveState();
+};
+
+const baseSaveTeamMember = saveTeamMember;
+saveTeamMember = function saveTeamMemberWithIdentitySync(id = null, registrationId = null) {
+  const result = baseSaveTeamMember(id, registrationId);
+  const member = id ? state.members.find(item => item.id === id) : null;
+  if (member) { synchronizeAccountIdentity(member); saveState(); }
+  return result;
+};
 
 let offerSweepTimer = null;
 
