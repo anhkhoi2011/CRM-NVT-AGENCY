@@ -1,7 +1,7 @@
 /**
  * Server webhook + static cho CRM NVT Agency.
  *
- * Chạy:  node docs/architecture/16-webhook-server.cjs
+ * Chạy:  node webhook-server.cjs
  * Mặc định: http://localhost:4173  (bind 0.0.0.0 nên máy khác trong LAN vào được)
  *
  * Hai việc:
@@ -9,7 +9,7 @@
  *  2. Nhận data landing page thật tại:
  *        POST /api/data-sources/webhook/ds-<13 số>-<11 ký tự A-Z0-9>/
  *     LadiPage gọi endpoint này. Data được ghi vào inbox bất biến trên đĩa,
- *     CRM (14-crm-complete.js) đọc inbox rồi đưa vào Chia Leader.
+ *     CRM (crm.js) đọc inbox rồi đưa vào Chia Leader.
  *
  * Không có dependency ngoài. Node >= 18 (dùng fetch/global có sẵn).
  */
@@ -23,10 +23,13 @@ const crypto = require('node:crypto');
 
 const PORT = Number(process.env.PORT || 4173);
 const HOST = process.env.HOST || '0.0.0.0';
-const REPO_ROOT = path.resolve(__dirname, '..', '..');
+const REPO_ROOT = path.resolve(__dirname);
+const DEFAULT_WEBHOOK_DATA_DIR = process.env.WEBHOOK_DATA_DIR
+  ? path.resolve(process.env.WEBHOOK_DATA_DIR)
+  : path.join(process.env.HOME || path.dirname(REPO_ROOT), 'webhook-data');
 const INBOX_FILE = process.env.WEBHOOK_INBOX_FILE
   ? path.resolve(process.env.WEBHOOK_INBOX_FILE)
-  : path.join(__dirname, '.webhook-inbox.json');
+  : path.join(DEFAULT_WEBHOOK_DATA_DIR, '.webhook-inbox.json');
 const MAX_BODY_BYTES = 256 * 1024;
 const MAX_INBOX_RECORDS = 5000;
 
@@ -84,6 +87,10 @@ function loadInbox() {
 function flushInbox() {
   inboxFlushScheduled = false;
   const tmp = `${INBOX_FILE}.${process.pid}.tmp`;
+  try { fs.mkdirSync(path.dirname(INBOX_FILE), { recursive: true }); } catch (error) {
+    console.error('[inbox] cannot create inbox directory:', error.message);
+    return;
+  }
   try {
     fs.writeFileSync(tmp, JSON.stringify(inbox, null, 2), 'utf8');
     fs.renameSync(tmp, INBOX_FILE);
@@ -511,7 +518,6 @@ async function serveStatic(request, response, urlPathname) {
   const decoded = decodeURIComponent(urlPathname);
   let relative = decoded === '/' ? '/index.html' : decoded;
   if (relative === '/demo.html') relative = '/index.html';
-  if (relative === '/docs/architecture/14-crm-complete-demo.html') relative = '/docs/architecture/14-crm-complete.html';
   const absolute = path.resolve(REPO_ROOT, `.${path.posix.normalize(relative)}`);
 
   // Chặn path traversal: phải nằm trong REPO_ROOT.
@@ -582,7 +588,7 @@ server.listen(PORT, HOST, () => {
   console.log(`  POST http://localhost:${PORT}/api/data-sources/webhook/ds-<13 số>-<11 ký tự>/`);
   console.log('  Chấp nhận: application/json, x-www-form-urlencoded, multipart/form-data');
   console.log('\nTest nhanh:');
-  console.log(`  curl -X POST http://localhost:${PORT}/api/data-sources/webhook/ds-1789015513831-ZPKFFVK9S9A/ \\`);
+  console.log(`  curl -X POST http://localhost:${PORT}/api/data-sources/webhook/ds-1789180581447-IIM6U3AAD1R/ \\`);
   console.log(`       -H "Content-Type: application/json" \\`);
   console.log(`       -d '{"Họ và tên":"Nguyễn Test","Số điện thoại":"0912345678","Email":"test@gmail.com"}'\n`);
   selfCheckHealth();
@@ -620,7 +626,7 @@ function warnShadowed() {
   console.warn(`[webhook]           Server này vẫn sống ở http://127.0.0.1:${PORT} — nhưng LadiPage gửi vào`);
   console.warn('[webhook]           "localhost" sẽ KHÔNG tới được. Tắt server kia rồi chạy lại, hoặc dùng PORT khác:');
   console.warn(`[webhook]             netstat -ano | findstr :${PORT}`);
-  console.warn(`[webhook]             PORT=${PORT + 1} node docs/architecture/16-webhook-server.cjs\n`);
+  console.warn(`[webhook]             PORT=${PORT + 1} node webhook-server.cjs\n`);
 }
 
 // selfCheckHealth() được gọi trong callback của server.listen — gọi ở đây sẽ đua với bind.

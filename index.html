@@ -8,12 +8,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./14-crm-complete.css">
+  <link rel="stylesheet" href="./crm.css">
 </head>
 <body>
   <section id="loginScreen" class="login-screen">
     <div class="login-intro">
-      <img class="login-intro-img" src="./login-bg.jpg" alt="NVT AGENCY">
+      <img class="login-intro-img" src="./login-background.jpg" alt="NVT AGENCY">
     </div>
     <div class="login-panel">
       <div class="login-card">
@@ -47,7 +47,7 @@
   <div id="appShell" class="app-shell is-hidden">
     <aside id="sidebar" class="sidebar">
       <a class="brand brand-light" href="#" data-view-link="dashboard">
-        <img class="brand-logo" src="./nvt-logo.jpg" alt="NVT AGENCY">
+        <img class="brand-logo" src="./logo.jpg" alt="NVT AGENCY">
         <span><strong>NVT AGENCY</strong><small>AGENCY OPERATING SYSTEM</small></span>
       </a>
       <nav id="sideNav" class="side-nav" aria-label="Điều hướng chính"></nav>
@@ -78,10 +78,10 @@
   <div id="drawerRoot"></div>
   <div id="modalRoot"></div>
   <div id="toastRoot" class="toast-root" aria-live="polite"></div>
-  <script src="./14-crm-complete.js?v=20260912-1" defer></script>
+  <script src="./crm.js?v=20260912-4" defer></script>
   <script>
   /* ─────────────────────────────────────────────────────────────────────────
-     Danh mục "Chăm Sóc Khách" — bản vá chèn thêm, KHÔNG sửa 14-crm-complete.js.
+     Danh mục "Chăm Sóc Khách" — bản vá chèn thêm, KHÔNG sửa crm.js.
 
      Nhóm theo cột "Phân loại khách hàng" (customerClass) đã có sẵn:
        Khách đã chuyển đổi            ← Premium, Whale
@@ -131,7 +131,7 @@
       return `<div class="rank-row" style="grid-template-columns:minmax(0,1fr) auto auto auto;gap:12px">
         <div>
           <b>${escapeHtml(customer.name)}</b>
-          <small>${escapeHtml(customer.id)} · ${escapeHtml(customer.phone || 'Chưa có SĐT')}${customer.email ? ` · ${escapeHtml(customer.email)}` : ''}</small>
+          <small>· ${escapeHtml(customer.phone || 'Chưa có SĐT')}${customer.email ? ` · ${escapeHtml(customer.email)}` : ''}</small>
           <div class="cell-sub">Data ${escapeHtml(parts.date)} ${escapeHtml(parts.time)} · ${escapeHtml(owner)}</div>
         </div>
         ${field ? customFieldTableControl(field, customer) : `<span class="status">${escapeHtml(careClassOf(customer))}</span>`}
@@ -204,7 +204,7 @@
   <script>
   /* ─────────────────────────────────────────────────────────────────────────
      Danh mục sản phẩm · Trang thanh toán · Nhắc hạn thuê
-     Bản vá chèn thêm — KHÔNG sửa 14-crm-complete.js (theo chốt của bạn).
+     Bản vá chèn thêm — KHÔNG sửa crm.js (theo chốt của bạn).
 
      Ba ràng buộc buộc phải làm kiểu này:
      • loadState() lọc đơn hàng và sản phẩm về đúng khuôn trường cố định, nên trường
@@ -427,90 +427,6 @@
     setInterval(checkRentalExpiry, 10 * 60 * 1000);
   });
   </script>
-  <script>
-  /* ─────────────────────────────────────────────────────────────────────────
-     Mục Websites gọn lại — bản vá chèn thêm, KHÔNG sửa 14-crm-complete.js.
 
-     • Bỏ khỏi thẻ website: dòng gợi ý "Dán URL này vào LadiPage…", dòng
-       "Test nội bộ: …", dòng "Lần nhận cuối: …", nút "Cấu hình API", nút
-       "Bật/Tắt nhận data", và dải Campaign/Form/Credential + Thanh toán kỳ /
-       Doanh thu kỳ. Giữ lại: URL webhook + Sao chép + Sửa URL + Tạo mã, nút
-       Kiểm tra kết nối, và số liệu Data hôm nay / Data tổng.
-     • Thêm nút "Xóa website" — xóa luôn cả thẻ website khỏi danh sách.
-     • Domain công khai mặc định đổi apex.vn → nvtagency.vn.
-     • "Kiểm tra kết nối" giờ chạm thật https://ladipage.vn/ từ trình duyệt.
-
-     VIEW_RENDERERS giữ THAM CHIẾU hàm gốc nên phải gán lại key websites;
-     còn testWebsiteConnection được gọi theo tên nên chỉ cần gán lại global.
-     ───────────────────────────────────────────────────────────────────────── */
-  window.addEventListener('DOMContentLoaded', () => {
-    if (window.__nvtWebPatch) return;
-    window.__nvtWebPatch = true;
-
-    /* 1 · Domain webhook công khai: nvtagency thay cho apex */
-    if (!state.settings.webhookPublicBase || state.settings.webhookPublicBase === 'https://apex.vn' || state.settings.webhookPublicBase === 'https://nvtagency.vn') {
-      state.settings.webhookPublicBase = 'https://nvtagency.top';
-      saveState();
-    }
-
-    /* 2 · Dọn thẻ website */
-    const baseWebsitesView = websitesView;
-    const todayIso = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-
-    function trimWebsiteCard(chunk) {
-      const idMatch = /data-test-website="([^"]+)"/.exec(chunk);
-      const website = idMatch && state.websites.find(item => item.id === idMatch[1]);
-      if (!website) return chunk;
-      const rows = websiteCustomerRows(website.id);
-      const today = todayIso();
-      const todayCount = rows.filter(customer => String(customer.createdAt || '').slice(0, 10) === today).length;
-      let out = chunk;
-      out = out.replace(/<div class="credential-hint">Dán URL này vào LadiPage[\s\S]*?<\/div><\/div><\/article>/, '</div></article>');
-      out = out.replace(/<div class="stat-row">[\s\S]*?<div class="connection-actions">/,
-        `<div class="stat-row"><div><small>Data hôm nay</small><b>${number(todayCount)}</b></div><div><small>Data tổng</small><b>${number(rows.length)}</b></div></div><div class="connection-actions">`);
-      out = out.replace(/<button class="button button-small button-primary" data-configure-website="[^"]*">Cấu hình API<\/button>/, '');
-      out = out.replace(/<button class="button button-small" data-toggle-website="[^"]*">(?:Bật|Tắt) nhận data<\/button>/, '');
-      out = out.replace(/(<button class="button button-small" data-test-website="[^"]*">Kiểm tra kết nối<\/button>)/,
-        `$1<button class="button button-small button-danger" type="button" data-delete-website="${escapeHtml(website.id)}">Xóa website</button>`);
-      return out;
-    }
-
-    VIEW_RENDERERS.websites = function () {
-      return baseWebsitesView()
-        .split('<article class="info-card integration-card">')
-        .map((chunk, index) => (index === 0 ? chunk : trimWebsiteCard(chunk)))
-        .join('<article class="info-card integration-card">');
-    };
-
-    /* 3 · Xóa website: bỏ luôn cả thẻ khỏi danh sách */
-    document.addEventListener('click', event => {
-      const button = event.target.closest ? event.target.closest('[data-delete-website]') : null;
-      if (!button) return;
-      const website = state.websites.find(item => item.id === button.dataset.deleteWebsite);
-      if (!website) return;
-      if (!window.confirm(`Xóa website "${website.name}" (${website.domain}) khỏi danh sách? Data đã nhận vẫn giữ nguyên còn URL webhook của nó chết ngay — LadiPage sẽ không gửi vào đâu nữa.`)) return;
-      state.websites = state.websites.filter(item => item.id !== website.id);
-      audit('DELETE_WEBSITE', website.id, `${website.name} · ${website.domain}`);
-      saveState(); render(); toast(`Đã xóa website ${website.name}`);
-    });
-
-    /* 4 · Kiểm tra kết nối = chạm thật ladipage.vn từ trình duyệt.
-       no-cors trả response opaque: không đọc được mã trạng thái, nhưng resolve
-       nghĩa là DNS + TLS + máy chủ đã trả lời; reject nghĩa là không chạm được.
-       KHÔNG tự đánh dấu VERIFIED — việc đó thuộc về backend (hợp đồng §4). */
-    function probeLadiPage() {
-      fetch('https://ladipage.vn/', { mode: 'no-cors', cache: 'no-store' })
-        .then(() => toast('Kiểm tra kết nối: ĐẠT · trình duyệt chạm được máy chủ ladipage.vn'))
-        .catch(error => toast(`Kiểm tra kết nối: KHÔNG ĐẠT · ladipage.vn không phản hồi · ${error.message}`));
-    }
-    const baseTestWebsite = testWebsiteConnection;
-    testWebsiteConnection = function (id) {
-      probeLadiPage();
-      const website = websiteById(id);
-      if (website && website.endpoint && website.credentialConfigured) return baseTestWebsite(id);
-      return false;
-    };
-  });
-  </script>
 </body>
 </html>
