@@ -18,20 +18,6 @@ let STAFF = structuredClone(STAFF_SEED);
 
 let PRODUCTS = [];
 
-const CUSTOMER_SEED = [
-  { id: 'CUS-01024', name: 'Nguyễn Văn Minh', phone: '0901842161', email: 'minh.nguyen@gmail.com', source: 'TikTok Ads', campaign: 'TT-TRADING-09', status: 'CONSULTING', saleId: 's1', leaderId: 'l1', teamId: 'T2', createdAt: '2026-09-03 14:01', updatedAt: '2026-09-07 10:42', note: 'Đã hẹn gọi lại tối nay' },
-  { id: 'CUS-01023', name: 'Trần Quỳnh Anh', phone: '0987501220', email: 'quynhanh@outlook.com', source: 'Google Organic', campaign: 'SEO-COURSE', status: 'PAID', saleId: 's2', leaderId: 'l1', teamId: 'T2', createdAt: '2026-08-29 09:10', updatedAt: '2026-09-07 09:05', note: 'Đã nạp, chờ onboarding' },
-  { id: 'CUS-01022', name: 'Đặng Quốc Bảo', phone: '0938228468', email: 'bao.dang@gmail.com', source: 'Facebook Ads', campaign: 'FB-DATA-09', status: 'NEW', saleId: 's1', leaderId: 'l1', teamId: 'T2', createdAt: '2026-09-07 08:42', updatedAt: '2026-09-07 08:55', note: 'Data mới từ webinar' },
-  { id: 'CUS-01021', name: 'Lê Thu Phương', phone: '0912667301', email: 'phuong.le@gmail.com', source: 'Referral', campaign: 'PARTNER-MAI', status: 'WON', saleId: 's3', leaderId: 'l1', teamId: 'T2', createdAt: '2026-08-25 16:20', updatedAt: '2026-09-06 16:20', note: 'Đã mua gói Pro' },
-  { id: 'CUS-01020', name: 'Phạm Khánh Linh', phone: '0965120494', email: 'linh.pham@gmail.com', source: 'TikTok Ads', campaign: 'TT-TRADING-09', status: 'CONTACTED', saleId: 's2', leaderId: 'l1', teamId: 'T2', createdAt: '2026-09-03 11:30', updatedAt: '2026-09-06 15:33', note: 'Hẹn gửi proposal' },
-  { id: 'CUS-01019', name: 'Hoàng Gia Huy', phone: '0904800785', email: 'huy.hoang@gmail.com', source: 'Landing Page', campaign: 'LP-FREE-AUDIT', status: 'LOST', saleId: 's3', leaderId: 'l1', teamId: 'T2', createdAt: '2026-08-22 08:50', updatedAt: '2026-09-05 18:20', note: 'Không phản hồi sau 3 lần' },
-  { id: 'CUS-01018', name: 'Võ Thanh Hà', phone: '0981302541', email: 'ha.vo@gmail.com', source: 'Google Ads', campaign: 'GG-SEARCH-09', status: 'PAID', saleId: 's4', leaderId: 'l2', teamId: 'T3', createdAt: '2026-09-02 10:10', updatedAt: '2026-09-07 10:10', note: 'Đã hoàn tất onboarding' },
-  { id: 'CUS-01017', name: 'Ngô Thành Đạt', phone: '0974556912', email: 'dat.ngo@gmail.com', source: 'Zalo OA', campaign: 'ZALO-SEP', status: 'NURTURING', saleId: 's4', leaderId: 'l2', teamId: 'T3', createdAt: '2026-08-20 10:10', updatedAt: '2026-09-06 11:00', note: 'Khách cũ cần chăm sóc' },
-  { id: 'CUS-01016', name: 'Bùi Minh Châu', phone: '0869342807', email: 'chau.bui@gmail.com', source: 'Website Organic', campaign: 'SEO-COURSE', status: 'NEW', saleId: null, leaderId: null, teamId: null, createdAt: '2026-09-07 10:25', updatedAt: '2026-09-07 10:25', note: 'Chưa phân data' },
-  { id: 'CUS-01015', name: 'Đỗ Mạnh Cường', phone: '0933115400', email: 'cuong.do@gmail.com', source: 'Facebook Ads', campaign: 'FB-DATA-09', status: 'NEW', saleId: null, leaderId: 'l1', teamId: 'T2', createdAt: '2026-09-07 09:50', updatedAt: '2026-09-07 09:50', note: 'Pool riêng Team T2' },
-  { id: 'CUS-01014', name: 'Mai Ngọc Diệp', phone: '0908910623', email: 'diep.mai@gmail.com', source: 'TikTok Ads', campaign: 'TT-TRADING-09', status: 'NEW', saleId: null, leaderId: null, teamId: null, createdAt: '2026-09-06 09:12', updatedAt: '2026-09-06 09:12', note: 'Chưa phân data' }
-];
-
 const TRAFFIC_META = [
   { source: 'TikTok Ads', medium: 'paid_social', campaign: 'TT-TRADING-09', color: '#111827', spend: 920000 },
   { source: 'Facebook Ads', medium: 'paid_social', campaign: 'FB-DATA-09', color: '#246b9b', spend: 760000 },
@@ -97,7 +83,7 @@ const NAVIGATION = {
   UNASSIGNED: [['Cá nhân', [['dashboard', 'Tổng quan', '◫'], ['profile', 'Hồ sơ của tôi', '●'], ['notifications', 'Thông báo', '●']]]],
   SALE: [
     ['Khách hàng của tôi', [['dashboard', 'Tổng quan', '◫'], ['customers', 'Khách của tôi', '♙'], ['accept', 'Data chờ nhận', '⤓']]],
-    ['Kinh doanh', [['orders', 'Đơn của tôi', '▤'], ['revenue', 'Doanh thu của tôi', '₫']]],
+    ['Kinh doanh', [['orders', 'Tạo đơn cho khách', '▤'], ['revenue', 'Doanh thu của tôi', '₫']]],
     ['Cá nhân', [['attendance', 'Điểm danh', '✓'], ['notifications', 'Thông báo', '●'], ['profile', 'Hồ sơ của tôi', '●']]]
   ]
 };
@@ -117,94 +103,6 @@ function shiftStamp(value, minutes) {
   return shifted.toISOString().slice(0, 16).replace('T', ' ');
 }
 
-function makeOrders() {
-  if (!PRODUCTS.length) return [];
-  const assigned = CUSTOMER_SEED.filter(customer => customer.saleId);
-  return Array.from({ length: 46 }, (_, index) => {
-    const customer = assigned[(index * 3 + 1) % assigned.length];
-    const product = PRODUCTS[(index * 5 + 2) % PRODUCTS.length];
-    const qty = index % 6 === 0 ? 2 : 1;
-    const subtotal = product.price * qty;
-    const discount = index % 7 === 0 ? Math.round(subtotal * 0.08) : 0;
-    const total = subtotal - discount;
-    const status = index % 17 === 0 ? 'REFUNDED' : index % 11 === 0 ? 'CANCELLED' : index % 8 === 0 ? 'PENDING' : 'PAID';
-    const createdDate = dayIso(index % 28);
-    const source = customer.source === 'Referral' || customer.source === 'Landing Page' || customer.source === 'Website Organic' ? 'Direct / Referral' : customer.source;
-    return {
-      id: `ORD-${String(1100 + index)}`, code: `NVT-2609-${String(1100 + index)}`,
-      customerId: customer.id, customerName: customer.name, saleId: customer.saleId, leaderId: customer.leaderId, teamId: customer.teamId,
-      source, campaign: customer.campaign, websiteId: defaultWebsiteIdForCustomer(customer), productId: product.id, productName: product.name, sku: product.sku, qty, unitPrice: product.price,
-      subtotal, discount, total, refund: status === 'REFUNDED' ? total : 0, status,
-      createdAt: `${createdDate} ${String(8 + (index % 10)).padStart(2, '0')}:${String((index * 7) % 60).padStart(2, '0')}`,
-      paidAt: ['PAID', 'REFUNDED'].includes(status) ? `${createdDate} ${String(9 + (index % 9)).padStart(2, '0')}:${String((index * 11) % 60).padStart(2, '0')}` : null,
-      refundedAt: status === 'REFUNDED' ? `${createdDate} ${String(17 + (index % 3)).padStart(2, '0')}:${String((index * 13) % 60).padStart(2, '0')}` : null,
-      paymentMethod: index % 3 === 0 ? 'Chuyển khoản' : index % 3 === 1 ? 'VietQR' : 'Ví doanh nghiệp',
-      paymentReconciled: index % 5 !== 0,
-      refundReconciled: status === 'REFUNDED' ? index % 2 === 0 : null
-    };
-  });
-}
-
-function makeTrafficEvents() {
-  const saleIds = ['s1', 's2', 's3', 's4'];
-  const events = [];
-  for (let day = 0; day < 28; day += 1) {
-    TRAFFIC_META.forEach((meta, sourceIndex) => {
-      const saleId = saleIds[(day + sourceIndex) % saleIds.length];
-      const staff = STAFF_SEED.find(person => person.id === saleId);
-      const sessions = 38 + ((day * 17 + sourceIndex * 23) % 118);
-      const leads = Math.max(1, Math.round(sessions * (0.045 + sourceIndex * 0.008)));
-      events.push({ id: `TRF-${day}-${sourceIndex}`, date: dayIso(day), saleId, leaderId: staff.leaderId, teamId: staff.teamId, sessions, leads, spend: Math.round(meta.spend * (0.72 + ((day + sourceIndex) % 6) * 0.07)), ...meta });
-    });
-  }
-  return events;
-}
-
-function makeTasks() {
-  return CUSTOMER_SEED.filter(customer => customer.saleId).flatMap((customer, index) => {
-    const primaryDueAt = `${dayIso(index % 4)} ${index % 2 ? '16:30' : '10:00'}`;
-    const slaBased = index % 2 === 0;
-    return [
-      { id: `TSK-${index}-A`, customerId: customer.id, customerName: customer.name, ownerId: customer.saleId, leaderId: customer.leaderId, teamId: customer.teamId, type: slaBased ? 'Gọi tư vấn' : 'Gửi proposal', createdAt: slaBased ? shiftStamp(primaryDueAt, -30) : `${dayIso(index % 4 + 1)} 09:00`, dueAt: primaryDueAt, slaBased, status: index % 5 === 0 ? 'DONE' : index % 3 === 0 ? 'OVERDUE' : 'OPEN', priority: index % 4 === 0 ? 'HIGH' : 'NORMAL' },
-      { id: `TSK-${index}-B`, customerId: customer.id, customerName: customer.name, ownerId: customer.saleId, leaderId: customer.leaderId, teamId: customer.teamId, type: 'Chăm sóc định kỳ', createdAt: `${dayIso(index % 4)} 08:30`, dueAt: `${dayIso(-(index % 3 + 1))} 09:30`, slaBased: false, status: 'OPEN', priority: 'NORMAL' }
-    ];
-  });
-}
-
-function makeCustomerNotes() {
-  return CUSTOMER_SEED.map((customer, index) => ({
-    id: `NOTE-${index + 1}`,
-    customerId: customer.id,
-    authorId: customer.saleId || customer.leaderId || 'u-admin',
-    author: customer.saleId ? STAFF_SEED.find(person => person.id === customer.saleId)?.name || 'Sale' : customer.leaderId ? STAFF_SEED.find(person => person.id === customer.leaderId)?.name || 'Leader' : 'Start',
-    role: customer.saleId ? 'SALE' : customer.leaderId ? 'LEADER' : 'ADMIN',
-    text: customer.note,
-    at: customer.updatedAt
-  }));
-}
-
-function seedCustomerCustomFields(index) {
-  const levels = ['L3', 'L5', 'L1', 'L7', 'L4.1', 'L0', 'L6', 'L9', 'L0', 'L1.1', 'L2'];
-  const classes = ['Ấm', 'Nóng', 'Lạnh', 'Premium', 'Nóng', 'Lạnh', 'Premium', 'Pending', 'Lạnh', 'Lạnh', 'Ấm'];
-  return { customerLevel: levels[index % levels.length], customerClass: classes[index % classes.length], callStatus: index % 3 === 0 ? 'Đã gọi được' : index % 3 === 1 ? 'Hẹn gọi lại' : 'Chưa gọi được', documentStatus: index % 2 ? 'Đã gửi' : 'Chưa gửi', needs: index % 2 ? ['Tín hiệu FX'] : ['Học cơ bản > Nâng cao'], course: index % 4 === 0 ? ['BMĐTHH'] : [], result: index % 3 === 0 ? 'Đang chăm sóc' : index % 3 === 1 ? 'Hẹn gọi lại' : 'Không nghe máy' };
-}
-
-function makeFieldHistory(customers) {
-  return customers.map((customer, index) => ({ id: `FLD-HIS-${index + 1}`, customerId: customer.id, fieldId: 'customerLevel', fieldLabel: 'Level khách hàng', from: '', to: customer.customFields.customerLevel, actorId: 'SYSTEM', actor: 'Khởi tạo CRM', role: 'SYSTEM', at: customer.createdAt, source: 'MIGRATION' }));
-}
-
-function makeAssignmentHistory(customers) {
-  return customers.filter(customer => customer.saleId || customer.leaderId).map((customer, index) => ({ id: `ASN-HIS-${index + 1}`, customerId: customer.id, fromSaleId: null, fromSaleName: '', toSaleId: customer.saleId || null, toSaleName: STAFF_SEED.find(member => member.id === customer.saleId)?.name || '', fromLeaderId: null, fromLeaderName: '', toLeaderId: customer.leaderId || null, toLeaderName: STAFF_SEED.find(member => member.id === customer.leaderId)?.name || '', teamId: customer.teamId || null, actorId: 'SYSTEM', actor: 'Khởi tạo CRM', role: 'SYSTEM', at: customer.createdAt, reason: 'Phân công hiện có khi khởi tạo', source: 'SYSTEM' }));
-}
-
-function defaultWebsiteIdForCustomer(customer) {
-  const source = String(customer?.source || '').toLowerCase();
-  const campaign = String(customer?.campaign || '').toLowerCase();
-  if (source.includes('zalo') || campaign.includes('growth') || campaign.includes('zalo')) return 'WEB-3';
-  if (source.includes('ads') || source.includes('landing') || campaign.includes('audit') || campaign.includes('trading')) return 'WEB-2';
-  return 'WEB-1';
-}
-
 function initialState() {
   // Production starts empty; records arrive through the Sale/LadiPage import flow.
   const customers = [];
@@ -217,10 +115,10 @@ function initialState() {
     disabledAccountIds: [],
     customFieldDefinitions: structuredClone(CUSTOM_FIELD_SEED),
     customers,
-    customerFieldHistory: makeFieldHistory(customers),
-    assignmentHistory: makeAssignmentHistory(customers),
+    customerFieldHistory: [],
+    assignmentHistory: [],
     resubmissions: [],
-    notes: makeCustomerNotes(),
+    notes: [],
     imports: [],
     products: [],
     productCategories: ['Chỉ báo', 'Khóa học', 'Quảng cáo', 'Website', 'CRM', 'Automation', 'Nội dung', 'Dịch vụ khác'],
@@ -245,7 +143,7 @@ function initialState() {
     saleDistributionByLeader: {
       l1: { enabledSaleIds: ['s1'], weights: { s1: 1 } }
     },
-    settings: { leaderCanUpdate: true, notifyMilestones: true, leaderAttendanceRequired: true, assignmentMode: 'MANUAL', saleAssignmentModes: {}, assignmentCursor: { leaders: 0, salesByTeam: {} }, slaMinutes: 30, customAccent: '#e8572a', fontFamily: 'aptos', navigationFontSize: 12, contentFontSize: 14, dataBotToken: '', dataBotChatId: '', memberBotToken: '', memberBotChatId: '', webhookPublicBase: 'https://nvtagency.top', attendanceIp: '', attendanceDeadline: '09:00', acceptTimeoutHours: 24, notifyAccountCreated: true, notifyDataReceived: true },
+    settings: { leaderCanUpdate: true, notifyMilestones: true, leaderAttendanceRequired: true, assignmentMode: 'MANUAL', saleAssignmentModes: {}, assignmentCursor: { leaders: 0, salesByTeam: {} }, slaMinutes: 30, customAccent: '#e8572a', fontFamily: 'aptos', navigationFontSize: 12, contentFontSize: 14, dataBotToken: '', dataBotChatId: '', memberBotToken: '', memberBotChatId: '', webhookPublicBase: 'https://nvtagency.top', attendanceIp: '', attendanceDeadline: '09:00', acceptTimeoutHours: 24, notifyAccountCreated: true, notifyDataReceived: true, emailNotificationsEnabled: true },
     security: {
       adminPassword: 'admin123',
       twoFactorEnabled: false,
@@ -494,7 +392,8 @@ function sanitizeSettings(settings, defaults) {
     attendanceDeadline: (() => { const raw = cleanClockTime(input.attendanceDeadline, defaults.attendanceDeadline || '09:00'); return raw === '08:30' ? '09:00' : raw; })(),
     acceptTimeoutHours: cleanNumber(input.acceptTimeoutHours, defaults.acceptTimeoutHours || 8, 1, 72, true),
     notifyAccountCreated: input.notifyAccountCreated !== false,
-    notifyDataReceived: input.notifyDataReceived !== false
+    notifyDataReceived: input.notifyDataReceived !== false,
+    emailNotificationsEnabled: input.emailNotificationsEnabled !== false
   };
 }
 
@@ -549,6 +448,7 @@ function normalizeMemberRecord(member) {
   return {
     id,
     name: cleanText(member.name, 'Nhân sự', 160),
+    email: cleanText(member.email, '', 254).trim().toLowerCase(),
     role,
     teamId,
     leaderId: role === 'SALE' ? cleanId(member.leaderId) : null,
@@ -909,6 +809,54 @@ function claimWebhookRecord(id) {
 function webhookApiBase() {
   const origin = typeof window !== 'undefined' && window && window.location ? window.location.origin : '';
   return /^https?:\/\/[^/]+$/.test(origin) ? origin : '';
+}
+
+function emailApiBase() {
+  return webhookApiBase();
+}
+
+function staffEmail(id) {
+  return activeStaff().find(member => member.id === id)?.email || '';
+}
+
+function queueEmailNotification(recipients, subject, text) {
+  if (state.settings.emailNotificationsEnabled === false) return;
+  const unique = [...new Set(
+    (Array.isArray(recipients) ? recipients : [recipients])
+      .map(value => String(value || '').trim().toLowerCase())
+      .filter(value => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))
+  )];
+  const base = emailApiBase();
+  if (!unique.length || !base) return;
+  fetch(`${base}/api/email/notify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ recipients: unique, subject, text })
+  }).catch(() => {});
+}
+
+async function sendTestEmail() {
+  if (currentAccount?.role !== 'ADMIN') return;
+  const recipient = $('#emailTestRecipient')?.value.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) {
+    toast('Nhập email nhận thử hợp lệ');
+    return;
+  }
+  const base = emailApiBase();
+  if (!base) {
+    toast('Hãy mở CRM bằng server Node để gửi Gmail');
+    return;
+  }
+  const response = await fetch(`${base}/api/email/notify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({
+      recipients: [recipient],
+      subject: 'NVT AGENCY - Email thử',
+      text: `Email thử từ NVT AGENCY lúc ${stamp()}.`
+    })
+  }).catch(() => null);
+  toast(response?.ok ? 'Đã gửi email thử' : 'Chưa gửi được email. Kiểm tra Gmail App Password trên server.');
 }
 
 /* IP của phiên chỉ được dùng cho hai luồng người dùng đã chốt: sale tạo khách
@@ -1387,6 +1335,30 @@ function orderSource(source) {
 
 function saveState() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (error) {}
+}
+
+let serverSyncToken = '';
+async function syncServerState() {
+  const base = webhookApiBase();
+  if (!base || !currentAccount || !serverSyncToken) return false;
+  try {
+    const headers = { Accept: 'application/json', Authorization: `Bearer ${serverSyncToken}` };
+    const responses = await Promise.all([fetch(`${base}/api/customers`, { headers }), fetch(`${base}/api/orders`, { headers }), fetch(`${base}/api/products`, { headers })]);
+    if (responses.some(response => response.status === 401 || response.status === 503)) return false;
+    if (responses[0].ok) { const payload = await responses[0].json(); if (Array.isArray(payload.items)) state.customers = payload.items; }
+    if (responses[1].ok) { const payload = await responses[1].json(); if (Array.isArray(payload.items)) state.orders = payload.items; }
+    if (responses[2].ok) { const payload = await responses[2].json(); if (Array.isArray(payload.items)) { state.products = payload.items; PRODUCTS = state.products; } }
+    saveState(); refreshTaskStatuses(); render(); return true;
+  } catch (error) { return false; }
+}
+
+async function pushServerRecord(resource, method, id, record) {
+  const base = webhookApiBase();
+  if (!base || !serverSyncToken) return false;
+  try {
+    const response = await fetch(`${base}/api/${resource}${id ? `/${encodeURIComponent(id)}` : ''}`, { method, headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: `Bearer ${serverSyncToken}` }, body: JSON.stringify(record) });
+    return response.ok;
+  } catch (error) { return false; }
 }
 
 function refreshTaskStatuses() {
@@ -2085,7 +2057,7 @@ function deleteDistributionSourceRule(id) {
 function ordersView() {
   const query = normalize(globalQuery);
   const orders = scopedOrders().filter(order => orderStatusFilter === 'ALL' || order.status === orderStatusFilter).filter(order => !query || normalize(`${order.code}${order.customerName}${order.productName}${currentAccount.role === 'ADMIN' ? order.source : ''}`).includes(query)).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  return pageHead(currentAccount.role === 'SALE' ? 'Đơn hàng của tôi' : 'Quản lý đơn hàng', 'Đơn hàng, sản phẩm và trạng thái thanh toán trên cùng một bản ghi.', `${currentAccount.role !== 'SALE' ? '<button class="button" id="exportOrdersButton" type="button">Xuất CSV</button>' : ''}<button class="button button-primary" id="newOrderButton" type="button">+ Tạo đơn hàng</button>`) +
+  return pageHead(currentAccount.role === 'SALE' ? 'Tạo đơn cho khách' : 'Quản lý đơn hàng', 'Đơn hàng, sản phẩm và trạng thái thanh toán trên cùng một bản ghi.', `${currentAccount.role !== 'SALE' ? '<button class="button" id="exportOrdersButton" type="button">Xuất CSV</button>' : ''}<button class="button button-primary" id="newOrderButton" type="button">+ Tạo đơn cho khách</button>`) +
     `<section class="panel"><div class="toolbar"><input id="orderSearch" type="search" placeholder="Mã đơn, khách, sản phẩm..." value="${escapeHtml(globalQuery)}"><select id="orderStatusFilter"><option value="ALL">Tất cả thanh toán</option>${Object.entries(ORDER_STATUS).map(([key, meta]) => `<option value="${key}" ${orderStatusFilter === key ? 'selected' : ''}>${meta[0]}</option>`).join('')}</select><span class="spacer"></span><span class="data-note">${orders.length} đơn trong scope</span></div>${ordersTable(orders, true)}</section>`;
 }
 
@@ -2261,10 +2233,15 @@ function assignRegisteredAccountModal(accountId) {
     if (!name || !/^[A-Z0-9_-]{1,20}$/.test(teamId)) { toast('Thông tin không hợp lệ'); return; }
     if (role === 'SALE' && (!leader || leader.teamId !== teamId)) { toast('Sale phải thuộc đúng Team của Leader'); return; }
     const memberId = 'u-' + Date.now();
-    const member = { id: memberId, name, role, teamId, leaderId: role === 'SALE' ? leaderId : null, initials: memberInitials(name), createdBy: currentAccount.name, active: true };
+    const member = { id: memberId, name, email: account.email || '', role, teamId, leaderId: role === 'SALE' ? leaderId : null, initials: memberInitials(name), createdBy: currentAccount.name, active: true };
     state.members.push(member);
     account.role = role; account.scope = role === 'LEADER' ? 'TEAM' : 'OWN'; account.teamId = teamId; account.leaderId = member.leaderId; account.saleId = role === 'SALE' ? memberId : null; account.memberId = memberId;
     STAFF = state.members.filter(person => person.active !== false);
+    queueEmailNotification(
+      [account.email],
+      `Tài khoản ${role === 'SALE' ? 'Sale' : 'Leader'} đã được kích hoạt`,
+      `Xin chào ${name},\n\nTài khoản NVT AGENCY của bạn đã được Admin kích hoạt.\nChức vụ: ${role === 'SALE' ? 'Sale' : 'Leader'}\nTeam: ${teamId}${role === 'SALE' ? `\nLeader phụ trách: ${leader?.name || 'Chưa cập nhật'}` : ''}\n\nBạn có thể đăng nhập CRM để bắt đầu làm việc.`
+    );
     audit('ASSIGN_REGISTERED_ACCOUNT', account.id, name + ' · ' + role + ' · ' + teamId);
     saveState(); closeModal(); render(); toast('Đã phân chức vụ và đưa tài khoản vào đội ngũ');
   };
@@ -2274,11 +2251,11 @@ function teamMemberModal(id = null, registrationId = null) {
   if (currentAccount.role !== 'ADMIN') { toast('FORBIDDEN · chỉ Admin được quản lý nhân sự'); return; }
   const registration = state.registrations.find(item => item.id === registrationId);
   const member = STAFF.find(person => person.id === id);
-  const source = member || registration || { name: '', requestedRole: 'SALE', teamId: 'T2' };
+  const source = member || registration || { name: '', email: '', requestedRole: 'SALE', teamId: 'T2' };
   const role = member?.role || source.requestedRole || 'SALE';
   const leaders = activeStaff().filter(person => person.role === 'LEADER' && person.id !== id);
   const leaderOptions = leaders.map(leader => '<option value="' + escapeHtml(leader.id) + '" ' + ((member?.leaderId || '') === leader.id ? 'selected' : '') + '>' + escapeHtml(leader.name) + ' · ' + escapeHtml(leader.teamId) + '</option>').join('');
-  openModal(member ? 'Chỉnh sửa thành viên' : 'Thêm thành viên', '<form id="teamMemberForm"><div class="form-grid"><label class="form-field full">Họ tên<input id="memberName" required maxlength="160" value="' + escapeHtml(source.name) + '"></label><label class="form-field">Chức vụ<select id="memberRole"><option value="SALE" ' + (role === 'SALE' ? 'selected' : '') + '>SALE</option><option value="LEADER" ' + (role === 'LEADER' ? 'selected' : '') + '>LEADER</option></select></label><label class="form-field">Team<input id="memberTeam" required maxlength="20" value="' + escapeHtml(source.teamId || 'T2') + '"></label><label class="form-field">Leader trực tiếp<select id="memberLeader"><option value="">Không áp dụng</option>' + leaderOptions + '</select></label></div><div class="modal-actions"><button class="button" type="button" data-close-modal>Huỷ</button><button class="button button-primary" type="submit">Lưu thành viên</button></div></form>');
+  openModal(member ? 'Chỉnh sửa thành viên' : 'Thêm thành viên', '<form id="teamMemberForm"><div class="form-grid"><label class="form-field full">Họ tên<input id="memberName" required maxlength="160" value="' + escapeHtml(source.name) + '"></label><label class="form-field full">Gmail nhận thông báo<input id="memberEmail" type="email" maxlength="254" value="' + escapeHtml(source.email || '') + '" placeholder="sale@gmail.com"></label><label class="form-field">Chức vụ<select id="memberRole"><option value="SALE" ' + (role === 'SALE' ? 'selected' : '') + '>SALE</option><option value="LEADER" ' + (role === 'LEADER' ? 'selected' : '') + '>LEADER</option></select></label><label class="form-field">Team<input id="memberTeam" required maxlength="20" value="' + escapeHtml(source.teamId || 'T2') + '"></label><label class="form-field">Leader trực tiếp<select id="memberLeader"><option value="">Không áp dụng</option>' + leaderOptions + '</select></label></div><div class="modal-actions"><button class="button" type="button" data-close-modal>Huỷ</button><button class="button button-primary" type="submit">Lưu thành viên</button></div></form>');
   $('[data-close-modal]')?.addEventListener('click', closeModal);
   $('#teamMemberForm').onsubmit = event => { event.preventDefault(); saveTeamMember(id, registrationId); };
 }
@@ -2295,8 +2272,9 @@ function resetMemberPasswordModal(id) {
 
 function saveTeamMember(id = null, registrationId = null) {
   if (currentAccount.role !== 'ADMIN') return;
-  const existing = STAFF.find(person => person.id === id), name = $('#memberName').value.trim(), role = $('#memberRole').value, teamId = $('#memberTeam').value.trim().toUpperCase(), leaderId = $('#memberLeader').value || null;
+  const existing = STAFF.find(person => person.id === id), name = $('#memberName').value.trim(), email = $('#memberEmail')?.value.trim().toLowerCase() || '', role = $('#memberRole').value, teamId = $('#memberTeam').value.trim().toUpperCase(), leaderId = $('#memberLeader').value || null;
   if (!name || !['LEADER', 'SALE'].includes(role) || !/^[A-Z0-9_-]{1,20}$/.test(teamId)) { toast('Thông tin nhân sự không hợp lệ'); return; }
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast('Gmail nhân sự không hợp lệ'); return; }
   if (existing?.role === 'LEADER' && role === 'SALE' && STAFF.some(person => person.role === 'SALE' && person.leaderId === existing.id)) { toast('Hãy chuyển các Sale trực thuộc sang Leader khác trước khi đổi chức vụ'); return; }
   const leader = role === 'SALE' ? STAFF.find(person => person.id === leaderId && person.role === 'LEADER' && person.active !== false) : null;
   if (role === 'SALE' && (!leader || leader.teamId !== teamId)) { toast('Sale phải thuộc đúng Team của Leader trực tiếp'); return; }
@@ -2314,10 +2292,10 @@ function saveTeamMember(id = null, registrationId = null) {
       STAFF.filter(person => person.role === 'SALE' && person.leaderId === previous.id).forEach(sale => { sale.teamId = teamId; state.customers.filter(customer => customer.saleId === sale.id).forEach(customer => { const before = assignmentSnapshot(customer); customer.teamId = teamId; recordAssignmentChange(customer, before, `Team của Leader ${name} thay đổi`, 'SYSTEM'); }); state.tasks.filter(task => task.ownerId === sale.id && task.status !== 'DONE').forEach(task => { task.teamId = teamId; }); });
       state.customers.filter(customer => customer.leaderId === previous.id).forEach(customer => { const before = assignmentSnapshot(customer); customer.teamId = teamId; recordAssignmentChange(customer, before, `Team của Leader ${name} thay đổi`, 'SYSTEM'); });
     }
-    Object.assign(existing, { name, role, teamId, leaderId: role === 'SALE' ? leader.id : null, initials: memberInitials(name), active: true });
+    Object.assign(existing, { name, email, role, teamId, leaderId: role === 'SALE' ? leader.id : null, initials: memberInitials(name), active: true });
   } else {
     const memberId = `${role === 'LEADER' ? 'l' : 's'}-${Date.now()}`;
-    state.members.push({ id: memberId, name, role, teamId, leaderId: role === 'SALE' ? leader.id : null, initials: memberInitials(name), createdBy: currentAccount.name, active: true });
+    state.members.push({ id: memberId, name, email, role, teamId, leaderId: role === 'SALE' ? leader.id : null, initials: memberInitials(name), createdBy: currentAccount.name, active: true });
   }
   const registration = state.registrations.find(item => item.id === registrationId);
   if (registration) registration.status = 'APPROVED';
@@ -2441,7 +2419,7 @@ function applyAppearanceSettings() {
   document.documentElement.style.setProperty('--accent', palette[0]);
   document.documentElement.style.setProperty('--accent-dark', palette[1]);
   document.documentElement.style.setProperty('--accent-soft', palette[2]);
-  const fonts = Object.fromEntries([['arial','Arial'],['arialBlack','Arial Black'],['bahnschrift','Bahnschrift'],['calibri','Calibri'],['cambria','Cambria'],['candara','Candara'],['century','Century Gothic'],['comic','Comic Sans MS'],['consolas','Consolas'],['constantia','Constantia'],['corbel','Corbel'],['courier','Courier New'],['franklin','Franklin Gothic Medium'],['georgia','Georgia'],['impact','Impact'],['segoe','Segoe UI'],['tahoma','Tahoma'],['times','Times New Roman'],['trebuchet','Trebuchet MS'],['verdana','Verdana'],['beVietnam','Be Vietnam Pro'],['inter','Inter'],['roboto','Roboto'],['openSans','Open Sans'],['montserrat','Montserrat'],['poppins','Poppins'],['lato','Lato'],['nunito','Nunito'],['raleway','Raleway'],['oswald','Oswald'],['ubuntu','Ubuntu'],['rubik','Rubik'],['manrope','Manrope'],['dmSans','DM Sans'],['workSans','Work Sans'],['quicksand','Quicksand'],['notoSans','Noto Sans'],['notoSerif','Noto Serif'],['plex','IBM Plex Sans'],['merriweather','Merriweather'],['playfair','Playfair Display'],['sourceSans','Source Sans 3'],['fira','Fira Sans'],['firaCode','Fira Code']].map(([k,v]) => [k, `${v}, sans-serif`]));
+  const fonts = Object.fromEntries([['aptos','Aptos'],['arial','Arial'],['arialBlack','Arial Black'],['bahnschrift','Bahnschrift'],['calibri','Calibri'],['cambria','Cambria'],['candara','Candara'],['century','Century Gothic'],['comic','Comic Sans MS'],['consolas','Consolas'],['constantia','Constantia'],['corbel','Corbel'],['courier','Courier New'],['franklin','Franklin Gothic Medium'],['georgia','Georgia'],['impact','Impact'],['segoe','Segoe UI'],['tahoma','Tahoma'],['times','Times New Roman'],['trebuchet','Trebuchet MS'],['verdana','Verdana'],['beVietnam','Be Vietnam Pro'],['inter','Inter'],['roboto','Roboto'],['openSans','Open Sans'],['montserrat','Montserrat'],['poppins','Poppins'],['lato','Lato'],['nunito','Nunito'],['raleway','Raleway'],['oswald','Oswald'],['ubuntu','Ubuntu'],['rubik','Rubik'],['manrope','Manrope'],['dmSans','DM Sans'],['workSans','Work Sans'],['quicksand','Quicksand'],['notoSans','Noto Sans'],['notoSerif','Noto Serif'],['plex','IBM Plex Sans'],['merriweather','Merriweather'],['playfair','Playfair Display'],['sourceSans','Source Sans 3'],['fira','Fira Sans'],['firaCode','Fira Code'],['barlow','Barlow'],['outfit','Outfit'],['spaceGrotesk','Space Grotesk'],['sora','Sora'],['plusJakarta','Plus Jakarta Sans'],['libreBaskerville','Libre Baskerville']].map(([k,v]) => [k, `${v}, sans-serif`]));
   document.documentElement.style.setProperty('--sans', fonts[state.settings.fontFamily || 'aptos'] || 'Aptos, sans-serif');
   document.documentElement.style.setProperty('--base-font-size', `${state.settings.fontSize || 14}px`);
   document.documentElement.style.setProperty('--base-font-weight', state.settings.fontBold ? '700' : '400');
@@ -2452,6 +2430,31 @@ function applyAppearanceSettings() {
 
 function settingsView() {
   if (currentAccount.role !== 'ADMIN') return accessDeniedView('Chỉ Admin được thay đổi cài đặt hệ thống.');
+  const settingsViewState = state.settings;
+  const settingsFontOptions = [['aptos','Aptos'],['arial','Arial'],['arialBlack','Arial Black'],['bahnschrift','Bahnschrift'],['calibri','Calibri'],['cambria','Cambria'],['candara','Candara'],['century','Century Gothic'],['comic','Comic Sans MS'],['consolas','Consolas'],['constantia','Constantia'],['corbel','Corbel'],['courier','Courier New'],['franklin','Franklin Gothic Medium'],['georgia','Georgia'],['impact','Impact'],['segoe','Segoe UI'],['tahoma','Tahoma'],['times','Times New Roman'],['trebuchet','Trebuchet MS'],['verdana','Verdana'],['beVietnam','Be Vietnam Pro'],['inter','Inter'],['roboto','Roboto'],['openSans','Open Sans'],['montserrat','Montserrat'],['poppins','Poppins'],['lato','Lato'],['nunito','Nunito'],['raleway','Raleway'],['oswald','Oswald'],['ubuntu','Ubuntu'],['rubik','Rubik'],['manrope','Manrope'],['dmSans','DM Sans'],['workSans','Work Sans'],['quicksand','Quicksand'],['notoSans','Noto Sans'],['notoSerif','Noto Serif'],['plex','IBM Plex Sans'],['merriweather','Merriweather'],['playfair','Playfair Display'],['sourceSans','Source Sans 3'],['fira','Fira Sans'],['firaCode','Fira Code'],['barlow','Barlow'],['outfit','Outfit'],['spaceGrotesk','Space Grotesk'],['sora','Sora'],['plusJakarta','Plus Jakarta Sans'],['libreBaskerville','Libre Baskerville']];
+  const settingsColorOptions = ['#e8572a','#157a4b','#246b9b','#7c3aed','#c026d3','#db2777','#dc2626','#ea580c','#ca8a04','#65a30d','#0891b2','#0f172a','#475569','#000000','#ffffff'];
+  const settingsOption = (value, label) => `<option value="${value}" ${settingsViewState.fontFamily === value ? 'selected' : ''}>${label}</option>`;
+  const settingsAccountEvents = state.audit.filter(item => ['CREATE_MEMBER', 'APPROVE_REGISTRATION'].includes(item.action)).slice(0, 10);
+  const settingsDataEvents = state.imports.slice(0, 10);
+  return pageHead('Cài đặt CRM', 'Điều chỉnh giao diện và kênh nhận thông báo nội bộ.') +
+    `<section class="panel settings-panel"><div class="panel-head settings-panel-head"><div><div class="panel-title">Cài đặt hệ thống</div><div class="panel-sub">Các thay đổi chỉ áp dụng sau khi bạn bấm Lưu cấu hình.</div></div><span class="settings-admin-badge">ADMIN</span></div><div class="panel-body settings-body">
+      <div class="settings-section"><div class="settings-section-head"><div class="settings-section-icon">Aa</div><div><h2>Hiển thị</h2><p>Màu sắc, font chữ và kích thước nội dung trong CRM.</p></div></div><div class="settings-grid settings-display-grid">
+        <label class="form-field">Màu chủ đạo<div class="settings-color-row"><select id="themeColorSelect">${settingsColorOptions.map(color => `<option value="${color}" ${(settingsViewState.customAccent || '#e8572a') === color ? 'selected' : ''}>${color}</option>`).join('')}</select><input id="customAccentColor" type="color" value="${settingsViewState.customAccent || '#e8572a'}" aria-label="Chọn màu chủ đạo"></div></label>
+        <label class="form-field">Font chữ<select id="fontFamilySelect">${settingsFontOptions.map(([value, label]) => settingsOption(value, label)).join('')}</select></label>
+        <label class="form-field font-size-control">Cỡ chữ danh mục<div class="settings-range-row"><input id="navigationFontSize" type="range" min="10" max="16" step="1" value="${settingsViewState.navigationFontSize || 12}"><output id="navigationFontSizeValue">${settingsViewState.navigationFontSize || 12}px</output></div></label>
+        <label class="form-field font-size-control">Cỡ chữ nội dung<div class="settings-range-row"><input id="contentFontSize" type="range" min="12" max="20" step="1" value="${settingsViewState.contentFontSize || 14}"><output id="contentFontSizeValue">${settingsViewState.contentFontSize || 14}px</output></div></label>
+      </div></div>
+      <div class="settings-section"><div class="settings-section-head"><div class="settings-section-icon">@</div><div><h2>Email nội bộ</h2><p>Gửi thông báo khi có tài khoản mới hoặc data mới.</p></div></div><div class="settings-grid settings-email-grid">
+        <label class="settings-toggle"><input id="emailNotificationsEnabled" type="checkbox" ${settingsViewState.emailNotificationsEnabled !== false ? 'checked' : ''}><span><b>Bật gửi email cho Sale và Leader</b><small>Nhân sự sẽ nhận thông báo theo email đã cài trong mục Đội ngũ.</small></span></label>
+        <label class="form-field settings-test-field">Gửi email thử<div class="settings-test-row"><input id="emailTestRecipient" type="email" maxlength="254" placeholder="email@example.com"><button class="button button-small" id="emailTestButton" type="button">Gửi thử</button></div></label>
+      </div></div>
+      <div class="settings-section"><div class="settings-section-head"><div class="settings-section-icon">TG</div><div><h2>Telegram</h2><p>Dùng cho thông báo nội bộ nếu hệ thống đã kết nối bot.</p></div></div><div class="settings-grid settings-telegram-grid">
+        <label class="form-field">Bot báo data · Token<input id="dataBotToken" type="password" value="${escapeHtml(settingsViewState.dataBotToken || '')}" placeholder="123456:ABC..."></label><label class="form-field">Bot báo data · Chat ID<input id="dataBotChatId" value="${escapeHtml(settingsViewState.dataBotChatId || '')}" placeholder="-100xxxxxxxxxx"></label>
+        <label class="form-field">Bot báo thành viên · Token<input id="memberBotToken" type="password" value="${escapeHtml(settingsViewState.memberBotToken || '')}" placeholder="123456:ABC..."></label><label class="form-field">Bot báo thành viên · Chat ID<input id="memberBotChatId" value="${escapeHtml(settingsViewState.memberBotChatId || '')}" placeholder="-100xxxxxxxxxx"></label>
+      </div><div class="credential-hint">Telegram chỉ dùng cho thông báo nội bộ. Email nhận thông báo được cài riêng cho từng nhân sự trong mục Đội ngũ.</div></div>
+      <label class="settings-toggle settings-attendance-toggle"><input id="leaderAttendanceRequired" type="checkbox" ${settingsViewState.leaderAttendanceRequired !== false ? 'checked' : ''}><span><b>Leader bắt buộc điểm danh</b><small>Áp dụng quy định điểm danh cho tài khoản Leader.</small></span></label><div class="settings-actions"><button class="button button-primary" id="saveAppearanceButton">Lưu cấu hình</button></div>
+    </div></section><div class="grid grid-2 settings-activity-grid" style="margin-top:14px"><section class="panel"><div class="panel-head"><div><div class="panel-title">Tài khoản mới</div><div class="panel-sub">Hoạt động đăng ký gần đây</div></div></div><div class="panel-body">${settingsAccountEvents.map(item => `<div class="rank-row"><div><b>${escapeHtml(item.actor)}</b><small>${escapeHtml(item.detail)} · ${escapeHtml(item.at)}</small></div></div>`).join('') || '<div class="empty"><b>Chưa có tài khoản mới</b></div>'}</div></section><section class="panel"><div class="panel-head"><div><div class="panel-title">Data mới về</div><div class="panel-sub">Các lượt nhập data gần đây</div></div></div><div class="panel-body">${settingsDataEvents.map(item => `<div class="rank-row"><div><b>${escapeHtml(item.source)}</b><small>${escapeHtml(item.filename)} · ${number(item.records)} data · ${escapeHtml(item.importedAt)}</small></div></div>`).join('') || '<div class="empty"><b>Chưa có lượt nhập data</b></div>'}</div></section></div>`;
+  /* Legacy markup below is intentionally kept for a small rollback surface. */
   const settings = state.settings;
   const option = (value, label, selected) => `<option value="${value}" ${selected === value ? 'selected' : ''}>${label}</option>`;
   const fontOptions = [['arial','Arial'],['arialBlack','Arial Black'],['bahnschrift','Bahnschrift'],['calibri','Calibri'],['cambria','Cambria'],['candara','Candara'],['century','Century Gothic'],['comic','Comic Sans MS'],['consolas','Consolas'],['constantia','Constantia'],['corbel','Corbel'],['courier','Courier New'],['franklin','Franklin Gothic Medium'],['georgia','Georgia'],['impact','Impact'],['segoe','Segoe UI'],['tahoma','Tahoma'],['times','Times New Roman'],['trebuchet','Trebuchet MS'],['verdana','Verdana'],['beVietnam','Be Vietnam Pro'],['inter','Inter'],['roboto','Roboto'],['openSans','Open Sans'],['montserrat','Montserrat'],['poppins','Poppins'],['lato','Lato'],['nunito','Nunito'],['raleway','Raleway'],['oswald','Oswald'],['ubuntu','Ubuntu'],['rubik','Rubik'],['manrope','Manrope'],['dmSans','DM Sans'],['workSans','Work Sans'],['quicksand','Quicksand'],['notoSans','Noto Sans'],['notoSerif','Noto Serif'],['plex','IBM Plex Sans'],['merriweather','Merriweather'],['playfair','Playfair Display'],['sourceSans','Source Sans 3'],['fira','Fira Sans'],['firaCode','Fira Code']];
@@ -2459,7 +2462,7 @@ function settingsView() {
   const accountEvents = state.audit.filter(item => ['CREATE_MEMBER', 'APPROVE_REGISTRATION'].includes(item.action)).slice(0, 10);
   const dataEvents = state.imports.slice(0, 10);
   return pageHead('Cài đặt CRM', '') +
-     `<section class="panel"><div class="panel-head"><div class="panel-title">Giao diện & Telegram</div></div><div class="panel-body"><div class="form-grid"><label class="form-field">Màu chủ đạo<select id="themeColorSelect">${colorOptions.map(color => `<option value="${color}" ${(settings.customAccent || '#e8572a') === color ? 'selected' : ''}>${color}</option>`).join('')}</select><input id="customAccentColor" type="color" value="${settings.customAccent || '#e8572a'}" style="height:38px;padding:3px;margin-top:6px"></label><label class="form-field">Font chữ<select id="fontFamilySelect">${fontOptions.map(([value,label]) => option(value,label,settings.fontFamily || 'aptos')).join('')}</select></label><label class="form-field">Bot báo data · Token<input id="dataBotToken" type="password" value="${escapeHtml(settings.dataBotToken || '')}" placeholder="123456:ABC..."></label><label class="form-field">Bot báo data · Chat ID<input id="dataBotChatId" value="${escapeHtml(settings.dataBotChatId || '')}" placeholder="-100xxxxxxxxxx"></label><label class="form-field">Bot báo thành viên · Token<input id="memberBotToken" type="password" value="${escapeHtml(settings.memberBotToken || '')}" placeholder="123456:ABC..."></label><label class="form-field">Bot báo thành viên · Chat ID<input id="memberBotChatId" value="${escapeHtml(settings.memberBotChatId || '')}" placeholder="-100xxxxxxxxxx"></label></div><div class="credential-hint" style="margin-top:12px">Bot báo data nhận sự kiện data mới; bot báo thành viên nhận sự kiện tạo tài khoản.</div><label class="setting-toggle" style="display:flex;align-items:center;gap:8px;margin-top:16px"><input id="leaderAttendanceRequired" type="checkbox" ${settings.leaderAttendanceRequired !== false ? 'checked' : ''}><span>Leader bắt buộc điểm danh</span></label><button class="button button-primary" id="saveAppearanceButton" style="margin-top:14px">Lưu cấu hình</button></div></section><div class="grid grid-2" style="margin-top:14px"><section class="panel"><div class="panel-head"><div class="panel-title">Tài khoản mới</div></div><div class="panel-body">${accountEvents.map(item => `<div class="rank-row"><div><b>${escapeHtml(item.actor)}</b><small>${escapeHtml(item.detail)} · ${escapeHtml(item.at)}</small></div></div>`).join('') || '<div class="empty"><b>Chưa có tài khoản mới</b></div>'}</div></section><section class="panel"><div class="panel-head"><div class="panel-title">Data mới về</div></div><div class="panel-body">${dataEvents.map(item => `<div class="rank-row"><div><b>${escapeHtml(item.source)}</b><small>${escapeHtml(item.filename)} · ${number(item.records)} data · ${escapeHtml(item.importedAt)}</small></div></div>`).join('') || '<div class="empty"><b>Chưa có lượt nhập data</b></div>'}</div></section></div>`;
+     `<section class="panel settings-panel"><div class="panel-head"><div><div class="panel-title">Giao diện & thông báo</div><div class="panel-sub">Cấu hình giao diện, Telegram và email nội bộ</div></div></div><div class="panel-body"><div class="form-grid"><label class="form-field">Màu chủ đạo<select id="themeColorSelect">${colorOptions.map(color => `<option value="${color}" ${(settings.customAccent || '#e8572a') === color ? 'selected' : ''}>${color}</option>`).join('')}</select><input id="customAccentColor" type="color" value="${settings.customAccent || '#e8572a'}" style="height:38px;padding:3px;margin-top:6px"></label><label class="form-field">Font chữ<select id="fontFamilySelect">${fontOptions.map(([value,label]) => option(value,label,settings.fontFamily || 'aptos')).join('')}</select></label><label class="form-field">Bot báo data · Token<input id="dataBotToken" type="password" value="${escapeHtml(settings.dataBotToken || '')}" placeholder="123456:ABC..."></label><label class="form-field">Bot báo data · Chat ID<input id="dataBotChatId" value="${escapeHtml(settings.dataBotChatId || '')}" placeholder="-100xxxxxxxxxx"></label><label class="form-field">Bot báo thành viên · Token<input id="memberBotToken" type="password" value="${escapeHtml(settings.memberBotToken || '')}" placeholder="123456:ABC..."></label><label class="form-field">Bot báo thành viên · Chat ID<input id="memberBotChatId" value="${escapeHtml(settings.memberBotChatId || '')}" placeholder="-100xxxxxxxxxx"></label></div><div class="credential-hint" style="margin-top:12px">Telegram chỉ dùng cho thông báo nội bộ. Email nhận thông báo được cài riêng cho từng nhân sự trong mục Đội ngũ.</div><label class="setting-toggle settings-toggle" style="display:flex;align-items:center;gap:8px;margin-top:16px"><input id="leaderAttendanceRequired" type="checkbox" ${settings.leaderAttendanceRequired !== false ? 'checked' : ''}><span>Leader bắt buộc điểm danh</span></label><button class="button button-primary" id="saveAppearanceButton" style="margin-top:14px">Lưu cấu hình</button></div></section><div class="grid grid-2" style="margin-top:14px"><section class="panel"><div class="panel-head"><div class="panel-title">Tài khoản mới</div></div><div class="panel-body">${accountEvents.map(item => `<div class="rank-row"><div><b>${escapeHtml(item.actor)}</b><small>${escapeHtml(item.detail)} · ${escapeHtml(item.at)}</small></div></div>`).join('') || '<div class="empty"><b>Chưa có tài khoản mới</b></div>'}</div></section><section class="panel"><div class="panel-head"><div class="panel-title">Data mới về</div></div><div class="panel-body">${dataEvents.map(item => `<div class="rank-row"><div><b>${escapeHtml(item.source)}</b><small>${escapeHtml(item.filename)} · ${number(item.records)} data · ${escapeHtml(item.importedAt)}</small></div></div>`).join('') || '<div class="empty"><b>Chưa có lượt nhập data</b></div>'}</div></section></div>`;
 }
 
 function timeToMinutes(time) {
@@ -3365,6 +3368,11 @@ function offerOrAssignSale(customer, target, reason, source, previous, direct = 
     if (target.id === currentAccount?.saleId) customer.saleAcceptedAt = stamp();
     createInitialTask(customer);
     state.notifications.unshift({ id: `NT-${Date.now()}-${customer.id}`, role: 'OWN', saleId: target.id, title: 'Bạn vừa nhận data mới', text: `${customer.name} · ${customer.phone}`, at: stamp(), readBy: [] });
+    queueEmailNotification(
+      [target.email, staffEmail(target.leaderId)],
+      `Data mới được giao - ${customer.name}`,
+      `Xin chào ${target.name},\n\nBạn có data mới được giao trong CRM.\nKhách hàng: ${customer.name}\nSố điện thoại: ${customer.phone}\nNguồn: ${customerLandingName(customer)}\nThời gian: ${stamp()}\n\nVui lòng mở CRM để xử lý.`
+    );
     customer.updatedAt = stamp();
     customer.note = reason;
     state.notes.unshift({ id: `NOTE-${Date.now()}-${customer.id}-${target.id}`, customerId: customer.id, authorId: currentAccount?.id || 'SYSTEM', author: currentAccount?.name || 'Hệ thống phân data', role: currentAccount?.role || 'SYSTEM', text: `${reason} · ${target.name}`, at: stamp() });
@@ -3381,6 +3389,11 @@ function offerOrAssignSale(customer, target, reason, source, previous, direct = 
   customer.teamId = target.teamId;
   state.dataOffers.unshift({ id: `OFR-${Date.now()}-${customer.id}`, customerId: customer.id, saleId: target.id, leaderId: target.leaderId, teamId: target.teamId, offeredAt: stamp(), status: 'PENDING', resolvedAt: '', source });
   state.notifications.unshift({ id: `NT-OFFER-${Date.now()}-${customer.id}`, role: 'OWN', saleId: target.id, title: 'Có data chờ bạn nhận', text: `${customer.name} · nhận trong ${hours} giờ`, at: stamp(), readBy: [] });
+  queueEmailNotification(
+    [target.email, staffEmail(target.leaderId)],
+    `Data mới chờ Sale nhận - ${customer.name}`,
+    `Xin chào ${target.name},\n\nBạn có data mới đang chờ nhận trong ${hours} giờ.\nKhách hàng: ${customer.name}\nSố điện thoại: ${customer.phone}\nNguồn: ${customerLandingName(customer)}\nThời gian: ${stamp()}\n\nVui lòng đăng nhập CRM và bấm Nhận data.`
+  );
   customer.updatedAt = stamp();
   customer.note = reason;
   state.notes.unshift({ id: `NOTE-${Date.now()}-${customer.id}-${target.id}`, customerId: customer.id, authorId: currentAccount?.id || 'SYSTEM', author: currentAccount?.name || 'Hệ thống phân data', role: currentAccount?.role || 'SYSTEM', text: `${reason} · chờ ${target.name} nhận`, at: stamp() });
@@ -3431,6 +3444,11 @@ function acceptDataOffer(offerId) {
   offer.status = 'ACCEPTED';
   offer.resolvedAt = stamp();
   state.notifications.unshift({ id: `NT-ACCEPT-${Date.now()}-${customer.id}`, role: 'LEADER', leaderId: offer.leaderId, teamId: offer.teamId, title: 'Sale đã nhận data', text: `${currentAccount.name} nhận ${customer.name} · ${customer.phone}`, at: stamp(), readBy: [] });
+  queueEmailNotification(
+    [staffEmail(offer.leaderId)],
+    `Sale đã nhận data - ${customer.name}`,
+    `Xin chào ${staffName(offer.leaderId)},\n\n${currentAccount.name} đã nhận data trong Team ${offer.teamId}.\nKhách hàng: ${customer.name}\nSố điện thoại: ${customer.phone}\nThời gian: ${stamp()}`
+  );
   audit('ACCEPT_DATA', customer.id, `${currentAccount.name} nhận từ hàng chờ`);
   saveState(); render(); toast(`Đã nhận data ${customer.name}`);
 }
@@ -3453,6 +3471,11 @@ function expireStaleOffers() {
       customer.note = 'Sale chưa nhận kịp hạn · trả về leader chia lại';
     }
     state.notifications.unshift({ id: `NT-EXPIRE-${offer.id}`, role: 'LEADER', leaderId: offer.leaderId, teamId: offer.teamId, title: 'Sale chưa nhận data kịp hạn', text: `${customer ? customer.name : offer.customerId} quá ${hours} giờ · trả về bạn chia sale khác`, at: stamp(), readBy: [] });
+    queueEmailNotification(
+      [staffEmail(offer.leaderId)],
+      `Sale chưa nhận data đúng hạn - ${customer ? customer.name : offer.customerId}`,
+      `Xin chào ${staffName(offer.leaderId)},\n\nSale chưa nhận data đúng hạn ${hours} giờ, data đã trả về để bạn chia lại.\nKhách hàng: ${customer ? customer.name : offer.customerId}\nSố điện thoại: ${customer?.phone || 'Chưa có'}\nThời gian: ${stamp()}`
+    );
     audit('EXPIRE_DATA_OFFER', offer.customerId, `${offer.saleId} quá hạn ${hours}h`);
     changed = true;
   });
@@ -3468,6 +3491,11 @@ function applyCustomerAssignment(customer, target, reason, source = 'MANUAL', di
     customer.leaderId = target.id;
     customer.teamId = target.teamId;
     state.notifications.unshift({ id: `NT-${Date.now()}-${customer.id}`, role: 'LEADER', leaderId: target.id, teamId: target.teamId, title: 'Khách mới trong Team', text: `${customer.name} · ${customerLandingName(customer)}`, at: stamp(), readBy: [] });
+    queueEmailNotification(
+      [target.email],
+      `Data mới được giao cho Leader - ${customer.name}`,
+      `Xin chào ${target.name},\n\nBạn có data mới trong Team ${target.teamId}.\nKhách hàng: ${customer.name}\nSố điện thoại: ${customer.phone}\nNguồn: ${customerLandingName(customer)}\nThời gian: ${stamp()}\n\nVui lòng mở CRM để xử lý.`
+    );
     customer.updatedAt = stamp();
     customer.note = reason;
     state.notes.unshift({ id: `NOTE-${Date.now()}-${customer.id}-${target.id}`, customerId: customer.id, authorId: currentAccount?.id || 'SYSTEM', author: currentAccount?.name || 'Hệ thống phân data', role: currentAccount?.role || 'SYSTEM', text: `${reason} · ${target.name}`, at: stamp() });
@@ -3973,7 +4001,8 @@ function bindViewActions() {
   $$('[data-attendance-detail]').forEach(button => button.onclick = () => attendanceMemberDetailModal(button.dataset.attendanceDetail));
   $$('[data-edit-attendance]').forEach(button => button.onclick = () => attendanceEditModal(button.dataset.editAttendance));
   $$('[data-delete-attendance]').forEach(button => button.onclick = () => deleteAttendanceRecord(button.dataset.deleteAttendance));
-  $('#saveAppearanceButton')?.addEventListener('click', () => { state.settings.leaderAttendanceRequired = $('#leaderAttendanceRequired')?.checked !== false; state.settings.customAccent = $('#customAccentColor').value; state.settings.fontFamily = $('#fontFamilySelect').value; state.settings.dataBotToken = $('#dataBotToken').value.trim(); state.settings.dataBotChatId = $('#dataBotChatId').value.trim(); state.settings.memberBotToken = $('#memberBotToken').value.trim(); state.settings.memberBotChatId = $('#memberBotChatId').value.trim(); applyAppearanceSettings(); saveState(); render(); });
+  $('#saveAppearanceButton')?.addEventListener('click', () => { state.settings.leaderAttendanceRequired = $('#leaderAttendanceRequired')?.checked !== false; state.settings.emailNotificationsEnabled = $('#emailNotificationsEnabled')?.checked !== false; state.settings.customAccent = $('#customAccentColor').value; state.settings.fontFamily = $('#fontFamilySelect').value; state.settings.dataBotToken = $('#dataBotToken').value.trim(); state.settings.dataBotChatId = $('#dataBotChatId').value.trim(); state.settings.memberBotToken = $('#memberBotToken').value.trim(); state.settings.memberBotChatId = $('#memberBotChatId').value.trim(); applyAppearanceSettings(); saveState(); render(); });
+  $('#emailTestButton')?.addEventListener('click', sendTestEmail);
   $('#toggleTwoFactorButton')?.addEventListener('click', toggleTwoFactor);
   $('#changePasswordButton')?.addEventListener('click', changePasswordModal);
   $('#newTeamButton')?.addEventListener('click', createTeamModal);
@@ -4149,10 +4178,6 @@ function bindGlobalActions() {
     document.documentElement.dataset.theme = theme;
     try { localStorage.setItem(THEME_KEY, theme); } catch (error) {}
   };
-  $('#syncButton').onclick = () => {
-    $('#syncText').textContent = 'Đang làm mới...';
-    setTimeout(() => { state = loadState(); STAFF = state.members.filter(person => person.active !== false); refreshTaskStatuses(); render(); $('#syncText').textContent = 'Dữ liệu cục bộ'; toast('Đã tải lại dữ liệu từ bộ nhớ trình duyệt'); }, 650);
-  };
   $('#globalSearch').onkeydown = event => {
     if (event.key === 'Enter') { event.preventDefault(); openSearchDrawer(event.target.value); }
   };
@@ -4177,6 +4202,7 @@ function synchronizeAccountIdentity(member) {
   const account = linkedAccountForMember(member);
   if (!account) return;
   account.name = member.name;
+  account.email = member.email || account.email || '';
   account.initials = member.initials;
   account.teamId = member.teamId;
   account.memberId = member.id;
@@ -4219,10 +4245,7 @@ function hydrateSessionAccount(account) {
 
 const baseSettingsView = settingsView;
 VIEW_RENDERERS.settings = function settingsViewWithTypographyControls() {
-  return baseSettingsView().replace(
-    '<label class="form-field">Bot báo data · Token',
-    `<label class="form-field font-size-control">Cỡ chữ danh mục<input id="navigationFontSize" type="range" min="10" max="16" step="1" value="${state.settings.navigationFontSize || 12}"><output id="navigationFontSizeValue">${state.settings.navigationFontSize || 12}px</output></label><label class="form-field font-size-control">Cỡ chữ nội dung<input id="contentFontSize" type="range" min="12" max="20" step="1" value="${state.settings.contentFontSize || 14}"><output id="contentFontSizeValue">${state.settings.contentFontSize || 14}px</output></label><label class="form-field">Bot báo data · Token`
-  );
+  return baseSettingsView();
 };
 
 const baseTeamView = teamView;
@@ -4269,6 +4292,11 @@ submitRegistration = async function submitRegistrationWithAdminNotification() {
     readBy: []
   });
   audit('REGISTER_ACCOUNT', account.id, `${account.name} · chờ phân chức vụ`);
+  queueEmailNotification(
+    [account.email],
+    'Đăng ký tài khoản NVT AGENCY thành công',
+    `Xin chào ${account.name},\n\nBạn đã đăng ký tài khoản NVT AGENCY thành công vào lúc ${account.registeredAt}.\n\nTài khoản đang chờ Admin phân chức vụ Sale hoặc Leader. Bạn sẽ nhận được email tiếp theo khi tài khoản được kích hoạt.`
+  );
   saveState();
 };
 

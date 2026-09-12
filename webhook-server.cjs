@@ -20,6 +20,9 @@ const fs = require('node:fs');
 const fsp = require('node:fs/promises');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const { dbConfigured, dbQuery, dbHealth } = require('./db.js');
+let nodemailer = null;
+try { nodemailer = require('nodemailer'); } catch { /* email optional until npm install */ }
 
 const PORT = Number(process.env.PORT || 4173);
 const HOST = process.env.HOST || '0.0.0.0';
@@ -32,6 +35,64 @@ const INBOX_FILE = process.env.WEBHOOK_INBOX_FILE
   : path.join(DEFAULT_WEBHOOK_DATA_DIR, '.webhook-inbox.json');
 const MAX_BODY_BYTES = 256 * 1024;
 const MAX_INBOX_RECORDS = 5000;
+
+const EMAIL_TOKEN = (process.env.CRM_EMAIL_TOKEN || '').trim();
+const SMTP_HOST = process.env.SMTP_HOST || 'smtp.gmail.com';
+const SMTP_PORT = Number(process.env.SMTP_PORT || 465);
+const SMTP_SECURE = process.env.SMTP_SECURE ? process.env.SMTP_SECURE !== 'false' : SMTP_PORT === 465;
+const SMTP_USER = (process.env.SMTP_USER || process.env.GMAIL_USER || '').trim();
+const SMTP_PASS = (process.env.SMTP_PASS || process.env.GMAIL_APP_PASSWORD || '').trim();
+const SMTP_FROM = (process.env.SMTP_FROM || SMTP_USER).trim();
+const SMTP_ENABLED = Boolean(nodemailer && SMTP_USER && SMTP_PASS && SMTP_FROM);
+const mailTransporter = SMTP_ENABLED ? nodemailer.createTransport({
+  host: SMTP_HOST,
+  port: SMTP_PORT,
+  secure: SMTP_SECURE,
+  auth: { user: SMTP_USER, pass: SMTP_PASS }
+}) : null;
+
+const dbSessions = new Map();
+function dbJson(request, response, status, payload) { return sendJson(response, status, payload, { 'Access-Control-Allow-Origin': request.headers.origin || '*', Vary: 'Origin' }); }
+function authUser(request) {
+  const value = String(request.headers.authorization || '');
+  const token = value.replace(/^Bearer\s+/i, '').trim();
+  const session = token && dbSessions.get(token);
+  if (!session || session.expiresAt < Date.now()) { if (token) dbSessions.delete(token); return null; }
+  return session.user;
+}
+function readDbBody(request) { return readBody(request).then(buffer => JSON.parse(buffer.toString('utf8') || '{}')); }
+function dbUser(row) { return { id: row.id, phone: row.phone, email: row.email, name: row.name, role: row.role, teamId: row.team_id, leaderId: row.leader_id, active: Boolean(row.active) }; }
+function dbCustomer(row) { return { ...row, customFields: row.custom_fields_json || {}, createdAt: row.created_at, updatedAt: row.updated_at, saleId: row.sale_id, leaderId: row.leader_id, teamId: row.team_id, websiteId: row.website_id }; }
+function dbOrder(row) { return { ...row, total: Number(row.total_amount), items: row.items_json || [], customerId: row.customer_id, saleId: row.sale_id, leaderId: row.leader_id, teamId: row.team_id, createdAt: row.created_at, updatedAt: row.updated_at }; }
+function dbProduct(row) { return { ...row, price: Number(row.price), rentalMonths: row.rental_months, createdAt: row.created_at, updatedAt: row.updated_at }; }
+
+async function handleDbApi(request, response, pathname) {
+  if (request.method === 'OPTIONS') { response.writeHead(204, { 'Access-Control-Allow-Origin': request.headers.origin || '*', 'Access-Control-Allow-Headers': 'Content-Type, Authorization', 'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS' }); return response.end(); }
+  if (!dbConfigured) return dbJson(request, response, 503, { error: 'MySQL chưa được cấu hình trên server' });
+  try {
+    if (pathname === '/api/db/health') return dbJson(request, response, 200, await dbHealth());
+    if (pathname === '/api/auth/login' && request.method === 'POST') {
+      const body = await readDbBody(request); const rows = await dbQuery('SELECT * FROM users WHERE (phone = ? OR email = ?) AND active = 1 LIMIT 1', [String(body.identifier || ''), String(body.identifier || '').toLowerCase()]); const row = rows[0];
+      if (!row || String(body.password || '') !== String(row.password_hash || '')) return dbJson(request, response, 401, { error: 'Thông tin đăng nhập không đúng' });
+      const token = crypto.randomBytes(32).toString('hex'); dbSessions.set(token, { user: dbUser(row), expiresAt: Date.now() + 86400000 }); return dbJson(request, response, 200, { token, user: dbUser(row) });
+    }
+    if (pathname === '/api/auth/me' && request.method === 'GET') { const user = authUser(request); return user ? dbJson(request, response, 200, { user }) : dbJson(request, response, 401, { error: 'Phiên đăng nhập không hợp lệ' }); }
+    const user = authUser(request); if (!user) return dbJson(request, response, 401, { error: 'Cần đăng nhập' });
+    const [resource, id] = pathname.replace('/api/', '').split('/');
+    if (resource === 'customers') {
+      if (request.method === 'GET') { const where = user.role === 'SALE' ? 'WHERE sale_id = ?' : user.role === 'LEADER' ? 'WHERE leader_id = ? OR team_id = ?' : ''; const params = user.role === 'SALE' ? [user.id] : user.role === 'LEADER' ? [user.id, user.teamId] : []; const rows = await dbQuery(`SELECT * FROM customers ${where} ORDER BY updated_at DESC`, params); return dbJson(request, response, 200, { items: rows.map(dbCustomer) }); }
+      const body = await readDbBody(request); if (request.method === 'POST') { await dbQuery('INSERT INTO customers (id,name,phone,email,source,campaign,website_id,status,sale_id,leader_id,team_id,note,custom_fields_json) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)', [body.id,body.name,body.phone,body.email||null,body.source||null,body.campaign||null,body.websiteId||null,body.status||'NEW',body.saleId||null,body.leaderId||null,body.teamId||null,body.note||null,JSON.stringify(body.customFields||{})]); return dbJson(request,response,201,{item:body}); }
+      if (request.method === 'PUT' && id) { await dbQuery('UPDATE customers SET name=?,phone=?,email=?,source=?,campaign=?,status=?,sale_id=?,leader_id=?,team_id=?,note=?,custom_fields_json=? WHERE id=?',[body.name,body.phone,body.email||null,body.source||null,body.campaign||null,body.status||'NEW',body.saleId||null,body.leaderId||null,body.teamId||null,body.note||null,JSON.stringify(body.customFields||{}),id]); return dbJson(request,response,200,{ok:true}); }
+    }
+    if (resource === 'orders') {
+      if (request.method === 'GET') { const where = user.role === 'SALE' ? 'WHERE sale_id = ?' : ''; const rows = await dbQuery(`SELECT * FROM orders ${where} ORDER BY updated_at DESC`, user.role === 'SALE' ? [user.id] : []); return dbJson(request,response,200,{items:rows.map(dbOrder)}); }
+      const body = await readDbBody(request); if (request.method === 'POST') { await dbQuery('INSERT INTO orders (id,code,customer_id,sale_id,leader_id,team_id,total_amount,status,items_json,note) VALUES (?,?,?,?,?,?,?,?,?,?)',[body.id,body.code,body.customerId,body.saleId||null,body.leaderId||null,body.teamId||null,body.total||0,body.status||'PENDING',JSON.stringify(body.items||[]),body.note||null]); return dbJson(request,response,201,{item:body}); }
+      if (request.method === 'PUT' && id) { await dbQuery('UPDATE orders SET code=?,customer_id=?,sale_id=?,leader_id=?,team_id=?,total_amount=?,status=?,items_json=?,note=? WHERE id=?',[body.code,body.customerId,body.saleId||null,body.leaderId||null,body.teamId||null,body.total||0,body.status||'PENDING',JSON.stringify(body.items||[]),body.note||null,id]); return dbJson(request,response,200,{ok:true}); }
+    }
+    if (resource === 'products') { if (request.method === 'GET') return dbJson(request,response,200,{items:(await dbQuery('SELECT * FROM products WHERE active=1 ORDER BY name')).map(dbProduct)}); const body=await readDbBody(request); if(request.method==='POST'){await dbQuery('INSERT INTO products (id,sku,name,category,price,type,rental_months,active) VALUES (?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE name=VALUES(name),category=VALUES(category),price=VALUES(price),active=VALUES(active)',[body.id,body.sku||null,body.name,body.category||null,body.price||0,body.type||'SALE',body.rentalMonths||null,body.active===false?0:1]);return dbJson(request,response,201,{item:body});} }
+    return dbJson(request,response,404,{error:'API không tồn tại'});
+  } catch (error) { console.error('[mysql-api]', error); return dbJson(request,response,500,{error:'Lỗi cơ sở dữ liệu'}); }
+}
 
 /**
  * Token tùy chọn. LadiPage cho phép khai báo "API Request Header" là một object
@@ -324,6 +385,74 @@ function sendJson(response, status, payload, extraHeaders = {}) {
   response.end(body);
 }
 
+function emailCorsHeaders(request) {
+  const origin = String(request.headers.origin || '').trim();
+  if (!origin) return {};
+  try {
+    const originUrl = new URL(origin);
+    const host = String(request.headers.host || '').split(':')[0].toLowerCase();
+    if (originUrl.hostname.toLowerCase() !== host) return null;
+  } catch {
+    return null;
+  }
+  return { 'Access-Control-Allow-Origin': origin, Vary: 'Origin' };
+}
+
+function checkEmailToken(request) {
+  if (!EMAIL_TOKEN) return true;
+  return String(request.headers['x-crm-email-token'] || '').trim() === EMAIL_TOKEN;
+}
+
+function validEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
+}
+
+function maskEmail(value) {
+  const email = String(value || '').trim();
+  const at = email.indexOf('@');
+  if (at < 2) return email ? '?? c?u h?nh' : '';
+  return `${email.slice(0, 2)}***${email.slice(at)}`;
+}
+
+function handleEmailStatus(request, response) {
+  const cors = emailCorsHeaders(request);
+  if (cors === null) return sendJson(response, 403, { configured: false, error: 'Ngu?n g?i kh?ng h?p l?' });
+  if (request.method !== 'GET') return sendJson(response, 405, { configured: false, error: 'Ch? ch?p nh?n GET' }, { Allow: 'GET', ...cors });
+  sendJson(response, 200, { configured: SMTP_ENABLED, sender: maskEmail(SMTP_FROM), host: SMTP_HOST, port: SMTP_PORT }, cors);
+}
+
+async function handleEmailNotify(request, response) {
+  const cors = emailCorsHeaders(request);
+  if (cors === null) return sendJson(response, 403, { sent: false, error: 'Ngu?n g?i kh?ng h?p l?' });
+  if (request.method === 'OPTIONS') {
+    response.writeHead(204, { ...cors, 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, X-CRM-Email-Token', 'Access-Control-Max-Age': '600' });
+    response.end();
+    return;
+  }
+  if (request.method !== 'POST') return sendJson(response, 405, { sent: false, error: 'Ch? ch?p nh?n POST' }, { Allow: 'POST, OPTIONS', ...cors });
+  if (!checkEmailToken(request)) return sendJson(response, 401, { sent: false, error: 'Thi?u ho?c sai m? b?o v? email' }, cors);
+  if (!mailTransporter) return sendJson(response, 503, { sent: false, configured: false, error: 'Server ch?a c?u h?nh Gmail SMTP' }, cors);
+
+  let payload;
+  try {
+    const buffer = await readBody(request);
+    payload = JSON.parse(buffer.toString('utf8'));
+  } catch {
+    return sendJson(response, 400, { sent: false, error: 'Body JSON kh?ng h?p l?' }, cors);
+  }
+  const recipients = [...new Set((Array.isArray(payload?.recipients) ? payload.recipients : [payload?.to]).map(value => String(value || '').trim().toLowerCase()).filter(validEmail))].slice(0, 20);
+  const subject = String(payload?.subject || '').trim().slice(0, 180);
+  const text = String(payload?.text || '').trim().slice(0, 10000);
+  if (!recipients.length || !subject || !text) return sendJson(response, 422, { sent: false, error: 'Thi?u ng??i nh?n, ti?u ?? ho?c n?i dung' }, cors);
+  try {
+    const result = await mailTransporter.sendMail({ from: SMTP_FROM, to: recipients.join(', '), subject, text });
+    sendJson(response, 200, { sent: true, messageId: result.messageId, recipients }, cors);
+  } catch (error) {
+    console.error('[email] send failed:', error.message);
+    sendJson(response, 502, { sent: false, error: 'G?i Gmail th?t b?i' }, cors);
+  }
+}
+
 function clientIpOf(request) {
   const forwarded = String(request.headers['x-forwarded-for'] || '').split(',')[0].trim();
   if (forwarded) return forwarded;
@@ -517,7 +646,6 @@ function handleSessionContext(request, response) {
 async function serveStatic(request, response, urlPathname) {
   const decoded = decodeURIComponent(urlPathname);
   let relative = decoded === '/' ? '/index.html' : decoded;
-  if (relative === '/demo.html') relative = '/index.html';
   const absolute = path.resolve(REPO_ROOT, `.${path.posix.normalize(relative)}`);
 
   // Chặn path traversal: phải nằm trong REPO_ROOT.
@@ -560,6 +688,9 @@ const server = http.createServer(async (request, response) => {
     if (pathname === '/api/data-sources/inbox') return handleInbox(request, response, url);
     if (pathname === '/api/data-sources/stream') return handleInboxStream(request, response);
     if (pathname === '/api/session-context') return handleSessionContext(request, response);
+    if (pathname === '/api/email/status') return handleEmailStatus(request, response);
+    if (pathname === '/api/email/notify') return handleEmailNotify(request, response);
+    if (pathname === '/api/db/health' || pathname.startsWith('/api/auth/') || pathname.startsWith('/api/customers') || pathname.startsWith('/api/orders') || pathname.startsWith('/api/products')) return handleDbApi(request, response, pathname);
     if (pathname === '/api/health') return sendJson(response, 200, { ok: true, inbox: inbox.length, token: Boolean(WEBHOOK_TOKEN) });
 
     if (pathname.startsWith('/api/')) {
@@ -630,4 +761,3 @@ function warnShadowed() {
 }
 
 // selfCheckHealth() được gọi trong callback của server.listen — gọi ở đây sẽ đua với bind.
-
