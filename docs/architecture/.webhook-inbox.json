@@ -1,0 +1,28 @@
+[
+  {
+    "id": "WHE-1789182455408-F34F21",
+    "slug": "DS-1789015513831-ZPKFFVK9S9A",
+    "receivedAt": "2026-09-12 10:07",
+    "contentType": "application/json",
+    "status": "NEW",
+    "problems": [],
+    "matchedKeys": {
+      "name": "name",
+      "phone": "phone",
+      "email": "email"
+    },
+    "customer": {
+      "name": "Diag Local",
+      "phone": "0912345678",
+      "email": "diag@example.com"
+    },
+    "raw": {
+      "name": "Diag Local",
+      "phone": "0912345678",
+      "email": "diag@example.com"
+    },
+    "dedupeKey": "2e3c425afe702ad9d567de195335dac2a45fd6b2ae5fe553e7210f44230616eb",
+    "retryCount": 0,
+    "consumedAt": ""
+  }
+]
