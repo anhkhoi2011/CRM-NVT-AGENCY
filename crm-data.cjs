@@ -120,7 +120,9 @@ function snapshot(user,data){
  state.accounts=state.members;
  state.registeredAccounts=state.members.filter(r=>r.role==='UNASSIGNED');
  state.members=state.members.filter(r=>['SALE','LEADER'].includes(r.role));
- return {state,versions};
+ const config=data.leaderDistribution.get('$')||{};
+ const automation=user.role==='ADMIN'?{engine:'server-v1',enabled:config.enabled===true,mode:data.settings.get('$')?.assignmentMode||'MANUAL',eligibleLeaderCount:[...data.members.values()].filter(p=>p.role==='LEADER'&&p.active!==false&&p.teamId&&(config.enabledLeaderIds||[]).includes(p.id)).length}:undefined;
+ return {state,versions,automation};
 }
 function sameExcept(a,b,allowed){const clean=o=>Object.fromEntries(Object.entries(o||{}).filter(([k])=>!allowed.includes(k)));return canonical(clean(a))===canonical(clean(b));}
 function authorize(user,key,old,next,data){
@@ -241,7 +243,82 @@ async function warnRentalExpiry(c,data){
   data.notifications.set(id,notification);
  }
 }
-async function read(user){await prepare();const c=await pool.getConnection();try{await c.beginTransaction();await c.query('SELECT id FROM crm_write_lock WHERE id=1 FOR UPDATE');const data=await allData(c);await expireOffers(c,data);await warnRentalExpiry(c,data);const result=snapshot(user,data);await c.commit();return result;}catch(e){await c.rollback();throw e;}finally{c.release();}}
+
+// Chia trong giao dich dang giu crm_write_lock: webhook dong thoi khong trung luot.
+async function distributeAutomatic(c, data = null) {
+ data ||= await allData(c);
+ const config = data.leaderDistribution.get('$') || {};
+ const settings = JSON.parse(JSON.stringify(data.settings.get('$') || {}));
+ if (config.enabled !== true) return 0;
+ const mode = settings.assignmentMode;
+ const automatic = ['ROUND_ROBIN','BALANCED'].includes(mode);
+ const members = [...data.members.values()].filter(p => p.active !== false);
+ const leaders = members.filter(p => p.role === 'LEADER' && p.teamId && (config.enabledLeaderIds || []).includes(p.id)).sort((a,b)=>a.id.localeCompare(b.id));
+ if (!leaders.length) return 0;
+ const saleConfigs = data.saleDistributionByLeader.get('$') || {};
+ const history = [];
+ const at = new Date().toLocaleString('sv-SE',{timeZone:'Asia/Ho_Chi_Minh'}).slice(0,19);
+ const cursor = settings.assignmentCursor ||= {leaders:0,salesByTeam:{}};
+ cursor.salesByTeam ||= {};
+ const weight = (weights,id) => Math.max(1,Math.min(100,Math.round(Number(weights?.[id]) || 1)));
+ const normalize = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+ const pick = (people, weights, key, team) => {
+  if (!people.length) return null;
+  if (mode === 'BALANCED') {
+   const load = person => [...data.customers.values()].filter(row => team ? row.saleId === person.id : row.leaderId === person.id).length + (team ? [...data.dataOffers.values()].filter(o=>o.saleId===person.id&&o.status==='PENDING').length : 0);
+   return people.slice().sort((a,b)=>load(a)/weight(weights,a.id)-load(b)/weight(weights,b.id)||a.id.localeCompare(b.id))[0];
+  }
+  const weighted = people.flatMap(p=>Array.from({length:weight(weights,p.id)},()=>p));
+  const raw = team ? cursor.salesByTeam[key] : cursor.leaders;
+  const index = Number.isSafeInteger(raw) && raw >= 0 ? raw : 0;
+  const person = weighted[index % weighted.length];
+  if (team) cursor.salesByTeam[key] = (index+1)%weighted.length;
+  else cursor.leaders = (index+1)%weighted.length;
+  return person;
+ };
+ const put = async (key,id,value) => {
+  history.push({key,id,before:data[key].get(id) || null,after:value});
+  await project(c,key,id,value);
+  await c.execute('INSERT INTO crm_documents(collection,id,body,deleted) VALUES (?,?,?,0) ON DUPLICATE KEY UPDATE body=VALUES(body),deleted=0',[key,id,JSON.stringify(value)]);
+  data[key].set(id,value);
+ };
+ // Chi chia hang cho Admin. Khach da vao Team (ke ca het han 24h) de Leader phan lai.
+ const waiting = [...data.customers.values()].filter(row=>!row.saleId&&!row.leaderId&&!row.teamId&&row.status!=='ARCHIVED'&&![...data.dataOffers.values()].some(o=>o.customerId===row.id&&o.status==='PENDING'))
+  .sort((a,b)=>String(a.createdAt||'').localeCompare(String(b.createdAt||''))||a.id.localeCompare(b.id));
+ let count = 0;
+ for (const row of waiting) {
+  const rule = (config.sourceRules || []).find(rule => rule.active !== false && leaders.some(p=>p.id===rule.targetLeaderId) && (rule.matchType==='WEBSITE' ? row.websiteId===rule.matchValue : rule.matchType==='SOURCE' ? normalize(row.source)===normalize(rule.matchValue) : rule.matchType==='CAMPAIGN' && normalize(row.campaign)===normalize(rule.matchValue)));
+  const leader = rule ? leaders.find(p=>p.id===rule.targetLeaderId) : automatic ? pick(leaders,config.weights,'leaders',false) : null;
+  if (!leader) continue;
+  const saleConfig = saleConfigs[leader.id] || {};
+  const recipients = members.filter(p=>p.teamId===leader.teamId && (p.id===leader.id ? saleConfig.leaderEnabled!==false : p.role==='SALE'&&p.leaderId===leader.id&&(!Array.isArray(saleConfig.enabledSaleIds)||saleConfig.enabledSaleIds.includes(p.id)))).sort((a,b)=>a.id.localeCompare(b.id));
+  const recipient = automatic ? pick(recipients,saleConfig.weights,leader.id,true) : null;
+  const direct = recipient?.id===leader.id;
+  const next = {...row,leaderId:leader.id,teamId:leader.teamId,saleId:direct?leader.id:null,saleAcceptedAt:direct?at:null,updatedAt:at,note:'Ph\u00e2n t\u1ef1 \u0111\u1ed9ng theo t\u1ef7 tr\u1ecdng'};
+  await put('customers',row.id,next);
+  if (recipient && !direct) {
+   const id='OFR-'+crypto.randomUUID();
+   await put('dataOffers',id,{id,customerId:row.id,saleId:recipient.id,leaderId:leader.id,teamId:leader.teamId,offeredAt:at,status:'PENDING',resolvedAt:'',source:'AUTO'});
+  }
+  if (direct) {
+   const id='TSK-'+crypto.randomUUID();
+   const dueAt=new Date(Date.parse(at.replace(' ','T')+'+07:00')+(Number(settings.slaMinutes)||30)*60000).toLocaleString('sv-SE',{timeZone:'Asia/Ho_Chi_Minh'}).slice(0,19);
+   await put('tasks',id,{id,customerId:row.id,customerName:row.name,ownerId:leader.id,leaderId:leader.id,teamId:leader.teamId,type:'Li\u00ean h\u1ec7 data m\u1edbi',createdAt:at,dueAt,slaBased:true,status:'OPEN',priority:'HIGH'});
+  }
+  const id='ASN-'+crypto.randomUUID();
+  await put('assignmentHistory',id,{id,customerId:row.id,fromSaleId:null,fromLeaderId:null,toSaleId:next.saleId,toLeaderId:leader.id,toLeaderName:leader.name,toSaleName:direct?leader.name:'',offeredSaleId:direct?null:recipient?.id||null,teamId:leader.teamId,actorId:'SYSTEM',actor:'H\u1ec7 th\u1ed1ng',source:'AUTO',reason:next.note,at});
+  const notificationId='NT-'+crypto.randomUUID();
+  await put('notifications',notificationId,{id:notificationId,role:recipient?'OWN':'LEADER',saleId:recipient?.id||null,leaderId:leader.id,teamId:leader.teamId,title:recipient?'Data m\u1edbi \u0111\u01b0\u1ee3c ph\u00e2n':'Kh\u00e1ch m\u1edbi trong Team',text:row.name,at,readBy:[]});
+  count++;
+ }
+ if (count) {
+  await put('settings','$',settings);
+  await c.execute('INSERT INTO crm_changes(request_id,actor_id,changes_json) VALUES (?,?,?)',['auto-'+crypto.randomUUID(),'SYSTEM',JSON.stringify(history)]);
+ }
+ return count;
+}
+
+async function read(user){await prepare();const c=await pool.getConnection();try{await c.beginTransaction();await c.query('SELECT id FROM crm_write_lock WHERE id=1 FOR UPDATE');const data=await allData(c);await expireOffers(c,data);const assigned=await distributeAutomatic(c,data);await warnRentalExpiry(c,data);const result=snapshot(user,assigned?await allData(c):data);await c.commit();return result;}catch(e){await c.rollback();throw e;}finally{c.release();}}
 async function write(user,requestId,changes){
  if(typeof requestId!=='string'||!/^[-\w]{1,96}$/.test(requestId)||!Array.isArray(changes)||changes.length>2000)error(400,'Gói lưu không hợp lệ');
  await prepare();const c=await pool.getConnection();
@@ -283,7 +360,7 @@ async function write(user,requestId,changes){
    await c.execute('INSERT INTO crm_documents(collection,id,body,deleted) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE body=VALUES(body),deleted=VALUES(deleted)',[key,id,JSON.stringify(value===null?data[key].get(id)||{}:value),value===null?1:0]);
   }
   await c.execute('INSERT INTO crm_changes(request_id,actor_id,changes_json) VALUES (?,?,?)',[requestId,user.id,JSON.stringify(history)]);
-  const result=snapshot(user,await allData(c));await c.commit();return {...result,ok:true};
+  const updated=await allData(c);const assigned=await distributeAutomatic(c,updated);const result=snapshot(user,assigned?await allData(c):updated);await c.commit();return {...result,ok:true};
  }catch(e){await c.rollback();throw e;}finally{c.release();}
 }
-module.exports={prepare,seedProductCatalog,read,write,revision,canonical,coreRow,userRow,authorize,readable,validate,LISTS,OBJECTS,SCHEMA};
+module.exports={distributeAutomatic,prepare,seedProductCatalog,read,write,revision,canonical,coreRow,userRow,authorize,readable,validate,LISTS,OBJECTS,SCHEMA};

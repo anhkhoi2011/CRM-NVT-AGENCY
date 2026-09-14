@@ -10,7 +10,9 @@ function fixture(failCustomer = false, websites = [{ id: 'WEB-TEST', name: 'Hoan
     async commit() { calls.push('commit'); },
     async rollback() { calls.push('rollback'); },
     release() { calls.push('release'); },
+    async query(sql, values) { return this.execute(sql, values); },
     async execute(sql, values) {
+      if (sql.includes('FROM crm_write_lock')) return [[{id:1}]];
       if (sql.startsWith('INSERT INTO webhook_events')) { if (!events.has(values[1])) events.set(values[1], values[0]); }
       if (sql.includes("FROM crm_documents WHERE collection='websites'")) return [websites.map(item => ({ id: item.id, body: JSON.stringify(item) }))];
       if (sql.startsWith('SELECT id')) return [[{ id: events.get(values[0]) }]];
@@ -23,7 +25,7 @@ function fixture(failCustomer = false, websites = [{ id: 'WEB-TEST', name: 'Hoan
   };
   const module = { exports: {} };
   vm.runInNewContext(fs.readFileSync(require.resolve('./webhook-store.cjs'), 'utf8'), {
-    module, URL, require: name => name === './db.js' ? { dbConfigured: true, pool: { async query() {}, async getConnection() { return connection; } } } : name === './crm-defaults.json' ? { websites: [] } : require(name)
+    module, URL, require: name => name === './db.js' ? { dbConfigured: true, pool: { async query() {}, async getConnection() { return connection; } } } : name === './crm-data.cjs' ? {prepare:async()=>{},distributeAutomatic:async c=>{assert.equal(c,connection);calls.push('assign');}} : name === './crm-defaults.json' ? { websites: [] } : require(name)
   });
   return { ...module.exports, customers, events, calls };
 }
@@ -34,7 +36,7 @@ test('Lưu khách trước commit và giữ ID khi landing gửi lại', async (
   const retry = await f.persistWebhook({ ...record, id: 'WHE-2' });
   assert.equal(first.customerId, retry.customerId);
   assert.equal(f.customers.size, 1);
-  assert.deepEqual(f.calls, ['begin', 'commit', 'release', 'begin', 'commit', 'release']);
+  assert.deepEqual(f.calls, ['begin', 'assign', 'commit', 'release', 'begin', 'assign', 'commit', 'release']);
 });
 test('Lỗi ghi khách phải rollback, không báo thành công', async () => {
   const f = fixture(true);

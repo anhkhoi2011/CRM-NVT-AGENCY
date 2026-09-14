@@ -1255,6 +1255,7 @@ function orderSource(source) {
 const SERVER_LISTS = ['customers','orders','products','members','registrations','customFieldDefinitions','customerFieldHistory','assignmentHistory','resubmissions','notes','imports','attendance','dataOffers','traffic','tasks','notifications','audit','websites','integrations','webhookPending'];
 const SERVER_OBJECTS = ['settings','leaderDistribution','saleDistributionByLeader','productCategories'];
 let serverSyncToken = '', serverSyncTimer = null, serverSaveTimer = null;
+let serverAutomationStatus = null;
 let serverSaveRunning = false, serverReading = false, serverStateLoaded = false;
 let serverBaseline = new Map(), serverVersions = {}, serverPendingRequest = null;
 let serverConflict = false, serverMutationVersion = 0;
@@ -1289,6 +1290,7 @@ function pendingChanges() {
   return changes;
 }
 function applyServerSnapshot(payload, keepEdits=null) {
+  serverAutomationStatus = payload.automation || null;
   const defaults=initialState();
   const remote={...defaults,...payload.state,security:{twoFactorEnabled:false,loginHistory:[]}};
   remote.websites=(remote.websites||[]).map(website => ({ ...website, sourceUrl: cleanSourceUrl(website.sourceUrl) || (website.domain ? `https://${String(website.domain).replace(/^https?:\/\//, '').replace(/\/+$/, '')}/` : '') }));
@@ -1383,17 +1385,6 @@ async function refreshNavigationCounts() {
     return true;
   }catch(error){return false;}finally{navigationCountsReading=false;}
 }
-function processAutomaticAssignments() {
-  if (currentAccount?.role !== 'ADMIN' || !state.leaderDistribution.enabled || state.settings.assignmentMode === 'MANUAL') return false;
-  const pending = state.customers
-    .filter(customer => customer.saleId == null && !state.dataOffers.some(offer => offer.customerId === customer.id && offer.status === 'PENDING'))
-    .sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')) || a.id.localeCompare(b.id));
-  let changed = false;
-  pending.forEach(customer => { if (autoAssignCustomer(customer)) changed = true; });
-  if (changed) saveState();
-  return changed;
-}
-
 async function syncServerState() {
   if(!serverSyncToken||!currentAccount||serverReading||serverSaveRunning||serverSaveTimer||serverConflict)return false;
   if(serverStateLoaded&&(serverPendingRequest||hasServerChanges()))return flushServerPersistence();
@@ -1404,10 +1395,8 @@ async function syncServerState() {
     const payload=await response.json();if(!response.ok)throw new Error(payload.error||'Không tải được dữ liệu');
     if(version!==serverMutationVersion||token!==serverSyncToken||(serverStateLoaded&&hasServerChanges()))return false;
     const before=stableJson(state);applyServerSnapshot(payload);
-    const assignedAutomatically = processAutomaticAssignments();
     setSaveStatus('Đã đồng bộ MySQL');
-    if((assignedAutomatically||before!==stableJson(state))&&!$('#modalRoot')?.children.length&&!$('#drawerRoot')?.children.length&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName))render();
-    if(assignedAutomatically)await flushServerPersistence();
+    if(before!==stableJson(state)&&!$('#modalRoot')?.children.length&&!$('#drawerRoot')?.children.length&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName))render();
     return true;
   }catch(error){setSaveStatus(error.message,true);return false;}finally{serverReading=false;}
 }
@@ -2135,6 +2124,17 @@ function poolView() {
       <div class="section-label">Phân thủ công bản ghi đã chọn</div><label class="form-field">${targetLabel} nhận khách<select id="poolTarget">${targets.map(person => `<option value="${escapeHtml(person.id)}">${escapeHtml(person.name)} · ${escapeHtml(person.teamId)}</option>`).join('')}</select></label><label class="form-field" style="margin-top:12px">Lý do<textarea id="poolReason" rows="4" placeholder="Ví dụ: Data từ chiến dịch tháng 9"></textarea></label><button id="assignPoolButton" class="button button-primary button-block" style="margin-top:13px" type="button" ${!targets.length ? 'disabled' : ''}>Phân cho ${targetLabel}</button><div class="credential-hint">Sau khi phân, data chuyển sang Khách hàng tổng; nguồn, campaign và landing page vẫn được giữ nguyên.</div></div></aside></div>`;
 }
 
+function automaticDistributionNotice() {
+  const status = serverAutomationStatus;
+  let text;
+  if (!status || status.engine !== 'server-v1') text = 'Máy chủ chưa xác nhận bộ chia tự động. Cập nhật backend và khởi động lại Node.js trên hosting.';
+  else if (!status.enabled) text = 'Tự động trên máy chủ: đang tắt.';
+  else if (!status.eligibleLeaderCount) text = 'Chưa có Leader hợp lệ nhận data. Bật Leader đang hoạt động và có Team tại Danh sách Leader.';
+  else if (status.mode === 'MANUAL') text = 'Chế độ mặc định là thủ công; chỉ chia tự động cho khách khớp luật theo nguồn.';
+  else text = `Tự động trên máy chủ: đang bật · ${status.eligibleLeaderCount} Leader nhận data. Khách landing được chia ngay khi lưu, kể cả khi Admin đóng CRM.`;
+  return `<div class="credential-hint" role="status" style="margin-bottom:12px">${escapeHtml(text)}</div>`;
+}
+
 function distributionView() {
   if (currentAccount.role !== 'ADMIN') return accessDeniedView('Chỉ Admin được cấu hình chia Leader và tỷ trọng nhận data.');
   const leaders = activeStaff().filter(member => member.role === 'LEADER').sort((a, b) => a.id.localeCompare(b.id));
@@ -2162,20 +2162,16 @@ function distributionView() {
   } else {
     body = `<section class="panel"><div class="panel-head"><div><div class="panel-title">Sale nhận data trong từng Team</div><div class="panel-sub">Leader chỉ có thể chia cho Sale đã được Admin bật ở đây</div></div><select id="distributionLeaderSelect">${leaders.map(leader => `<option value="${escapeHtml(leader.id)}" ${leader.id === distributionLeaderId ? 'selected' : ''}>${escapeHtml(leader.name)} · ${escapeHtml(leader.teamId)}</option>`).join('')}</select></div><div class="field-manager">${sales.map(sale => `<div class="field-manager-row"><div class="avatar">${escapeHtml(sale.initials)}</div><div><b>${escapeHtml(sale.name)}</b><small>${escapeHtml(sale.teamId)} · đang phụ trách ${assignmentLoad(sale)} khách</small></div><label class="weight-control">Tỷ trọng<input class="weight-input" type="number" min="1" max="100" value="${saleConfig.weights[sale.id] || 1}" data-distribution-weight="SALE:${escapeHtml(sale.id)}"></label><label class="member-switch"><input type="checkbox" data-distribution-member="SALE:${escapeHtml(sale.id)}" ${(sale.teamLeaderRecipient ? saleConfig.leaderEnabled !== false : enabledSales.has(sale.id)) ? 'checked' : ''}><span>${(sale.teamLeaderRecipient ? saleConfig.leaderEnabled !== false : enabledSales.has(sale.id)) ? 'Đang nhận' : 'Tạm tắt'}</span></label></div>`).join('') || '<div class="empty"><b>Leader chưa có Sale</b><span>Thêm hoặc điều chuyển Sale tại mục Đội ngũ.</span></div>'}</div></section>`;
   }
+  body = automaticDistributionNotice() + body;
   return pageHead('Data', 'Kiểm soát tuyến phân data từ nguồn vào Leader, rồi từ Leader xuống Sale; lịch sử phụ trách cũ luôn được giữ.') + `<div class="distribution-tabs">${tabs.map(([id, label]) => `<button class="distribution-tab ${distributionTab === id ? 'active' : ''}" data-distribution-tab="${id}">${label}</button>`).join('')}</div>${body}`;
 }
 
-function toggleLeaderDistribution() {
+async function toggleLeaderDistribution() {
   if (currentAccount.role !== 'ADMIN') return;
   state.leaderDistribution.enabled = !state.leaderDistribution.enabled;
-  audit('TOGGLE_LEADER_DISTRIBUTION', 'DISTRIBUTION', state.leaderDistribution.enabled ? 'Bật' : 'Tắt');
+  if (state.leaderDistribution.enabled && state.settings.assignmentMode === 'MANUAL') state.settings.assignmentMode = 'ROUND_ROBIN';
   saveState();
-  render();
-  if (state.leaderDistribution.enabled && state.settings.assignmentMode !== 'MANUAL') {
-    const changed = processAutomaticAssignments();
-    if (changed) flushServerPersistence();
-    else toast('Đã bật tự động; chưa có data chờ hoặc chưa có Leader được bật');
-  } else toast(state.leaderDistribution.enabled ? 'Đã bật chia Leader; hãy chọn chế độ tự động' : 'Đã tắt nhận data tự động');
+  if (await flushServerPersistence()) { render(); toast('Đã lưu chế độ chia data trên máy chủ'); }
 }
 
 function updateDistributionMember(kind, id, enabled) {
@@ -3789,16 +3785,13 @@ function autoAssignCustomer(customer) {
   return assigned;
 }
 
-function setAssignmentMode(mode) {
-  if (!['ADMIN', 'LEADER'].includes(currentAccount.role) || !['MANUAL', 'ROUND_ROBIN', 'BALANCED'].includes(mode)) { toast('Chế độ phân data không hợp lệ'); return; }
-  if (currentAccount.role === 'ADMIN') state.settings.assignmentMode = mode;
-  else state.settings.saleAssignmentModes[currentAccount.leaderId] = mode;
-  audit('UPDATE_ASSIGNMENT_MODE', currentAccount.role === 'ADMIN' ? 'LEADERS' : currentAccount.leaderId, mode);
+async function setAssignmentMode(mode) {
+  if (currentAccount.role !== 'ADMIN' || !['MANUAL','ROUND_ROBIN','BALANCED'].includes(mode)) return;
+  state.settings.assignmentMode = mode;
+  state.leaderDistribution.enabled = mode !== 'MANUAL';
+  // Server luu cau hinh va chia hang cho trong cung giao dich.
   saveState();
-  render();
-  // Process customers already waiting whenever automatic mode is enabled.
-  if (mode !== 'MANUAL') bulkDistributePool(mode, true);
-  else toast('Đã chuyển chế độ phân data về thủ công');
+  if (await flushServerPersistence()) { render(); toast('Đã lưu chế độ chia data trên máy chủ'); }
 }
 
 function bulkDistributePool(mode, fromAuto = false) {

@@ -1,6 +1,7 @@
 "use strict";
 const { pool, dbConfigured } = require('./db.js');
 const defaultWebsites = require('./crm-defaults.json').websites || [];
+const crmData = require('./crm-data.cjs');
 let ready;
 // Chỉ tạo bảng bổ sung; không sửa hoặc xóa bảng khách hàng hiện có.
 function ensureSchema() {
@@ -41,9 +42,12 @@ async function sourceBySlug(connection, slug) {
 }
 async function persistWebhook(record) {
   await ensureSchema();
+  await crmData.prepare();
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
+    // Cung khoa voi API CRM de phan cong va con tro ty trong luon nhat quan.
+    await connection.query('SELECT id FROM crm_write_lock WHERE id=1 FOR UPDATE');
     const website = await sourceBySlug(connection, record.slug);
     const sourceSnapshot = website ? { websiteId: website.id, landingPageName: website.name, landingPageUrl: website.sourceUrl, landingPageDomain: website.domain, campaign: website.campaign } : null;
     const storedRecord = sourceSnapshot ? { ...record, source: sourceSnapshot } : record;
@@ -62,6 +66,7 @@ async function persistWebhook(record) {
         website ? `Data từ ${website.sourceUrl || website.domain}` : 'Data landing page chưa gắn nguồn',
         JSON.stringify({ __crmMeta: meta, __crmFields: {} }), record.receivedAt]);
     }
+    if (record.status === 'NEW') await crmData.distributeAutomatic(connection);
     await connection.commit();
     return { eventId, customerId: record.status === 'NEW' ? customerId : null, source: sourceSnapshot };
   } catch (error) {

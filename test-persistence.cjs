@@ -2,12 +2,19 @@
 const test=require('node:test'), assert=require('node:assert/strict'), fs=require('node:fs'), vm=require('node:vm');
 // CSDL giả lập giao dịch để kiểm tra logic; không thay thế thử nghiệm MySQL trên hosting.
 function fixture(){
- let db={docs:[],customers:[],orders:[],products:[{id:'p1',sku:'TEST',name:'Test product',category:'Test',price:120,type:'RENTAL',rental_months:3,active:1,created_at:'2026-08-01 08:00:00'}],users:[],history:[]};let backup,fail=false;
+ let db={docs:[],customers:[],orders:[],products:[{id:'p1',sku:'TEST',name:'Test product',category:'Test',price:120,type:'RENTAL',rental_months:3,active:1,created_at:'2026-08-01 08:00:00'}],users:[],history:[],webhookEvents:[]};let backup,fail=false;
  const events=[];
  const c={async beginTransaction(){backup=structuredClone(db);events.push('begin');},async commit(){events.push('commit');},async rollback(){db=backup;events.push('rollback');},release(){events.push('release');},
  async query(sql){return this.execute(sql,[]);},
  async execute(sql,v){
-  if(sql.includes('FROM crm_write_lock'))return [[{id:1}]];
+  if(sql.includes('FROM crm_write_lock')){events.push('lock');return [[{id:1}]];}
+  if(sql.startsWith('INSERT INTO webhook_events')){if(!db.webhookEvents.some(e=>e.dedupe===v[1]))db.webhookEvents.push({id:v[0],dedupe:v[1]});return [{}];}
+  if(sql.includes('FROM webhook_events WHERE dedupe_key'))return [db.webhookEvents.filter(e=>e.dedupe===v[0])];
+  if(sql.includes("FROM crm_documents WHERE collection='websites'"))return [db.docs.filter(d=>d.collection==='websites'&&!d.deleted)];
+  if(sql.startsWith('INSERT INTO customers (')){
+   if(!db.customers.some(row=>row.id===v[0]))upsert('customers',['id','name','phone','email','source','campaign','website_id','status','note','custom_fields_json','created_at'],[v[0],v[1],v[2],v[3],'Landing Page',v[4],v[5],'NEW',v[6],v[7],v[8]]);
+   return [{}];
+  }
   if(sql==='SELECT * FROM crm_documents')return [structuredClone(db.docs)];
   if(sql.includes('FROM system_settings'))return [[{setting_key:'crm_defaults_v1',setting_value:'true'}]];
   if(sql.includes('FROM users'))return [structuredClone(db.users)];
@@ -32,7 +39,9 @@ function fixture(){
  function upsert(key,keys,v){const row=Object.fromEntries(keys.map((k,i)=>[k,v[i]]));row.created_at=db[key].find(r=>r.id===row.id)?.created_at||row.created_at||'2026-09-14 09:00:00';row.updated_at='2026-09-14 10:00:00';db[key]=db[key].filter(r=>r.id!==row.id);db[key].push(row);}
  const module={exports:{}};
  vm.runInNewContext(fs.readFileSync('crm-data.cjs','utf8'),{module,require:name=>name==='./db.js'?{pool:{query:async()=>[{}],getConnection:async()=>c}}:require(name),Buffer,console});
- return {api:module.exports,events,get db(){return db;},fail(){fail=true;}};
+ const webhook={exports:{}};
+ vm.runInNewContext(fs.readFileSync('webhook-store.cjs','utf8'),{module:webhook,URL,require:name=>name==='./db.js'?{dbConfigured:true,pool:{query:async()=>[{}],getConnection:async()=>c}}:name==='./crm-data.cjs'?module.exports:require(name)});
+ return {api:module.exports,webhook:webhook.exports,events,get db(){return db;},fail(){fail=true;}};
 }
 const admin={id:'admin',role:'ADMIN'},sale={id:'sale',role:'SALE',teamId:'T',leaderId:'lead'};
 const customer={id:'c1',name:'Khách thử',phone:'0912345678',saleId:'sale',teamId:'T',leaderId:'lead',status:'NEW',createdAt:'2026-08-01 09:00:00',customFields:{level:'L3'}};
@@ -345,11 +354,102 @@ test('Admin bulk allocation cascades to weighted Team recipients including Leade
 });
 
 
-test('Admin polling automatically assigns a new landing customer when auto mode is enabled', () => {
- const c=frontend();
- vm.runInContext(`currentAccount=hydrateSessionAccount({id:'admin',name:'Admin',role:'ADMIN'});applyServerSnapshot({state:{...initialState(),settings:{...initialState().settings,assignmentMode:'BALANCED'},leaderDistribution:{enabled:true,enabledLeaderIds:['lead'],weights:{lead:1},sourceRules:[]},members:[{id:'lead',name:'Leader',role:'LEADER',teamId:'T',active:true},{id:'sale',name:'Sale',role:'SALE',leaderId:'lead',teamId:'T',active:true}],customers:[{id:'landing-new',name:'Landing customer',phone:'0900000000',source:'Landing Page',createdAt:'2026-09-14 22:02',updatedAt:'2026-09-14 22:02',leaderId:null,teamId:null,saleId:null}]},versions:{}});queueEmailNotification=()=>{};`,c);
- assert.equal(vm.runInContext('processAutomaticAssignments()',c),true);
- assert.equal(vm.runInContext("state.customers[0].leaderId",c),'lead');
- assert.equal(vm.runInContext("state.customers[0].teamId",c),'T');
- assert.equal(vm.runInContext("state.customers[0].saleId === 'lead' || state.dataOffers.some(o=>o.customerId==='landing-new'&&o.saleId==='sale'&&o.status==='PENDING')",c),true);
+
+
+async function automaticFixture(mode='ROUND_ROBIN',leaderWeight=1) {
+ const f=fixture();
+ f.db.users.push({id:'lead',name:'Leader',role:'LEADER',team_id:'T',active:1},...[1,2,3,4].map(n=>({id:'s'+n,name:'Sale '+n,role:'SALE',team_id:'T',leader_id:'lead',active:1})));
+ await f.api.write(admin,'auto-config',[
+  {key:'settings',id:'$',base:null,value:{assignmentMode:mode,assignmentCursor:{leaders:0,salesByTeam:{}}}},
+  {key:'leaderDistribution',id:'$',base:null,value:{enabled:true,enabledLeaderIds:['lead'],weights:{lead:1},sourceRules:[]}},
+  {key:'saleDistributionByLeader',id:'$',base:null,value:{lead:{leaderEnabled:true,enabledSaleIds:['s1','s2','s3','s4'],weights:{lead:leaderWeight,s1:1,s2:1,s3:1,s4:1}}}}
+ ]);
+ return f;
+}
+function landingRecord(n) {return {id:'WHE-'+n,dedupeKey:'dedupe-'+n,status:'NEW',slug:'DS-UNKNOWN',receivedAt:'2026-09-14 22:02:00',customer:{name:'Customer '+n,phone:'0900000000'}};}
+function recipientCounts(snapshot) {
+ return Object.fromEntries(['lead','s1','s2','s3','s4'].map(id=>[id,snapshot.state.customers.filter(c=>c.saleId===id).length+snapshot.state.dataOffers.filter(o=>o.saleId===id&&o.status==='PENDING').length]));
+}
+test('Actual webhook routes and commits without an Admin browser; replay preserves assignment and cursor',async()=>{
+ const f=await automaticFixture();
+ for(let i=0;i<10;i++)await f.webhook.persistWebhook(landingRecord(i));
+ // Inspect stored SQL rows before any API read: allocation happened inside webhook.
+ assert.equal(f.db.customers.filter(c=>c.leader_id==='lead'&&c.team_id==='T').length,10);
+ let result=await f.api.read(admin);
+ assert.deepEqual(recipientCounts(result),{lead:2,s1:2,s2:2,s3:2,s4:2});
+ const before=JSON.stringify({offers:result.state.dataOffers,history:result.state.assignmentHistory,cursor:result.state.settings.assignmentCursor});
+ await f.webhook.persistWebhook(landingRecord(0));result=await f.api.read(admin);
+ assert.equal(JSON.stringify({offers:result.state.dataOffers,history:result.state.assignmentHistory,cursor:result.state.settings.assignmentCursor}),before);
+ assert.equal(f.db.customers.length,10);
+ assert.ok(f.events.indexOf('lock')<f.events.indexOf('commit'));
+});
+for(const mode of ['ROUND_ROBIN','BALANCED'])test('Server '+mode+' respects 2:1 including pending offers',async()=>{
+ const f=await automaticFixture(mode,2);
+ for(let i=0;i<12;i++)await f.webhook.persistWebhook(landingRecord(i));
+ assert.deepEqual(recipientCounts(await f.api.read(admin)),{lead:4,s1:2,s2:2,s3:2,s4:2});
+});
+test('Saving enabled configuration allocates existing queue, but leaves expired Team customer for Leader',async()=>{
+ const f=await automaticFixture();
+ let result=await f.api.read(admin);
+ await f.api.write(admin,'disable',[{key:'leaderDistribution',id:'$',base:result.versions['leaderDistribution/$'],value:{...result.state.leaderDistribution,enabled:false}}]);
+ await f.webhook.persistWebhook(landingRecord(1));
+ assert.equal(f.db.customers[0].leader_id,undefined);
+ await f.api.write(admin,'expired-team',[change('customers',{...customer,id:'expired-team',saleId:null}),change('dataOffers',{id:'old-offer',customerId:'expired-team',saleId:'s1',leaderId:'lead',teamId:'T',status:'PENDING',offeredAt:'2020-01-01 00:00'})]);
+ result=await f.api.read(admin);
+ result=await f.api.write(admin,'enable',[{key:'leaderDistribution',id:'$',base:result.versions['leaderDistribution/$'],value:{...result.state.leaderDistribution,enabled:true}}]);
+ assert.equal(result.state.customers.find(c=>c.id==='CUS-WHE-1').leaderId,'lead');
+ assert.equal(result.state.customers.find(c=>c.id==='expired-team').saleId,null);
+ assert.equal(result.state.dataOffers.filter(o=>o.customerId==='expired-team'&&o.status==='PENDING').length,0);
+});
+test('Webhook assignment failure rolls back customer, event, history and weight cursor',async()=>{
+ const f=await automaticFixture();const before=structuredClone(f.db);
+ f.fail();await assert.rejects(f.webhook.persistWebhook(landingRecord(1)),/failure/);
+ assert.deepEqual(f.db,before);
+});
+test('No enabled Leader keeps intake safely queued; enabling Leader processes it',async()=>{
+ const f=await automaticFixture();let result=await f.api.read(admin);
+ await f.api.write(admin,'no-leaders',[{key:'leaderDistribution',id:'$',base:result.versions['leaderDistribution/$'],value:{...result.state.leaderDistribution,enabledLeaderIds:[]}}]);
+ await f.webhook.persistWebhook(landingRecord(1));result=await f.api.read(admin);
+ assert.equal(result.state.customers[0].leaderId,null);
+ result=await f.api.write(admin,'select-leader',[{key:'leaderDistribution',id:'$',base:result.versions['leaderDistribution/$'],value:{...result.state.leaderDistribution,enabledLeaderIds:['lead']}}]);
+ assert.equal(result.state.customers[0].leaderId,'lead');
+});
+
+
+test('Automatic assignment returns SQL revision valid for immediate next edit',async()=>{
+ const f=await automaticFixture();
+ const result=await f.api.write(admin,'create-unassigned',[change('customers',{...customer,saleId:null,leaderId:null,teamId:null})]);
+ const row=result.state.customers[0];
+ await f.api.write(admin,'edit-assigned',[change('customers',{...row,note:'Edited'},result.versions['customers/'+row.id])]);
+ assert.equal((await f.api.read(admin)).state.customers[0].note,'Edited');
+});
+test('Source rule overrides rotation; disabled team recipients receive no offer',async()=>{
+ const f=await automaticFixture();f.db.users.push({id:'lead2',name:'Leader 2',role:'LEADER',team_id:'T2',active:1});
+ const snapshot=await f.api.read(admin);
+ await f.api.write(admin,'source-config',[
+  {key:'leaderDistribution',id:'$',base:snapshot.versions['leaderDistribution/$'],value:{enabled:true,enabledLeaderIds:['lead','lead2'],weights:{lead:100,lead2:1},sourceRules:[{active:true,matchType:'SOURCE',matchValue:'Landing Page',targetLeaderId:'lead2'}]}},
+  {key:'saleDistributionByLeader',id:'$',base:snapshot.versions['saleDistributionByLeader/$'],value:{...snapshot.state.saleDistributionByLeader,lead2:{leaderEnabled:false,enabledSaleIds:[],weights:{}}}}
+ ]);
+ await f.webhook.persistWebhook(landingRecord(1));
+ const result=await f.api.read(admin);
+ assert.equal(result.state.customers[0].leaderId,'lead2');
+ assert.equal(result.state.customers[0].saleId,null);
+ assert.equal(result.state.dataOffers.length,0);
+});
+test('UI mode and toggle save to server and allocate queue without client distribution',async()=>{
+ const f=await automaticFixture();let snapshot=await f.api.read(admin);
+ await f.api.write(admin,'ui-off',[{key:'leaderDistribution',id:'$',base:snapshot.versions['leaderDistribution/$'],value:{...snapshot.state.leaderDistribution,enabled:false}}]);
+ await f.webhook.persistWebhook(landingRecord(1));
+ const c=frontend();c.snapshot=await f.api.read(admin);
+ vm.runInContext("currentAccount=hydrateSessionAccount({id:'admin',name:'Admin',role:'ADMIN'});serverSyncToken='token';applyServerSnapshot(snapshot);render=()=>{};bulkDistributePool=()=>{throw new Error('Must run on server');};",c);
+ c.fetch=async(url,options)=>{const body=JSON.parse(options.body);return {ok:true,json:async()=>await f.api.write(admin,body.requestId,body.changes)};};
+ await c.toggleLeaderDistribution();
+ assert.equal(vm.runInContext('state.customers[0].leaderId',c),'lead');
+ assert.equal(vm.runInContext('serverAutomationStatus.engine',c),'server-v1');
+ await c.setAssignmentMode('MANUAL');
+ await f.webhook.persistWebhook(landingRecord(2));
+ c.snapshot=await f.api.read(admin);vm.runInContext('applyServerSnapshot(snapshot)',c);
+ assert.equal(vm.runInContext("state.customers.find(c=>c.id==='CUS-WHE-2').leaderId",c),null);
+ await c.setAssignmentMode('BALANCED');
+ assert.equal(vm.runInContext("state.customers.find(c=>c.id==='CUS-WHE-2').leaderId",c),'lead');
 });
