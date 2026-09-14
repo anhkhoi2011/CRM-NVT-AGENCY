@@ -23,7 +23,7 @@
 
 ## Phục hồi dữ liệu từng lưu ở trình duyệt
 
-- Tại máy cũ, ở màn đăng nhập chọn **Xuất dữ liệu trình duyệt cũ**. Giữ file này như bản sao gốc riêng tư; bản cũ có thể chứa mật khẩu dạng rõ.
+- Nút xuất dữ liệu trình duyệt cũ đã được gỡ khỏi màn đăng nhập để giao diện gọn và tránh dùng nhầm dữ liệu localStorage làm dữ liệu vận hành.
 - Admin chọn **Nhập bản sao**, chọn JSON vừa xuất hoặc file **Xuất bản nháp**, xem số mục mới/bỏ qua rồi xác nhận nhập. Chỉ thêm ID chưa tồn tại, không tự ghi đè dữ liệu đang có trên server. Mật khẩu bị loại khỏi dữ liệu nhập; cấu hình không tự ghi đè.
 - Tài khoản đăng nhập phải đăng ký và phân quyền qua server. Nhân sự từ bản sao là hồ sơ, không tự có mật khẩu. Nếu ID nhân sự cũ khác tài khoản mới, Admin cần đối chiếu và phân công khách lại trong giao diện. Không bỏ file gốc trước khi hoàn tất đối chiếu.
 - File nhập tối đa 8 MB và 2.000 bản ghi mới mỗi giao dịch. File lớn cần chia nhỏ theo quan hệ khách/đơn. Bản ghi trùng ID hoặc chưa phù hợp cần đối chiếu thủ công; đây không phải công cụ tự hòa giải xung đột.
@@ -53,7 +53,7 @@ SELECT COUNT(*) FROM webhook_events;
 
 ## Kiểm chứng tại workspace và giới hạn
 
-Chạy npm test: 39 kiểm tra tự động đã qua (transaction mô phỏng, phân quyền, replay, xung đột, phục hồi bản nháp, phân quyền tài khoản, API đăng ký, dựng view và luồng webhook). Kiểm tra cú pháp JavaScript và git diff --check cũng được thực hiện. Test dùng pool/DOM giả lập, không chứng minh hành vi thực tế của MySQL, trình duyệt, cPanel hoặc reverse proxy.
+Chạy npm test: 42 kiểm tra tự động đã qua (transaction mô phỏng, phân quyền, replay, xung đột, phục hồi bản nháp, phân quyền tài khoản, API đăng ký, dựng view và luồng webhook). Kiểm tra cú pháp JavaScript và git diff --check cũng được thực hiện. Test dùng pool/DOM giả lập, không chứng minh hành vi thực tế của MySQL, trình duyệt, cPanel hoặc reverse proxy.
 
 Workspace không có .env/kết nối MySQL hosting; chưa deploy và chưa chạy nghiệm thu hai máy trên hosting. Cần thực hiện danh sách trên trước khi coi hệ thống đã nghiệm thu vận hành. Hiện API snapshot đọc toàn bộ dữ liệu rồi lọc quyền, nên cần đo tải với lượng dữ liệu/người dùng thực tế trước khi mở rộng. Tích hợp provider/SMTP cần thông số và dịch vụ thật; 2FA chưa được triển khai trên server, nút giao diện không còn giả báo đã bật.
 

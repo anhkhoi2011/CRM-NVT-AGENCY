@@ -154,3 +154,9 @@
 
 
 .avatar-edit{cursor:pointer;background-size:cover;background-position:center}.profile-editor{display:flex;align-items:center;gap:14px;margin-bottom:18px}.profile-avatar-large{width:72px;height:72px;border-radius:16px;object-fit:cover;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-weight:800;font-size:20px}.profile-avatar-placeholder{display:grid}.segmented{display:flex;gap:4px;padding:4px;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;width:max-content}.segment{border:0;background:transparent;padding:8px 14px;border-radius:7px;color:var(--muted);font-weight:700;cursor:pointer}.segment.active{background:var(--panel);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+
+.nav-link:not(.active) .nav-badge{background:#e5484d;color:#fff;font-weight:700;box-shadow:0 0 0 2px rgba(229,72,77,.18)}.nav-link.active .nav-badge{background:#fff;color:var(--accent);font-weight:700}
+
+#loginForm button[type=submit]{display:flex;align-items:center;justify-content:center;gap:8px;transition:background-color .16s ease,border-color .16s ease,opacity .16s ease}#loginForm button[type=submit][aria-busy=true]{opacity:.82}.login-spinner{width:14px;height:14px;flex:0 0 auto;border:2px solid rgba(255,255,255,.42);border-top-color:#fff;border-radius:50%;animation:login-spin .7s linear infinite}@keyframes login-spin{to{transform:rotate(360deg)}}
+@media(max-width:480px){.login-intro{min-height:30vh;height:30vh;padding:0}.login-intro-img{object-position:center 30%}.login-panel{padding-top:20px}.login-card{margin:18px auto 32px}}
+@media(prefers-reduced-motion:reduce){.login-spinner{animation:none}.login-screen *,#loginForm button[type=submit]{transition:none!important}}

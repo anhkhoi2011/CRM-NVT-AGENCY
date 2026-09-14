@@ -179,9 +179,12 @@ test('Lỗi tạo một tài khoản rollback toàn bộ và không đánh dấu
 });
 test('Đăng nhập hiển thị đúng lỗi server thay vì luôn báo sai mật khẩu',async()=>{
  const c=frontend();await c.initialize();c.fetch=async()=>({ok:false,status:503,json:async()=>({error:'MySQL chưa được cấu hình'})});
- vm.runInContext("document.querySelector('#loginPhone').value='admin@nvtagency.top';document.querySelector('#loginPassword').value='dummy';",c);
+ vm.runInContext("document.querySelector('#loginPhone').value='admin@nvtagency.top';document.querySelector('#loginPassword').value='dummy';document.querySelector('#loginForm button[type=\"submit\"]').innerHTML='Đăng nhập';",c);
  await vm.runInContext("document.querySelector('#loginForm').onsubmit({preventDefault(){}})",c);
  assert.equal(vm.runInContext("document.querySelector('#loginError').textContent",c),'MySQL chưa được cấu hình');
+ assert.equal(vm.runInContext("document.querySelector('#loginForm button[type=\"submit\"]').disabled",c),false);
+ assert.equal(vm.runInContext("document.querySelector('#loginForm button[type=\"submit\"]').innerHTML",c),'Đăng nhập');
+ assert.doesNotMatch(fs.readFileSync('crm.js','utf8'),/Xuất dữ liệu trình duyệt cũ|exportLegacyData/);
 });
 
 test('Khôi phục sản phẩm localStorage cũ không ghi đè sản phẩm đã có',async()=>{
@@ -252,4 +255,32 @@ test('Old webhook customer is attributed from stored slug without changing assig
  f.db.customers.push({id:'old',name:'Old customer',phone:'0911111111',email:null,source:'Landing Page',campaign:null,website_id:null,status:'NEW',sale_id:'sale',leader_id:'lead',team_id:'T',note:'',custom_fields_json:JSON.stringify({webhookSlug:'DS-OLD',webhookEventId:'event'}),created_at:'2026-09-01 09:00:00',updated_at:'2026-09-01 09:00:00'});
  const row=(await f.api.read(admin)).state.customers[0];
  assert.equal(row.websiteId,'web');assert.equal(row.landingPageUrl,'https://www.hoangphucacademy.vn/');assert.equal(row.saleId,'sale');
+});
+
+test('Data queue shows landing URL and rental products use rental availability labels', () => {
+ const c=frontend();
+ vm.runInContext(`currentAccount=hydrateSessionAccount({id:'admin',name:'Admin',role:'ADMIN'});applyServerSnapshot({state:{...initialState(),websites:[{id:'web',name:'Hoang Phuc Academy',domain:'www.hoangphucacademy.vn',sourceUrl:'https://www.hoangphucacademy.vn/',webhookSlug:'DS-TEST'}],customers:[{id:'cus',name:'Customer',phone:'0912345678',source:'Landing Page',campaign:'UNATTRIBUTED',websiteId:'web',landingPageName:'Landing Page',createdAt:'2026-09-14 10:00',updatedAt:'2026-09-14 10:00',customFields:{}}],products:[{id:'rental',name:'Rental indicator',sku:'RENT-1',category:'Indicator',price:100,type:'RENTAL',rentalMonths:1,active:true}]},versions:{}});distributionTab='QUEUE';`,c);
+ const dataHtml=vm.runInContext('distributionView()',c),productHtml=vm.runInContext('productsView()',c);
+ assert.match(dataHtml,/Hoang Phuc Academy/);assert.match(dataHtml,/https:\/\/www\.hoangphucacademy\.vn\//);assert.doesNotMatch(dataHtml,/Khong campaign|Kh?ng campaign/);
+ assert.match(productHtml,/Đang cho thuê/);assert.match(productHtml,/Ngừng cho thuê/);assert.doesNotMatch(productHtml,/Rental indicator[\s\S]*Đang bán/);
+});
+
+test('Admin navigation badges show pending data and unassigned accounts immediately', () => {
+ const c=frontend();
+ vm.runInContext(`currentAccount=hydrateSessionAccount({id:'admin',name:'Admin',role:'ADMIN'});applyServerSnapshot({state:{...initialState(),customers:[{id:'cus',name:'New customer',phone:'0912345678',source:'Landing Page',status:'NEW',saleId:null,leaderId:null,teamId:null,createdAt:'2026-09-14 10:00',updatedAt:'2026-09-14 10:00',customFields:{}}],registeredAccounts:[{id:'new-user',name:'New user',role:'UNASSIGNED',active:true}]},versions:{}});webhookPending=[{id:'pending-webhook'}];renderNavigation();`,c);
+ const html=c.document.querySelector('#sideNav').innerHTML;
+ assert.match(html,/data-view-link="distribution"[\s\S]*?<span class="nav-badge">2<\/span>/);
+ assert.match(html,/data-view-link="team"[\s\S]*?<span class="nav-badge">1<\/span>/);
+ assert.equal(vm.runInContext("navigationBadgeCount('distribution')",c),2);
+ assert.equal(vm.runInContext("navigationBadgeCount('team')",c),1);
+});
+
+test('Badge counts refresh from MySQL without replacing a form that is being edited', async () => {
+ const c=frontend();
+ vm.runInContext("currentAccount=hydrateSessionAccount({id:'admin',name:'Admin',role:'ADMIN'});serverSyncToken='token';applyServerSnapshot({state:initialState(),versions:{}});document.activeElement.tagName='INPUT';",c);
+ c.fetch=async()=>({ok:true,json:async()=>({data:4,team:2})});
+ assert.equal(await c.refreshNavigationCounts(),true);
+ assert.equal(vm.runInContext("navigationBadgeCount('distribution')",c),4);
+ assert.equal(vm.runInContext("navigationBadgeCount('team')",c),2);
+ assert.equal(vm.runInContext('state.customers.length',c),0);
 });

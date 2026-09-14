@@ -99,6 +99,18 @@ async function handleDbApi(request, response, pathname) {
     if(!user)return dbJson(request,response,401,{error:'Phiên đã hết hạn. Đăng nhập lại để tiếp tục.'});
     if(pathname==='/api/auth/me')return dbJson(request,response,200,{user});
     if(pathname==='/api/auth/logout' && request.method==='POST'){await dbQuery('DELETE FROM crm_sessions WHERE token_hash=?',[tokenHash(request)]);return dbJson(request,response,200,{ok:true});}
+    if(pathname==='/api/navigation-counts' && request.method==='GET'){
+      if(user.role!=='ADMIN')return dbJson(request,response,403,{error:'Chỉ Admin được xem số data và tài khoản chờ'});
+      // API đếm riêng giúp badge cập nhật ngay mà không ghi đè form Admin đang nhập.
+      const [dataRows,accountRows]=await Promise.all([
+        dbQuery('SELECT COUNT(*) AS total FROM customers WHERE sale_id IS NULL AND leader_id IS NULL AND team_id IS NULL'),
+        dbQuery("SELECT COUNT(*) AS total FROM users WHERE role='UNASSIGNED' AND active=1")
+      ]);
+      return dbJson(request,response,200,{
+        data:Number(dataRows[0]?.total||0),
+        team:Number(accountRows[0]?.total||0)
+      });
+    }
     if(pathname==='/api/auth/password' && request.method==='POST'){
       const body=await readDbBody(request), id=body.userId||user.id, password=String(body.password||'');
       if(password.length<8||Buffer.byteLength(password)>72)return dbJson(request,response,400,{error:'Mật khẩu phải từ 8 ký tự và không quá 72 byte'});
@@ -642,7 +654,7 @@ async function handleWebhook(request, response, slug) {
 const sseClients = new Set();
 
 function notifyInboxListeners(record) {
-  const event = `data: ${JSON.stringify({ changed: true })}\n\n`;
+  const event = `data: ${JSON.stringify({ changed: true, kind: record?.kind || 'webhook' })}\n\n`;
   for (const client of sseClients) {
     try { client.write(event); } catch { sseClients.delete(client); }
   }
@@ -751,7 +763,7 @@ const server = http.createServer(async (request, response) => {
     if (pathname === '/api/session-context') return handleSessionContext(request, response);
     if (pathname === '/api/email/status') return handleEmailStatus(request, response);
     if (pathname === '/api/email/notify') return handleEmailNotify(request, response);
-    if (pathname === '/api/db/health' || pathname.startsWith('/api/auth/') || pathname.startsWith('/api/users') || pathname.startsWith('/api/customers') || pathname.startsWith('/api/orders') || pathname.startsWith('/api/products') || pathname.startsWith('/api/settings') || pathname === '/api/state') return handleDbApi(request, response, pathname);
+    if (pathname === '/api/db/health' || pathname === '/api/navigation-counts' || pathname.startsWith('/api/auth/') || pathname.startsWith('/api/users') || pathname.startsWith('/api/customers') || pathname.startsWith('/api/orders') || pathname.startsWith('/api/products') || pathname.startsWith('/api/settings') || pathname === '/api/state') return handleDbApi(request, response, pathname);
     if (pathname === '/api/health') return sendJson(response, 200, { ok: true, inbox: inbox.length, token: Boolean(WEBHOOK_TOKEN) });
 
     if (pathname.startsWith('/api/')) {

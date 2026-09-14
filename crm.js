@@ -1024,7 +1024,7 @@ function startWebhookConsumer() {
     try {
       webhookEventSource = new EventSource(`${base}/api/data-sources/stream`);
       webhookEventSource.onopen = () => setWebhookTransport('live', 'Đang nghe webhook landing page theo thời gian thật (SSE).');
-      webhookEventSource.onmessage = () => { syncServerState(); pullWebhookInbox(false); };
+      webhookEventSource.onmessage = () => { refreshNavigationCounts(); syncServerState(); pullWebhookInbox(false); };
       // SSE tự nối lại theo "retry: 3000" của server; vòng poll vẫn chạy nền nên
       // data tới trong lúc đứt kênh không bị mất.
       webhookEventSource.onerror = () => setWebhookTransport('polling', 'Kênh trực tiếp gián đoạn — đang hỏi server định kỳ, data không bị mất.');
@@ -1231,8 +1231,10 @@ function websiteById(id) { return state.websites.find(website => website.id === 
 function customerLanding(customer) { return websiteById(customer?.websiteId); }
 function customerSourceDetails(customer) {
   const website = customerLanding(customer);
+  const snapshotName = String(customer?.landingPageName || '').trim();
+  const genericSnapshot = !snapshotName || ['landing page', 'website', 'nguồn chưa được gắn'].includes(snapshotName.toLowerCase());
   return {
-    name: customer?.landingPageName || website?.name || customer?.landingPageDomain || website?.domain || 'Nguồn chưa được gắn',
+    name: (!genericSnapshot && snapshotName) || website?.name || customer?.landingPageDomain || website?.domain || (customer?.webhookSlug ? `Webhook ${customer.webhookSlug}` : 'Nguồn chưa được gắn'),
     url: customer?.landingPageUrl || website?.sourceUrl || '',
     domain: customer?.landingPageDomain || website?.domain || ''
   };
@@ -1256,6 +1258,7 @@ let serverSaveRunning = false, serverReading = false, serverStateLoaded = false;
 let serverBaseline = new Map(), serverVersions = {}, serverPendingRequest = null;
 let serverConflict = false, serverMutationVersion = 0;
 let serverSavePromise = null;
+let liveNavigationCounts = null, navigationCountsReading = false;
 function stableJson(value) {
   if (Array.isArray(value)) return '[' + value.map(stableJson).join(',') + ']';
   if (value && typeof value === 'object') return '{' + Object.keys(value).sort().map(k => JSON.stringify(k)+':'+stableJson(value[k])).join(',') + '}';
@@ -1362,8 +1365,23 @@ async function flushServerPersistence() {
   })();
   try{return await serverSavePromise;}finally{serverSavePromise=null;}
 }
-function startServerSyncPolling(){stopServerSyncPolling();serverSyncTimer=setInterval(()=>{if(currentAccount&&serverSyncToken)syncServerState();},1000);}
+function startServerSyncPolling(){stopServerSyncPolling();serverSyncTimer=setInterval(()=>{if(currentAccount&&serverSyncToken){syncServerState();refreshNavigationCounts();}},1000);}
 function stopServerSyncPolling(){if(serverSyncTimer)clearInterval(serverSyncTimer);serverSyncTimer=null;}
+async function refreshNavigationCounts() {
+  if(!serverSyncToken||currentAccount?.role!=='ADMIN'||navigationCountsReading)return false;
+  navigationCountsReading=true;
+  try{
+    const response=await fetch(`${webhookApiBase()}/api/navigation-counts`,{headers:{Authorization:`Bearer ${serverSyncToken}`},cache:'no-store'});
+    const payload=await response.json();
+    if(!response.ok)throw new Error(payload.error||'Không đọc được số thông báo');
+    const next={data:Number(payload.data||0),team:Number(payload.team||0)};
+    const changed=!liveNavigationCounts||next.data!==liveNavigationCounts.data||next.team!==liveNavigationCounts.team;
+    liveNavigationCounts=next;
+    // Chỉ vẽ lại menu; form/modal Admin đang thao tác được giữ nguyên.
+    if(changed&&$('#sideNav')&&$('#mobileNav'))renderNavigation();
+    return true;
+  }catch(error){return false;}finally{navigationCountsReading=false;}
+}
 async function syncServerState() {
   if(!serverSyncToken||!currentAccount||serverReading||serverSaveRunning||serverSaveTimer||serverConflict)return false;
   if(serverStateLoaded&&(serverPendingRequest||hasServerChanges()))return flushServerPersistence();
@@ -1399,11 +1417,6 @@ async function persistOrder(order){return pushServerRecord('orders','PUT',order.
 function makeRecordId(prefix){const bytes=new Uint8Array(12);crypto.getRandomValues(bytes);return `${prefix}-${Date.now()}-${Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('')}`;}
 function exportWorkingCopy(){downloadRecovery({kind:'nvt-working-copy',state,changes:pendingChanges()},'nvt-working-copy.json');}
 function downloadRecovery(value,name){const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
-function exportLegacyData(){
-  // Chỉ đọc để xuất bản sao; không dùng lại dữ liệu cũ để đăng nhập/lưu nghiệp vụ.
-  const data={};for(let i=0;i<localStorage.length;i++){const key=localStorage.key(i);if(key&&key.startsWith('nvt')){try{data[key]=JSON.parse(localStorage.getItem(key));}catch{data[key]=localStorage.getItem(key);}}}
-  downloadRecovery({kind:'nvt-legacy-export',data},'nvt-legacy-backup.json');
-}
 function legacyProductCandidates(){
   const found=[],seen=new Set();
   try{
@@ -1945,7 +1958,7 @@ function quickSaleControl(customer) {
 }
 
 function quickAssignSale(customerId, saleId) {
-  if (currentAccount.role !== 'ADMIN') return;
+  if (!['ADMIN', 'LEADER'].includes(currentAccount.role)) return;
   const customer = customerById(customerId);
   const sale = activeStaff().find(person => person.id === saleId && person.role === 'SALE');
   if (!customer || !sale || (currentAccount.role === 'LEADER' && (sale.leaderId !== currentAccount.leaderId || sale.teamId !== currentAccount.teamId))) { toast('Sale không hợp lệ trong phạm vi tài khoản'); render(); return; }
@@ -2089,7 +2102,7 @@ function distributionView() {
   const tabs = [['QUEUE', `Thứ tự data mới vào (${pool.length})`], ['AUTO', 'Tự động'], ['SOURCE', 'Theo nguồn'], ['LEADERS', 'Danh sách Leader'], ['SALES', 'Sale theo Leader']];
   let body = '';
   if (distributionTab === 'QUEUE') {
-    body = `<div class="grid grid-2 distribution-queue-layout"><section class="panel"><div class="panel-head"><div><div class="panel-title">Thứ tự data mới vào</div><div class="panel-sub">Mới nhất ở trên · gồm data mới và khách điền lại form</div></div>${pool.length ? '<button class="button button-small" id="selectPoolButton" type="button">Chọn tất cả đang chờ</button>' : ''}</div><div class="table-wrap"><table class="intake-order-table"><thead><tr><th>Thứ tự</th><th>Ngày data</th><th>Khách hàng</th><th>Loại data</th><th>Nguồn</th><th>Đang phụ trách</th></tr></thead><tbody>${intakeRows.map((item, index) => { const customer = item.customer; const dataDate = dataDateParts(item.at); const waiting = item.kind === 'NEW' && !customer.saleId && !customer.leaderId; return `<tr class="${waiting ? 'queue-waiting' : ''}"><td><div class="queue-sequence">#${index + 1}</div>${waiting ? `<input type="checkbox" data-pool-id="${escapeHtml(customer.id)}" ${selectedPoolIds.has(customer.id) ? 'checked' : ''} aria-label="Chọn ${escapeHtml(customer.name)}">` : ''}</td><td class="data-date-cell"><b>${escapeHtml(dataDate.date)}</b><small>${escapeHtml(dataDate.time)}</small></td><td><div class="cell-main">${escapeHtml(customer.name)}</div><div class="cell-sub">${escapeHtml(customer.phone)}</div></td><td>${item.kind === 'RETURN' ? `<span class="status ${item.registeredAccount ? 'status-cancelled' : 'status-info'}">${item.registeredAccount ? 'Trùng · Đã đăng ký TK' : 'Điền lại form'}</span>` : waiting ? '<span class="status status-pending">Chờ chia Leader</span>' : '<span class="status status-paid">Data mới</span>'}</td><td><b>${escapeHtml(item.source)}</b><div class="cell-sub">${escapeHtml(item.campaign || 'Không campaign')}</div></td><td>${quickSaleControl(customer)}</td></tr>`; }).join('') || '<tr><td colspan="6"><div class="empty"><b>Chưa có data</b><span>Data mới từ form/API sẽ xuất hiện theo thời gian tại đây.</span></div></td></tr>'}</tbody></table></div></section><aside class="panel queue-assignment-panel"><div class="panel-head"><div><div class="panel-title">Xử lý hàng chờ</div><div class="panel-sub">${pool.length} data chưa có Leader · ưu tiên cũ nhất trước</div></div></div><div class="panel-body">${webhookQueueNoticeMarkup()}<div class="connection-actions" style="margin:0 0 18px"><button class="button button-small" data-bulk-distribute="ROUND_ROBIN" ${!pool.length || !enabledLeaders.size ? 'disabled' : ''}>Chia lần lượt</button><button class="button button-small button-primary" data-bulk-distribute="BALANCED" ${!pool.length || !enabledLeaders.size ? 'disabled' : ''}>Chia cân bằng</button></div><label class="form-field">Leader nhận data<select id="poolTarget">${leaders.filter(leader => enabledLeaders.has(leader.id)).map(leader => `<option value="${escapeHtml(leader.id)}">${escapeHtml(leader.name)} · ${escapeHtml(leader.teamId)}</option>`).join('')}</select></label><label class="form-field" style="margin-top:12px">Lý do<textarea id="poolReason" rows="3" placeholder="Phân theo thứ tự data vào">Phân theo thứ tự data vào</textarea></label><button id="assignPoolButton" class="button button-primary button-block" style="margin-top:13px" type="button" ${!pool.length || !enabledLeaders.size ? 'disabled' : ''}>Phân data đã chọn</button><div class="credential-hint">Khách điền lại form không vào chia ngẫu nhiên: hệ thống tự trả về đúng Sale cũ và vẫn hiện trong danh sách thứ tự phía bên trái.</div></div></aside></div>`;
+    body = `<div class="grid grid-2 distribution-queue-layout"><section class="panel"><div class="panel-head"><div><div class="panel-title">Thứ tự data mới vào</div><div class="panel-sub">Mới nhất ở trên · gồm data mới và khách điền lại form</div></div>${pool.length ? '<button class="button button-small" id="selectPoolButton" type="button">Chọn tất cả đang chờ</button>' : ''}</div><div class="table-wrap"><table class="intake-order-table"><thead><tr><th>Thứ tự</th><th>Ngày data</th><th>Khách hàng</th><th>Loại data</th><th>Nguồn</th><th>Đang phụ trách</th></tr></thead><tbody>${intakeRows.map((item, index) => { const customer = item.customer; const dataDate = dataDateParts(item.at); const waiting = item.kind === 'NEW' && !customer.saleId && !customer.leaderId; return `<tr class="${waiting ? 'queue-waiting' : ''}"><td><div class="queue-sequence">#${index + 1}</div>${waiting ? `<input type="checkbox" data-pool-id="${escapeHtml(customer.id)}" ${selectedPoolIds.has(customer.id) ? 'checked' : ''} aria-label="Chọn ${escapeHtml(customer.name)}">` : ''}</td><td class="data-date-cell"><b>${escapeHtml(dataDate.date)}</b><small>${escapeHtml(dataDate.time)}</small></td><td><div class="cell-main">${escapeHtml(customer.name)}</div><div class="cell-sub">${escapeHtml(customer.phone)}</div></td><td>${item.kind === 'RETURN' ? `<span class="status ${item.registeredAccount ? 'status-cancelled' : 'status-info'}">${item.registeredAccount ? 'Trùng · Đã đăng ký TK' : 'Điền lại form'}</span>` : waiting ? '<span class="status status-pending">Chờ chia Leader</span>' : '<span class="status status-paid">Data mới</span>'}</td><td>${(() => { const source = customerSourceDetails(customer); const campaign = item.campaign && item.campaign !== 'UNATTRIBUTED' ? item.campaign : ''; return `<div class="cell-main">${escapeHtml(source.name)}</div><div class="cell-sub mono">${escapeHtml(source.url || source.domain || (customer.webhookSlug ? `Webhook ${customer.webhookSlug}` : 'Chưa gắn URL nguồn'))}</div><div class="cell-sub">${escapeHtml([item.source, campaign].filter(Boolean).join(' · '))}</div>`; })()}</td><td>${quickSaleControl(customer)}</td></tr>`; }).join('') || '<tr><td colspan="6"><div class="empty"><b>Chưa có data</b><span>Data mới từ form/API sẽ xuất hiện theo thời gian tại đây.</span></div></td></tr>'}</tbody></table></div></section><aside class="panel queue-assignment-panel"><div class="panel-head"><div><div class="panel-title">Xử lý hàng chờ</div><div class="panel-sub">${pool.length} data chưa có Leader · ưu tiên cũ nhất trước</div></div></div><div class="panel-body">${webhookQueueNoticeMarkup()}<div class="connection-actions" style="margin:0 0 18px"><button class="button button-small" data-bulk-distribute="ROUND_ROBIN" ${!pool.length || !enabledLeaders.size ? 'disabled' : ''}>Chia lần lượt</button><button class="button button-small button-primary" data-bulk-distribute="BALANCED" ${!pool.length || !enabledLeaders.size ? 'disabled' : ''}>Chia cân bằng</button></div><label class="form-field">Leader nhận data<select id="poolTarget">${leaders.filter(leader => enabledLeaders.has(leader.id)).map(leader => `<option value="${escapeHtml(leader.id)}">${escapeHtml(leader.name)} · ${escapeHtml(leader.teamId)}</option>`).join('')}</select></label><label class="form-field" style="margin-top:12px">Lý do<textarea id="poolReason" rows="3" placeholder="Phân theo thứ tự data vào">Phân theo thứ tự data vào</textarea></label><button id="assignPoolButton" class="button button-primary button-block" style="margin-top:13px" type="button" ${!pool.length || !enabledLeaders.size ? 'disabled' : ''}>Phân data đã chọn</button><div class="credential-hint">Khách điền lại form không vào chia ngẫu nhiên: hệ thống tự trả về đúng Sale cũ và vẫn hiện trong danh sách thứ tự phía bên trái.</div></div></aside></div>`;
   } else if (distributionTab === 'AUTO') {
     body = `<div class="grid grid-2"><section class="panel"><div class="panel-head"><div><div class="panel-title">Cơ chế chia data mới</div><div class="panel-sub">Luật theo nguồn được ưu tiên, sau đó áp dụng chế độ mặc định</div></div><button class="toggle ${state.leaderDistribution.enabled ? 'on' : ''}" id="toggleLeaderDistribution" aria-pressed="${state.leaderDistribution.enabled}" aria-label="Bật tắt chia Leader"></button></div><div class="panel-body"><label class="form-field">Chế độ mặc định<select id="assignmentModeSelect"><option value="MANUAL" ${state.settings.assignmentMode === 'MANUAL' ? 'selected' : ''}>Thủ công</option><option value="ROUND_ROBIN" ${state.settings.assignmentMode === 'ROUND_ROBIN' ? 'selected' : ''}>Lần lượt có tỷ trọng</option><option value="BALANCED" ${state.settings.assignmentMode === 'BALANCED' ? 'selected' : ''}>Cân bằng tải / tỷ trọng</option></select></label><div class="credential-hint" style="margin-top:12px">Tỷ trọng 2 nhận gấp đôi lượt so với tỷ trọng 1. Cân bằng so sánh số khách hiện tại chia cho tỷ trọng, không phá lịch sử phân công cũ.</div></div></section><section class="panel"><div class="panel-head"><div><div class="panel-title">Tình trạng phân phối</div><div class="panel-sub">Chỉ Leader được bật mới nhận data mới</div></div></div><div class="panel-body"><div class="stat-row"><div><small>Leader hoạt động</small><b>${enabledLeaders.size}/${leaders.length}</b></div><div><small>Luật theo nguồn</small><b>${state.leaderDistribution.sourceRules.filter(rule => rule.active).length}</b></div><div><small>Khách đang chờ</small><b>${state.customers.filter(customer => !customer.leaderId && !customer.saleId).length}</b></div></div></div></section></div>`;
   } else if (distributionTab === 'SOURCE') {
@@ -2177,13 +2190,23 @@ function ordersView() {
     `<section class="panel"><div class="toolbar"><input id="orderSearch" type="search" placeholder="Mã đơn, khách, sản phẩm..." value="${escapeHtml(globalQuery)}"><select id="orderStatusFilter"><option value="ALL">Tất cả thanh toán</option>${Object.entries(ORDER_STATUS).map(([key, meta]) => `<option value="${key}" ${orderStatusFilter === key ? 'selected' : ''}>${meta[0]}</option>`).join('')}</select><span class="spacer"></span><span class="data-note">${orders.length} đơn trong scope</span></div>${ordersTable(orders, true)}</section>`;
 }
 
+function productAvailabilityMeta(product) {
+  const rental = product.type === 'RENTAL';
+  if (product.active !== false) return { status: rental ? 'Đang cho thuê' : 'Đang bán', action: rental ? 'Ngừng cho thuê' : 'Ngừng bán' };
+  return { status: rental ? 'Ngừng cho thuê' : 'Ngừng bán', action: rental ? 'Cho thuê lại' : 'Bán lại' };
+}
+
 function productsView() {
   if (currentAccount.role !== 'ADMIN') return accessDeniedView('Chỉ Admin được quản lý danh mục và sản phẩm.');
   const rows = PRODUCTS;
   const legacyCount=legacyProductCandidates().length;
   const actions = `${legacyCount?`<button class="button" id="restoreLegacyProductsButton">Khôi phục ${legacyCount} sản phẩm cũ</button>`:''}<button class="button" id="manageProductCategoriesButton">Danh mục</button><button class="button button-primary" id="newProductButton">+ Thêm sản phẩm</button>`;
+  const body = rows.map(product => {
+    const availability = productAvailabilityMeta(product);
+    return `<tr><td><div class="cell-main">${escapeHtml(product.name)}</div></td><td class="mono">${escapeHtml(product.sku || '—')}</td><td><span class="status ${product.type === 'RENTAL' ? 'status-pending' : 'status-info'}">${product.type === 'RENTAL' ? 'Thuê' : 'Bán'}</span></td><td>${product.type === 'RENTAL' ? (product.rentalMonths || '—') + ' tháng' : '—'}</td><td>${escapeHtml(product.category)}</td><td><b>${money(product.price)}</b></td><td><span class="status ${product.active !== false ? 'status-active' : 'status-pending'}">${availability.status}</span></td><td><button class="button button-small" data-edit-product="${escapeHtml(product.id)}">Sửa</button><button class="button button-small" data-toggle-product="${escapeHtml(product.id)}">${availability.action}</button><button class="button button-small button-danger" data-delete-product="${escapeHtml(product.id)}">Xóa</button></td></tr>`;
+  }).join('');
   return pageHead('Sản phẩm', 'Quản lý sản phẩm bán và sản phẩm cho thuê.', actions) +
-    `<section class="panel"><div class="table-wrap"><table><thead><tr><th>Sản phẩm</th><th>Mã SKU</th><th>Loại</th><th>Gói thuê</th><th>Danh mục</th><th>Đơn giá</th><th>Trạng thái</th><th></th></tr></thead><tbody>${rows.map(product => `<tr><td><div class="cell-main">${escapeHtml(product.name)}</div></td><td class="mono">${escapeHtml(product.sku || '—')}</td><td><span class="status ${product.type === 'RENTAL' ? 'status-pending' : 'status-info'}">${product.type === 'RENTAL' ? 'Thuê' : 'Bán'}</span></td><td>${product.type === 'RENTAL' ? (product.rentalMonths || '—') + ' tháng' : '—'}</td><td>${escapeHtml(product.category)}</td><td><b>${money(product.price)}</b></td><td>${product.active !== false ? '<span class="status status-active">Đang bán</span>' : '<span class="status status-pending">Ngừng bán</span>'}</td><td><button class="button button-small" data-edit-product="${escapeHtml(product.id)}">Sửa</button><button class="button button-small" data-toggle-product="${escapeHtml(product.id)}">${product.active !== false ? 'Ngừng bán' : 'Bán lại'}</button><button class="button button-small button-danger" data-delete-product="${escapeHtml(product.id)}">Xóa</button></td></tr>`).join('') || '<tr><td colspan="8"><div class="empty"><b>Chưa có sản phẩm</b><span>Admin cần tạo sản phẩm trước khi lập đơn.</span></div></td></tr>'}</tbody></table></div></section>`;
+    `<section class="panel"><div class="table-wrap"><table><thead><tr><th>Sản phẩm</th><th>Mã SKU</th><th>Loại</th><th>Gói thuê</th><th>Danh mục</th><th>Đơn giá</th><th>Trạng thái</th><th></th></tr></thead><tbody>${body || '<tr><td colspan="8"><div class="empty"><b>Chưa có sản phẩm</b><span>Admin cần tạo sản phẩm trước khi lập đơn.</span></div></td></tr>'}</tbody></table></div></section>`;
 }
 
 function productModal(id = null) {
@@ -2215,7 +2238,7 @@ async function toggleProduct(id) {
   const product = productById(id); if (!product) return;
   product.active = product.active === false;
   state.products = PRODUCTS;
-  audit('TOGGLE_PRODUCT', id, product.active ? 'Đang bán' : 'Ngừng bán');
+  audit('TOGGLE_PRODUCT', id, productAvailabilityMeta(product).status);
   saveState(); render();
 }
 
@@ -2302,13 +2325,14 @@ function teamView() {
   const rows = salePerformanceRows();
   const teamRevenue = netRevenue(scopedOrders(), inCurrentPeriod);
   const members = currentAccount.role === 'ADMIN' ? activeStaff() : activeStaff().filter(person => person.teamId === currentAccount.teamId && (person.id === currentAccount.leaderId || person.leaderId === currentAccount.leaderId));
+  members.sort((a, b) => (a.role === 'LEADER' ? 0 : 1) - (b.role === 'LEADER' ? 0 : 1) || a.name.localeCompare(b.name, 'vi'));
   const actions = currentAccount.role === 'ADMIN' ? '<button class="button button-primary" id="newTeamButton">+ Tạo đội</button>' : '<button class="button" id="exportTeamButton">Xuất CSV</button>';
   const unassignedAccounts = currentAccount.role === 'ADMIN' ? (state.registeredAccounts || []).filter(account => account.role === 'UNASSIGNED' && account.active !== false) : [];
   const teamCards = Array.from(new Set(members.map(member => member.teamId))).sort().map(teamId => { const leaders = members.filter(member => member.teamId === teamId && member.role === 'LEADER'); return `<section class="panel team-overview-card"><div class="panel-head"><div><div class="panel-title">Team ${escapeHtml(teamId)}</div><div class="panel-sub">${leaders.length} Leader · ${members.filter(member => member.teamId === teamId && member.role === 'SALE').length} Sale</div></div></div><div class="panel-body">${leaders.map(leader => { const sales = members.filter(member => member.role === 'SALE' && member.leaderId === leader.id); return `<details class="team-leader"><summary><span class="avatar">${escapeHtml(leader.initials)}</span><span><b>${escapeHtml(leader.name)}</b><small>Leader · ${sales.length} Sale · ${state.customers.filter(customer => customer.leaderId === leader.id).length} khách</small></span></summary><div class="team-sales">${sales.map(sale => `<button class="team-sale-row" type="button" data-team-member="${escapeHtml(sale.id)}"><span><b>${escapeHtml(sale.name)}</b><small>${number(state.customers.filter(customer => customer.saleId === sale.id).length)} khách phụ trách</small></span><strong>${money(netRevenue(state.orders.filter(order => order.saleId === sale.id), inCurrentPeriod), true)}</strong></button>`).join('') || '<div class="cell-sub">Chưa có Sale trực thuộc.</div>'}</div></details>`; }).join('') || '<div class="empty compact"><b>Chưa có Leader</b></div>'}</div></section>`; }).join('');
   const unassignedHtml = unassignedAccounts.length ? `<section class="panel" style="margin-top:14px"><div class="panel-head"><div><div class="panel-title">Tài khoản chưa phân chức vụ</div><div class="panel-sub">Đăng ký thành công được dùng ngay; Admin có thể đưa vào đội sau.</div></div></div><div class="table-wrap"><table><thead><tr><th>Tài khoản</th><th>Số điện thoại</th><th>Email</th><th>Trạng thái</th><th></th></tr></thead><tbody>${unassignedAccounts.map(account => `<tr><td><b>${escapeHtml(account.name)}</b></td><td>${escapeHtml(account.phone)}</td><td>${escapeHtml(account.email)}</td><td><span class="status status-pending">Chưa phân chức vụ</span></td><td><button class="button button-small button-primary" data-assign-account="${escapeHtml(account.id)}">Phân chức vụ</button></td></tr>`).join('')}</tbody></table></div></section>` : '';
   return pageHead(currentAccount.role === 'ADMIN' ? 'Đội ngũ' : `Nhân sự Team ${currentAccount.teamId}`, 'Tạo đội, chọn Leader và các Sale trực thuộc; quản lý thành viên từ danh sách đội.', actions) + dateFilter() + `<div class="team-overview-grid">${teamCards}</div>` + unassignedHtml +
     `<div class="kpi-grid" style="grid-template-columns:repeat(4,minmax(150px,1fr))">${kpiCard('♧', 'Thành viên', number(members.length), currentAccount.role === 'ADMIN' ? 'Toàn hệ thống' : `Team ${currentAccount.teamId}`)}${kpiCard('₫', 'Doanh thu đội', money(teamRevenue, true), periodLabel())}${kpiCard('♙', 'Khách đang phụ trách', number(rows.reduce((sum, row) => sum + row.customers, 0)), 'Tổng theo Sale')}${kpiCard('!', 'Lịch quá hạn', number(rows.reduce((sum, row) => sum + row.overdue, 0)), 'Trong hồ sơ khách')}</div>
-    <section class="panel"><div class="panel-head"><div><div class="panel-title">Danh sách nhân sự</div><div class="panel-sub">Chức vụ, tuyến quản lý và hiệu suất hiện tại</div></div>${currentAccount.role === 'ADMIN' ? '<button class="button button-small" id="exportTeamButton">Xuất CSV</button>' : ''}</div><div class="table-wrap"><table><thead><tr><th>Nhân sự</th><th>Chức vụ</th><th>Team</th><th>Quản lý trực tiếp</th><th>Khách hàng</th><th>Doanh thu kỳ</th>${currentAccount.role === 'ADMIN' ? '<th>Thao tác</th>' : ''}</tr></thead><tbody>${members.map(member => { const performance = rows.find(row => row.id === member.id); const directSales = member.role === 'LEADER' ? STAFF.filter(person => person.role === 'SALE' && person.leaderId === member.id).length : 0; return `<tr><td><div class="cell-main">${escapeHtml(member.name)}${['l1', 's1'].includes(member.id) ? ' <span class="account-link">Tài khoản hệ thống</span>' : ''}</div><div class="cell-sub">${escapeHtml(member.id)}</div></td><td><span class="status ${member.role === 'LEADER' ? 'status-info' : 'status-paid'}">${member.role}</span></td><td>${escapeHtml(member.teamId)}</td><td>${member.role === 'SALE' ? escapeHtml(staffName(member.leaderId)) : `${directSales} Sale trực thuộc`}</td><td>${member.role === 'SALE' ? number(performance?.customers || 0) : number(state.customers.filter(customer => customer.leaderId === member.id).length)}</td><td>${member.role === 'SALE' ? money(performance?.revenue || 0) : money(netRevenue(state.orders.filter(order => order.leaderId === member.id), inCurrentPeriod))}</td>${currentAccount.role === 'ADMIN' ? `<td><div class="panel-actions"><button class="button button-small" data-edit-member="${escapeHtml(member.id)}">Chỉnh sửa</button><button class="button button-small" data-reset-member-password="${escapeHtml(member.id)}">Mật khẩu</button><button class="button button-small button-danger" data-delete-member="${escapeHtml(member.id)}">Xoá</button></div></td>` : ''}</tr>`; }).join('')}</tbody></table></div></section>`;
+    <section class="panel"><div class="panel-head"><div><div class="panel-title">Danh sách nhân sự</div><div class="panel-sub">Chức vụ, tuyến quản lý và hiệu suất hiện tại</div></div>${currentAccount.role === 'ADMIN' ? '<button class="button button-small" id="exportTeamButton">Xuất CSV</button>' : ''}</div><div class="table-wrap"><table><thead><tr><th>Nhân sự</th><th>Chức vụ</th><th>Team</th><th>Quản lý trực tiếp</th><th>Khách hàng</th><th>Doanh thu kỳ</th>${currentAccount.role === 'ADMIN' ? '<th>Thao tác</th>' : ''}</tr></thead><tbody>${members.map(member => { const performance = rows.find(row => row.id === member.id); const directSales = member.role === 'LEADER' ? STAFF.filter(person => person.role === 'SALE' && person.leaderId === member.id).length : 0; return `<tr><td><div class="cell-main">${escapeHtml(member.name)}${['l1', 's1'].includes(member.id) ? ' <span class="account-link">Tài khoản hệ thống</span>' : ''}</div><div class="cell-sub">${escapeHtml(member.phone || member.email || member.id)}</div></td><td><span class="status ${member.role === 'LEADER' ? 'status-info' : 'status-paid'}">${member.role}</span></td><td>${escapeHtml(member.teamId)}</td><td>${member.role === 'SALE' ? escapeHtml(staffName(member.leaderId)) : `${directSales} Sale trực thuộc`}</td><td>${member.role === 'SALE' ? number(performance?.customers || 0) : number(state.customers.filter(customer => customer.leaderId === member.id).length)}</td><td>${member.role === 'SALE' ? money(performance?.revenue || 0) : money(netRevenue(state.orders.filter(order => order.leaderId === member.id), inCurrentPeriod))}</td>${currentAccount.role === 'ADMIN' ? `<td><div class="panel-actions"><button class="button button-small" data-edit-member="${escapeHtml(member.id)}">Chỉnh sửa</button><button class="button button-small" data-reset-member-password="${escapeHtml(member.id)}">Mật khẩu</button><button class="button button-small button-danger" data-delete-member="${escapeHtml(member.id)}">Xoá</button></div></td>` : ''}</tr>`; }).join('')}</tbody></table></div></section>`;
 }
 
 function memberInitials(name) {
@@ -2823,13 +2847,27 @@ function allowedViews() { return visibleNavigation().flatMap(([, items]) => item
 function viewLabel(view) { return visibleNavigation().flatMap(([, items]) => items).find(item => item[0] === view)?.[1] || view; }
 
 function newCustomerCount() {
+  if (currentAccount?.role === 'ADMIN' && liveNavigationCounts) return liveNavigationCounts.data;
   return currentAccount && currentAccount.role !== 'SALE' ? scopedCustomers().filter(isPoolCustomer).length : 0;
+}
+function pendingAccountCount() {
+  if (currentAccount?.role !== 'ADMIN') return 0;
+  if (liveNavigationCounts) return liveNavigationCounts.team;
+  return (state.registeredAccounts || []).filter(account => account.role === 'UNASSIGNED' && account.active !== false).length;
+}
+function navigationBadgeCount(view) {
+  if (view === 'notifications') return unreadCount();
+  if (view === 'pool') return newCustomerCount();
+  if (view === 'distribution') return newCustomerCount() + (webhookPending || []).length;
+  if (view === 'team') return pendingAccountCount();
+  if (view === 'accept') return pendingOfferCount();
+  return 0;
 }
 
 function renderNavigation() {
   const groups = visibleNavigation();
-  $('#sideNav').innerHTML = groups.map(([group, items]) => `<div class="nav-group"><div class="nav-title">${escapeHtml(group)}</div>${items.map(([view, label, icon]) => { const badge = view === 'notifications' ? unreadCount() : view === 'pool' ? newCustomerCount() : view === 'accept' ? pendingOfferCount() : 0; const showBadge = view === 'pool' || view === 'accept' || badge > 0; return `<button type="button" class="nav-link ${currentView === view ? 'active' : ''}" data-view-link="${view}" ${currentView === view ? 'aria-current="page"' : ''}><span class="nav-icon">${icon}</span><span>${escapeHtml(label)}</span>${showBadge ? `<span class="nav-badge">${badge}</span>` : ''}</button>`; }).join('')}</div>`).join('');
-  $('#mobileNav').innerHTML = groups.flatMap(([, items]) => items).map(([view, label]) => `<option value="${view}" ${currentView === view ? 'selected' : ''}>${escapeHtml(label)}${view === 'pool' ? ` (${newCustomerCount()})` : ''}</option>`).join('');
+  $('#sideNav').innerHTML = groups.map(([group, items]) => `<div class="nav-group"><div class="nav-title">${escapeHtml(group)}</div>${items.map(([view, label, icon]) => { const badge = navigationBadgeCount(view); const showBadge = ['pool', 'accept'].includes(view) || badge > 0; return `<button type="button" class="nav-link ${currentView === view ? 'active' : ''}" data-view-link="${view}" ${currentView === view ? 'aria-current="page"' : ''}><span class="nav-icon">${icon}</span><span>${escapeHtml(label)}</span>${showBadge ? `<span class="nav-badge">${number(badge)}</span>` : ''}</button>`; }).join('')}</div>`).join('');
+  $('#mobileNav').innerHTML = groups.flatMap(([, items]) => items).map(([view, label]) => { const badge = navigationBadgeCount(view); return `<option value="${view}" ${currentView === view ? 'selected' : ''}>${escapeHtml(label)}${badge > 0 ? ` (${number(badge)})` : ''}</option>`; }).join('');
   $$('[data-view-link]').forEach(button => button.onclick = event => { event.preventDefault(); navigate(button.dataset.viewLink); });
   $('#mobileNav').onchange = event => navigate(event.target.value);
 }
@@ -2870,7 +2908,7 @@ function departmentView() {
   let body='';
   if(currentView==='customers')body=table(['Tên','Điện thoại','Email','Nguồn','Trạng thái'],state.customers.map(r=>[r.name,r.phone,r.email,r.source,r.status]));
   else if(currentView==='orders')body=table(['Mã đơn','Khách hàng','Sản phẩm','Thành tiền','Trạng thái','Thanh toán lúc'],state.orders.map(r=>[r.code,r.customerName||customerById(r.customerId)?.name,r.productName,money(r.total),r.status,r.paidAt]));
-  else if(currentView==='products')body=table(['Tên sản phẩm','SKU','Danh mục','Giá','Hoạt động'],state.products.map(r=>[r.name,r.sku,r.category,money(r.price),r.active?'Có':'Không']));
+  else if(currentView==='products')body=table(['Tên sản phẩm','SKU','Danh mục','Giá','Hoạt động'],state.products.map(r=>[r.name,r.sku,r.category,money(r.price),productAvailabilityMeta(r).status]));
   else if(currentView==='websites')body=table(['Tên','Tên miền','Trạng thái'],state.websites.map(r=>[r.name,r.domain,r.status]));
   else if(currentView==='marketing')body=table(['Nguồn','Khách hàng','Đơn hàng'],[...new Set(state.customers.map(r=>r.source||'Chưa xác định'))].map(source=>[source,state.customers.filter(r=>(r.source||'Chưa xác định')===source).length,state.orders.filter(r=>r.source===source).length]));
   else if(currentView==='revenue')body=table(['Mã đơn','Khách hàng','Loại','Thời điểm','Số tiền','Đối soát'],financialEvents(state.orders).map(r=>[r.code,r.customerName,r.label,r.occurredAt,money(r.amount),r.reconciled?'Đã đối soát':'Chưa đối soát']));
@@ -4282,7 +4320,7 @@ async function submitRegistration() {
 }
 
 async function startSession(account, restored = false, token = serverSyncToken) {
-  serverSyncToken=token;serverStateLoaded=false;serverConflict=false;serverPendingRequest=null;
+  serverSyncToken=token;serverStateLoaded=false;serverConflict=false;serverPendingRequest=null;liveNavigationCounts=null;
   state=initialState();
   currentAccount = hydrateSessionAccount(account);
   currentView = 'dashboard';
@@ -4302,6 +4340,7 @@ async function startSession(account, restored = false, token = serverSyncToken) 
   render();
   startWebhookConsumer();
   startServerSyncPolling();
+  refreshNavigationCounts();
 }
 
 async function endSession(skipFlush=false) {
@@ -4311,6 +4350,7 @@ async function endSession(skipFlush=false) {
   const logoutToken=serverSyncToken;
   if(logoutToken)fetch(`${webhookApiBase()}/api/auth/logout`,{method:'POST',headers:{Authorization:`Bearer ${logoutToken}`}}).catch(()=>{});
   serverSyncToken = '';
+  liveNavigationCounts = null;
   serverStateLoaded = false; clearTimeout(serverSaveTimer); serverSaveTimer = null;
 
   currentAccount = null;
@@ -4338,8 +4378,6 @@ function trapFocus(container, event) {
 }
 
 function bindGlobalActions() {
-  const legacy=document.createElement('button');legacy.type='button';legacy.className='text-button';legacy.textContent='Xuất dữ liệu trình duyệt cũ';legacy.onclick=exportLegacyData;$('.login-card')?.append(legacy);
-
   $('#loginTab')?.addEventListener('click', () => switchAuthMode('login'));
   $('#registerTab')?.addEventListener('click', () => switchAuthMode('register'));
   $$('[data-switch-auth]').forEach(button => button.addEventListener('click', () => switchAuthMode(button.dataset.switchAuth)));
@@ -4354,22 +4392,51 @@ function bindGlobalActions() {
   $('#forgotPasswordButton')?.addEventListener('click', () => { $('#loginError').textContent = 'Vui lòng liên hệ Admin để cấp lại mật khẩu.'; });
   $('#loginForm').onsubmit = async event => {
     event.preventDefault();
+    const submitButton = $('#loginForm button[type="submit"]');
+    if (submitButton?.disabled) return;
     const identifier = $('#loginPhone').value.trim(), phone = identifier.replace(/\D/g, ''), email = identifier.toLowerCase(), password = $('#loginPassword').value;
     const base = webhookApiBase();
+    const originalButtonText = submitButton?.innerHTML || '';
+    const setLoginError = (text, success = false) => {
+      const node = $('#loginError');
+      if (!node) return;
+      node.className = `form-error${success ? ' form-message success' : ''}`;
+      node.textContent = text;
+    };
+    const restoreSubmitButton = () => {
+      if (!submitButton) return;
+      submitButton.disabled = false;
+      submitButton.setAttribute('aria-busy', 'false');
+      submitButton.innerHTML = originalButtonText;
+    };
+    if (!identifier || !password) {
+      setLoginError('Vui lòng nhập tài khoản và mật khẩu.');
+      (!identifier ? $('#loginPhone') : $('#loginPassword'))?.focus();
+      return;
+    }
+    setLoginError('');
+    if (submitButton) { submitButton.disabled = true; submitButton.setAttribute('aria-busy', 'true'); submitButton.innerHTML = '<span class="login-spinner" aria-hidden="true"></span>Đang đăng nhập...'; }
     if (base) {
       try {
         const response = await fetch(`${base}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ identifier: identifier.includes('@') ? email : phone, password }) });
         const payload = await response.json().catch(() => ({}));
-        if (response.ok && payload.user) { await startSession(payload.user, false, payload.token); return; }
-        $('#loginError').textContent = payload.error || `Đăng nhập thất bại (HTTP ${response.status}). Kiểm tra ứng dụng Node và MySQL.`;
+        if (response.ok && payload.user) {
+          await startSession(payload.user, false, payload.token);
+          if (!currentAccount) restoreSubmitButton();
+          return;
+        }
+        setLoginError(payload.error || `Đăng nhập thất bại (HTTP ${response.status}). Kiểm tra ứng dụng Node và MySQL.`);
+        restoreSubmitButton();
         return;
       } catch (error) {
-        $('#loginError').textContent = 'Không kết nối được MySQL. Hãy kiểm tra server.';
+        setLoginError('Không kết nối được MySQL. Hãy kiểm tra server.');
+        restoreSubmitButton();
         return;
       }
 
     }
-    $('#loginError').textContent = 'Cần kết nối server để đăng nhập và lưu dữ liệu.';
+    setLoginError('Cần kết nối server để đăng nhập và lưu dữ liệu.');
+    restoreSubmitButton();
   };
   $('#registerForm')?.addEventListener('submit', event => { event.preventDefault(); submitRegistration(); });
   $('#loginPhone').oninput = updateLoginTwoFactorField;
