@@ -1383,6 +1383,17 @@ async function refreshNavigationCounts() {
     return true;
   }catch(error){return false;}finally{navigationCountsReading=false;}
 }
+function processAutomaticAssignments() {
+  if (currentAccount?.role !== 'ADMIN' || !state.leaderDistribution.enabled || state.settings.assignmentMode === 'MANUAL') return false;
+  const pending = state.customers
+    .filter(customer => customer.saleId == null && !state.dataOffers.some(offer => offer.customerId === customer.id && offer.status === 'PENDING'))
+    .sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')) || a.id.localeCompare(b.id));
+  let changed = false;
+  pending.forEach(customer => { if (autoAssignCustomer(customer)) changed = true; });
+  if (changed) saveState();
+  return changed;
+}
+
 async function syncServerState() {
   if(!serverSyncToken||!currentAccount||serverReading||serverSaveRunning||serverSaveTimer||serverConflict)return false;
   if(serverStateLoaded&&(serverPendingRequest||hasServerChanges()))return flushServerPersistence();
@@ -1393,8 +1404,10 @@ async function syncServerState() {
     const payload=await response.json();if(!response.ok)throw new Error(payload.error||'Không tải được dữ liệu');
     if(version!==serverMutationVersion||token!==serverSyncToken||(serverStateLoaded&&hasServerChanges()))return false;
     const before=stableJson(state);applyServerSnapshot(payload);
+    const assignedAutomatically = processAutomaticAssignments();
     setSaveStatus('Đã đồng bộ MySQL');
-    if(before!==stableJson(state)&&!$('#modalRoot')?.children.length&&!$('#drawerRoot')?.children.length&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName))render();
+    if((assignedAutomatically||before!==stableJson(state))&&!$('#modalRoot')?.children.length&&!$('#drawerRoot')?.children.length&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName))render();
+    if(assignedAutomatically)await flushServerPersistence();
     return true;
   }catch(error){setSaveStatus(error.message,true);return false;}finally{serverReading=false;}
 }
@@ -2156,7 +2169,13 @@ function toggleLeaderDistribution() {
   if (currentAccount.role !== 'ADMIN') return;
   state.leaderDistribution.enabled = !state.leaderDistribution.enabled;
   audit('TOGGLE_LEADER_DISTRIBUTION', 'DISTRIBUTION', state.leaderDistribution.enabled ? 'Bật' : 'Tắt');
-  saveState(); render(); toast(state.leaderDistribution.enabled ? 'Đã bật chia Leader' : 'Đã tắt nhận data tự động');
+  saveState();
+  render();
+  if (state.leaderDistribution.enabled && state.settings.assignmentMode !== 'MANUAL') {
+    const changed = processAutomaticAssignments();
+    if (changed) flushServerPersistence();
+    else toast('Đã bật tự động; chưa có data chờ hoặc chưa có Leader được bật');
+  } else toast(state.leaderDistribution.enabled ? 'Đã bật chia Leader; hãy chọn chế độ tự động' : 'Đã tắt nhận data tự động');
 }
 
 function updateDistributionMember(kind, id, enabled) {

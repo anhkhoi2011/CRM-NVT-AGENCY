@@ -343,3 +343,13 @@ test('Admin bulk allocation cascades to weighted Team recipients including Leade
  vm.runInContext(`currentAccount=hydrateSessionAccount({id:'admin',name:'Admin',role:'ADMIN'});applyServerSnapshot({state:{...initialState(),members:[{id:'lead',name:'Leader',role:'LEADER',teamId:'T',active:true},...[1,2,3,4].map(n=>({id:'s'+n,name:'Sale '+n,role:'SALE',leaderId:'lead',teamId:'T',active:true}))],customers:Array.from({length:10},(_,i)=>({id:'c'+i,name:'Customer',phone:'0900000000',createdAt:'2026-09-14 09:00',leaderId:null,teamId:null,saleId:null}))},versions:{}});state.leaderDistribution.enabledLeaderIds=['lead'];queueEmailNotification=()=>{};bulkDistributePool('BALANCED');`,c);
  assert.deepEqual(JSON.parse(vm.runInContext("JSON.stringify(Object.fromEntries(teamRecipients('lead','T').map(p=>[p.id,assignmentLoad(p)])))",c)),{lead:2,s1:2,s2:2,s3:2,s4:2});
 });
+
+
+test('Admin polling automatically assigns a new landing customer when auto mode is enabled', () => {
+ const c=frontend();
+ vm.runInContext(`currentAccount=hydrateSessionAccount({id:'admin',name:'Admin',role:'ADMIN'});applyServerSnapshot({state:{...initialState(),settings:{...initialState().settings,assignmentMode:'BALANCED'},leaderDistribution:{enabled:true,enabledLeaderIds:['lead'],weights:{lead:1},sourceRules:[]},members:[{id:'lead',name:'Leader',role:'LEADER',teamId:'T',active:true},{id:'sale',name:'Sale',role:'SALE',leaderId:'lead',teamId:'T',active:true}],customers:[{id:'landing-new',name:'Landing customer',phone:'0900000000',source:'Landing Page',createdAt:'2026-09-14 22:02',updatedAt:'2026-09-14 22:02',leaderId:null,teamId:null,saleId:null}]},versions:{}});queueEmailNotification=()=>{};`,c);
+ assert.equal(vm.runInContext('processAutomaticAssignments()',c),true);
+ assert.equal(vm.runInContext("state.customers[0].leaderId",c),'lead');
+ assert.equal(vm.runInContext("state.customers[0].teamId",c),'T');
+ assert.equal(vm.runInContext("state.customers[0].saleId === 'lead' || state.dataOffers.some(o=>o.customerId==='landing-new'&&o.saleId==='sale'&&o.status==='PENDING')",c),true);
+});
