@@ -53,6 +53,6 @@ SELECT COUNT(*) FROM webhook_events;
 
 ## Kiểm chứng tại workspace và giới hạn
 
-Chạy npm test: 25 kiểm tra tự động đã qua (transaction mô phỏng, phân quyền, replay, xung đột, phục hồi bản nháp, phân quyền tài khoản, API đăng ký, dựng view và luồng webhook). Kiểm tra cú pháp JavaScript và git diff --check cũng được thực hiện. Test dùng pool/DOM giả lập, không chứng minh hành vi thực tế của MySQL, trình duyệt, cPanel hoặc reverse proxy.
+Chạy npm test: 26 kiểm tra tự động đã qua (transaction mô phỏng, phân quyền, replay, xung đột, phục hồi bản nháp, phân quyền tài khoản, API đăng ký, dựng view và luồng webhook). Kiểm tra cú pháp JavaScript và git diff --check cũng được thực hiện. Test dùng pool/DOM giả lập, không chứng minh hành vi thực tế của MySQL, trình duyệt, cPanel hoặc reverse proxy.
 
 Workspace không có .env/kết nối MySQL hosting; chưa deploy và chưa chạy nghiệm thu hai máy trên hosting. Cần thực hiện danh sách trên trước khi coi hệ thống đã nghiệm thu vận hành. Hiện API snapshot đọc toàn bộ dữ liệu rồi lọc quyền, nên cần đo tải với lượng dữ liệu/người dùng thực tế trước khi mở rộng. Tích hợp provider/SMTP cần thông số và dịch vụ thật; 2FA chưa được triển khai trên server, nút giao diện không còn giả báo đã bật.

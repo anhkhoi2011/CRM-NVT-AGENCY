@@ -1371,6 +1371,45 @@ function exportLegacyData(){
   const data={};for(let i=0;i<localStorage.length;i++){const key=localStorage.key(i);if(key&&key.startsWith('nvt')){try{data[key]=JSON.parse(localStorage.getItem(key));}catch{data[key]=localStorage.getItem(key);}}}
   downloadRecovery({kind:'nvt-legacy-export',data},'nvt-legacy-backup.json');
 }
+function legacyProductCandidates(){
+  const found=[],seen=new Set();
+  try{
+    for(let i=0;i<localStorage.length;i++){
+      const key=localStorage.key(i);if(!key||!key.startsWith('nvt'))continue;
+      let raw;try{raw=JSON.parse(localStorage.getItem(key));}catch{continue;}
+      const sources=[raw,raw?.state,...Object.values(raw?.data||{})];
+      for(const source of sources){
+        if(!source||!Array.isArray(source.products))continue;
+        for(const item of source.products){
+          const name=cleanText(item?.name,'',200).trim(),price=Number(item?.price);
+          if(!name||!Number.isFinite(price)||price<0)continue;
+          const sourceId=cleanId(item.id),sku=cleanText(item.sku,'',60).trim();
+          const identity=sourceId||`sku:${normalize(sku)}`||`name:${normalize(name)}`;
+          if(seen.has(identity))continue;seen.add(identity);
+          found.push({id:sourceId||makeRecordId('PRD-LEGACY'),name,sku,category:cleanText(item.category,'Dịch vụ khác',100).trim()||'Dịch vụ khác',price,type:item.type==='RENTAL'?'RENTAL':'SALE',rentalMonths:item.type==='RENTAL'&&[1,3,6,12].includes(Number(item.rentalMonths))?Number(item.rentalMonths):null,active:item.active!==false,createdAt:cleanTimestamp(item.createdAt,stamp())});
+        }
+      }
+    }
+  }catch(error){return [];}
+  const existingIds=new Set(state.products.map(item=>item.id));
+  const existingSku=new Set(state.products.map(item=>normalize(item.sku)).filter(Boolean));
+  const existingNames=new Set(state.products.map(item=>normalize(item.name)));
+  return found.filter(item=>!existingIds.has(item.id)&&!(item.sku&&existingSku.has(normalize(item.sku)))&&!existingNames.has(normalize(item.name)));
+}
+async function restoreLegacyProducts(){
+  if(currentAccount?.role!=='ADMIN')return;
+  const products=legacyProductCandidates();
+  if(!products.length){toast('Không tìm thấy sản phẩm cũ chưa có trên MySQL trong trình duyệt này');return;}
+  if(!confirm(`Tìm thấy ${products.length} sản phẩm cũ. Thêm các sản phẩm này vào MySQL? Dữ liệu cũ trong trình duyệt vẫn được giữ nguyên.`))return;
+  for(const product of products){
+    state.products.push(product);
+    if(!state.productCategories.includes(product.category))state.productCategories.push(product.category);
+  }
+  PRODUCTS=state.products;audit('RESTORE_LEGACY_PRODUCTS','PRODUCTS',`${products.length} sản phẩm từ trình duyệt cũ`);saveState();render();
+  if(await flushServerPersistence()){toast(`Đã khôi phục ${products.length} sản phẩm vào MySQL`);return;}
+  // Giữ cùng requestId và bản nháp để có thể retry an toàn khi mất phản hồi sau lúc MySQL đã commit.
+  toast('Chưa xác nhận được MySQL. Giữ trang mở và bấm Đồng bộ máy chủ để thử lại');
+}
 function importRecoveryModal(){
  if(currentAccount?.role!=='ADMIN'){toast('Chỉ Admin được nhập bản sao');return;}
  openModal('Nhập bản sao dữ liệu', `<p>Chỉ thêm bản ghi có ID chưa tồn tại. Cấu hình và mật khẩu không nhập tự động. Hãy giữ file gốc để đối chiếu các mục bị bỏ qua.</p><input id="recoveryFile" type="file" accept="application/json,.json"><p id="recoveryPreview"></p><button class="button button-primary" id="confirmRecovery" disabled>Nhập vào MySQL</button>`);
@@ -2106,7 +2145,8 @@ function ordersView() {
 function productsView() {
   if (currentAccount.role !== 'ADMIN') return accessDeniedView('Chỉ Admin được quản lý danh mục và sản phẩm.');
   const rows = PRODUCTS;
-  const actions = '<button class="button" id="manageProductCategoriesButton">Danh mục</button><button class="button button-primary" id="newProductButton">+ Thêm sản phẩm</button>';
+  const legacyCount=legacyProductCandidates().length;
+  const actions = `${legacyCount?`<button class="button" id="restoreLegacyProductsButton">Khôi phục ${legacyCount} sản phẩm cũ</button>`:''}<button class="button" id="manageProductCategoriesButton">Danh mục</button><button class="button button-primary" id="newProductButton">+ Thêm sản phẩm</button>`;
   return pageHead('Sản phẩm', 'Quản lý sản phẩm bán và sản phẩm cho thuê.', actions) +
     `<section class="panel"><div class="table-wrap"><table><thead><tr><th>Sản phẩm</th><th>Mã SKU</th><th>Loại</th><th>Gói thuê</th><th>Danh mục</th><th>Đơn giá</th><th>Trạng thái</th><th></th></tr></thead><tbody>${rows.map(product => `<tr><td><div class="cell-main">${escapeHtml(product.name)}</div></td><td class="mono">${escapeHtml(product.sku || '—')}</td><td><span class="status ${product.type === 'RENTAL' ? 'status-pending' : 'status-info'}">${product.type === 'RENTAL' ? 'Thuê' : 'Bán'}</span></td><td>${product.type === 'RENTAL' ? (product.rentalMonths || '—') + ' tháng' : '—'}</td><td>${escapeHtml(product.category)}</td><td><b>${money(product.price)}</b></td><td>${product.active !== false ? '<span class="status status-active">Đang bán</span>' : '<span class="status status-pending">Ngừng bán</span>'}</td><td><button class="button button-small" data-edit-product="${escapeHtml(product.id)}">Sửa</button><button class="button button-small" data-toggle-product="${escapeHtml(product.id)}">${product.active !== false ? 'Ngừng bán' : 'Bán lại'}</button><button class="button button-small button-danger" data-delete-product="${escapeHtml(product.id)}">Xóa</button></td></tr>`).join('') || '<tr><td colspan="8"><div class="empty"><b>Chưa có sản phẩm</b><span>Admin cần tạo sản phẩm trước khi lập đơn.</span></div></td></tr>'}</tbody></table></div></section>`;
 }
@@ -4008,6 +4048,7 @@ function bindViewActions() {
   $('#profileAvatar')?.addEventListener('click', () => { if (['SALE', 'LEADER'].includes(currentAccount.role)) navigate('profile'); });
   $('#profileForm')?.addEventListener('submit', event => { event.preventDefault(); const member = activeStaff().find(person => person.id === (currentAccount.saleId || currentAccount.leaderId)); if (!member) return; const name = $('#profileDisplayName').value.trim(); if (!name) return; member.name = name; currentAccount.name = name; currentAccount.initials = name.split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase(); member.initials = currentAccount.initials; saveState(); render(); toast('Đã lưu hồ sơ'); });
   $('#profileAvatarInput')?.addEventListener('change', event => { const file = event.target.files?.[0]; const member = activeStaff().find(person => person.id === (currentAccount.saleId || currentAccount.leaderId)); if (!file || !member) return; if (file.size > 1024 * 1024) { toast('Ảnh avatar không được vượt quá 1 MB'); return; } const reader = new FileReader(); reader.onload = () => { member.avatar = String(reader.result || ''); saveState(); render(); toast('Đã cập nhật avatar'); }; reader.readAsDataURL(file); });
+  $('#restoreLegacyProductsButton')?.addEventListener('click', restoreLegacyProducts);
   $('#newProductButton')?.addEventListener('click', () => productModal());
   $('#manageProductCategoriesButton')?.addEventListener('click', productCategoriesModal);
   $$('[data-edit-product]').forEach(button => button.onclick = () => productModal(button.dataset.editProduct));

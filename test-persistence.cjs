@@ -89,8 +89,8 @@ test('Offer hết hạn được lưu bởi server',async()=>{
 function frontend(){
  const elements=new Map();const node=()=>({value:'',children:[],dataset:{},style:{setProperty(){}},classList:{add(){},remove(){},toggle(){}},addEventListener(){},append(){},prepend(){},remove(){},focus(){},setAttribute(){},querySelectorAll(){return [];}});
  const document={readyState:'loading',activeElement:{},documentElement:node(),body:node(),addEventListener(){},createElement:node,querySelector(q){if(!elements.has(q))elements.set(q,node());return elements.get(q);},querySelectorAll(){return [];}};
- const store={getItem(){return null;},setItem(){},removeItem(){},length:0};
- const context={document,window:{addEventListener(){},matchMedia(){return {matches:false};},location:{protocol:'http:',origin:'http://localhost:4173',hostname:'localhost'}},location:{protocol:'http:',origin:'http://localhost:4173',hostname:'localhost'},localStorage:store,sessionStorage:store,navigator:{},crypto:require('node:crypto').webcrypto,structuredClone,console,URL,Blob,Intl,TextEncoder,setTimeout:()=>1,clearTimeout(){},setInterval:()=>1,clearInterval(){},fetch:async()=>({ok:false,json:async()=>({error:'offline'})})};
+ const values=new Map(),store={getItem(key){return values.has(key)?values.get(key):null;},setItem(key,value){values.set(key,String(value));},removeItem(key){values.delete(key);},key(index){return [...values.keys()][index]??null;}};Object.defineProperty(store,'length',{get(){return values.size;}});
+ const context={document,window:{addEventListener(){},matchMedia(){return {matches:false};},location:{protocol:'http:',origin:'http://localhost:4173',hostname:'localhost'},confirm:()=>true},location:{protocol:'http:',origin:'http://localhost:4173',hostname:'localhost'},localStorage:store,sessionStorage:store,navigator:{},crypto:require('node:crypto').webcrypto,structuredClone,console,URL,Blob,Intl,TextEncoder,confirm:()=>true,setTimeout:()=>1,clearTimeout(){},setInterval:()=>1,clearInterval(){},fetch:async()=>({ok:false,json:async()=>({error:'offline'})})};
  vm.createContext(context);vm.runInContext(fs.readFileSync('crm.js','utf8'),context);return context;
 }
 test('Frontend khởi tạo form đăng nhập không truy cập tài khoản mẫu đã xóa',async()=>{const c=frontend();await c.initialize();assert.equal(vm.runInContext('state.members.length',c),0);});
@@ -182,4 +182,10 @@ test('Đăng nhập hiển thị đúng lỗi server thay vì luôn báo sai m�
  vm.runInContext("document.querySelector('#loginPhone').value='admin@nvtagency.top';document.querySelector('#loginPassword').value='dummy';",c);
  await vm.runInContext("document.querySelector('#loginForm').onsubmit({preventDefault(){}})",c);
  assert.equal(vm.runInContext("document.querySelector('#loginError').textContent",c),'MySQL chưa được cấu hình');
+});
+
+test('Khôi phục sản phẩm localStorage cũ không ghi đè sản phẩm đã có',async()=>{
+ const c=frontend();vm.runInContext(`localStorage.setItem(STORAGE_KEY,JSON.stringify({products:[{id:'old-1',name:'Chỉ báo Gold',sku:'GOLD',category:'Chỉ báo',price:2500000,type:'SALE'},{id:'same',name:'Đã có',sku:'EXIST',category:'CRM',price:1,type:'SALE'}]}));currentAccount={id:'admin',name:'Admin',role:'ADMIN',scope:'ALL'};applyServerSnapshot({state:{...initialState(),products:[{id:'same',name:'Đã có',sku:'EXIST',category:'CRM',price:1,type:'SALE',active:true}]},versions:{}});flushServerPersistence=async()=>true;`,c);
+ assert.equal(vm.runInContext('legacyProductCandidates().length',c),1);await c.restoreLegacyProducts();
+ assert.equal(vm.runInContext('state.products.length',c),2);assert.equal(vm.runInContext("state.products.find(p=>p.id==='old-1').price",c),2500000);assert.equal(vm.runInContext('localStorage.length',c),1);
 });
