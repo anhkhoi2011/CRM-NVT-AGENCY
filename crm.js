@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 
 const STORAGE_KEY = 'nvt-crm-production-v1';
 const SESSION_KEY = 'nvt-crm-session-v1';
@@ -77,7 +77,7 @@ const NAVIGATION = {
     ['Cá nhân', [['notifications', 'Thông báo', '●']]]
   ],
   LEADER: [
-    ['Vận hành', [['dashboard', 'Tổng quan đội', '◫'], ['customers', 'Khách hàng Team', '♙']]],
+    ['Vận hành', [['dashboard', 'Tổng quan đội', '◫'], ['customers', 'Khách hàng Team', '♙'], ['pool', 'Chia data cho Sale', '↔']] ],
     ['Kinh doanh', [['orders', 'Đơn hàng', '▤'], ['revenue', 'Doanh thu', '₫']]],
     ['Đội nhóm', [['team', 'Hiệu suất Sale', '♧'], ['care', 'Chăm sóc khách', '❦'], ['attendance', 'Điểm danh', '✓'], ['notifications', 'Thông báo', '●']]],
     ['Cá nhân', [['profile', 'Hồ sơ của tôi', '●']]]
@@ -1951,7 +1951,6 @@ function quickStatusControl(customer) {
 }
 
 function quickSaleControl(customer) {
-  if (currentAccount.role !== 'ADMIN') return customer.saleId ? `<b>${escapeHtml(staffName(customer.saleId))}</b>` : '<span class="status status-pending">Ch\u01b0a ph\u00e2n Sale</span>';
   if (currentAccount.role === 'SALE') return customer.saleId ? `<b>${escapeHtml(staffName(customer.saleId))}</b>` : '<span class="status status-pending">Chưa phân Sale</span>';
   const sales = activeStaff().filter(person => person.role === 'SALE' && (currentAccount.role === 'ADMIN' || (person.leaderId === currentAccount.leaderId && person.teamId === currentAccount.teamId)));
   return `<select class="quick-sale-select" data-quick-sale="${escapeHtml(customer.id)}" aria-label="Sale phụ trách của ${escapeHtml(customer.name)}"><option value="">— Chưa phân Sale —</option>${sales.map(sale => `<option value="${escapeHtml(sale.id)}" ${customer.saleId === sale.id ? 'selected' : ''}>${escapeHtml(sale.name)}</option>`).join('')}</select>`;
@@ -4588,3 +4587,4 @@ async function initialize() {
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initialize);
 else initialize();
+
