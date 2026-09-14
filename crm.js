@@ -124,6 +124,7 @@ function initialState() {
     imports: [],
     products: [],
     productCategories: ['Chỉ báo', 'Khóa học', 'Quảng cáo', 'Website', 'CRM', 'Automation', 'Nội dung', 'Dịch vụ khác'],
+    careGroups: [],
     attendance: [],
     dataOffers: [],
     orders: [],
@@ -1253,7 +1254,7 @@ function orderSource(source) {
 
 // Chỉ giữ dữ liệu làm việc trong RAM. Server là nguồn dữ liệu duy nhất.
 const SERVER_LISTS = ['customers','orders','products','members','registrations','customFieldDefinitions','customerFieldHistory','assignmentHistory','resubmissions','notes','imports','attendance','dataOffers','traffic','tasks','notifications','audit','websites','integrations','webhookPending'];
-const SERVER_OBJECTS = ['settings','leaderDistribution','saleDistributionByLeader','productCategories'];
+const SERVER_OBJECTS = ['settings','leaderDistribution','saleDistributionByLeader','productCategories','careGroups'];
 let serverSyncToken = '', serverSyncTimer = null, serverSaveTimer = null;
 let serverAutomationStatus = null;
 let serverSaveRunning = false, serverReading = false, serverStateLoaded = false;

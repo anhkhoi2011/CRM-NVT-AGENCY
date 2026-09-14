@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="vi">
 <head>
   <meta charset="utf-8">
@@ -109,7 +109,7 @@
 
     // Đối chiếu không phân biệt hoa/thường và không cần dấu: 'Nóng' khớp 'nong'.
     const careKey = group => group.classes.map(normalize);
-    const careClassOf = customer => customer.customFields?.customerClass || '';
+    const careClassOf = (customer, fieldId = 'customerClass') => customer.customFields?.[fieldId] || '';
 
     function careGroups(customers) {
       const configured = (typeof state !== 'undefined' && Array.isArray(state.careGroups) && state.careGroups.length) ? state.careGroups.map(group => ({...group, label: group.name || group.label, classes: group.values || group.classes || [], empty: 'Ch?a c? kh?ch trong m?c n?y.', icon: group.icon || '?', color: group.color || '#246b9b'})) : CARE_GROUPS;
@@ -118,7 +118,7 @@
         return {
           ...group,
           members: customers
-            .filter(customer => keys.includes(normalize(careClassOf(customer))))
+            .filter(customer => [].concat(careClassOf(customer, group.fieldId)).some(value => keys.includes(normalize(value))))
             .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)) || b.id.localeCompare(a.id))
         };
       });
@@ -170,7 +170,8 @@
       </section>`).join('<div style="height:14px"></div>');
 
       const tabHtml = currentAccount.role === 'LEADER' ? `<div class="segmented" style="margin-bottom:14px"><button class="segment ${activeCareTab === 'MINE' ? 'active' : ''}" type="button" data-care-tab="MINE">Của tôi</button><button class="segment ${activeCareTab === 'TEAM' ? 'active' : ''}" type="button" data-care-tab="TEAM">Cả team</button></div>` : '';
-      return pageHead('Chăm Sóc Khách', '', '') + tabHtml +
+      const actions = currentAccount.role === 'ADMIN' ? '<button class="button button-primary" id="newCareGroupButton">+ Tạo mục chăm sóc</button>' : '';
+      return pageHead('Chăm Sóc Khách', '', actions) + tabHtml +
         `<div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(190px,1fr));margin-bottom:14px">${strip}</div>` +
         `<div class="toolbar" style="border:1px solid var(--line);border-radius:12px;margin-bottom:14px;background:var(--panel)">
           <span class="data-note">${number(pool.length)} khách trong phạm vi · ${number(grouped.size)} đã vào 4 nhóm chăm sóc${query ? ` · đang lọc theo từ khóa “${escapeHtml(globalQuery)}”` : ''}</span>

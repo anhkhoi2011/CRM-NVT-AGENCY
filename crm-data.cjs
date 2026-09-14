@@ -3,8 +3,8 @@
 const crypto = require('node:crypto');
 const { pool } = require('./db.js');
 const LISTS = ['customers','orders','products','members','registrations','customFieldDefinitions','customerFieldHistory','assignmentHistory','resubmissions','notes','imports','attendance','dataOffers','traffic','tasks','notifications','audit','websites','integrations','webhookPending'];
-const OBJECTS = ['settings','leaderDistribution','saleDistributionByLeader','productCategories'];
-const ADMIN_ONLY = new Set(['products','members','registrations','customFieldDefinitions','imports','traffic','websites','integrations','webhookPending','productCategories','leaderDistribution']);
+const OBJECTS = ['settings','leaderDistribution','saleDistributionByLeader','productCategories','careGroups'];
+const ADMIN_ONLY = new Set(['products','members','registrations','customFieldDefinitions','imports','traffic','websites','integrations','webhookPending','productCategories','leaderDistribution','careGroups']);
 const SCHEMA = [
  `CREATE TABLE IF NOT EXISTS crm_documents (collection VARCHAR(64) NOT NULL, id VARCHAR(96) NOT NULL, body JSON NOT NULL, deleted TINYINT NOT NULL DEFAULT 0, PRIMARY KEY(collection,id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
  `CREATE TABLE IF NOT EXISTS crm_changes (id BIGINT AUTO_INCREMENT PRIMARY KEY, request_id VARCHAR(96) NOT NULL, actor_id VARCHAR(96) NOT NULL, changes_json JSON NOT NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE KEY(request_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
