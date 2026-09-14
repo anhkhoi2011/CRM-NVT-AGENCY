@@ -3726,7 +3726,7 @@ function setAssignmentMode(mode) {
 }
 
 function bulkDistributePool(mode) {
-  if (currentAccount.role !== 'ADMIN' || !['ROUND_ROBIN', 'BALANCED'].includes(mode)) { toast('Không có quyền chia data'); return; }
+  if (!['ADMIN', 'LEADER'].includes(currentAccount.role) || !['ROUND_ROBIN', 'BALANCED'].includes(mode)) { toast('Không có quyền chia data'); return; }
   const pool = scopedCustomers().filter(isPoolCustomer).sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
   let distributed = 0;
   pool.forEach(customer => {
