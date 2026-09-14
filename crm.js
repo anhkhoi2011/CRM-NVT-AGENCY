@@ -3775,10 +3775,14 @@ function setAssignmentMode(mode) {
   if (currentAccount.role === 'ADMIN') state.settings.assignmentMode = mode;
   else state.settings.saleAssignmentModes[currentAccount.leaderId] = mode;
   audit('UPDATE_ASSIGNMENT_MODE', currentAccount.role === 'ADMIN' ? 'LEADERS' : currentAccount.leaderId, mode);
-  saveState(); render(); toast('Đã cập nhật chế độ phân data mới');
+  saveState();
+  render();
+  // Process customers already waiting whenever automatic mode is enabled.
+  if (mode !== 'MANUAL') bulkDistributePool(mode, true);
+  else toast('Đã chuyển chế độ phân data về thủ công');
 }
 
-function bulkDistributePool(mode) {
+function bulkDistributePool(mode, fromAuto = false) {
   if (!['ADMIN', 'LEADER'].includes(currentAccount.role) || !['ROUND_ROBIN', 'BALANCED'].includes(mode)) { toast('Không có quyền chia data'); return; }
   const pool = scopedCustomers().filter(isPoolCustomer).sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
   let distributed = 0;
@@ -3795,7 +3799,11 @@ function bulkDistributePool(mode) {
     }
   });
   selectedPoolIds.clear();
-  saveState(); render(); toast(distributed ? `Đã phân ${distributed} data theo chế độ ${mode === 'ROUND_ROBIN' ? 'lần lượt' : 'cân bằng'}` : 'Không có data hoặc nhân sự phù hợp để phân');
+  saveState();
+  render();
+  toast(distributed
+    ? `${fromAuto ? 'Đã tự động phân' : 'Đã phân'} ${distributed} data theo chế độ ${mode === 'ROUND_ROBIN' ? 'lần lượt' : 'cân bằng'}`
+    : (fromAuto ? 'Chưa có Leader được bật hoặc chưa có data phù hợp để tự động phân' : 'Không có data hoặc nhân sự phù hợp để phân'));
 }
 
 function createInitialTask(customer) {
