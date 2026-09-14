@@ -284,3 +284,26 @@ test('Badge counts refresh from MySQL without replacing a form that is being edi
  assert.equal(vm.runInContext("navigationBadgeCount('team')",c),2);
  assert.equal(vm.runInContext('state.customers.length',c),0);
 });
+
+
+test('Leader selects a Sale from the customer table and persists the pending assignment', async () => {
+ const f=fixture(),c=frontend(),lead={id:'lead',name:'Leader',role:'LEADER',teamId:'T'};
+ f.db.users.push({id:'lead',name:'Leader',role:'LEADER',team_id:'T',active:1},{id:'sale',name:'Sale One',phone:'0900000001',role:'SALE',team_id:'T',leader_id:'lead',active:1},{id:'sale2',name:'Sale Two',role:'SALE',team_id:'T',leader_id:'lead',active:1},{id:'other',name:'Other Team',role:'SALE',team_id:'OTHER',leader_id:'other-lead',active:1});
+ await f.api.write(admin,'seed-manual',[change('customers',{...customer,saleId:null})]);
+ c.snapshot=await f.api.read(lead);c.lead=lead;
+ c.window.scrollTo=()=>{};
+ vm.runInContext("currentAccount=hydrateSessionAccount(lead);serverSyncToken='token';applyServerSnapshot(snapshot);currentView='customers';queueEmailNotification=()=>{};",c);
+ const html=vm.runInContext('customersView()',c);
+ assert.match(html,/<td class="col-staff"><select[^>]*data-quick-sale="c1"/);
+ assert.match(html,/value="sale"/);assert.doesNotMatch(html,/value="other"/);
+ c.fetch=async(url,options)=>{const body=JSON.parse(options.body);const result=await f.api.write(lead,body.requestId,body.changes);return {ok:true,json:async()=>result};};
+ assert.equal(await c.quickAssignSale('c1','sale'),true);
+ let saved=await f.api.read(lead);
+ assert.equal(saved.state.dataOffers.filter(o=>o.status==='PENDING').length,1);
+ assert.equal(saved.state.dataOffers[0].saleId,'sale');assert.equal(saved.state.customers[0].saleId,null);
+ assert.match(vm.runInContext('customersView()',c),/<option value="sale" selected>/);
+ assert.equal(await c.quickAssignSale('c1','sale'),true);
+ assert.equal((await f.api.read(lead)).state.dataOffers.length,1);
+ assert.equal(await c.quickAssignSale('c1','other'),false);
+ assert.equal((await f.api.read(lead)).state.dataOffers[0].saleId,'sale');
+});
