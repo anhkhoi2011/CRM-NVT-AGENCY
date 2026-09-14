@@ -351,8 +351,9 @@ function sanitizeSaleDistribution(input, members, defaults) {
     const saleIds = new Set(sales.map(sale => sale.id));
     const source = value[leader.id] && typeof value[leader.id] === 'object' ? value[leader.id] : defaults[leader.id] || {};
     output[leader.id] = {
+      leaderEnabled: source.leaderEnabled !== false,
       enabledSaleIds: Array.from(new Set((Array.isArray(source.enabledSaleIds) ? source.enabledSaleIds : sales.map(sale => sale.id)).filter(id => saleIds.has(id)))),
-      weights: Object.fromEntries(sales.map(sale => [sale.id, cleanNumber(Number(source.weights?.[sale.id]), 1, 1, 100, true)]))
+      weights: Object.fromEntries([...sales, leader].map(sale => [sale.id, cleanNumber(Number(source.weights?.[sale.id]), 1, 1, 100, true)]))
     };
   });
   return output;
@@ -390,7 +391,7 @@ function sanitizeSettings(settings, defaults) {
     attendanceIp: cleanText(input.attendanceIp, defaults.attendanceIp || '', 200),
     // Migration một lần: giờ chốt cũ 08:30 nâng lên 09:00 theo quy định mới.
     attendanceDeadline: (() => { const raw = cleanClockTime(input.attendanceDeadline, defaults.attendanceDeadline || '09:00'); return raw === '08:30' ? '09:00' : raw; })(),
-    acceptTimeoutHours: cleanNumber(input.acceptTimeoutHours, defaults.acceptTimeoutHours || 8, 1, 72, true),
+    acceptTimeoutHours: 24,
     notifyAccountCreated: input.notifyAccountCreated !== false,
     notifyDataReceived: input.notifyDataReceived !== false,
     emailNotificationsEnabled: input.emailNotificationsEnabled !== false
@@ -1512,7 +1513,7 @@ function scopedCustomers() {
   });
 }
 
-/* Luật hết hạn nhận data đã chuyển sang offer: quá settings.acceptTimeoutHours thì
+/* Luật hết hạn nhận data đã chuyển sang offer: quá 24 giờ thì
    khách GIỮ leader/team và saleId null (trả về leader đã chia), không đẩy lên phễu
    Admin. Hàm cũ được giữ làm alias để không còn hai luật song song. */
 function reclaimExpiredSaleData() {
@@ -1548,7 +1549,7 @@ function canViewCustomer(customer) { return !!customer && scopedCustomers().incl
 function isPoolCustomer(customer) {
   if (!customer || !currentAccount) return false;
   if (currentAccount.role === 'ADMIN') return customer.saleId === null && customer.leaderId === null && customer.teamId === null;
-  return currentAccount.role === 'LEADER' && customer.saleId === null && customer.leaderId === currentAccount.leaderId && customer.teamId === currentAccount.teamId;
+  return currentAccount.role === 'LEADER' && !state.dataOffers.some(o=>o.customerId===customer.id&&o.status==='PENDING') && customer.saleId === null && customer.leaderId === currentAccount.leaderId && customer.teamId === currentAccount.teamId;
 }
 function slaBreachedCustomers() {
   const overdueCustomerIds = new Set(scopedTasks().filter(task => task.slaBased && task.status === 'OVERDUE').map(task => task.customerId));
@@ -1956,14 +1957,15 @@ function quickSaleControl(customer) {
   const selectedId = customer.saleId || pending?.saleId || '';
   const canAssign = currentAccount.role === 'ADMIN' || (currentAccount.role === 'LEADER' && customer.leaderId === currentAccount.leaderId && customer.teamId === currentAccount.teamId);
   if (!canAssign) return customer.saleId ? `<b>${escapeHtml(staffName(customer.saleId))}</b>` : '<span class="status status-pending">Chưa phân Sale</span>';
-  const sales = activeStaff().filter(person => person.role === 'SALE' && (currentAccount.role === 'ADMIN' || (person.leaderId === currentAccount.leaderId && person.teamId === currentAccount.teamId)));
-  return `<select class="quick-sale-select" data-quick-sale="${escapeHtml(customer.id)}" aria-label="Sale phụ trách của ${escapeHtml(customer.name)}" ${sales.length ? '' : 'disabled'}><option value="" disabled ${selectedId ? '' : 'selected'}>${sales.length ? '— Chọn Sale —' : 'Chưa có Sale trong Team'}</option>${selectedId && !sales.some(sale => sale.id === selectedId) ? `<option value="${escapeHtml(selectedId)}" selected disabled>${escapeHtml(staffName(selectedId))}</option>` : ''}${sales.map(sale => `<option value="${escapeHtml(sale.id)}" ${selectedId === sale.id ? 'selected' : ''}>${escapeHtml(sale.name)}${sale.phone ? ` · ${escapeHtml(sale.phone)}` : ''}</option>`).join('')}</select>${pending && !customer.saleId ? '<div class="cell-sub">Chờ Sale nhận data</div>' : ''}`;
+  const sales = customer.leaderId ? teamRecipients(customer.leaderId, customer.teamId) : activeStaff().filter(p=>p.role==='SALE');
+  return `<select class="quick-sale-select" data-quick-sale="${escapeHtml(customer.id)}" aria-label="Sale phụ trách của ${escapeHtml(customer.name)}" ${sales.length ? '' : 'disabled'}><option value="" ${selectedId ? '' : 'selected'}>${sales.length ? '— Chưa chọn Sale —' : 'Chưa có Sale trong Team'}</option>${selectedId && !sales.some(sale => sale.id === selectedId) ? `<option value="${escapeHtml(selectedId)}" selected disabled>${escapeHtml(staffName(selectedId))}</option>` : ''}${sales.map(sale => `<option value="${escapeHtml(sale.id)}" ${selectedId === sale.id ? 'selected' : ''}>${escapeHtml(sale.name)}${sale.teamLeaderRecipient ? ' (Leader)' : ''}</option>`).join('')}</select>${pending && !customer.saleId ? '<div class="cell-sub">Chờ Sale nhận data</div>' : ''}`;
 }
 
 async function quickAssignSale(customerId, saleId) {
   if (!['ADMIN', 'LEADER'].includes(currentAccount.role)) return false;
   const customer = customerById(customerId);
-  const sale = activeStaff().find(person => person.id === saleId && person.role === 'SALE');
+  if (!saleId) return clearManualRecipient(customer);
+  const sale = customer?.leaderId ? teamRecipients(customer.leaderId, customer.teamId).find(p=>p.id===saleId) : activeStaff().find(p=>p.id===saleId&&p.role==='SALE');
   if (!customer || !sale || (currentAccount.role === 'LEADER' && (customer.leaderId !== currentAccount.leaderId || customer.teamId !== currentAccount.teamId || sale.leaderId !== currentAccount.leaderId || sale.teamId !== currentAccount.teamId))) { toast('Sale hoặc khách hàng nằm ngoài phạm vi Team'); render(); return false; }
   const pending = state.dataOffers.find(o => o.customerId === customer.id && o.status === 'PENDING');
   if (customer.saleId === sale.id || pending?.saleId === sale.id) return true;
@@ -1972,6 +1974,16 @@ async function quickAssignSale(customerId, saleId) {
   const saved = await flushServerPersistence();
   toast(saved ? `Đã lưu phân công cho ${sale.name}` : 'Chưa lưu được phân công. Giữ trang mở để thử lại.');
   return saved;
+}
+
+async function clearManualRecipient(customer) {
+  if (!customer || !['ADMIN','LEADER'].includes(currentAccount.role) || (currentAccount.role==='LEADER' && (customer.leaderId!==currentAccount.leaderId || customer.teamId!==currentAccount.teamId))) return false;
+  const before=assignmentSnapshot(customer);
+  closeOpenCustomerTasks(customer,'UNASSIGNED');
+  state.dataOffers.forEach(o=>{if(o.customerId===customer.id&&o.status==='PENDING'){o.status='EXPIRED';o.resolvedAt=stamp();}});
+  customer.saleId=null;customer.saleAcceptedAt=null;customer.updatedAt=stamp();
+  recordAssignmentChange(customer,before,'Leader chọn lại người phụ trách','MANUAL',true);
+  saveState();renderPreservingCustomerScroll();return flushServerPersistence();
 }
 
 function customFieldInput(field, value) {
@@ -2078,8 +2090,25 @@ function customersView() {
     `<section class="panel customer-table-panel"><div class="toolbar"><input id="customerSearch" type="search" placeholder="Ten, SDT, email, Level, ghi chu..." value="${escapeHtml(globalQuery)}"><select id="customerStatusFilter"><option value="ALL">Tất cả trạng thái</option>${Object.entries(STATUS_META).map(([key, meta]) => `<option value="${key}" ${customerStatusFilter === key ? 'selected' : ''}>${escapeHtml(meta.label)}</option>`).join('')}</select>${customerOwnerOptions()}<span class="spacer"></span><span class="data-note">${customers.length} khách · ${tableFields.length} cột nghiệp vụ</span></div><div class="table-wrap"><table class="customer-data-table"><thead><tr><th>Ngày data</th><th>Khách hàng</th>${sourceHeader}<th>Team / Leader</th><th>Sale phụ trách</th>${tableFields.map(field => `<th>${escapeHtml(field.label)}</th>`).join('')}<th>Trạng thái</th><th>Ghi chú mới nhất</th><th></th></tr></thead><tbody>${customers.map(customer => { const leader = STAFF.find(person => person.id === customer.leaderId); const dataDate = dataDateParts(customer.createdAt); return `<tr><td class="data-date-cell"><b>${escapeHtml(dataDate.date)}</b><small>${escapeHtml(dataDate.time)}</small></td><td><div class="cell-main">${escapeHtml(customer.name)}</div><div class="cell-sub">${currentAccount.role === 'SALE' && !customer.saleAcceptedAt ? (() => { const offer = state.dataOffers.find(o => o.customerId === customer.id && o.saleId === currentAccount.saleId && o.status === 'PENDING'); return offer ? `<span class="status status-pending">⏱ còn ${Math.floor(offerMinutesLeft(offer) / 60)}h${offerMinutesLeft(offer) % 60}p</span>` : '<span class="status status-pending">Chờ nhận data</span>'; })() : escapeHtml(customer.phone)}</div></td>${sourceCell(customer)}<td><div class="cell-main">${escapeHtml(leader?.name || 'Chưa phân Leader')}</div>${leader ? `<div class="cell-sub">Team ${escapeHtml(customer.teamId)}</div>` : ''}</td><td class="col-staff">${quickSaleControl(customer)}</td>${tableFields.map(field => `<td>${customFieldTableControl(field, customer)}</td>`).join('')}<td>${quickStatusControl(customer)}</td><td><div class="cell-main mono">${escapeHtml(customer.updatedAt.slice(5))}</div><div class="cell-sub note-preview">${escapeHtml(customer.note)}</div></td><td>${currentAccount.role === 'SALE' && !customer.saleAcceptedAt ? `<button class="button button-small button-primary" data-accept-data="${escapeHtml(customer.id)}">Nhận data</button>` : ''}<button class="button button-small" data-open-customer="${escapeHtml(customer.id)}">Chi tiết</button></td></tr>`; }).join('') || `<tr><td colspan="${columnCount}"><div class="empty"><b>Không tìm thấy khách hàng</b><span>Hãy thử từ khóa hoặc bộ lọc khác.</span></div></td></tr>`}</tbody></table></div></section>${currentAccount.role === 'ADMIN' ? `<section class="panel" style="margin-top:14px"><div class="panel-head"><div><div class="panel-title">Lịch sử kết nối & cập nhật data</div></div><button class="button button-small" id="importCustomersSecondaryButton">+ Nguồn data</button></div><div class="table-wrap"><table><thead><tr><th>Thời gian</th><th>Nguồn</th><th>File / Endpoint</th><th>Số bản ghi</th><th>Người thực hiện</th><th>Trạng thái</th></tr></thead><tbody>${state.imports.slice(0, 8).map(item => `<tr><td class="mono">${escapeHtml(item.importedAt)}</td><td><b>${escapeHtml(item.source)}</b></td><td>${escapeHtml(item.filename)}</td><td>${number(item.records)}</td><td>${escapeHtml(item.actor)}</td><td>${item.status === 'SUCCESS' ? '<span class="status status-paid">Thành công</span>' : '<span class="status status-cancelled">Thất bại</span>'}</td></tr>`).join('')}</tbody></table></div></section>` : ''}`;
 }
 
+// Ty trong rieng trong Team, khong thay doi ty trong Admin chia xuong Leader.
+function leaderRecipientSettings() {
+  const people=teamRecipients(currentAccount.leaderId,currentAccount.teamId);
+  const config=state.saleDistributionByLeader[currentAccount.leaderId]||{};
+  return pageHead('Tỷ trọng nhận data trong Team','Tỷ trọng 2 nhận gấp đôi tỷ trọng 1. Leader cũng tham gia nhận data.','') + `<section class="panel"><div class="panel-body">${people.map(p=>`<div class="field-manager-row"><b>${escapeHtml(p.name)}${p.teamLeaderRecipient?' (Leader)':''}</b><label>Tỷ trọng<input type="number" min="1" max="100" value="${config.weights?.[p.id]||1}" data-team-weight="${escapeHtml(p.id)}"></label><label><input type="checkbox" data-team-enabled="${escapeHtml(p.id)}" ${(p.teamLeaderRecipient?config.leaderEnabled!==false:!config.enabledSaleIds||config.enabledSaleIds.includes(p.id))?'checked':''}>Nhận data</label></div>`).join('')}<p>Sale có 24 giờ để nhận data. Quá hạn, ô phụ trách để trống để Leader phân lại tại Khách hàng Team.</p></div></section>`;
+}
+function updateTeamRecipient(id, field, value) {
+  if(currentAccount.role!=='LEADER')return;
+  const people=teamRecipients(currentAccount.leaderId,currentAccount.teamId),person=people.find(p=>p.id===id);if(!person)return;
+  const config=state.saleDistributionByLeader[currentAccount.leaderId] ||= {enabledSaleIds:people.filter(p=>!p.teamLeaderRecipient).map(p=>p.id),weights:{},leaderEnabled:true};
+  config.weights ||= {};
+  if(field==='weight')config.weights[id]=Math.max(1,Math.min(100,Math.round(Number(value)||1)));
+  else if(person.teamLeaderRecipient)config.leaderEnabled=value;
+  else {const ids=new Set(config.enabledSaleIds||people.filter(p=>!p.teamLeaderRecipient).map(p=>p.id));value?ids.add(id):ids.delete(id);config.enabledSaleIds=[...ids];}
+  saveState();render();
+}
 function poolView() {
   if (currentAccount.role === 'SALE') return accessDeniedView('Khách mới chỉ dành cho Admin và Leader.');
+  if(currentAccount.role==='LEADER') return leaderRecipientSettings();
   const pool = scopedCustomers().filter(isPoolCustomer).sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
   const targets = currentAccount.role === 'ADMIN'
     ? assignmentCandidates({ leaderId: null })
@@ -2098,7 +2127,7 @@ function distributionView() {
   const leaders = activeStaff().filter(member => member.role === 'LEADER').sort((a, b) => a.id.localeCompare(b.id));
   if (!leaders.some(leader => leader.id === distributionLeaderId)) distributionLeaderId = leaders[0]?.id || '';
   const selectedLeader = leaders.find(leader => leader.id === distributionLeaderId);
-  const sales = selectedLeader ? activeStaff().filter(member => member.role === 'SALE' && member.leaderId === selectedLeader.id).sort((a, b) => a.id.localeCompare(b.id)) : [];
+  const sales = selectedLeader ? teamRecipients(selectedLeader.id, selectedLeader.teamId) : [];
   const enabledLeaders = new Set(state.leaderDistribution.enabledLeaderIds);
   const saleConfig = state.saleDistributionByLeader[distributionLeaderId] || { enabledSaleIds: [], weights: {} };
   const enabledSales = new Set(saleConfig.enabledSaleIds);
@@ -2118,7 +2147,7 @@ function distributionView() {
   } else if (distributionTab === 'LEADERS') {
     body = `<section class="panel"><div class="panel-head"><div><div class="panel-title">Leader nhận data</div><div class="panel-sub">Bật/tắt và đặt tỷ trọng riêng cho từng Leader</div></div></div><div class="field-manager">${leaders.map(leader => { const saleCount = activeStaff().filter(member => member.role === 'SALE' && member.leaderId === leader.id).length; return `<div class="field-manager-row"><div class="avatar">${escapeHtml(leader.initials)}</div><div><b>${escapeHtml(leader.name)}</b><small>${escapeHtml(leader.teamId)} · ${saleCount} Sale · đang phụ trách ${assignmentLoad(leader)} khách</small></div><label class="weight-control">Tỷ trọng<input class="weight-input" type="number" min="1" max="100" value="${state.leaderDistribution.weights[leader.id] || 1}" data-distribution-weight="LEADER:${escapeHtml(leader.id)}"></label><label class="member-switch"><input type="checkbox" data-distribution-member="LEADER:${escapeHtml(leader.id)}" ${enabledLeaders.has(leader.id) ? 'checked' : ''}><span>${enabledLeaders.has(leader.id) ? 'Đang nhận' : 'Tạm tắt'}</span></label></div>`; }).join('') || '<div class="empty"><b>Chưa có Leader</b><span>Thêm Leader tại mục Đội ngũ trước.</span></div>'}</div></section>`;
   } else {
-    body = `<section class="panel"><div class="panel-head"><div><div class="panel-title">Sale nhận data trong từng Team</div><div class="panel-sub">Leader chỉ có thể chia cho Sale đã được Admin bật ở đây</div></div><select id="distributionLeaderSelect">${leaders.map(leader => `<option value="${escapeHtml(leader.id)}" ${leader.id === distributionLeaderId ? 'selected' : ''}>${escapeHtml(leader.name)} · ${escapeHtml(leader.teamId)}</option>`).join('')}</select></div><div class="field-manager">${sales.map(sale => `<div class="field-manager-row"><div class="avatar">${escapeHtml(sale.initials)}</div><div><b>${escapeHtml(sale.name)}</b><small>${escapeHtml(sale.teamId)} · đang phụ trách ${assignmentLoad(sale)} khách</small></div><label class="weight-control">Tỷ trọng<input class="weight-input" type="number" min="1" max="100" value="${saleConfig.weights[sale.id] || 1}" data-distribution-weight="SALE:${escapeHtml(sale.id)}"></label><label class="member-switch"><input type="checkbox" data-distribution-member="SALE:${escapeHtml(sale.id)}" ${enabledSales.has(sale.id) ? 'checked' : ''}><span>${enabledSales.has(sale.id) ? 'Đang nhận' : 'Tạm tắt'}</span></label></div>`).join('') || '<div class="empty"><b>Leader chưa có Sale</b><span>Thêm hoặc điều chuyển Sale tại mục Đội ngũ.</span></div>'}</div></section>`;
+    body = `<section class="panel"><div class="panel-head"><div><div class="panel-title">Sale nhận data trong từng Team</div><div class="panel-sub">Leader chỉ có thể chia cho Sale đã được Admin bật ở đây</div></div><select id="distributionLeaderSelect">${leaders.map(leader => `<option value="${escapeHtml(leader.id)}" ${leader.id === distributionLeaderId ? 'selected' : ''}>${escapeHtml(leader.name)} · ${escapeHtml(leader.teamId)}</option>`).join('')}</select></div><div class="field-manager">${sales.map(sale => `<div class="field-manager-row"><div class="avatar">${escapeHtml(sale.initials)}</div><div><b>${escapeHtml(sale.name)}</b><small>${escapeHtml(sale.teamId)} · đang phụ trách ${assignmentLoad(sale)} khách</small></div><label class="weight-control">Tỷ trọng<input class="weight-input" type="number" min="1" max="100" value="${saleConfig.weights[sale.id] || 1}" data-distribution-weight="SALE:${escapeHtml(sale.id)}"></label><label class="member-switch"><input type="checkbox" data-distribution-member="SALE:${escapeHtml(sale.id)}" ${(sale.teamLeaderRecipient ? saleConfig.leaderEnabled !== false : enabledSales.has(sale.id)) ? 'checked' : ''}><span>${(sale.teamLeaderRecipient ? saleConfig.leaderEnabled !== false : enabledSales.has(sale.id)) ? 'Đang nhận' : 'Tạm tắt'}</span></label></div>`).join('') || '<div class="empty"><b>Leader chưa có Sale</b><span>Thêm hoặc điều chuyển Sale tại mục Đội ngũ.</span></div>'}</div></section>`;
   }
   return pageHead('Data', 'Kiểm soát tuyến phân data từ nguồn vào Leader, rồi từ Leader xuống Sale; lịch sử phụ trách cũ luôn được giữ.') + `<div class="distribution-tabs">${tabs.map(([id, label]) => `<button class="distribution-tab ${distributionTab === id ? 'active' : ''}" data-distribution-tab="${id}">${label}</button>`).join('')}</div>${body}`;
 }
@@ -2137,9 +2166,11 @@ function updateDistributionMember(kind, id, enabled) {
     enabled ? ids.add(id) : ids.delete(id);
     state.leaderDistribution.enabledLeaderIds = Array.from(ids);
   } else {
-    const sale = activeStaff().find(member => member.id === id && member.role === 'SALE');
+    const raw = activeStaff().find(member => member.id === id);
+    const sale = raw?.role === 'LEADER' ? {...raw,leaderId:raw.id,teamLeaderRecipient:true} : raw;
     if (!sale) return;
     const config = state.saleDistributionByLeader[sale.leaderId] || (state.saleDistributionByLeader[sale.leaderId] = { enabledSaleIds: [], weights: {} });
+    if (sale.teamLeaderRecipient) config.leaderEnabled = enabled;
     const ids = new Set(config.enabledSaleIds);
     enabled ? ids.add(id) : ids.delete(id);
     config.enabledSaleIds = Array.from(ids);
@@ -2153,7 +2184,8 @@ function updateDistributionWeight(kind, id, value) {
   const weight = Math.max(1, Math.min(100, Math.round(Number(value) || 1)));
   if (kind === 'LEADER') state.leaderDistribution.weights[id] = weight;
   else {
-    const sale = activeStaff().find(member => member.id === id && member.role === 'SALE');
+    const raw = activeStaff().find(member => member.id === id);
+    const sale = raw?.role === 'LEADER' ? {...raw,leaderId:raw.id,teamLeaderRecipient:true} : raw;
     if (!sale) return;
     const config = state.saleDistributionByLeader[sale.leaderId] || (state.saleDistributionByLeader[sale.leaderId] = { enabledSaleIds: [], weights: {} });
     config.weights[id] = weight;
@@ -2701,7 +2733,7 @@ function attendanceView() {
       `<section class="panel"><div class="panel-body">${mine ? `<div class="kpi"><strong>${escapeHtml(mine.at.slice(11))}</strong><small>${mine.late ? `Đi muộn ${mine.lateMinutes || 0} phút` : 'Đúng giờ'} · ${mine.ipValid ? 'Đúng wifi' : 'Ngoài wifi'} · IP ${escapeHtml(mine.ip)}</small></div>` : '<div class="empty"><b>Chưa điểm danh</b><span>Bấm nút Điểm danh hôm nay ở góc phải trên.</span></div>'}</div></section>` +
       `<section class="panel" style="margin-top:14px"><div class="panel-head"><div><div class="panel-title">Lịch điểm danh 3 tháng</div><div class="panel-sub">Sau ${escapeHtml(state.settings.attendanceDeadline || '09:00')} sẽ bị gắn nhãn Đi muộn · Cuối tuần tô xám</div></div></div><div class="panel-body" style="padding:0">${attendanceCalendarHtml(myAccountId)}</div></section>`;
   }
-  const config = currentAccount.role === 'ADMIN' ? `<section class="panel" style="margin-bottom:14px"><div class="panel-body"><div class="form-grid"><label class="form-field">IP Wi-Fi cho phép · phân cách dấu phẩy<input id="attendanceIp" value="${escapeHtml(state.settings.attendanceIp || '')}" placeholder="Ví dụ 192.168.1.10, 113.161.2.3"></label><label class="form-field">Giờ vào làm · quá giờ báo trễ<input id="attendanceDeadline" type="time" value="${escapeHtml(state.settings.attendanceDeadline || '09:00')}"></label><label class="form-field">Số giờ chờ Sale nhận data<input id="acceptTimeoutHours" type="number" min="1" max="72" step="1" value="${escapeHtml(String(state.settings.acceptTimeoutHours || 8))}"></label></div><button class="button button-primary" id="saveAttendanceSettings" style="margin-top:12px">Lưu quy định</button></div></section>` : '';
+  const config = currentAccount.role === 'ADMIN' ? `<section class="panel" style="margin-bottom:14px"><div class="panel-body"><div class="form-grid"><label class="form-field">IP Wi-Fi cho phép · phân cách dấu phẩy<input id="attendanceIp" value="${escapeHtml(state.settings.attendanceIp || '')}" placeholder="Ví dụ 192.168.1.10, 113.161.2.3"></label><label class="form-field">Giờ vào làm · quá giờ báo trễ<input id="attendanceDeadline" type="time" value="${escapeHtml(state.settings.attendanceDeadline || '09:00')}"></label><label class="form-field">Số giờ chờ Sale nhận data<input id="acceptTimeoutHours" type="number" value="24" readonly></label></div><button class="button button-primary" id="saveAttendanceSettings" style="margin-top:12px">Lưu quy định</button></div></section>` : '';
   const checkedIds = new Set(rows.map(item => item.accountId));
   const missing = activeStaff().filter(person => ['SALE', 'LEADER'].includes(person.role) && (currentAccount.role === 'ADMIN' || (person.teamId === currentAccount.teamId && (person.leaderId === currentAccount.leaderId || person.id === currentAccount.leaderId))) && !checkedIds.has(person.id));
   const actionCell = person => currentAccount.role === 'ADMIN' ? `<td><button class="button button-small" type="button" data-attendance-detail="${escapeHtml(person.id)}">Chi ti&#7871;t</button></td>` : '';
@@ -2750,9 +2782,8 @@ function checkInToday() {
 function saveAttendanceSettings() {
   if (currentAccount.role !== 'ADMIN') { toast('FORBIDDEN · chỉ Admin được đổi quy định điểm danh'); return; }
   const deadline = cleanClockTime($('#attendanceDeadline')?.value, '');
-  const hours = Number($('#acceptTimeoutHours')?.value);
+  const hours = 24;
   if (!deadline) { toast('Giờ vào làm không hợp lệ'); return; }
-  if (!Number.isInteger(hours) || hours < 1 || hours > 72) { toast('Số giờ chờ nhận data phải từ 1 đến 72'); return; }
   state.settings.attendanceIp = cleanText($('#attendanceIp')?.value || '', '', 200);
   state.settings.attendanceDeadline = deadline;
   state.settings.acceptTimeoutHours = hours;
@@ -3531,14 +3562,17 @@ function newOrderModal(customerId = '') {
   };
 }
 
+// Leader tham gia chia data trong Team nhu mot nguoi phu trach.
+function teamRecipients(leaderId, teamId) {
+  return activeStaff().filter(p => p.teamId === teamId && (p.id === leaderId || (p.role === 'SALE' && p.leaderId === leaderId))).map(p => p.id === leaderId ? {...p, role:'SALE', leaderId:p.id, teamLeaderRecipient:true} : p);
+}
 function assignmentCandidates(customer) {
   if (customer.leaderId) {
-    const config = state.saleDistributionByLeader[customer.leaderId] || { enabledSaleIds: [] };
-    const enabledIds = new Set(config.enabledSaleIds);
-    return activeStaff().filter(person => person.role === 'SALE' && person.leaderId === customer.leaderId && person.teamId === customer.teamId && enabledIds.has(person.id)).sort((a, b) => a.id.localeCompare(b.id));
+    const config = state.saleDistributionByLeader[customer.leaderId];
+    return teamRecipients(customer.leaderId, customer.teamId).filter(p => p.teamLeaderRecipient ? config?.leaderEnabled !== false : !Array.isArray(config?.enabledSaleIds) || config.enabledSaleIds.includes(p.id)).sort((a,b)=>a.id.localeCompare(b.id));
   }
   const enabledIds = new Set(state.leaderDistribution.enabledLeaderIds);
-  return activeStaff().filter(person => person.role === 'LEADER' && enabledIds.has(person.id)).sort((a, b) => a.id.localeCompare(b.id));
+  return activeStaff().filter(p=>p.role==='LEADER'&&enabledIds.has(p.id)).sort((a,b)=>a.id.localeCompare(b.id));
 }
 
 function assignmentModeFor(customer) {
@@ -3547,7 +3581,7 @@ function assignmentModeFor(customer) {
 
 function assignmentLoad(person) {
   if (person.role === 'LEADER') return state.customers.filter(customer => customer.leaderId === person.id).length;
-  return state.customers.filter(customer => customer.saleId === person.id && customer.leaderId === person.leaderId && customer.teamId === person.teamId).length;
+  return state.customers.filter(customer => customer.saleId === person.id && customer.leaderId === person.leaderId && customer.teamId === person.teamId).length + state.dataOffers.filter(o=>o.saleId===person.id&&o.status==='PENDING').length;
 }
 
 function assignmentWeight(person) {
@@ -3602,7 +3636,7 @@ function offerOrAssignSale(customer, target, reason, source, previous, direct = 
     customer.leaderId = target.leaderId;
     customer.teamId = target.teamId;
     // Sale tự tạo khách thì coi như đã nhận ngay; đường gán thẳng khác vẫn để sale bấm "Nhận data" trong bảng.
-    if (target.id === currentAccount?.saleId) customer.saleAcceptedAt = stamp();
+    if (target.teamLeaderRecipient || target.id === currentAccount?.saleId) customer.saleAcceptedAt = stamp();
     createInitialTask(customer);
     state.notifications.unshift({ id: `NT-${Date.now()}-${customer.id}`, role: 'OWN', saleId: target.id, title: 'Bạn vừa nhận data mới', text: `${customer.name} · ${customer.phone}`, at: stamp(), readBy: [] });
     queueEmailNotification(
@@ -3616,7 +3650,7 @@ function offerOrAssignSale(customer, target, reason, source, previous, direct = 
     recordAssignmentChange(customer, previous, reason, source);
     return true;
   }
-  const hours = state.settings.acceptTimeoutHours || 8;
+  const hours = 24;
   // Khách chỉ được có một lời mời đang chờ: leader chia lại cho sale khác thì huỷ lời mời cũ.
   state.dataOffers.forEach(offer => {
     if (offer.status === 'PENDING' && offer.customerId === customer.id) { offer.status = 'EXPIRED'; offer.resolvedAt = stamp(); }
@@ -3648,7 +3682,7 @@ function pendingOfferCount() {
 }
 
 function offerDeadlineMs() {
-  return (state.settings.acceptTimeoutHours || 8) * 3600000;
+  return (24) * 3600000;
 }
 
 function offerMinutesLeft(offer) {
@@ -3660,7 +3694,7 @@ function offerMinutesLeft(offer) {
 function acceptQueueView() {
   if (currentAccount.role !== 'SALE') return accessDeniedView('Hàng chờ nhận data chỉ dành cho Sale.');
   const offers = pendingOffersForMe();
-  const hours = state.settings.acceptTimeoutHours || 8;
+  const hours = 24;
   return pageHead('Data chờ nhận', '', '') +
     `<section class="panel"><div class="panel-head"><div><div class="panel-title">Data chờ bạn nhận</div><div class="panel-sub">Quá ${hours} giờ không nhận, khách tự trả về leader để chia sale khác</div></div></div><div class="panel-body">${offers.map(offer => { const customer = customerById(offer.customerId); if (!customer) return ''; const left = offerMinutesLeft(offer); return `<div class="rank-row" style="grid-template-columns:minmax(0,1fr) auto auto"><div><b>${escapeHtml(customer.name)}</b><small>•••••</small><div class="cell-sub">Gửi lúc ${escapeHtml(offer.offeredAt)} · còn ${Math.floor(left / 60)} giờ ${left % 60} phút</div></div>${statusBadge(customer.status)}<button class="button button-small button-primary" type="button" data-accept-offer="${escapeHtml(offer.id)}">Nhận data</button></div>`; }).join('') || '<div class="empty"><b>Không có data chờ nhận</b><span>Leader chia data mới sẽ hiện ở đây kèm đồng hồ đếm ngược.</span></div>'}</div></section>`;
 }
@@ -3697,6 +3731,11 @@ function expireStaleOffers() { return false; }
 
 function applyCustomerAssignment(customer, target, reason, source = 'MANUAL', direct = false) {
   if (!customer || !target) return false;
+  if (target.teamLeaderRecipient) {
+    direct = true;
+    closeOpenCustomerTasks(customer, 'REASSIGNED');
+    state.dataOffers.forEach(o => { if (o.customerId === customer.id && o.status === 'PENDING') { o.status = 'EXPIRED'; o.resolvedAt = stamp(); } });
+  }
   const previous = assignmentSnapshot(customer);
   if (target.role === 'LEADER') {
     customer.saleId = null;
@@ -3718,12 +3757,17 @@ function applyCustomerAssignment(customer, target, reason, source = 'MANUAL', di
 }
 
 function autoAssignCustomer(customer) {
-  if (!customer || customer.saleId) return false;
+  if (!customer || customer.saleId || state.dataOffers.some(o => o.customerId === customer.id && o.status === 'PENDING')) return false;
   if (!customer.leaderId && !state.leaderDistribution.enabled) return false;
   const mode = assignmentModeFor(customer);
   const target = chooseAssignmentTarget(customer, mode);
   if (!target) return false;
-  return applyCustomerAssignment(customer, target, `${mode === 'ROUND_ROBIN' ? 'Phân lần lượt' : 'Phân cân bằng'} tự động`);
+  const assigned = applyCustomerAssignment(customer, target, `${mode === 'ROUND_ROBIN' ? 'Phân lần lượt' : 'Phân cân bằng'} tự động`);
+  if (assigned && target.role === 'LEADER') {
+    const recipient = chooseAssignmentTarget(customer, mode);
+    if (recipient) applyCustomerAssignment(customer, recipient, 'Chia theo tỷ trọng trong Team', 'AUTO');
+  }
+  return assigned;
 }
 
 function setAssignmentMode(mode) {
@@ -3742,6 +3786,11 @@ function bulkDistributePool(mode) {
     const target = chooseAssignmentTarget(customer, mode);
     if (target && applyCustomerAssignment(customer, target, mode === 'ROUND_ROBIN' ? 'Chia lần lượt toàn bộ' : 'Chia đều toàn bộ')) {
       audit(target.role === 'LEADER' ? 'ALLOCATE_TO_LEADER' : 'ASSIGN_TO_SALE', customer.id, `${target.name} · ${mode}`);
+      // Admin chia xuống Team rồi chia tiếp cho Leader/Sale theo tỷ trọng.
+      if (target.role === 'LEADER') {
+        const recipient = chooseAssignmentTarget(customer, mode);
+        if (recipient) applyCustomerAssignment(customer, recipient, 'Chia theo tỷ trọng trong Team', 'AUTO');
+      }
       distributed += 1;
     }
   });
@@ -4173,7 +4222,9 @@ function bindViewActions() {
   $$('[data-edit-note]').forEach(button => button.onclick = () => editCustomerNote(button.dataset.editNote));
   $$('[data-delete-note]').forEach(button => button.onclick = () => deleteCustomerNote(button.dataset.deleteNote));
   $$('[data-quick-status]').forEach(select => select.onchange = () => quickUpdateCustomerStatus(select.dataset.quickStatus, select.value));
-  $$('[data-quick-sale]').forEach(select => select.onchange = () => { if (select.value) quickAssignSale(select.dataset.quickSale, select.value); });
+  $$('[data-team-weight]').forEach(el=>el.onchange=()=>updateTeamRecipient(el.dataset.teamWeight,'weight',el.value));
+  $$('[data-team-enabled]').forEach(el=>el.onchange=()=>updateTeamRecipient(el.dataset.teamEnabled,'enabled',el.checked));
+  $$('[data-quick-sale]').forEach(select => select.onchange = () => { quickAssignSale(select.dataset.quickSale, select.value); });
   $$('[data-quick-custom-field]').forEach(select => select.onchange = () => quickUpdateCustomerField(select.dataset.quickCustomField, select.dataset.fieldId, select.value));
   $$('[data-quick-custom-checkbox]').forEach(input => input.onchange = () => quickUpdateCustomerField(input.dataset.quickCustomCheckbox, input.dataset.fieldId, input.checked));
   $$('[data-quick-multi-field]').forEach(button => button.onclick = () => quickMultiSelectModal(button.dataset.quickMultiField, button.dataset.fieldId));

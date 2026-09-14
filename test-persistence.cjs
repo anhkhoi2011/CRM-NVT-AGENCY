@@ -306,4 +306,40 @@ test('Leader selects a Sale from the customer table and persists the pending ass
  assert.equal((await f.api.read(lead)).state.dataOffers.length,1);
  assert.equal(await c.quickAssignSale('c1','other'),false);
  assert.equal((await f.api.read(lead)).state.dataOffers[0].saleId,'sale');
+ assert.equal(await c.quickAssignSale('c1','lead'),true);
+ saved=await f.api.read(lead);
+ assert.equal(saved.state.customers[0].saleId,'lead');
+ assert.equal(saved.state.dataOffers.filter(o=>o.status==='PENDING').length,0);
+ assert.equal(await c.quickAssignSale('c1',''),true);
+ saved=await f.api.read(lead);
+ assert.equal(saved.state.customers[0].saleId,null);
+ assert.equal(saved.state.customers[0].leaderId,'lead');
+ assert.equal(saved.state.customers[0].teamId,'T');
+});
+
+
+test('Team allocation includes Leader, counts pending offers, and obeys weights', () => {
+ const c=frontend();
+ vm.runInContext(`currentAccount=hydrateSessionAccount({id:'lead',name:'Leader',role:'LEADER',teamId:'T'});applyServerSnapshot({state:{...initialState(),members:[{id:'lead',name:'Leader',role:'LEADER',teamId:'T',active:true},...[1,2,3,4].map(n=>({id:'s'+n,name:'Sale '+n,role:'SALE',leaderId:'lead',teamId:'T',active:true}))]},versions:{}});queueEmailNotification=()=>{};`,c);
+ const run=(n)=>vm.runInContext(`state.customers=[];state.dataOffers=[];for(let i=0;i<${n};i++){const row={id:'c'+i,name:'Customer',phone:'0900000000',leaderId:'lead',teamId:'T',saleId:null};state.customers.push(row);const target=chooseAssignmentTarget(row,'BALANCED');applyCustomerAssignment(row,target,'Test');}JSON.stringify(Object.fromEntries(teamRecipients('lead','T').map(p=>[p.id,assignmentLoad(p)])))`,c);
+ assert.deepEqual(JSON.parse(run(10)),{lead:2,s1:2,s2:2,s3:2,s4:2});
+ vm.runInContext("state.saleDistributionByLeader.lead={leaderEnabled:true,enabledSaleIds:['s1','s2','s3','s4'],weights:{lead:2,s1:1,s2:1,s3:1,s4:1}}",c);
+ assert.deepEqual(JSON.parse(run(12)),{lead:4,s1:2,s2:2,s3:2,s4:2});
+ vm.runInContext("state.saleDistributionByLeader.lead.leaderEnabled=false",c);
+ assert.equal(vm.runInContext("assignmentCandidates({leaderId:'lead',teamId:'T'}).some(p=>p.id==='lead')",c),false);
+});
+
+test('24h expiry keeps Team and adds reassignment note; manual clear preserves Team',async()=>{
+ const f=fixture();await f.api.write(admin,'expiry-note',[change('customers',{...customer,saleId:null}),change('dataOffers',{id:'expired',customerId:'c1',saleId:'sale',leaderId:'lead',teamId:'T',offeredAt:'2020-01-01 00:00',status:'PENDING'})]);
+ const result=await f.api.read(admin);assert.equal(result.state.dataOffers[0].status,'EXPIRED');assert.equal(result.state.customers[0].saleId,null);assert.equal(result.state.customers[0].leaderId,'lead');assert.match(result.state.customers[0].note,/24h/);
+ const c=frontend();c.snapshot=result;vm.runInContext("currentAccount=hydrateSessionAccount({id:'lead',name:'Leader',role:'LEADER',teamId:'T'});applyServerSnapshot(snapshot);flushServerPersistence=async()=>true;",c);c.window.scrollTo=()=>{};
+ assert.equal(await c.quickAssignSale('c1',''),true);
+ assert.equal(vm.runInContext('state.customers[0].teamId',c),'T');
+});
+
+
+test('Admin bulk allocation cascades to weighted Team recipients including Leader', () => {
+ const c=frontend();
+ vm.runInContext(`currentAccount=hydrateSessionAccount({id:'admin',name:'Admin',role:'ADMIN'});applyServerSnapshot({state:{...initialState(),members:[{id:'lead',name:'Leader',role:'LEADER',teamId:'T',active:true},...[1,2,3,4].map(n=>({id:'s'+n,name:'Sale '+n,role:'SALE',leaderId:'lead',teamId:'T',active:true}))],customers:Array.from({length:10},(_,i)=>({id:'c'+i,name:'Customer',phone:'0900000000',createdAt:'2026-09-14 09:00',leaderId:null,teamId:null,saleId:null}))},versions:{}});state.leaderDistribution.enabledLeaderIds=['lead'];queueEmailNotification=()=>{};bulkDistributePool('BALANCED');`,c);
+ assert.deepEqual(JSON.parse(vm.runInContext("JSON.stringify(Object.fromEntries(teamRecipients('lead','T').map(p=>[p.id,assignmentLoad(p)])))",c)),{lead:2,s1:2,s2:2,s3:2,s4:2});
 });

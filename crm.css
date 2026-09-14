@@ -160,3 +160,6 @@
 #loginForm button[type=submit]{display:flex;align-items:center;justify-content:center;gap:8px;transition:background-color .16s ease,border-color .16s ease,opacity .16s ease}#loginForm button[type=submit][aria-busy=true]{opacity:.82}.login-spinner{width:14px;height:14px;flex:0 0 auto;border:2px solid rgba(255,255,255,.42);border-top-color:#fff;border-radius:50%;animation:login-spin .7s linear infinite}@keyframes login-spin{to{transform:rotate(360deg)}}
 @media(max-width:480px){.login-intro{min-height:30vh;height:30vh;padding:0}.login-intro-img{object-position:center 30%}.login-panel{padding-top:20px}.login-card{margin:18px auto 32px}}
 @media(prefers-reduced-motion:reduce){.login-spinner{animation:none}.login-screen *,#loginForm button[type=submit]{transition:none!important}}
+
+/* Can deu cac o chon trong bang khach hang. */
+.customer-data-table .quick-sale-select,.customer-data-table .quick-custom-field{width:220px;min-width:220px;height:36px;box-sizing:border-box;border-radius:10px;padding:6px 10px;font-size:11px}

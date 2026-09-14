@@ -90,7 +90,7 @@ async function allData(c){
  return data;
 }
 function customerScope(user,r){return !!r&&(user.role==='ADMIN'||(user.role==='SALE'&&r.saleId===user.id)||(user.role==='LEADER'&&((!!user.teamId&&r.teamId===user.teamId)||r.leaderId===user.id)));}
-function pendingOffer(data,user,id){return [...data.dataOffers.values()].find(o=>o.customerId===id&&o.saleId===user.id&&o.status==='PENDING'&&Date.parse(String(o.offeredAt).replace(' ','T')+'+07:00')+Number(data.settings.get('$')?.acceptTimeoutHours||24)*3600000>Date.now());}
+function pendingOffer(data,user,id){return [...data.dataOffers.values()].find(o=>o.customerId===id&&o.saleId===user.id&&o.status==='PENDING'&&Date.parse(String(o.offeredAt).replace(' ','T')+'+07:00')+24*3600000>Date.now());}
 function readable(user,key,r,data){
  if(user.role==='ADMIN')return true;
  if(user.role==='MARKETING')return ['customers','orders','products','customFieldDefinitions','productCategories','websites','traffic'].includes(key) || (key==='notifications'&&(r.role==='ALL'||r.role==='MARKETING'||r.saleId===user.id));
@@ -211,12 +211,22 @@ async function project(c,key,id,r){
 // Hết hạn được lưu trên server ngay ở lần đọc tiếp theo, kể cả Admin đã đóng trình duyệt.
 async function expireOffers(c,data){
  for(const [id,offer] of data.dataOffers){
-  const expiry=Date.parse(String(offer.offeredAt).replace(' ','T')+'+07:00')+Number(data.settings.get('$')?.acceptTimeoutHours||24)*3600000;
+  const expiry=Date.parse(String(offer.offeredAt).replace(' ','T')+'+07:00')+24*3600000;
   if(offer.status!=='PENDING'||!Number.isFinite(expiry)||expiry>Date.now())continue;
   const next={...offer,status:'EXPIRED',resolvedAt:new Date().toLocaleString('sv-SE',{timeZone:'Asia/Ho_Chi_Minh'}).slice(0,16)};
   await c.execute('INSERT INTO crm_documents(collection,id,body,deleted) VALUES (?,?,?,0) ON DUPLICATE KEY UPDATE body=VALUES(body),deleted=0',['dataOffers',id,JSON.stringify(next)]);
   await c.execute('INSERT INTO crm_changes(request_id,actor_id,changes_json) VALUES (?,?,?)',['expire-'+crypto.randomUUID(),'SYSTEM',JSON.stringify([{key:'dataOffers',id,before:offer,after:next}])]);
   data.dataOffers.set(id,next);
+  // Ghi chu het han va tra ve dung Team, khong tu dong chia lai.
+  const customer=data.customers.get(offer.customerId);
+  if(customer && !customer.saleId && ![...data.dataOffers.values()].some(o=>o.id!==id&&o.customerId===offer.customerId&&o.status==='PENDING')){
+    const updated={...customer,saleId:null,saleAcceptedAt:null,updatedAt:next.resolvedAt,note:'Sale không nhận data sau 24h. Chờ Leader phân lại.'};
+    await project(c,'customers',customer.id,updated);
+    await c.execute('INSERT INTO crm_documents(collection,id,body,deleted) VALUES (?,?,?,0) ON DUPLICATE KEY UPDATE body=VALUES(body),deleted=0',['customers',customer.id,JSON.stringify(updated)]);
+    await c.execute('INSERT INTO crm_changes(request_id,actor_id,changes_json) VALUES (?,?,?)',['expire-customer-'+crypto.randomUUID(),'SYSTEM',JSON.stringify([{key:'customers',id:customer.id,before:customer,after:updated}])]);
+    data.customers.set(customer.id,updated);
+  }
+
  }
 }
 async function warnRentalExpiry(c,data){
