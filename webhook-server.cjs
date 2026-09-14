@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Server webhook + static cho CRM NVT Agency.
  *
  * Chạy:  node webhook-server.cjs
@@ -717,7 +717,7 @@ function handleSessionContext(request, response) {
 
 async function serveStatic(request, response, urlPathname) {
   const decoded = decodeURIComponent(urlPathname);
-  if (!['/','/index.html','/crm.js','/crm.css','/logo.jpg','/login-background.jpg'].includes(decoded)) return sendJson(response,404,{error:'Không tìm thấy tài nguyên'});
+  if (!['/','/index.html','/crm.js','/crm.css','/logo.jpg','/login-background.jpg','/care-ui.js'].includes(decoded)) return sendJson(response,404,{error:'Không tìm thấy tài nguyên'});
   let relative = decoded === '/' ? '/index.html' : decoded;
   const absolute = path.resolve(REPO_ROOT, `.${path.posix.normalize(relative)}`);
 
@@ -852,3 +852,4 @@ function warnShadowed() {
 }
 
 // selfCheckHealth() được gọi trong callback của server.listen — gọi ở đây sẽ đua với bind.
+
