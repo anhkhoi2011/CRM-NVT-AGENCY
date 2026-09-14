@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="vi">
 <head>
   <meta charset="utf-8">
@@ -78,7 +78,7 @@
   <div id="drawerRoot"></div>
   <div id="modalRoot"></div>
   <div id="toastRoot" class="toast-root" aria-live="polite"></div>
-  <script src="./crm.js?v=20260914-care-3" defer></script>
+  <script src="./crm.js?v=20260914-care-3" defer></script><script src="./care-ui.js?v=20260914-care-4" defer></script>
   <script>
   /* ─────────────────────────────────────────────────────────────────────────
      Danh mục "Chăm Sóc Khách" — bản vá chèn thêm, KHÔNG sửa crm.js.
@@ -197,8 +197,8 @@
 
     document.addEventListener('click', event => {
       if (!event.target.closest?.('#newCareGroupButton') || currentAccount.role !== 'ADMIN') return;
-      const name = window.prompt('T?n m?c ch?m s?c:'); if (!name?.trim()) return;
-      const values = window.prompt('Gi? tr? c?t Ph?n lo?i kh?ch h?ng, ng?n c?ch b?ng d?u ph?y:','Premium, Whale');
+      const name = window.prompt('Ten muc cham soc:'); if (!name?.trim()) return;
+      const values = window.prompt('Gia tri cot phan loai, cach nhau bang dau phay:','Premium, Whale');
       const list = String(values || '').split(',').map(value => value.trim()).filter(Boolean); if (!list.length) return;
       state.careGroups = [...(state.careGroups || CARE_GROUPS.map((group,index) => ({id:'CARE-'+(index+1),name:group.label,fieldId:'customerClass',values:group.classes}))), {id:'CARE-'+Date.now(),name:name.trim(),fieldId:'customerClass',values:list}];
       saveState(); render();
