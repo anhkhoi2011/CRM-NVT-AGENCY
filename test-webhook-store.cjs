@@ -3,7 +3,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const fs = require('node:fs');
-function fixture(failCustomer = false) {
+function fixture(failCustomer = false, websites = [{ id: 'WEB-TEST', name: 'Hoang Phuc Academy', domain: 'www.hoangphucacademy.vn', sourceUrl: 'https://www.hoangphucacademy.vn/', campaignId: 'ACADEMY', webhookSlug: 'DS-TEST' }]) {
   const events = new Map(), customers = new Map(), calls = [];
   const connection = {
     async beginTransaction() { calls.push('begin'); },
@@ -12,6 +12,7 @@ function fixture(failCustomer = false) {
     release() { calls.push('release'); },
     async execute(sql, values) {
       if (sql.startsWith('INSERT INTO webhook_events')) { if (!events.has(values[1])) events.set(values[1], values[0]); }
+      if (sql.includes("FROM crm_documents WHERE collection='websites'")) return [websites.map(item => ({ id: item.id, body: JSON.stringify(item) }))];
       if (sql.startsWith('SELECT id')) return [[{ id: events.get(values[0]) }]];
       if (sql.startsWith('INSERT INTO customers')) {
         if (failCustomer) throw new Error('Database unavailable');
@@ -22,7 +23,7 @@ function fixture(failCustomer = false) {
   };
   const module = { exports: {} };
   vm.runInNewContext(fs.readFileSync(require.resolve('./webhook-store.cjs'), 'utf8'), {
-    module, require: () => ({ dbConfigured: true, pool: { async query() {}, async getConnection() { return connection; } } })
+    module, URL, require: name => name === './db.js' ? { dbConfigured: true, pool: { async query() {}, async getConnection() { return connection; } } } : name === './crm-defaults.json' ? { websites: [] } : require(name)
   });
   return { ...module.exports, customers, events, calls };
 }
@@ -46,4 +47,23 @@ test('Payload không hợp lệ vẫn có sự kiện gốc, không tạo khách
   assert.equal(result.customerId, null);
   assert.equal(f.events.size, 1);
   assert.equal(f.customers.size, 0);
+});
+
+test('Webhook maps website, campaign and source URL into MySQL customer', async () => {
+  const f = fixture();
+  const result = await f.persistWebhook(record);
+  const values = f.customers.get(result.customerId);
+  assert.equal(values[4], 'ACADEMY');
+  assert.equal(values[5], 'WEB-TEST');
+  const payload = JSON.parse(values[7]);
+  assert.equal(payload.__crmMeta.landingPageName, 'Hoang Phuc Academy');
+  assert.equal(payload.__crmMeta.landingPageUrl, 'https://www.hoangphucacademy.vn/');
+  assert.equal(payload.__crmMeta.landingPageDomain, 'www.hoangphucacademy.vn');
+});
+test('Unknown webhook slug stays unattributed without inventing a website', async () => {
+  const f = fixture(false, []);
+  const result = await f.persistWebhook(record);
+  const values = f.customers.get(result.customerId);
+  assert.equal(values[4], 'UNATTRIBUTED');
+  assert.equal(values[5], null);
 });

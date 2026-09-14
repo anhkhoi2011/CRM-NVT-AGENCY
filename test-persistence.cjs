@@ -237,3 +237,19 @@ test('Product SKU remains unique inside one transactional state update',async()=
 test('Deposit and final payment financial events never double-count revenue',()=>{
  const c=frontend(),base={id:'o',code:'NVT-o',customerName:'Customer',total:1100,depositAmount:300,depositAt:'2026-09-14 09:00',paidAt:'2026-09-14 10:00',paymentMethod:'VietQR'};assert.deepEqual(Array.from(vm.runInContext(`orderFinancialEvents(${JSON.stringify(base)}).map(event=>event.amount)`,c)),[300,800]);assert.equal(vm.runInContext(`netRevenue([${JSON.stringify(base)}])`,c),1100);assert.equal(vm.runInContext(`netRevenue([${JSON.stringify({...base,refundedAt:'2026-09-14 11:00',refund:1100})}])`,c),0);
 });
+
+test('Frontend removes the manual sync toolbar and shows detailed landing source', () => {
+ const js=fs.readFileSync('crm.js','utf8');
+ assert.doesNotMatch(js,/id="syncNowButton"|id="exportDraftButton"|id="importRecoveryButton"|id="reloadServerButton"/);
+ const c=frontend();
+ vm.runInContext(`applyServerSnapshot({state:{...initialState(),websites:[{id:'web',name:'Hoang Phuc Academy',domain:'www.hoangphucacademy.vn',sourceUrl:'https://www.hoangphucacademy.vn/',webhookSlug:'DS-TEST'}],customers:[{id:'cus',name:'Customer',phone:'0912345678',source:'Landing Page',campaign:'ACADEMY',websiteId:'web',createdAt:'2026-09-14 10:00',updatedAt:'2026-09-14 10:00'}]},versions:{}})`,c);
+ const details=vm.runInContext("customerSourceDetails(state.customers[0])",c);
+ assert.equal(details.name,'Hoang Phuc Academy');assert.equal(details.url,'https://www.hoangphucacademy.vn/');
+});
+test('Old webhook customer is attributed from stored slug without changing assignment', async () => {
+ const f=fixture();
+ f.db.docs.push({collection:'websites',id:'web',deleted:0,body:{id:'web',name:'Hoang Phuc Academy',domain:'www.hoangphucacademy.vn',sourceUrl:'https://www.hoangphucacademy.vn/',webhookSlug:'DS-OLD'}});
+ f.db.customers.push({id:'old',name:'Old customer',phone:'0911111111',email:null,source:'Landing Page',campaign:null,website_id:null,status:'NEW',sale_id:'sale',leader_id:'lead',team_id:'T',note:'',custom_fields_json:JSON.stringify({webhookSlug:'DS-OLD',webhookEventId:'event'}),created_at:'2026-09-01 09:00:00',updated_at:'2026-09-01 09:00:00'});
+ const row=(await f.api.read(admin)).state.customers[0];
+ assert.equal(row.websiteId,'web');assert.equal(row.landingPageUrl,'https://www.hoangphucacademy.vn/');assert.equal(row.saleId,'sale');
+});

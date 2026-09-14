@@ -62,7 +62,7 @@ function revision(value){return value===undefined?null:crypto.createHash('sha256
 function timestamp(v){return v instanceof Date?v.toISOString().slice(0,19).replace('T',' '):v;}
 function userRow(r){return {id:r.id,phone:r.phone,email:r.email,name:r.name,role:r.role,teamId:r.team_id||'',leaderId:r.leader_id||null,active:!!r.active,createdAt:timestamp(r.created_at)};}
 function coreRow(key,r){
- if(key==='customers') {const j=parsed(r.custom_fields_json);return {...j.__crmMeta,id:r.id,name:r.name,phone:r.phone,email:r.email||'',source:r.source||'',campaign:r.campaign||'',websiteId:r.website_id||null,status:r.status,saleId:r.sale_id||null,leaderId:r.leader_id||null,teamId:r.team_id||null,note:r.note||'',customFields:j.__crmFields||j,createdAt:timestamp(r.created_at),updatedAt:timestamp(r.updated_at)};}
+ if(key==='customers') {const j=parsed(r.custom_fields_json),meta=j.__crmMeta||((j.webhookSlug||j.webhookEventId)?{webhookSlug:j.webhookSlug,webhookEventId:j.webhookEventId}:{});return {...meta,id:r.id,name:r.name,phone:r.phone,email:r.email||'',source:r.source||'',campaign:r.campaign||'',websiteId:r.website_id||null,status:r.status,saleId:r.sale_id||null,leaderId:r.leader_id||null,teamId:r.team_id||null,note:r.note||'',customFields:j.__crmFields||(j.__crmMeta?{}:Object.fromEntries(Object.entries(j).filter(([key])=>!['webhookSlug','webhookEventId'].includes(key)))),createdAt:timestamp(r.created_at),updatedAt:timestamp(r.updated_at)};}
  if(key==='orders'){const j=parsed(r.items_json,[]);return {discount:0,refund:0,qty:1,unitPrice:Number(r.total_amount),subtotal:Number(r.total_amount),...(Array.isArray(j)?{}:j),id:r.id,code:r.code,customerId:r.customer_id,saleId:r.sale_id||null,leaderId:r.leader_id||null,teamId:r.team_id||null,total:Number(r.total_amount),status:r.status,items:Array.isArray(j)?j:j.items||[],note:r.note||'',createdAt:timestamp(r.created_at),updatedAt:timestamp(r.updated_at)};}
  return {id:r.id,name:r.name,sku:r.sku||'',category:r.category||'',price:Number(r.price),type:r.type,rentalMonths:r.rental_months,active:!!r.active,createdAt:timestamp(r.created_at),updatedAt:timestamp(r.updated_at)};
 }
@@ -74,6 +74,14 @@ async function allData(c){
  for(const key of ['customers','orders','products']){
   const [rows]=await c.query(`SELECT * FROM ${key}`);
   for(const row of rows){if(deleted.has(`${key}/${row.id}`))continue;data[key].set(row.id,{...data[key].get(row.id),...coreRow(key,row)});}
+ }
+ // Gắn nguồn cho dữ liệu webhook cũ bằng slug; chỉ bổ sung trường đang thiếu.
+ const websiteBySlug=new Map([...data.websites.values()].filter(website=>website.webhookSlug).map(website=>[String(website.webhookSlug).toUpperCase(),website]));
+ for(const [id,customer] of data.customers){
+  const website=customer.websiteId?data.websites.get(customer.websiteId):websiteBySlug.get(String(customer.webhookSlug||'').toUpperCase());
+  if(!website)continue;
+  const sourceUrl=website.sourceUrl||(website.domain?`https://${String(website.domain).replace(/^https?:\/\//,'').replace(/\/+$/,'')}/`:'');
+  data.customers.set(id,{...customer,websiteId:customer.websiteId||website.id,landingPageName:customer.landingPageName||website.name||website.domain,landingPageUrl:customer.landingPageUrl||sourceUrl,landingPageDomain:customer.landingPageDomain||website.domain});
  }
  const [users]=await c.query('SELECT id,phone,email,name,role,team_id,leader_id,active,created_at FROM users');
  for(const u of users)if(!deleted.has(`members/${u.id}`))data.members.set(u.id,{...data.members.get(u.id),...userRow(u),loginEnabled:true,initials:data.members.get(u.id)?.initials||String(u.name).trim().split(/\s+/).slice(-2).map(x=>x[0]).join('').toUpperCase()});

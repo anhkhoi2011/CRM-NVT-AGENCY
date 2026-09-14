@@ -132,8 +132,8 @@ function initialState() {
     notifications: [],
     audit: [],
     websites: [
-      { id: 'WEB-NVT', name: 'NVT Agency', domain: 'nvtagency.top', status: 'ACTIVE', provider: 'CUSTOM_WEBHOOK', endpoint: '', externalAccountId: '', campaignId: '', formId: '', webhookSlug: 'ds-1789180581447-IIM6U3AAD1R', webhookUrlOverride: '', connectionStatus: 'PENDING_BACKEND', domainVerificationStatus: 'UNVERIFIED', credentialConfigured: false, credentialLast4: '', lastVerifiedAt: '', lastError: '', lastSync: 'Chưa đồng bộ' },
-      { id: 'WEB-NVT-2', name: 'NVT Agency - Nguồn 2', domain: 'nvtagency.top', status: 'ACTIVE', provider: 'CUSTOM_WEBHOOK', endpoint: '', externalAccountId: '', campaignId: '', formId: '', webhookSlug: 'ds-1789902464947-TN30ESRUIJM', webhookUrlOverride: '', connectionStatus: 'PENDING_BACKEND', domainVerificationStatus: 'UNVERIFIED', credentialConfigured: false, credentialLast4: '', lastVerifiedAt: '', lastError: '', lastSync: 'Chưa đồng bộ' }
+      { id: 'WEB-NVT', name: 'NVT Agency', domain: 'nvtagency.top', sourceUrl: 'https://nvtagency.top/', status: 'ACTIVE', provider: 'CUSTOM_WEBHOOK', endpoint: '', externalAccountId: '', campaignId: '', formId: '', webhookSlug: 'ds-1789180581447-IIM6U3AAD1R', webhookUrlOverride: '', connectionStatus: 'PENDING_BACKEND', domainVerificationStatus: 'UNVERIFIED', credentialConfigured: false, credentialLast4: '', lastVerifiedAt: '', lastError: '', lastSync: 'Chưa đồng bộ' },
+      { id: 'WEB-NVT-2', name: 'NVT Agency - Nguồn 2', domain: 'nvtagency.top', sourceUrl: 'https://nvtagency.top/', status: 'ACTIVE', provider: 'CUSTOM_WEBHOOK', endpoint: '', externalAccountId: '', campaignId: '', formId: '', webhookSlug: 'ds-1789902464947-TN30ESRUIJM', webhookUrlOverride: '', connectionStatus: 'PENDING_BACKEND', domainVerificationStatus: 'UNVERIFIED', credentialConfigured: false, credentialLast4: '', lastVerifiedAt: '', lastError: '', lastSync: 'Chưa đồng bộ' }
     ],
     integrations: [],
     leaderDistribution: {
@@ -482,7 +482,9 @@ function normalizeCustomerRecord(customer, members = STAFF, websites = [], field
     ipAddress: cleanText(customer.ipAddress || customer.ip, 'Chưa xác định', 64),
     source: dataTerminology(cleanText(customer.source, 'Direct / Referral', 120)),
     campaign: dataTerminology(cleanText(customer.campaign, 'DIRECT', 160)),
-    landingPageName: cleanText(customer.landingPageName || customer.landingPage || websites.find(website => website.id === websiteId)?.domain, 'Chưa xác định landing page', 200),
+    landingPageName: cleanText(customer.landingPageName || customer.landingPage || websites.find(website => website.id === websiteId)?.name || websites.find(website => website.id === websiteId)?.domain, 'Nguồn chưa được gắn', 200),
+    landingPageUrl: cleanSourceUrl(customer.landingPageUrl || websites.find(website => website.id === websiteId)?.sourceUrl),
+    landingPageDomain: cleanText(customer.landingPageDomain || websites.find(website => website.id === websiteId)?.domain, '', 253),
     productName: cleanText(customer.productName || customer.product || customer.sanpham, 'Chưa xác định sản phẩm', 200),
     websiteId,
     status: Object.hasOwn(STATUS_META, customer.status) ? customer.status : 'NEW',
@@ -628,6 +630,17 @@ function normalizeAuditRecord(item) {
   return { id, actorId: cleanId(item.actorId), actor: cleanText(item.actor, 'System', 160), role: ['ADMIN', 'LEADER', 'SALE', 'SYSTEM'].includes(item.role) ? item.role : 'SYSTEM', action: cleanText(item.action, 'UNKNOWN', 120), entity: cleanText(item.entity, '', 120), detail: dataTerminology(cleanText(item.detail, '', 2000)), at: cleanTimestamp(item.at, stamp()) };
 }
 
+function cleanSourceUrl(value) {
+  const raw = cleanText(value, '', 500).trim();
+  if (!raw) return '';
+  try {
+    const url = new URL(raw);
+    if (!['http:', 'https:'].includes(url.protocol) || !url.hostname) return '';
+    url.hash = '';
+    return url.toString();
+  } catch { return ''; }
+}
+
 function normalizeWebsiteRecord(item) {
   const id = cleanId(item.id);
   if (!id) return null;
@@ -635,7 +648,8 @@ function normalizeWebsiteRecord(item) {
   return {
     id,
     name: dataTerminology(cleanText(item.name, 'Website', 200)),
-    domain: cleanText(item.domain, '', 253),
+    domain: cleanText(item.domain || (() => { try { return new URL(cleanSourceUrl(item.sourceUrl)).hostname; } catch { return ''; } })(), '', 253).toLowerCase(),
+    sourceUrl: cleanSourceUrl(item.sourceUrl) || (cleanText(item.domain, '', 253) ? `https://${cleanText(item.domain, '', 253).replace(/^https?:\/\//, '').replace(/\/+$/, '')}/` : ''),
     status: item.status === 'ACTIVE' && connectionStatus === 'VERIFIED' ? 'ACTIVE' : 'PAUSED',
     provider: ['LANDING_API', 'FACEBOOK_FORMS', 'TIKTOK_FORMS', 'CUSTOM_WEBHOOK'].includes(item.provider) ? item.provider : 'LANDING_API',
     endpoint: cleanText(item.endpoint, '', 500),
@@ -902,7 +916,10 @@ function webhookIngestFields(item, website) {
     email: item.email,
     websiteId: website.id,
     source: 'Landing Page',
-    campaign: website.campaignId || 'UNATTRIBUTED'
+    campaign: website.campaignId || 'UNATTRIBUTED',
+    landingPageName: website.name,
+    landingPageUrl: website.sourceUrl,
+    landingPageDomain: website.domain
   };
 }
 
@@ -1212,10 +1229,19 @@ function productById(id) { return PRODUCTS.find(product => product.id === id); }
 function customerById(id) { return state.customers.find(customer => customer.id === id); }
 function websiteById(id) { return state.websites.find(website => website.id === id); }
 function customerLanding(customer) { return websiteById(customer?.websiteId); }
-function customerLandingName(customer) {
+function customerSourceDetails(customer) {
   const website = customerLanding(customer);
-  return website ? `${website.name} · ${website.domain}` : 'Chưa xác định landing page';
+  return {
+    name: customer?.landingPageName || website?.name || customer?.landingPageDomain || website?.domain || 'Nguồn chưa được gắn',
+    url: customer?.landingPageUrl || website?.sourceUrl || '',
+    domain: customer?.landingPageDomain || website?.domain || ''
+  };
 }
+function customerLandingName(customer) {
+  const source = customerSourceDetails(customer);
+  return source.url ? `${source.name} · ${source.url}` : `${source.name}${source.domain ? ` · ${source.domain}` : ''}`;
+}
+
 function websiteCustomerRows(websiteId) { return state.customers.filter(customer => customer.websiteId === websiteId); }
 function orderSource(source) {
   if (['Referral', 'Landing Page', 'Website Organic', 'Direct / Referral'].includes(source)) return 'Direct / Referral';
@@ -1261,6 +1287,13 @@ function pendingChanges() {
 function applyServerSnapshot(payload, keepEdits=null) {
   const defaults=initialState();
   const remote={...defaults,...payload.state,security:{twoFactorEnabled:false,loginHistory:[]}};
+  remote.websites=(remote.websites||[]).map(website => ({ ...website, sourceUrl: cleanSourceUrl(website.sourceUrl) || (website.domain ? `https://${String(website.domain).replace(/^https?:\/\//, '').replace(/\/+$/, '')}/` : '') }));
+  const websitesBySlug=new Map(remote.websites.map(website => [String(website.webhookSlug||'').toUpperCase(), website]));
+  remote.customers=(remote.customers||[]).map(customer => {
+    const website=remote.websites.find(item => item.id===customer.websiteId) || websitesBySlug.get(String(customer.webhookSlug||'').toUpperCase());
+    if(!website)return customer;
+    return {...customer,websiteId:customer.websiteId||website.id,landingPageName:customer.landingPageName||website.name,landingPageUrl:customer.landingPageUrl||website.sourceUrl,landingPageDomain:customer.landingPageDomain||website.domain};
+  });
   remote.members=(remote.members||[]).map(r=>({...r,initials:r.initials||memberInitials(r.name)}));
   const remoteRecords=serverRecords(remote);
   // Trong khi lưu, thao tác mới vẫn ở RAM; chỉ thay bản ghi không có sửa tiếp.
@@ -2018,7 +2051,7 @@ function customersView() {
   const title = currentAccount.role === 'ADMIN' ? 'Khách hàng tổng' : currentAccount.role === 'LEADER' ? `Khách hàng Team ${currentAccount.teamId}` : 'Khách hàng của tôi';
   const tableFields = activeCustomFields().filter(field => field.type !== 'MULTI_SELECT' && field.type !== 'NOTE');
   const sourceHeader = currentAccount.role === 'ADMIN' ? '<th>Nguồn / Landing page</th>' : '';
-  const sourceCell = customer => currentAccount.role === 'ADMIN' ? (() => { const landing = customerLanding(customer); return `<td><div class="cell-main">${escapeHtml(landing?.domain || 'Chưa xác định')}</div><div class="cell-sub">${escapeHtml(customer.source)} · ${escapeHtml(customer.campaign)}</div></td>`; })() : '';
+  const sourceCell = customer => currentAccount.role === 'ADMIN' ? (() => { const source = customerSourceDetails(customer); const meta = [customer.source, customer.campaign].filter(Boolean).join(' · '); return `<td><div class="cell-main">${escapeHtml(source.name)}</div><div class="cell-sub mono">${source.url ? escapeHtml(source.url) : escapeHtml(source.domain || 'Nguồn chưa được gắn')}</div><div class="cell-sub">${escapeHtml(meta)}</div></td>`; })() : '';
   const columnCount = 7 + tableFields.length + (currentAccount.role === 'ADMIN' ? 1 : 0);
   return pageHead(title, 'Quản lý trạng thái, Sale phụ trách, ghi chú, lịch chăm sóc và sản phẩm đã mua trên cùng hồ sơ.', createButton) +
     `<section class="panel customer-table-panel"><div class="toolbar"><input id="customerSearch" type="search" placeholder="Ten, SDT, email, Level, ghi chu..." value="${escapeHtml(globalQuery)}"><select id="customerStatusFilter"><option value="ALL">Tất cả trạng thái</option>${Object.entries(STATUS_META).map(([key, meta]) => `<option value="${key}" ${customerStatusFilter === key ? 'selected' : ''}>${escapeHtml(meta.label)}</option>`).join('')}</select>${customerOwnerOptions()}<span class="spacer"></span><span class="data-note">${customers.length} khách · ${tableFields.length} cột nghiệp vụ</span></div><div class="table-wrap"><table class="customer-data-table"><thead><tr><th>Ngày data</th><th>Khách hàng</th>${sourceHeader}<th>Team / Leader</th><th>Sale phụ trách</th>${tableFields.map(field => `<th>${escapeHtml(field.label)}</th>`).join('')}<th>Trạng thái</th><th>Ghi chú mới nhất</th><th></th></tr></thead><tbody>${customers.map(customer => { const leader = STAFF.find(person => person.id === customer.leaderId); const dataDate = dataDateParts(customer.createdAt); return `<tr><td class="data-date-cell"><b>${escapeHtml(dataDate.date)}</b><small>${escapeHtml(dataDate.time)}</small></td><td><div class="cell-main">${escapeHtml(customer.name)}</div><div class="cell-sub">${currentAccount.role === 'SALE' && !customer.saleAcceptedAt ? (() => { const offer = state.dataOffers.find(o => o.customerId === customer.id && o.saleId === currentAccount.saleId && o.status === 'PENDING'); return offer ? `<span class="status status-pending">⏱ còn ${Math.floor(offerMinutesLeft(offer) / 60)}h${offerMinutesLeft(offer) % 60}p</span>` : '<span class="status status-pending">Chờ nhận data</span>'; })() : escapeHtml(customer.phone)}</div></td>${sourceCell(customer)}<td><div class="cell-main">${escapeHtml(leader?.name || 'Chưa phân Leader')}</div>${leader ? `<div class="cell-sub">Team ${escapeHtml(customer.teamId)}</div>` : ''}</td><td class="col-staff">${customer.saleId ? `<div class="cell-main">${escapeHtml(staffName(customer.saleId))}</div>${customer.saleAcceptedAt ? '' : '<div class="cell-sub">Chờ Sale nhận data</div>'}` : '<span class="status status-pending">Chưa phân Sale</span>'}</td>${tableFields.map(field => `<td>${customFieldTableControl(field, customer)}</td>`).join('')}<td>${quickStatusControl(customer)}</td><td><div class="cell-main mono">${escapeHtml(customer.updatedAt.slice(5))}</div><div class="cell-sub note-preview">${escapeHtml(customer.note)}</div></td><td>${currentAccount.role === 'SALE' && !customer.saleAcceptedAt ? `<button class="button button-small button-primary" data-accept-data="${escapeHtml(customer.id)}">Nhận data</button>` : ''}<button class="button button-small" data-open-customer="${escapeHtml(customer.id)}">Chi tiết</button></td></tr>`; }).join('') || `<tr><td colspan="${columnCount}"><div class="empty"><b>Không tìm thấy khách hàng</b><span>Hãy thử từ khóa hoặc bộ lọc khác.</span></div></td></tr>`}</tbody></table></div></section>${currentAccount.role === 'ADMIN' ? `<section class="panel" style="margin-top:14px"><div class="panel-head"><div><div class="panel-title">Lịch sử kết nối & cập nhật data</div></div><button class="button button-small" id="importCustomersSecondaryButton">+ Nguồn data</button></div><div class="table-wrap"><table><thead><tr><th>Thời gian</th><th>Nguồn</th><th>File / Endpoint</th><th>Số bản ghi</th><th>Người thực hiện</th><th>Trạng thái</th></tr></thead><tbody>${state.imports.slice(0, 8).map(item => `<tr><td class="mono">${escapeHtml(item.importedAt)}</td><td><b>${escapeHtml(item.source)}</b></td><td>${escapeHtml(item.filename)}</td><td>${number(item.records)}</td><td>${escapeHtml(item.actor)}</td><td>${item.status === 'SUCCESS' ? '<span class="status status-paid">Thành công</span>' : '<span class="status status-cancelled">Thất bại</span>'}</td></tr>`).join('')}</tbody></table></div></section>` : ''}`;
@@ -2445,10 +2478,10 @@ function websitesView() {
     const fresh = customers.filter(customer => !customer.saleId && !customer.leaderId && !customer.teamId).length;
     const connection = statusLabel[website.connectionStatus] || statusLabel.UNCONFIGURED;
     return `<article class="info-card integration-card">
-      <div class="info-card-top"><div><h3>${escapeHtml(website.name)}</h3><div class="cell-sub">${escapeHtml(website.domain)} · ${escapeHtml(providerLabel[website.provider] || website.provider)}</div></div><span class="status status-${connection[1]}">${connection[0]}</span></div>
+      <div class="info-card-top"><div><h3>${escapeHtml(website.name)}</h3><div class="cell-sub">${escapeHtml(website.domain)} · ${escapeHtml(providerLabel[website.provider] || website.provider)}</div><div class="cell-sub mono">URL nguồn: ${website.sourceUrl ? `<a href="${escapeHtml(website.sourceUrl)}" target="_blank" rel="noreferrer">${escapeHtml(website.sourceUrl)}</a>` : 'Chưa cấu hình'}</div></div><span class="status status-${connection[1]}">${connection[0]}</span></div>
       <p>${number(fresh)} data mới · ${number(customers.length - fresh)} đã phân công</p>
       <div class="stat-row"><div><small>Data hôm nay</small><b>${number(todayCount)}</b></div><div><small>Data tổng</small><b>${number(customers.length)}</b></div></div>
-      <div class="connection-actions"><button class="button button-small button-danger" type="button" data-delete-website="${escapeHtml(website.id)}">Xóa website</button></div>
+      <div class="connection-actions"><button class="button button-small" type="button" data-edit-source="${escapeHtml(website.id)}">Sửa URL nguồn</button><button class="button button-small button-danger" type="button" data-delete-website="${escapeHtml(website.id)}">Xóa website</button></div>
       ${webhookPanelMarkup(website)}
     </article>`;
   }).join('');
@@ -3000,7 +3033,7 @@ function openCustomerDrawer(id) {
       ? assignmentCandidates({ leaderId: currentAccount.leaderId, teamId: currentAccount.teamId })
       : [];
   const assignmentHtml = assignmentTargets.length ? `<div class="section-label">Phân công phụ trách</div><div class="form-grid"><label class="form-field">${currentAccount.role === 'ADMIN' ? 'Leader / Team' : 'Sale trong Team'}<select id="customerAssignee">${assignmentTargets.map(person => `<option value="${escapeHtml(person.id)}" ${(currentAccount.role === 'ADMIN' ? customer.leaderId : customer.saleId) === person.id ? 'selected' : ''}>${escapeHtml(person.name)} · ${escapeHtml(person.teamId)}</option>`).join('')}</select></label><div class="form-field"><span>Thao tác</span><div class="panel-actions"><button class="button button-primary" type="button" data-reassign-customer="${escapeHtml(customer.id)}">${currentAccount.role === 'ADMIN' ? 'Chuyển Leader' : 'Giao Sale'}</button>${(currentAccount.role === 'ADMIN' ? customer.leaderId : customer.saleId) ? `<button class="button button-danger" type="button" data-revoke-customer="${escapeHtml(customer.id)}">Thu hồi về Khách mới</button>` : ''}</div></div></div>` : '';
-  const sourceDetails = currentAccount.role === 'ADMIN' ? `<dt>Landing page nguồn</dt><dd>${escapeHtml(customerLandingName(customer))}</dd><dt>Nguồn / Campaign</dt><dd>${escapeHtml(customer.source)} · ${escapeHtml(customer.campaign)}</dd>` : '';
+  const sourceDetails = currentAccount.role === 'ADMIN' ? (() => { const source=customerSourceDetails(customer); return `<dt>Landing page nguồn</dt><dd>${escapeHtml(source.name)}</dd><dt>URL nguồn</dt><dd class="mono">${escapeHtml(source.url || source.domain || 'Nguồn chưa được gắn')}</dd><dt>Nguồn / Campaign</dt><dd>${escapeHtml([customer.source,customer.campaign].filter(Boolean).join(' · '))}</dd>`; })() : '';
   const levelField = state.customFieldDefinitions.find(field => field.id === 'customerLevel') || CUSTOM_FIELD_SEED[0];
   const levelTimeline = levelHistory.map(item => `<div class="timeline-item history-change"><b>${escapeHtml(customFieldValueLabel(levelField, item.to) || 'Chưa đặt Level')}</b><p>${item.from === '' ? 'Khởi tạo Level' : `${escapeHtml(customFieldValueLabel(levelField, item.from) || 'Trống')} → ${escapeHtml(customFieldValueLabel(levelField, item.to) || 'Trống')}`}</p><small>${escapeHtml(item.at)} · ${escapeHtml(item.actor)} · ${escapeHtml(item.source)}</small></div>`).join('') || '<div class="timeline-item"><b>Chưa có lịch sử Level</b><p>Level đầu tiên sẽ được ghi khi cập nhật.</p><small>CRM</small></div>';
   openDrawer({
@@ -3287,7 +3320,9 @@ function ingestCustomer(record, context = {}) {
     ipAddress: cleanText(record.ipAddress || record.ip, 'Chưa xác định', 64),
     source: dataTerminology(cleanText(record.source, context.sourceLabel || 'Nhập thủ công', 120)),
     campaign: dataTerminology(cleanText(record.campaign, 'MANUAL-CRM', 160)),
-    landingPageName: cleanText(record.landingPageName || record.landingPage || website.domain, website.domain, 200),
+    landingPageName: cleanText(record.landingPageName || record.landingPage || website.name || website.domain, website.name || website.domain, 200),
+    landingPageUrl: cleanSourceUrl(record.landingPageUrl || website.sourceUrl),
+    landingPageDomain: cleanText(record.landingPageDomain || website.domain, website.domain, 253),
     productName: cleanText(record.productName || record.product || record.sanpham, 'Chưa xác định sản phẩm', 200),
     websiteId: website.id,
     status: Object.hasOwn(STATUS_META, record.status) ? record.status : 'NEW',
@@ -3786,17 +3821,36 @@ function revokeCustomer(id) {
 
 function newWebsiteModal() {
   if (currentAccount.role !== 'ADMIN') { toast('FORBIDDEN · chỉ Admin được thêm website'); return; }
-  openModal('Thêm website / landing page', `<form id="newWebsiteForm"><div class="form-grid"><label class="form-field">Tên tài sản<input id="websiteName" required maxlength="200" placeholder="Landing chiến dịch"></label><label class="form-field">Tên miền<input id="websiteDomain" required maxlength="253" placeholder="landing.nvtagency.vn"></label><label class="form-field full">Nguồn nhận data<select id="websiteProvider"><option value="LANDING_API">Landing API</option><option value="FACEBOOK_FORMS">Facebook Forms</option><option value="TIKTOK_FORMS">TikTok Forms</option><option value="CUSTOM_WEBHOOK">Custom Webhook</option></select></label></div><div class="credential-hint">Website mới mặc định tắt nhận data. Sau khi thêm, hãy cấu hình credential và để backend xác minh domain/kết nối.</div><div class="modal-actions"><button class="button" type="button" data-close-modal>Huỷ</button><button class="button button-primary" type="submit">Thêm website</button></div></form>`);
+  openModal('Thêm website / landing page', `<form id="newWebsiteForm"><div class="form-grid"><label class="form-field">Tên tài sản<input id="websiteName" required maxlength="200" placeholder="Landing chiến dịch"></label><label class="form-field full">URL nguồn / Landing page<input id="websiteSourceUrl" type="url" required maxlength="500" placeholder="https://www.hoangphucacademy.vn/"></label><label class="form-field full">Nguồn nhận data<select id="websiteProvider"><option value="LANDING_API">Landing API</option><option value="FACEBOOK_FORMS">Facebook Forms</option><option value="TIKTOK_FORMS">TikTok Forms</option><option value="CUSTOM_WEBHOOK">Custom Webhook</option></select></label></div><div class="credential-hint">URL nguồn là trang khách điền form. Website mới mặc định tắt nhận data cho đến khi backend xác minh kết nối.</div><div class="modal-actions"><button class="button" type="button" data-close-modal>Huỷ</button><button class="button button-primary" type="submit">Thêm website</button></div></form>`);
   $('#newWebsiteForm').onsubmit = event => {
     event.preventDefault();
     const name = $('#websiteName').value.trim();
-    const domain = $('#websiteDomain').value.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
-    if (!name || !/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(domain)) { toast('Tên hoặc tên miền chưa hợp lệ'); return; }
-    if (state.websites.some(item => item.domain.toLowerCase() === domain)) { toast('Tên miền đã tồn tại'); return; }
-    const website = { id: `WEB-${Date.now()}`, name, domain, status: 'PAUSED', provider: $('#websiteProvider').value, endpoint: '', externalAccountId: '', campaignId: '', formId: '', webhookSlug: generateWebhookSlug(), webhookUrlOverride: '', connectionStatus: 'UNCONFIGURED', domainVerificationStatus: 'UNVERIFIED', credentialConfigured: false, credentialLast4: '', lastVerifiedAt: '', lastError: '', lastSync: 'Chưa đồng bộ' };
+    const sourceUrl = cleanSourceUrl($('#websiteSourceUrl').value);
+    let domain = ''; try { domain = new URL(sourceUrl).hostname.toLowerCase(); } catch {}
+    if (!name || !sourceUrl || !/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(domain)) { toast('Tên hoặc URL nguồn chưa hợp lệ'); return; }
+    if (state.websites.some(item => item.sourceUrl === sourceUrl)) { toast('URL nguồn đã tồn tại'); return; }
+    const website = { id: `WEB-${Date.now()}`, name, domain, sourceUrl, status: 'PAUSED', provider: $('#websiteProvider').value, endpoint: '', externalAccountId: '', campaignId: '', formId: '', webhookSlug: generateWebhookSlug(), webhookUrlOverride: '', connectionStatus: 'UNCONFIGURED', domainVerificationStatus: 'UNVERIFIED', credentialConfigured: false, credentialLast4: '', lastVerifiedAt: '', lastError: '', lastSync: 'Chưa đồng bộ' };
     state.websites.unshift(website);
-    audit('CREATE_WEBSITE', website.id, `${name} · ${domain}`);
+    audit('CREATE_WEBSITE', website.id, `${name} · ${sourceUrl}`);
     saveState(); closeModal(); render(); toast('Đã thêm website mới');
+  };
+}
+
+function editWebsiteSourceModal(id) {
+  if (currentAccount.role !== 'ADMIN') { toast('Chỉ Admin được sửa URL nguồn'); return; }
+  const website = websiteById(id);
+  if (!website) return;
+  openModal(`URL nguồn · ${website.name}`, `<form id="websiteSourceForm"><label class="form-field full">URL nguồn / Landing page<input id="websiteSourceUrlEdit" type="url" required maxlength="500" value="${escapeHtml(website.sourceUrl || '')}" placeholder="https://www.hoangphucacademy.vn/"></label><p class="credential-hint">URL này dùng để xác định nguồn khách. URL webhook bên dưới vẫn là địa chỉ nhận dữ liệu, không thay thế URL nguồn.</p><div class="modal-actions"><button class="button" type="button" data-close-modal>Huỷ</button><button class="button button-primary" type="submit">Lưu URL nguồn</button></div></form>`);
+  $('#websiteSourceForm').onsubmit = event => {
+    event.preventDefault();
+    const sourceUrl = cleanSourceUrl($('#websiteSourceUrlEdit').value);
+    let domain = ''; try { domain = new URL(sourceUrl).hostname.toLowerCase(); } catch {}
+    if (!sourceUrl || !domain) { toast('URL nguồn không hợp lệ'); return; }
+    if (state.websites.some(item => item.id !== website.id && item.sourceUrl === sourceUrl)) { toast('URL nguồn đã thuộc website khác'); return; }
+    website.sourceUrl = sourceUrl;
+    website.domain = domain;
+    audit('UPDATE_SOURCE_URL', website.id, sourceUrl);
+    saveState(); closeModal(); render(); toast('Đã lưu URL nguồn');
   };
 }
 
@@ -3991,7 +4045,8 @@ function exportCustomers() {
   const headers = ['Mã CRM', 'Họ tên', 'SĐT', 'Email', ...sourceHeaders, 'Trạng thái', 'Team', 'Leader', 'Sale', ...fields.map(field => field.label), 'Ghi chú mới nhất', 'Ngày tạo'];
   downloadCsv(`nvt-khach-hang-${currentAccount.scope.toLowerCase()}.csv`, headers, rows.map(item => {
     const website = customerLanding(item);
-    const sourceValues = currentAccount.role === 'ADMIN' ? [item.source, item.campaign, website?.name || '', website?.domain || ''] : [];
+    const source = customerSourceDetails(item);
+    const sourceValues = currentAccount.role === 'ADMIN' ? [item.source, item.campaign, source.name, source.url, source.domain] : [];
     return [item.id, item.name, item.phone, item.email, ...sourceValues, STATUS_META[item.status]?.label || item.status, item.teamId, staffName(item.leaderId), staffName(item.saleId), ...fields.map(field => customFieldValueLabel(field, item.customFields?.[field.id])), item.note, item.createdAt];
   }));
 }
@@ -4097,6 +4152,7 @@ function bindViewActions() {
   $$('[data-toggle-product]').forEach(button => button.onclick = () => toggleProduct(button.dataset.toggleProduct));
   $$('[data-delete-product]').forEach(button => button.onclick = () => deleteProduct(button.dataset.deleteProduct));
   $('#newWebsiteButton')?.addEventListener('click', newWebsiteModal);
+  $$('[data-edit-source]').forEach(button => button.onclick = () => editWebsiteSourceModal(button.dataset.editSource));
   $$('[data-generate-webhook]').forEach(button => button.onclick = () => generateWebhookFor(button.dataset.generateWebhook));
   $('[data-webhook-sync]')?.addEventListener('click', () => pullWebhookInbox(true));
   $$('[data-webhook-pending]').forEach(button => { button.onclick = () => webhookPendingModal(); });
@@ -4193,7 +4249,7 @@ async function submitRegistration() {
   let id = `u-reg-${Date.now()}`;
   const base = webhookApiBase();
   if (!base) {
-    if (message) { message.className = 'form-message error full'; message.textContent = 'CRM ch?a k?t n?i server. H?y m? b?ng node webhook-server.cjs, kh?ng d?ng python -m http.server.'; }
+    if (message) { message.className = 'form-message error full'; message.textContent = 'CRM chưa kết nối server. Hãy mở bằng node webhook-server.cjs, không dùng python -m http.server.'; }
     return;
   }
   try {
@@ -4204,12 +4260,12 @@ async function submitRegistration() {
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      if (message) { message.className = 'form-message error full'; message.textContent = payload.error || `Server ??ng k? l?i HTTP ${response.status}`; }
+      if (message) { message.className = 'form-message error full'; message.textContent = payload.error || `Server đăng ký lỗi HTTP ${response.status}`; }
       return;
     }
     if (payload.id) id = payload.id;
   } catch (error) {
-    if (message) { message.className = 'form-message error full'; message.textContent = 'Kh?ng k?t n?i ???c server. H?y ch?y node webhook-server.cjs r?i t?i l?i trang.'; }
+    if (message) { message.className = 'form-message error full'; message.textContent = 'Không kết nối được server. Hãy chạy node webhook-server.cjs rồi tải lại trang.'; }
     return;
   }
 
@@ -4282,13 +4338,6 @@ function trapFocus(container, event) {
 }
 
 function bindGlobalActions() {
-  const controls=document.createElement('div');controls.className='panel-actions';
-  controls.innerHTML='<span id="serverSaveStatus" role="status">Chưa đồng bộ</span><button class="button button-small" id="syncNowButton">Đồng bộ máy chủ</button><button class="button button-small" id="exportDraftButton">Xuất bản nháp</button><button class="button button-small" id="importRecoveryButton">Nhập bản sao</button><button class="button button-small" id="reloadServerButton">Tải lại từ máy chủ</button>';
-  $('.topbar-actions')?.prepend(controls);
-  $('#syncNowButton').onclick=async()=>{if(serverPendingRequest||hasServerChanges())await flushServerPersistence();else await syncServerState();};
-  $('#exportDraftButton').onclick=exportWorkingCopy;
-  $('#importRecoveryButton').onclick=importRecoveryModal;
-  $('#reloadServerButton').onclick=async()=>{if((hasServerChanges()||serverPendingRequest)&&!confirm('Tải lại sẽ bỏ bản nháp chưa lưu trên trang này. Hãy Xuất bản nháp trước. Tiếp tục?'))return;serverPendingRequest=null;serverConflict=false;serverStateLoaded=false;await syncServerState();render();};
   const legacy=document.createElement('button');legacy.type='button';legacy.className='text-button';legacy.textContent='Xuất dữ liệu trình duyệt cũ';legacy.onclick=exportLegacyData;$('.login-card')?.append(legacy);
 
   $('#loginTab')?.addEventListener('click', () => switchAuthMode('login'));

@@ -40,4 +40,4 @@ Không chạy Python http.server để đăng nhập CRM vì không có API. Ở
 
 ## Kiểm chứng
 
-npm test: 35 kiểm tra qua tại workspace, có kiểm tra khởi tạo một lần, giữ ID, rollback, role phòng ban và lỗi đăng nhập. Test dùng CSDL/DOM giả lập; chưa xác minh MySQL/hosting thật và chưa triển khai từ phiên làm việc này. Mật khẩu admin123 trước đây được thay bằng mật khẩu mới theo yêu cầu khi migration này áp dụng lần đầu.
+npm test: 39 kiểm tra qua tại workspace, có kiểm tra khởi tạo một lần, giữ ID, rollback, role phòng ban và lỗi đăng nhập. Test dùng CSDL/DOM giả lập; chưa xác minh MySQL/hosting thật và chưa triển khai từ phiên làm việc này. Mật khẩu admin123 trước đây được thay bằng mật khẩu mới theo yêu cầu khi migration này áp dụng lần đầu.

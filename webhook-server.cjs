@@ -616,6 +616,7 @@ async function handleWebhook(request, response, slug) {
   try {
     const saved = await persistWebhook(record);
     record.customerId = saved.customerId;
+    record.source = saved.source || null;
     record.persisted = true;
   } catch (error) {
     console.error('[webhook-mysql]', error.message);
@@ -775,6 +776,7 @@ async function recoverLegacyInbox() {
     if (!record.dedupeKey || !record.customer) continue;
     const saved = await persistWebhook(record);
     record.customerId = saved.customerId;
+    record.source = saved.source || null;
     record.persisted = true;
   }
 }
