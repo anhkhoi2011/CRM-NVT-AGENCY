@@ -1343,7 +1343,7 @@ function startServerSyncPolling() {
   if (serverSyncTimer) clearInterval(serverSyncTimer);
   serverSyncTimer = setInterval(() => {
     if (currentAccount && serverSyncToken) syncServerState();
-  }, 10000);
+  }, 1000);
 }
 function stopServerSyncPolling() {
   if (serverSyncTimer) { clearInterval(serverSyncTimer); serverSyncTimer = null; }
@@ -3045,7 +3045,7 @@ function openOrderDrawer(id) {
   $('[data-refund-order]')?.addEventListener('click', () => changeOrderStatus(id, 'REFUNDED'));
 }
 
-function changeOrderStatus(id, status) {
+async function changeOrderStatus(id, status) {
   const order = state.orders.find(item => item.id === id); if (!order) return; const edit = orderEditState(order); if (!edit.allowed) { toast('Đơn đã khóa chỉnh sửa sau 7 ngày'); return; } if (currentAccount.role !== 'ADMIN' && !canViewCustomer(customerById(order.customerId))) { toast('FORBIDDEN · ngoài phạm vi phụ trách'); return; }
   const validTransition = (status === 'PAID' && order.status === 'PENDING') || (status === 'REFUNDED' && order.status === 'PAID');
   if (!validTransition) { toast('Trạng thái đơn hàng không thể chuyển theo thao tác này'); return; }
@@ -3216,6 +3216,11 @@ function newCustomerModal() {
     await refreshSessionContext();
     const result = ingestCustomer({ name: $('#newCustomerName').value.trim(), phone: $('#newCustomerPhone').value, email: $('#newCustomerEmail').value.trim(), ipAddress: sessionContextIp, source: $('#newCustomerSource').value, campaign: 'MANUAL-CRM', websiteId: $('#newCustomerWebsite').value, note: $('#newCustomerNote').value.trim() }, { intakeType: 'MANUAL', sourceLabel: 'Nhập thủ công' });
     if (!result.created && !result.duplicate) { toast(result.error); return; }
+    if (result.created && serverSyncToken) {
+      const saved = await pushServerRecord('customers', 'POST', null, result.customer);
+      if (!saved) { toast('Kh?ng th? l?u kh?ch h?ng l?n MySQL'); return; }
+      await syncServerState();
+    }
     saveState(); closeModal(); render(); toast(result.message);
   };
 }
@@ -3312,7 +3317,7 @@ function newOrderModal(customerId = '') {
   if (!availableProducts.length) { toast('Chưa có sản phẩm đang bán. Admin hãy tạo sản phẩm trước.'); return; }
   openModal('Tạo đơn hàng', `<form id="newOrderForm"><div class="form-grid"><label class="form-field">Khách hàng<select id="newOrderCustomer">${customers.map(customer => `<option value="${escapeHtml(customer.id)}" ${customer.id === customerId ? 'selected' : ''}>${escapeHtml(customer.name)} · ${escapeHtml(customer.phone)}</option>`).join('')}</select></label><label class="form-field">Sản phẩm<select id="newOrderProduct">${availableProducts.map(product => `<option value="${escapeHtml(product.id)}">${escapeHtml(product.name)} · ${money(product.price)}</option>`).join('')}</select></label><label class="form-field">Số lượng<input id="newOrderQty" type="number" min="1" max="10" value="1"></label></div><div class="form-hint">Đơn mới ở trạng thái Chờ thanh toán.</div><div class="modal-actions"><button class="button" type="button" data-close-modal>Huỷ</button><button class="button button-primary" type="submit">Tạo đơn</button></div></form>`);
   $('[data-close-modal]')?.addEventListener('click', closeModal);
-  $('#newOrderForm').onsubmit = event => { event.preventDefault(); const customer = customerById($('#newOrderCustomer').value), product = productById($('#newOrderProduct').value), requestedQty = Number($('#newOrderQty').value), qty = Math.floor(requestedQty); if (!customer || !canViewCustomer(customer) || !customer.saleId || !product || !Number.isFinite(requestedQty) || qty !== requestedQty || qty < 1 || qty > 10) { toast('Dữ liệu đơn hàng không hợp lệ'); return; } const id = `ORD-${Date.now()}`; const order = { id, code: `NVT-2609-${String(state.orders.length + 1200)}`, customerId: customer.id, customerName: customer.name, saleId: customer.saleId, leaderId: customer.leaderId, teamId: customer.teamId, source: orderSource(customer.source), campaign: customer.campaign || 'UNATTRIBUTED', websiteId: customer.websiteId || null, productId: product.id, productName: product.name, sku: product.sku, qty, unitPrice: product.price, subtotal: product.price * qty, discount: 0, total: product.price * qty, refund: 0, status: 'PENDING', createdAt: stamp(), paidAt: null, refundedAt: null, paymentReconciled: false, refundReconciled: null }; state.orders.unshift(order); audit('CREATE_ORDER', id, `${order.code} · ${order.productName}`); saveState(); closeModal(); render(); toast('Đã tạo đơn chờ thanh toán'); };
+  $('#newOrderForm').onsubmit = async event => { event.preventDefault(); const customer = customerById($('#newOrderCustomer').value), product = productById($('#newOrderProduct').value), requestedQty = Number($('#newOrderQty').value), qty = Math.floor(requestedQty); if (!customer || !canViewCustomer(customer) || !customer.saleId || !product || !Number.isFinite(requestedQty) || qty !== requestedQty || qty < 1 || qty > 10) { toast('D? li?u ??n h?ng kh?ng h?p l?'); return; } const id = `ORD-${Date.now()}`; const order = { id, code: `NVT-2609-${String(state.orders.length + 1200)}`, customerId: customer.id, customerName: customer.name, saleId: customer.saleId, leaderId: customer.leaderId, teamId: customer.teamId, source: orderSource(customer.source), campaign: customer.campaign || 'UNATTRIBUTED', websiteId: customer.websiteId || null, productId: product.id, productName: product.name, sku: product.sku, qty, unitPrice: product.price, subtotal: product.price * qty, discount: 0, total: product.price * qty, refund: 0, status: 'PENDING', createdAt: stamp(), paidAt: null, refundedAt: null, paymentReconciled: false, refundReconciled: null }; if (serverSyncToken && !await pushServerRecord('orders', 'POST', null, order)) { toast('Kh?ng th? l?u ??n h?ng l?n MySQL'); return; } state.orders.unshift(order); audit('CREATE_ORDER', id, `${order.code} ? ${order.productName}`); if (serverSyncToken) await syncServerState(); saveState(); closeModal(); render(); toast('?? t?o ??n ch? thanh to?n'); };
 }
 
 function assignmentCandidates(customer) {
@@ -4106,26 +4111,27 @@ async function submitRegistration() {
   const name = email.split('@')[0];
   let id = `u-reg-${Date.now()}`;
   const base = webhookApiBase();
-  if (base) {
-    try {
-      const response = await fetch(`${base}/api/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ phone, email, password, name })
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        if (message) {
-          message.className = 'form-message error full';
-          message.textContent = payload.error || 'Đăng ký thất bại. Vui lòng kiểm tra lại.';
-        }
-        return;
-      }
-      if (payload.id) id = payload.id;
-    } catch (error) {
-      console.warn('Không thể gửi API đăng ký tới server:', error);
-    }
+  if (!base) {
+    if (message) { message.className = 'form-message error full'; message.textContent = 'CRM ch?a k?t n?i server. H?y m? b?ng node webhook-server.cjs, kh?ng d?ng python -m http.server.'; }
+    return;
   }
+  try {
+    const response = await fetch(`${base}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ phone, email, password, name })
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      if (message) { message.className = 'form-message error full'; message.textContent = payload.error || `Server ??ng k? l?i HTTP ${response.status}`; }
+      return;
+    }
+    if (payload.id) id = payload.id;
+  } catch (error) {
+    if (message) { message.className = 'form-message error full'; message.textContent = 'Kh?ng k?t n?i ???c server. H?y ch?y node webhook-server.cjs r?i t?i l?i trang.'; }
+    return;
+  }
+
 
   await refreshSessionContext();
   state.registeredAccounts.unshift({ id, name, phone, email, password, role: 'UNASSIGNED', initials: memberInitials(name), scope: 'NONE', teamId: '', leaderId: null, saleId: null, memberId: null, ipAddress: sessionIp('Chua xac dinh'), active: true, registeredAt: stamp() });

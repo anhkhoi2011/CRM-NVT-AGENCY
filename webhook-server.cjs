@@ -99,6 +99,11 @@ async function handleDbApi(request, response, pathname) {
         const rows = await dbQuery('SELECT id, phone, email, name, role, team_id, leader_id, active, created_at FROM users ORDER BY created_at DESC');
         return dbJson(request, response, 200, { items: rows.map(row => ({ ...dbUser(row), createdAt: row.created_at })) });
       }
+      if (request.method === 'DELETE' && id) {
+        if (user.role !== 'ADMIN') return dbJson(request, response, 403, { error: 'Ch? Admin ???c kh?a t?i kho?n' });
+        await dbQuery('UPDATE users SET active = 0 WHERE id = ?', [id]);
+        return dbJson(request, response, 200, { ok: true });
+      }
       if (request.method === 'PUT' && id) {
         if (user.role !== 'ADMIN') return dbJson(request, response, 403, { error: 'Ch? Admin ???c c?p nh?t t?i kho?n' });
         const body = await readDbBody(request);
@@ -109,12 +114,19 @@ async function handleDbApi(request, response, pathname) {
     if (resource === 'customers') {
       if (request.method === 'GET') { const where = user.role === 'SALE' ? 'WHERE sale_id = ?' : user.role === 'LEADER' ? 'WHERE leader_id = ? OR team_id = ?' : ''; const params = user.role === 'SALE' ? [user.id] : user.role === 'LEADER' ? [user.id, user.teamId] : []; const rows = await dbQuery(`SELECT * FROM customers ${where} ORDER BY updated_at DESC`, params); return dbJson(request, response, 200, { items: rows.map(dbCustomer) }); }
       const body = await readDbBody(request); if (request.method === 'POST') { await dbQuery('INSERT INTO customers (id,name,phone,email,source,campaign,website_id,status,sale_id,leader_id,team_id,note,custom_fields_json) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)', [body.id,body.name,body.phone,body.email||null,body.source||null,body.campaign||null,body.websiteId||null,body.status||'NEW',body.saleId||null,body.leaderId||null,body.teamId||null,body.note||null,JSON.stringify(body.customFields||{})]); return dbJson(request,response,201,{item:body}); }
+      if (request.method === 'DELETE' && id) { await dbQuery("UPDATE customers SET status = 'ARCHIVED' WHERE id = ?", [id]); return dbJson(request,response,200,{ok:true}); }
       if (request.method === 'PUT' && id) { await dbQuery('UPDATE customers SET name=?,phone=?,email=?,source=?,campaign=?,status=?,sale_id=?,leader_id=?,team_id=?,note=?,custom_fields_json=? WHERE id=?',[body.name,body.phone,body.email||null,body.source||null,body.campaign||null,body.status||'NEW',body.saleId||null,body.leaderId||null,body.teamId||null,body.note||null,JSON.stringify(body.customFields||{}),id]); return dbJson(request,response,200,{ok:true}); }
     }
     if (resource === 'orders') {
       if (request.method === 'GET') { const where = user.role === 'SALE' ? 'WHERE sale_id = ?' : ''; const rows = await dbQuery(`SELECT * FROM orders ${where} ORDER BY updated_at DESC`, user.role === 'SALE' ? [user.id] : []); return dbJson(request,response,200,{items:rows.map(dbOrder)}); }
       const body = await readDbBody(request); if (request.method === 'POST') { await dbQuery('INSERT INTO orders (id,code,customer_id,sale_id,leader_id,team_id,total_amount,status,items_json,note) VALUES (?,?,?,?,?,?,?,?,?,?)',[body.id,body.code,body.customerId,body.saleId||null,body.leaderId||null,body.teamId||null,body.total||0,body.status||'PENDING',JSON.stringify(body.items||[]),body.note||null]); return dbJson(request,response,201,{item:body}); }
+      if (request.method === 'DELETE' && id) { await dbQuery("UPDATE orders SET status = 'CANCELLED' WHERE id = ?", [id]); return dbJson(request,response,200,{ok:true}); }
       if (request.method === 'PUT' && id) { await dbQuery('UPDATE orders SET code=?,customer_id=?,sale_id=?,leader_id=?,team_id=?,total_amount=?,status=?,items_json=?,note=? WHERE id=?',[body.code,body.customerId,body.saleId||null,body.leaderId||null,body.teamId||null,body.total||0,body.status||'PENDING',JSON.stringify(body.items||[]),body.note||null,id]); return dbJson(request,response,200,{ok:true}); }
+    }
+    if (resource === 'settings') {
+      if (!['ADMIN', 'LEADER'].includes(user.role)) return dbJson(request, response, 403, { error: 'Kh?ng c? quy?n' });
+      if (request.method === 'GET') { const rows = await dbQuery('SELECT setting_key, setting_value FROM system_settings ORDER BY setting_key'); return dbJson(request, response, 200, { items: rows.map(row => ({ key: row.setting_key, value: row.setting_value })) }); }
+      if (request.method === 'PUT' && id) { const body = await readDbBody(request); await dbQuery('INSERT INTO system_settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)', [id, JSON.stringify(body.value ?? body)]); return dbJson(request, response, 200, { ok: true }); }
     }
     if (resource === 'products') { if (request.method === 'GET') return dbJson(request,response,200,{items:(await dbQuery('SELECT * FROM products WHERE active=1 ORDER BY name')).map(dbProduct)}); const body=await readDbBody(request); if(request.method==='POST'){await dbQuery('INSERT INTO products (id,sku,name,category,price,type,rental_months,active) VALUES (?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE name=VALUES(name),category=VALUES(category),price=VALUES(price),active=VALUES(active)',[body.id,body.sku||null,body.name,body.category||null,body.price||0,body.type||'SALE',body.rentalMonths||null,body.active===false?0:1]);return dbJson(request,response,201,{item:body});} }
     return dbJson(request,response,404,{error:'API không tồn tại'});
