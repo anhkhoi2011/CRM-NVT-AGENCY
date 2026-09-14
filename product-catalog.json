@@ -1,0 +1,72 @@
+[
+  {
+    "id": "p-kh-hhcb",
+    "sku": "KH-HHCB-09",
+    "name": "Khóa học đầu tư hàng hóa cơ bản",
+    "category": "Khóa học",
+    "price": 5000000,
+    "type": "SALE",
+    "rentalMonths": null,
+    "active": true
+  },
+  {
+    "id": "p-kh-klcs",
+    "sku": "KH-KLCS-10",
+    "name": "Khóa học chuyên sâu đầu tư kim loại",
+    "category": "Khóa học",
+    "price": 10000000,
+    "type": "SALE",
+    "rentalMonths": null,
+    "active": true
+  },
+  {
+    "id": "p-kh-rsi",
+    "sku": "KH-RSIMA-11",
+    "name": "Khóa học RSI MA vùng phản ứng chuyên sâu",
+    "category": "Khóa học",
+    "price": 26000000,
+    "type": "SALE",
+    "rentalMonths": null,
+    "active": true
+  },
+  {
+    "id": "p-ind-1m",
+    "sku": "IND-BF-R1M",
+    "name": "Chỉ báo Breakout + Fake Breakout · thuê 1 tháng · 39$",
+    "category": "Chỉ báo",
+    "price": 1014000,
+    "type": "RENTAL",
+    "rentalMonths": 1,
+    "active": true
+  },
+  {
+    "id": "p-ind-3m",
+    "sku": "IND-BF-R3M",
+    "name": "Chỉ báo Breakout + Fake Breakout · thuê 3 tháng · 117$",
+    "category": "Chỉ báo",
+    "price": 3042000,
+    "type": "RENTAL",
+    "rentalMonths": 3,
+    "active": true
+  },
+  {
+    "id": "p-ind-6m",
+    "sku": "IND-BF-R6M",
+    "name": "Chỉ báo Breakout + Fake Breakout · thuê 6 tháng · 234$",
+    "category": "Chỉ báo",
+    "price": 6084000,
+    "type": "RENTAL",
+    "rentalMonths": 6,
+    "active": true
+  },
+  {
+    "id": "p-ind-12m",
+    "sku": "IND-BF-R12M",
+    "name": "Chỉ báo Breakout + Fake Breakout · thuê 1 năm · 468$",
+    "category": "Chỉ báo",
+    "price": 12168000,
+    "type": "RENTAL",
+    "rentalMonths": 12,
+    "active": true
+  }
+]

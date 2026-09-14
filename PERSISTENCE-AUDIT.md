@@ -53,6 +53,13 @@ SELECT COUNT(*) FROM webhook_events;
 
 ## Kiểm chứng tại workspace và giới hạn
 
-Chạy npm test: 26 kiểm tra tự động đã qua (transaction mô phỏng, phân quyền, replay, xung đột, phục hồi bản nháp, phân quyền tài khoản, API đăng ký, dựng view và luồng webhook). Kiểm tra cú pháp JavaScript và git diff --check cũng được thực hiện. Test dùng pool/DOM giả lập, không chứng minh hành vi thực tế của MySQL, trình duyệt, cPanel hoặc reverse proxy.
+Chạy npm test: 35 kiểm tra tự động đã qua (transaction mô phỏng, phân quyền, replay, xung đột, phục hồi bản nháp, phân quyền tài khoản, API đăng ký, dựng view và luồng webhook). Kiểm tra cú pháp JavaScript và git diff --check cũng được thực hiện. Test dùng pool/DOM giả lập, không chứng minh hành vi thực tế của MySQL, trình duyệt, cPanel hoặc reverse proxy.
 
 Workspace không có .env/kết nối MySQL hosting; chưa deploy và chưa chạy nghiệm thu hai máy trên hosting. Cần thực hiện danh sách trên trước khi coi hệ thống đã nghiệm thu vận hành. Hiện API snapshot đọc toàn bộ dữ liệu rồi lọc quyền, nên cần đo tải với lượng dữ liệu/người dùng thực tế trước khi mở rộng. Tích hợp provider/SMTP cần thông số và dịch vụ thật; 2FA chưa được triển khai trên server, nút giao diện không còn giả báo đã bật.
+
+## Danh mục sản phẩm cài sẵn
+
+- File `product-catalog.json` là danh mục chuẩn gồm 3 khóa học và 4 gói thuê chỉ báo. Giá quy đổi chốt theo 26.000 VND/USD: 1.014.000, 3.042.000, 6.084.000 và 12.168.000 VND.
+- Database mới: import `database/schema.sql` sẽ tạo bảng và thêm danh mục. Database đang chạy: restart Node sẽ seed một lần; hoặc import riêng `database/product-catalog.sql` trong phpMyAdmin.
+- Seed chỉ thêm sản phẩm khi cả ID và SKU chưa tồn tại, không ghi đè giá/tên Admin đã sửa. Marker `product_catalog_20260914_v1` ngăn restart hoặc deploy tự tạo lại sản phẩm đã chủ động xóa sau này.
+- Thông tin VAT, tiền cọc, hóa đơn và hạn thuê nằm trong `orders.items_json`; không còn lưu trong localStorage. Đơn Sale tạo luôn là `PENDING`; chỉ Admin xác nhận `PAID`/`REFUNDED`.

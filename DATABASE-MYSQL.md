@@ -1,17 +1,43 @@
-﻿# NVT AGENCY CRM - triển khai MySQL
+# NVT AGENCY CRM - triển khai MySQL
 
-1. Trong cPanel mở MySQL Databases:
-   - Tạo database, user và cấp ALL PRIVILEGES cho user.
-   - Ghi lại DB_HOST, DB_NAME, DB_USER, DB_PASSWORD.
-2. Mở phpMyAdmin, chọn database vừa tạo và chạy `database/schema.sql`.
-3. Trong Node.js App của cPanel, đặt các biến môi trường theo `.env.example`.
-   Không đưa file `.env` lên Git hoặc frontend.
-4. Upload các file `db.js`, `database/schema.sql`, `package.json`, `package-lock.json` và mã nguồn hiện tại.
-5. Trong thư mục app chạy `npm install`, sau đó Restart Application trong cPanel.
-6. Kiểm tra `GET /api/db/health`. Khi đúng sẽ trả `{"configured":true}`.
+## Database mới
 
-Lưu ý chuyển đổi:
-- API MySQL đã có: `/api/auth/login`, `/api/auth/me`, `/api/customers`, `/api/orders`, `/api/products`.
-- API trả 503 khi chưa đặt biến DB để webhook và giao diện cũ vẫn hoạt động.
-- Dữ liệu localStorage cũ không tự ghi đè dữ liệu MySQL. Hãy xuất/nhập hoặc viết migration riêng trước khi xoá cache trình duyệt.
-- `password_hash` trong schema hiện dùng giá trị tương thích tạm thời với API login. Khi đưa tài khoản thật lên production, cần đổi sang hash Argon2/bcrypt và không lưu mật khẩu dạng rõ.
+1. Trong cPanel tạo database, user và cấp quyền cho user.
+2. Mở phpMyAdmin, chọn database và import `database/schema.sql`.
+3. `schema.sql` đã gồm bảng tài khoản, khách, đơn, sản phẩm, phiên đăng nhập, đồng bộ CRM và sự kiện landing page.
+4. Cấu hình biến môi trường theo `.env.example`, sau đó chạy `npm ci` và restart Node.
+
+`schema.sql` đã cài sẵn 7 sản phẩm. Không cần tạo đơn hàng mẫu.
+
+## Database đang chạy
+
+1. Backup toàn bộ MySQL trước khi deploy.
+2. Không chạy `DROP`, `TRUNCATE` hoặc xóa database cũ.
+3. Deploy đồng thời frontend và backend, bao gồm `crm-data.cjs`, `crm-defaults.json`, `product-catalog.json` và thư mục `database`.
+4. Restart Node. Backend sẽ tự seed các sản phẩm còn thiếu một lần. Có thể import `database/product-catalog.sql` thủ công nếu DB user không có quyền ghi khi khởi động.
+
+## Cấu hình Node
+
+- Application Root: `/home/gdyeksti/crm`
+- Startup File: `app.js`
+- Node.js: 18 trở lên
+- Không dùng `python -m http.server` cho CRM vì Python static server không có API/MySQL.
+
+Kiểm tra sau restart:
+
+```text
+/api/health
+/api/db/health
+```
+
+Kiểm tra SQL:
+
+```sql
+SELECT id, sku, name, price, type, rental_months, active FROM products ORDER BY created_at;
+SELECT setting_key FROM system_settings WHERE setting_key = 'product_catalog_20260914_v1';
+SELECT COUNT(*) FROM customers;
+SELECT COUNT(*) FROM orders;
+SELECT COUNT(*) FROM webhook_events;
+```
+
+Deploy code không xóa dữ liệu MySQL. Tuy nhiên, để phòng hỏng hosting, xóa nhầm hoặc chuyển nhà cung cấp, cần backup MySQL tự động hàng ngày và giữ bản sao ở nơi khác hosting.

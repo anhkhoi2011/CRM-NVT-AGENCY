@@ -13,10 +13,30 @@ const SCHEMA = [
 ];
 let prepared;
 function prepare() {
- if (!prepared) prepared = (async()=>{for(const sql of SCHEMA) await pool.query(sql);await seedDefaults();})().catch(e=>{prepared=null;throw e;});
+ if (!prepared) prepared = (async()=>{for(const sql of SCHEMA) await pool.query(sql);await seedDefaults();await seedProductCatalog();})().catch(e=>{prepared=null;throw e;});
  return prepared;
 }
 
+async function seedProductCatalog(){
+ const c=await pool.getConnection();
+ try{
+  await c.beginTransaction();
+  await c.query('SELECT id FROM crm_write_lock WHERE id=1 FOR UPDATE');
+  const [marker]=await c.execute("SELECT setting_key FROM system_settings WHERE setting_key='product_catalog_20260914_v1' LIMIT 1");
+  if(marker.length){await c.commit();return {applied:false,inserted:0};}
+  const catalog=require('./product-catalog.json');
+  let inserted=0;
+  for(const product of catalog){
+   // Không ghi đè sản phẩm đã được Admin sửa; trùng ID hoặc SKU đều được xem là đã có.
+   const [existing]=await c.execute('SELECT id FROM products WHERE id=? OR sku=? LIMIT 1',[product.id,product.sku]);
+   if(existing.length)continue;
+   await c.execute('INSERT INTO products(id,sku,name,category,price,type,rental_months,active) VALUES (?,?,?,?,?,?,?,?)',[product.id,product.sku,product.name,product.category,product.price,product.type,product.rentalMonths,product.active===false?0:1]);
+   inserted++;
+  }
+  await c.execute("INSERT INTO system_settings(setting_key,setting_value) VALUES ('product_catalog_20260914_v1','true')");
+  await c.commit();return {applied:true,inserted};
+ }catch(e){await c.rollback();throw e;}finally{c.release();}
+}
 async function seedDefaults(){
  const c=await pool.getConnection();
  try{
@@ -120,7 +140,8 @@ function authorize(user,key,old,next,data){
  }
  if(key==='orders'){
   if(!customerScope(user,old||next)||!customerScope(user,data.customers.get(r.customerId)))error(403,'Đơn ngoài phạm vi');
-  if(next&&old&&!sameExcept(old,next,['productId','productName','sku','qty','unitPrice','subtotal','total','discount','updatedAt','items','note']))error(403,'Chỉ Admin xác nhận thanh toán hoặc chuyển đơn');
+  if(next){const product=data.products.get(next.productId);if(!product||(product.active===false&&old?.productId!==product.id)||!Number.isInteger(next.qty)||next.qty<1||next.qty>10||Number(next.unitPrice)!==Number(product.price)||Number(next.subtotal)!==Number(product.price)*next.qty)error(400,'Sản phẩm, số lượng hoặc đơn giá không khớp danh mục MySQL');}
+  if(next&&old&&!sameExcept(old,next,['productId','productName','sku','qty','unitPrice','subtotal','vatRate','vatAmount','total','discount','updatedAt','items','note','paymentMode','depositAmount','balanceDue','billing','paymentMethod','rentalMonths','rentalEndsAt']))error(403,'Chỉ Admin xác nhận thanh toán hoặc chuyển đơn');
   if(next&&!old&&(next.status!=='PENDING'||next.saleId!==data.customers.get(next.customerId)?.saleId||next.leaderId!==data.customers.get(next.customerId)?.leaderId||next.teamId!==data.customers.get(next.customerId)?.teamId))error(403,'Đơn mới không hợp lệ');
   if(old&&old.status!=='PENDING')error(403,'Đơn đã thanh toán không được sửa');
   return;
@@ -149,6 +170,17 @@ function validate(key,value,id){
  if(key==='products'&&(!Number.isFinite(value.price)||value.price<0||!['SALE','RENTAL'].includes(value.type)))error(400,'Sản phẩm không hợp lệ');
  if(key==='orders'&&!['PENDING','PAID','DEPOSIT','CANCELLED','REFUNDED'].includes(value.status))error(400,'Trạng thái đơn không hợp lệ');
  if(key==='orders'&&(!value.customerId||!value.code||!Number.isFinite(value.total)||value.total<0))error(400,'Đơn không hợp lệ');
+ if(key==='orders'){
+  for(const field of ['subtotal','vatAmount','discount','depositAmount','amountPaid','balanceDue'])if(Object.hasOwn(value,field)&&(!Number.isFinite(value[field])||value[field]<0))error(400,'Số tiền đơn hàng không hợp lệ');
+  if(Object.hasOwn(value,'vatRate')&&(!Number.isFinite(value.vatRate)||value.vatRate<0||value.vatRate>1))error(400,'Thuế suất không hợp lệ');
+  if(value.paymentMode&&!['FULL','DEPOSIT'].includes(value.paymentMode))error(400,'Hình thức thanh toán không hợp lệ');
+  if(value.paymentMode==='DEPOSIT'&&(!Number.isFinite(value.depositAmount)||value.depositAmount<=0||value.depositAmount>=value.total))error(400,'Tiền cọc không hợp lệ');
+  if(value.billing&&((typeof value.billing!=='object'||Array.isArray(value.billing))||['name','cccd','phone','email','address','taxId'].some(field=>typeof (value.billing[field]??'')!=='string'||String(value.billing[field]??'').length>254)))error(400,'Thông tin hóa đơn không hợp lệ');
+  if(value.rentalMonths!=null&&![1,3,6,12].includes(Number(value.rentalMonths)))error(400,'Kỳ thuê không hợp lệ');
+  if(value.rentalEndsAt!=null&&!Number.isFinite(Date.parse(value.rentalEndsAt)))error(400,'Ngày hết hạn thuê không hợp lệ');
+  if(Number.isFinite(value.subtotal)&&Number.isFinite(value.vatAmount)&&Math.abs(value.total-(value.subtotal-Number(value.discount||0)+value.vatAmount))>0.01)error(400,'Tổng tiền đơn hàng không khớp');
+  if(value.status!=='REFUNDED'&&Number.isFinite(value.amountPaid)&&Number.isFinite(value.balanceDue)&&Math.abs(value.balanceDue-Math.max(0,value.total-value.amountPaid))>0.01)error(400,'Số tiền còn lại không khớp');
+ }
  if(['password','password_hash','adminPassword','twoFactorCode'].some(k=>Object.hasOwn(value,k)))error(400,'Mật khẩu phải gửi qua API xác thực');
 }
 async function project(c,key,id,r){
@@ -179,7 +211,19 @@ async function expireOffers(c,data){
   data.dataOffers.set(id,next);
  }
 }
-async function read(user){await prepare();const c=await pool.getConnection();try{await c.beginTransaction();await c.query('SELECT id FROM crm_write_lock WHERE id=1 FOR UPDATE');const data=await allData(c);await expireOffers(c,data);const result=snapshot(user,data);await c.commit();return result;}catch(e){await c.rollback();throw e;}finally{c.release();}}
+async function warnRentalExpiry(c,data){
+ for(const order of data.orders.values()){
+  if(!order.rentalEndsAt||order.status!=='PAID')continue;
+  const expiry=Date.parse(order.rentalEndsAt),daysLeft=(expiry-Date.now())/86400000,id=`NT-RENT-${order.id}`;
+  if(!Number.isFinite(expiry)||daysLeft>7||daysLeft<0||data.notifications.has(id))continue;
+  const customer=data.customers.get(order.customerId);
+  const notification={id,role:'OWN',saleId:order.saleId,title:'Sắp hết hạn thuê',text:`${customer?.name||order.customerName||'Khách hàng'} · ${order.productName} · còn ${Math.ceil(daysLeft)} ngày`,at:new Date().toLocaleString('sv-SE',{timeZone:'Asia/Ho_Chi_Minh'}).slice(0,16),readBy:[]};
+  await c.execute('INSERT INTO crm_documents(collection,id,body,deleted) VALUES (?,?,?,0) ON DUPLICATE KEY UPDATE body=VALUES(body),deleted=0',['notifications',id,JSON.stringify(notification)]);
+  await c.execute('INSERT INTO crm_changes(request_id,actor_id,changes_json) VALUES (?,?,?)',['rental-'+crypto.randomUUID(),'SYSTEM',JSON.stringify([{key:'notifications',id,before:null,after:notification}])]);
+  data.notifications.set(id,notification);
+ }
+}
+async function read(user){await prepare();const c=await pool.getConnection();try{await c.beginTransaction();await c.query('SELECT id FROM crm_write_lock WHERE id=1 FOR UPDATE');const data=await allData(c);await expireOffers(c,data);await warnRentalExpiry(c,data);const result=snapshot(user,data);await c.commit();return result;}catch(e){await c.rollback();throw e;}finally{c.release();}}
 async function write(user,requestId,changes){
  if(typeof requestId!=='string'||!/^[-\w]{1,96}$/.test(requestId)||!Array.isArray(changes)||changes.length>2000)error(400,'Gói lưu không hợp lệ');
  await prepare();const c=await pool.getConnection();
@@ -212,6 +256,10 @@ async function write(user,requestId,changes){
   const resultingMembers=new Map(data.members);
   for(const change of changes.filter(x=>x.key==='members')){if(change.value)resultingMembers.set(change.id,change.value);else resultingMembers.delete(change.id);}
   if([...data.members.values()].some(r=>r.role==='ADMIN'&&r.active!==false)&&![...resultingMembers.values()].some(r=>r.role==='ADMIN'&&r.active!==false))error(400,'Phải giữ ít nhất một Admin hoạt động');
+  const resultingProducts=new Map(data.products);
+  for(const change of changes.filter(x=>x.key==='products')){if(change.value)resultingProducts.set(change.id,change.value);else resultingProducts.delete(change.id);}
+  const productSkus=new Set();
+  for(const product of resultingProducts.values()){const sku=String(product.sku||'').trim().toLowerCase();if(!sku)continue;if(productSkus.has(sku))error(400,'Mã SKU sản phẩm đã tồn tại');productSkus.add(sku);}
   for(const {key,id,value}of changes){
    await project(c,key,id,value);
    await c.execute('INSERT INTO crm_documents(collection,id,body,deleted) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE body=VALUES(body),deleted=VALUES(deleted)',[key,id,JSON.stringify(value===null?data[key].get(id)||{}:value),value===null?1:0]);
@@ -220,4 +268,4 @@ async function write(user,requestId,changes){
   const result=snapshot(user,await allData(c));await c.commit();return {...result,ok:true};
  }catch(e){await c.rollback();throw e;}finally{c.release();}
 }
-module.exports={prepare,read,write,revision,canonical,coreRow,userRow,authorize,readable,validate,LISTS,OBJECTS,SCHEMA};
+module.exports={prepare,seedProductCatalog,read,write,revision,canonical,coreRow,userRow,authorize,readable,validate,LISTS,OBJECTS,SCHEMA};

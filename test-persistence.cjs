@@ -2,7 +2,7 @@
 const test=require('node:test'), assert=require('node:assert/strict'), fs=require('node:fs'), vm=require('node:vm');
 // CSDL giả lập giao dịch để kiểm tra logic; không thay thế thử nghiệm MySQL trên hosting.
 function fixture(){
- let db={docs:[],customers:[],orders:[],products:[],users:[],history:[]};let backup,fail=false;
+ let db={docs:[],customers:[],orders:[],products:[{id:'p1',sku:'TEST',name:'Test product',category:'Test',price:120,type:'RENTAL',rental_months:3,active:1,created_at:'2026-08-01 08:00:00'}],users:[],history:[]};let backup,fail=false;
  const events=[];
  const c={async beginTransaction(){backup=structuredClone(db);events.push('begin');},async commit(){events.push('commit');},async rollback(){db=backup;events.push('rollback');},release(){events.push('release');},
  async query(sql){return this.execute(sql,[]);},
@@ -36,11 +36,11 @@ function fixture(){
 }
 const admin={id:'admin',role:'ADMIN'},sale={id:'sale',role:'SALE',teamId:'T',leaderId:'lead'};
 const customer={id:'c1',name:'Khách thử',phone:'0912345678',saleId:'sale',teamId:'T',leaderId:'lead',status:'NEW',createdAt:'2026-08-01 09:00:00',customFields:{level:'L3'}};
-const order={id:'o1',code:'NVT-o1',customerId:'c1',saleId:'sale',teamId:'T',leaderId:'lead',status:'PENDING',total:340,qty:3,unitPrice:120,discount:20,productName:'Giá lịch sử',createdAt:'2026-08-01 10:00:00'};
+const order={id:'o1',code:'NVT-o1',customerId:'c1',saleId:'sale',teamId:'T',leaderId:'lead',status:'PENDING',subtotal:360,vatRate:0.1,vatAmount:36,total:376,qty:3,unitPrice:120,discount:20,productId:'p1',productName:'Historical price',paymentMode:'DEPOSIT',depositAmount:100,balanceDue:376,amountPaid:0,paymentMethod:'VietQR',billing:{name:'Test customer',cccd:'012345678901',phone:'0912345678',email:'khach@example.vn',address:'TP HCM',taxId:''},rentalMonths:3,rentalEndsAt:'2026-11-01T03:00:00.000Z',createdAt:'2026-08-01 10:00:00'};
 const change=(key,value,base=null)=>({key,id:value.id,base,value});
 test('Sale tạo khách, đơn, ghi chú, công việc trong một giao dịch; giữ giá và ngày gốc',async()=>{
  const f=fixture();const result=await f.api.write(sale,'one',[change('orders',order),change('notes',{id:'n1',customerId:'c1',text:'Lần đầu'}),change('tasks',{id:'t1',customerId:'c1'}),change('customers',customer)]);
- assert.equal(result.state.orders[0].unitPrice,120);assert.equal(result.state.orders[0].discount,20);assert.equal(result.state.customers[0].createdAt,customer.createdAt);assert.equal(result.state.notes.length,1);assert.equal(f.db.history.length,1);
+ assert.equal(result.state.orders[0].unitPrice,120);assert.equal(result.state.orders[0].discount,20);assert.equal(result.state.orders[0].vatAmount,36);assert.equal(result.state.orders[0].billing.cccd,'012345678901');assert.equal(result.state.orders[0].rentalMonths,3);assert.equal(result.state.customers[0].createdAt,customer.createdAt);assert.equal(result.state.notes.length,1);assert.equal(f.db.history.length,1);
  const reread=await f.api.read(admin);assert.equal(reread.state.tasks.length,1);assert.equal(reread.state.orders[0].createdAt,order.createdAt);
 });
 test('Lỗi giữa giao dịch rollback cả projection và documents',async()=>{
@@ -188,4 +188,52 @@ test('Khôi phục sản phẩm localStorage cũ không ghi đè sản phẩm đ
  const c=frontend();vm.runInContext(`localStorage.setItem(STORAGE_KEY,JSON.stringify({products:[{id:'old-1',name:'Chỉ báo Gold',sku:'GOLD',category:'Chỉ báo',price:2500000,type:'SALE'},{id:'same',name:'Đã có',sku:'EXIST',category:'CRM',price:1,type:'SALE'}]}));currentAccount={id:'admin',name:'Admin',role:'ADMIN',scope:'ALL'};applyServerSnapshot({state:{...initialState(),products:[{id:'same',name:'Đã có',sku:'EXIST',category:'CRM',price:1,type:'SALE',active:true}]},versions:{}});flushServerPersistence=async()=>true;`,c);
  assert.equal(vm.runInContext('legacyProductCandidates().length',c),1);await c.restoreLegacyProducts();
  assert.equal(vm.runInContext('state.products.length',c),2);assert.equal(vm.runInContext("state.products.find(p=>p.id==='old-1').price",c),2500000);assert.equal(vm.runInContext('localStorage.length',c),1);
+});
+
+function productSeedFixture(existing=[],failSku=''){
+ let products=structuredClone(existing),marker=false,backup;
+ const events=[];
+ const c={async beginTransaction(){backup={products:structuredClone(products),marker};events.push('begin');},async commit(){events.push('commit');},async rollback(){products=backup.products;marker=backup.marker;events.push('rollback');},release(){},async query(sql){if(sql.includes('crm_write_lock'))return [[{id:1}]];throw new Error('Unexpected query: '+sql);},async execute(sql,v=[]){
+  if(sql.includes("setting_key='product_catalog_20260914_v1'"))return [marker?[{setting_key:'product_catalog_20260914_v1'}]:[]];
+  if(sql.startsWith('SELECT id FROM products'))return [products.filter(item=>item.id===v[0]||item.sku===v[1]).map(item=>({id:item.id}))];
+  if(sql.startsWith('INSERT INTO products')){if(v[1]===failSku)throw new Error('Catalog failure');products.push({id:v[0],sku:v[1],name:v[2],category:v[3],price:v[4],type:v[5],rental_months:v[6],active:v[7]});return [{}];}
+  if(sql.startsWith('INSERT INTO system_settings')){marker=true;return [{}];}
+  throw new Error('Unexpected execute: '+sql);
+ }};
+ const module={exports:{}};vm.runInNewContext(fs.readFileSync('crm-data.cjs','utf8'),{module,require:name=>name==='./db.js'?{pool:{getConnection:async()=>c}}:require(name),Buffer,console});
+ return {run:()=>module.exports.seedProductCatalog(),removeAll(){products=[];},get products(){return products;},get marker(){return marker;},events};
+}
+test('Catalog seed inserts seven products with exact prices and rental periods',async()=>{
+ const f=productSeedFixture();const result=await f.run();assert.equal(result.inserted,7);assert.equal(f.products.length,7);assert.equal(f.marker,true);
+ assert.deepEqual(f.products.map(p=>[p.sku,p.price,p.rental_months]),[['KH-HHCB-09',5000000,null],['KH-KLCS-10',10000000,null],['KH-RSIMA-11',26000000,null],['IND-BF-R1M',1014000,1],['IND-BF-R3M',3042000,3],['IND-BF-R6M',6084000,6],['IND-BF-R12M',12168000,12]]);
+});
+test('Catalog seed preserves existing ID/SKU and does not resurrect after marker',async()=>{
+ const f=productSeedFixture([{id:'custom-id',sku:'KH-HHCB-09',name:'Admin edited name',price:123}]);await f.run();assert.equal(f.products.find(p=>p.sku==='KH-HHCB-09').price,123);assert.equal(f.products.length,7);
+ f.removeAll();const retry=await f.run();assert.equal(retry.applied,false);assert.equal(f.products.length,0);
+});
+test('Catalog seed rolls back and leaves no marker after failure',async()=>{
+ const f=productSeedFixture([], 'IND-BF-R3M');await assert.rejects(f.run(),/Catalog failure/);assert.equal(f.products.length,0);assert.equal(f.marker,false);assert.ok(f.events.includes('rollback'));
+});
+test('Frontend has no business-data localStorage writes',()=>{
+ const html=fs.readFileSync('index.html','utf8'),js=fs.readFileSync('crm.js','utf8');assert.doesNotMatch(html,/localStorage\.setItem|nvt-payment-sidecar|const CATALOG/);const writes=[...js.matchAll(/localStorage\.setItem\(([^,]+)/g)].map(match=>match[1].trim());assert.deepEqual(writes,['THEME_KEY']);
+});
+test('Rental expiry warning persists exactly once',async()=>{
+ const f=fixture(),ends=new Date(Date.now()+2*86400000).toISOString();await f.api.write(admin,'rental',[change('customers',customer),change('orders',{...order,status:'PAID',amountPaid:order.total,balanceDue:0,paidAt:'2026-09-14 10:00',rentalEndsAt:ends})]);
+ const first=await f.api.read(admin),second=await f.api.read(admin);assert.equal(first.state.notifications.filter(n=>n.id==='NT-RENT-o1').length,1);assert.equal(second.state.notifications.filter(n=>n.id==='NT-RENT-o1').length,1);assert.equal(f.db.docs.filter(d=>d.collection==='notifications'&&d.id==='NT-RENT-o1').length,1);
+});
+
+test('Server rejects a Sale order whose price differs from the MySQL catalog',async()=>{
+ const f=fixture();await assert.rejects(f.api.write(sale,'bad-price',[change('customers',customer),change('orders',{...order,unitPrice:1,subtotal:3,vatAmount:0,discount:0,total:3,balanceDue:3})]),error=>error.status===400);assert.equal(f.db.orders.length,0);
+});
+test('Sale order form keeps VAT, deposit, billing and rental data in the unified MySQL change',async()=>{
+ const c=frontend();vm.runInContext(`applyServerSnapshot({state:{...initialState(),members:[{id:'sale',name:'Sale',role:'SALE',teamId:'T',leaderId:'lead',active:true}],customers:[{id:'c1',name:'Customer',phone:'0912345678',email:'c@example.vn',saleId:'sale',teamId:'T',leaderId:'lead',source:'Direct / Referral'}],products:[{id:'p1',name:'Indicator',sku:'IND-BF-R1M',category:'Indicator',price:1014000,type:'RENTAL',rentalMonths:1,active:true}]},versions:{}});currentAccount=hydrateSessionAccount({id:'sale',name:'Sale',role:'SALE',teamId:'T',leaderId:'lead'});flushServerPersistence=async()=>true;newOrderModal('c1');document.querySelector('#newOrderCustomer').value='c1';document.querySelector('#newOrderProduct').value='p1';document.querySelector('#newOrderQty').value='2';document.querySelector('#newOrderPaymentMode').value='DEPOSIT';document.querySelector('#newOrderDeposit').value='500000';document.querySelector('#newOrderPaymentMethod').value='VietQR';document.querySelector('#newOrderBillingName').value='Customer';document.querySelector('#newOrderBillingPhone').value='0912345678';document.querySelector('#newOrderBillingEmail').value='c@example.vn';`,c);
+ await vm.runInContext("document.querySelector('#newOrderForm').onsubmit({preventDefault(){}})",c);const saved=vm.runInContext('state.orders[0]',c);assert.equal(saved.subtotal,2028000);assert.equal(saved.vatAmount,202800);assert.equal(saved.total,2230800);assert.equal(saved.depositAmount,500000);assert.equal(saved.billing.phone,'0912345678');assert.equal(saved.rentalMonths,1);assert.ok(saved.rentalEndsAt);assert.equal(saved.status,'PENDING');assert.equal(vm.runInContext("state.audit.some(row=>row.entity===state.orders[0].id)",c),true);
+});
+
+test('Product SKU remains unique inside one transactional state update',async()=>{
+ const f=fixture(),productA={id:'pa',name:'A',sku:'DUP-SKU',category:'Test',price:1,type:'SALE',active:true},productB={id:'pb',name:'B',sku:'dup-sku',category:'Test',price:2,type:'SALE',active:true};await assert.rejects(f.api.write(admin,'duplicate-sku',[change('products',productA),change('products',productB)]),error=>error.status===400);assert.equal(f.db.products.filter(p=>p.id==='pa'||p.id==='pb').length,0);
+});
+
+test('Deposit and final payment financial events never double-count revenue',()=>{
+ const c=frontend(),base={id:'o',code:'NVT-o',customerName:'Customer',total:1100,depositAmount:300,depositAt:'2026-09-14 09:00',paidAt:'2026-09-14 10:00',paymentMethod:'VietQR'};assert.deepEqual(Array.from(vm.runInContext(`orderFinancialEvents(${JSON.stringify(base)}).map(event=>event.amount)`,c)),[300,800]);assert.equal(vm.runInContext(`netRevenue([${JSON.stringify(base)}])`,c),1100);assert.equal(vm.runInContext(`netRevenue([${JSON.stringify({...base,refundedAt:'2026-09-14 11:00',refund:1100})}])`,c),0);
 });
