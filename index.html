@@ -78,7 +78,7 @@
   <div id="drawerRoot"></div>
   <div id="modalRoot"></div>
   <div id="toastRoot" class="toast-root" aria-live="polite"></div>
-  <script src="./crm.js?v=20260912-4" defer></script>
+  <script src="./crm.js?v=20260914-care-3" defer></script>
   <script>
   /* ─────────────────────────────────────────────────────────────────────────
      Danh mục "Chăm Sóc Khách" — bản vá chèn thêm, KHÔNG sửa crm.js.
@@ -225,11 +225,11 @@
       document.querySelectorAll('.queue-assignment-panel').forEach(panel => {
         if (panel.dataset.statsReady) return;
         panel.dataset.statsReady = '1';
-        const customers = Array.isArray(typeof state !== 'undefined' ? state.customers) ? window.state.customers : [];
+        const customers = (typeof state !== 'undefined' && Array.isArray(state.customers)) ? state.customers : [];
         const now = Date.now();
         const parse = value => Date.parse(String(value || '').replace(' ', 'T'));
         const count = days => customers.filter(row => { const time=parse(row.createdAt); return Number.isFinite(time) && time >= now-days*86400000; }).length;
-        panel.innerHTML = `<div class="panel-head"><div><div class="panel-title">Th?ng k? data m?i</div><div class="panel-sub">Theo th?i gian nh?n data</div></div></div><div class="panel-body"><div class="stat-row"><div><small>H?m nay</small><b>${count(1)}</b></div><div><small>3 ng?y g?n nh?t</small><b>${count(3)}</b></div><div><small>7 ng?y g?n nh?t</small><b>${count(7)}</b></div></div></div>`;
+        panel.innerHTML = `<div class="panel-head"><div><div class="panel-title">Th&#7889;ng k&#234; data m&#7899;i</div><div class="panel-sub">Theo th&#7901;i gian nh&#7853;n data</div></div></div><div class="panel-body"><div class="stat-row"><div><small>H&#244;m nay</small><b>${count(1)}</b></div><div><small>3 ng&#224;y g&#7847;n nh&#7845;t</small><b>${count(3)}</b></div><div><small>7 ng&#224;y g&#7847;n nh&#7845;t</small><b>${count(7)}</b></div></div></div>`;
       });
     };
     cleanCare();
