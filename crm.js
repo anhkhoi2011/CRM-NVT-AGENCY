@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 const STORAGE_KEY = 'nvt-crm-production-v1';
 const SESSION_KEY = 'nvt-crm-session-v1';
@@ -1338,6 +1338,17 @@ function saveState() {
 }
 
 let serverSyncToken = '';
+let serverSyncTimer = null;
+function startServerSyncPolling() {
+  if (serverSyncTimer) clearInterval(serverSyncTimer);
+  serverSyncTimer = setInterval(() => {
+    if (currentAccount && serverSyncToken) syncServerState();
+  }, 10000);
+}
+function stopServerSyncPolling() {
+  if (serverSyncTimer) { clearInterval(serverSyncTimer); serverSyncTimer = null; }
+}
+
 async function syncServerState() {
   const base = webhookApiBase();
   if (!base || !currentAccount || !serverSyncToken) return false;
@@ -2747,6 +2758,7 @@ function navigate(view) {
   closeModal();
   render();
   window.scrollTo({ top: 0, behavior: 'smooth' });
+  if (currentAccount && serverSyncToken) syncServerState();
 }
 
 function render() {
@@ -4090,10 +4102,32 @@ async function submitRegistration() {
   }
   const duplicate = state.registrations.some(item => item.status === 'PENDING' && (item.phone === phone || item.email.toLowerCase() === email)) || loginAccounts().some(account => account.phone === phone || account.email?.toLowerCase() === email);
   if (duplicate) { if (message) { message.className = 'form-message error full'; message.textContent = 'Thông tin này đã có hồ sơ đăng ký hoặc tài khoản trong hệ thống.'; } return; }
-  // Đăng ký thành công được dùng ngay, không qua bước phê duyệt.
-  await refreshSessionContext();
-  const id = `u-reg-${Date.now()}`;
+  
   const name = email.split('@')[0];
+  let id = `u-reg-${Date.now()}`;
+  const base = webhookApiBase();
+  if (base) {
+    try {
+      const response = await fetch(`${base}/api/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ phone, email, password, name })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (message) {
+          message.className = 'form-message error full';
+          message.textContent = payload.error || 'Đăng ký thất bại. Vui lòng kiểm tra lại.';
+        }
+        return;
+      }
+      if (payload.id) id = payload.id;
+    } catch (error) {
+      console.warn('Không thể gửi API đăng ký tới server:', error);
+    }
+  }
+
+  await refreshSessionContext();
   state.registeredAccounts.unshift({ id, name, phone, email, password, role: 'UNASSIGNED', initials: memberInitials(name), scope: 'NONE', teamId: '', leaderId: null, saleId: null, memberId: null, ipAddress: sessionIp('Chua xac dinh'), active: true, registeredAt: stamp() });
   saveState();
   $('#registerForm')?.reset();
@@ -4119,16 +4153,19 @@ function startSession(account, restored = false) {
   globalQuery = '';
   selectedPoolIds.clear();
   customerOwnerFilter = 'ALL';
-  try { sessionStorage.setItem(SESSION_KEY, JSON.stringify({ accountId: account.id })); } catch (error) {}
+  try { sessionStorage.setItem(SESSION_KEY, JSON.stringify({ accountId: account.id, token: serverSyncToken })); } catch (error) {}
   $('#loginScreen').classList.add('is-hidden');
   $('#appShell').classList.remove('is-hidden');
   if (!restored) { audit('LOGIN', 'SESSION', `Đăng nhập tài khoản ${account.role}`); saveState(); }
   render();
   startWebhookConsumer();
+  startServerSyncPolling();
 }
 
 function endSession() {
   stopWebhookConsumer();
+  stopServerSyncPolling();
+  serverSyncToken = '';
   if (currentAccount) { audit('LOGOUT', 'SESSION', `Đăng xuất tài khoản ${currentAccount.role}`); saveState(); }
   currentAccount = null;
   currentView = 'dashboard';
@@ -4342,8 +4379,13 @@ function initialize() {
   refreshSessionContext();
   try {
     const session = JSON.parse(sessionStorage.getItem(SESSION_KEY));
+    if (session?.token) serverSyncToken = session.token;
     const account = loginAccounts().find(item => item.id === session?.accountId);
-    if (account) { startSession(account, true); return; }
+    if (account) {
+      startSession(account, true);
+      if (serverSyncToken) syncServerState();
+      return;
+    }
   } catch (error) {}
   $('#loginScreen').classList.remove('is-hidden');
   $('#appShell').classList.add('is-hidden');
