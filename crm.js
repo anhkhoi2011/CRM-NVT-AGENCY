@@ -1343,11 +1343,18 @@ async function syncServerState() {
   if (!base || !currentAccount || !serverSyncToken) return false;
   try {
     const headers = { Accept: 'application/json', Authorization: `Bearer ${serverSyncToken}` };
-    const responses = await Promise.all([fetch(`${base}/api/customers`, { headers }), fetch(`${base}/api/orders`, { headers }), fetch(`${base}/api/products`, { headers })]);
+    const requests = [fetch(`${base}/api/customers`, { headers }), fetch(`${base}/api/orders`, { headers }), fetch(`${base}/api/products`, { headers })];
+    if (currentAccount.role === 'ADMIN' || currentAccount.role === 'LEADER') requests.push(fetch(`${base}/api/users`, { headers }));
+    const responses = await Promise.all(requests);
     if (responses.some(response => response.status === 401 || response.status === 503)) return false;
     if (responses[0].ok) { const payload = await responses[0].json(); if (Array.isArray(payload.items)) state.customers = payload.items; }
     if (responses[1].ok) { const payload = await responses[1].json(); if (Array.isArray(payload.items)) state.orders = payload.items; }
     if (responses[2].ok) { const payload = await responses[2].json(); if (Array.isArray(payload.items)) { state.products = payload.items; PRODUCTS = state.products; } }
+    if (responses[3]?.ok) { const payload = await responses[3].json(); if (Array.isArray(payload.items)) {
+      state.registeredAccounts = payload.items.filter(user => user.role === 'UNASSIGNED').map(user => ({ ...user, initials: memberInitials(user.name), scope: 'NONE', teamId: user.teamId || '', leaderId: user.leaderId || null, active: user.active !== false }));
+      state.members = payload.items.filter(user => ['LEADER', 'SALE'].includes(user.role)).map(user => ({ ...user, initials: memberInitials(user.name), teamId: user.teamId || '', leaderId: user.leaderId || null, saleId: user.role === 'SALE' ? user.id : null, scope: user.role === 'LEADER' ? 'TEAM' : 'OWN', active: user.active !== false }));
+      STAFF = state.members.filter(person => person.active !== false);
+    } }
     saveState(); refreshTaskStatuses(); render(); return true;
   } catch (error) { return false; }
 }
@@ -2232,7 +2239,9 @@ function assignRegisteredAccountModal(accountId) {
     const name = $('#assignAccountName').value.trim();
     if (!name || !/^[A-Z0-9_-]{1,20}$/.test(teamId)) { toast('Thông tin không hợp lệ'); return; }
     if (role === 'SALE' && (!leader || leader.teamId !== teamId)) { toast('Sale phải thuộc đúng Team của Leader'); return; }
-    const memberId = 'u-' + Date.now();
+    const memberId = account.id;
+    const assignment = { role, teamId, leaderId: role === 'SALE' ? leaderId : null, name, active: true };
+    pushServerRecord('users', 'PUT', account.id, assignment).then(ok => { if (!ok) toast('Kh?ng th? l?u ph?n quy?n l?n server'); else syncServerState(); });
     const member = { id: memberId, name, email: account.email || '', role, teamId, leaderId: role === 'SALE' ? leaderId : null, initials: memberInitials(name), createdBy: currentAccount.name, active: true };
     state.members.push(member);
     account.role = role; account.scope = role === 'LEADER' ? 'TEAM' : 'OWN'; account.teamId = teamId; account.leaderId = member.leaderId; account.saleId = role === 'SALE' ? memberId : null; account.memberId = memberId;
@@ -4158,9 +4167,17 @@ function bindGlobalActions() {
     button.setAttribute('aria-label', visible ? 'Hiện mật khẩu' : 'Ẩn mật khẩu');
   }));
   $('#forgotPasswordButton')?.addEventListener('click', () => { $('#loginError').textContent = 'Vui lòng liên hệ Admin để cấp lại mật khẩu.'; });
-  $('#loginForm').onsubmit = event => {
+  $('#loginForm').onsubmit = async event => {
     event.preventDefault();
     const identifier = $('#loginPhone').value.trim(), phone = identifier.replace(/\D/g, ''), email = identifier.toLowerCase(), password = $('#loginPassword').value;
+    const base = webhookApiBase();
+    if (base) {
+      try {
+        const response = await fetch(`${base}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ identifier: phone || email, password }) });
+        const payload = await response.json().catch(() => ({}));
+        if (response.ok && payload.user) { serverSyncToken = payload.token || ''; startSession(payload.user); await syncServerState(); return; }
+      } catch (error) { /* fallback sang t?i kho?n local khi server t?m th?i kh?ng kh? d?ng */ }
+    }
     const account = loginAccounts().find(item => item.phone === phone || item.email?.toLowerCase() === email);
     if (!account || !accountCanLogin(account) || password !== credentialPassword(account)) { if (account) { recordAdminLogin(false, account); saveState(); } $('#loginError').textContent = 'Số điện thoại hoặc mật khẩu không đúng.'; return; }
     if (account.role === 'ADMIN' && state.security.twoFactorEnabled && $('#loginOtp').value.trim() !== state.security.twoFactorCode) { recordAdminLogin(false, account); saveState(); $('#loginError').textContent = 'Mã xác thực 2FA không đúng.'; updateLoginTwoFactorField(); return; }

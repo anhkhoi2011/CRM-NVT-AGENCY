@@ -71,6 +71,20 @@ async function handleDbApi(request, response, pathname) {
   if (!dbConfigured) return dbJson(request, response, 503, { error: 'MySQL chưa được cấu hình trên server' });
   try {
     if (pathname === '/api/db/health') return dbJson(request, response, 200, await dbHealth());
+    // ??ng k? c?ng khai: t?i kho?n m?i ch? Admin ph?n ch?c v?.
+    if (pathname === '/api/auth/register' && request.method === 'POST') {
+      const body = await readDbBody(request);
+      const phone = String(body.phone || '').replace(/\D/g, '');
+      const email = String(body.email || '').trim().toLowerCase();
+      const password = String(body.password || '');
+      const name = String(body.name || email.split('@')[0] || 'T?i kho?n m?i').trim();
+      if (!/^\d{9,15}$/.test(phone) || !email || password.length < 8 || !name) return dbJson(request, response, 400, { error: 'D? li?u ??ng k? kh?ng h?p l?' });
+      const duplicate = await dbQuery('SELECT id FROM users WHERE phone = ? OR email = ? LIMIT 1', [phone, email]);
+      if (duplicate.length) return dbJson(request, response, 400, { error: 'S? ?i?n tho?i ho?c email ?? t?n t?i' });
+      const id = `u-reg-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+      await dbQuery("INSERT INTO users (id, phone, email, password_hash, name, role, active) VALUES (?, ?, ?, ?, ?, 'UNASSIGNED', 1)", [id, phone, email, password, name]);
+      return dbJson(request, response, 201, { success: true, message: '??ng k? th?nh c?ng', id });
+    }
     if (pathname === '/api/auth/login' && request.method === 'POST') {
       const body = await readDbBody(request); const rows = await dbQuery('SELECT * FROM users WHERE (phone = ? OR email = ?) AND active = 1 LIMIT 1', [String(body.identifier || ''), String(body.identifier || '').toLowerCase()]); const row = rows[0];
       if (!row || String(body.password || '') !== String(row.password_hash || '')) return dbJson(request, response, 401, { error: 'Thông tin đăng nhập không đúng' });
@@ -79,6 +93,19 @@ async function handleDbApi(request, response, pathname) {
     if (pathname === '/api/auth/me' && request.method === 'GET') { const user = authUser(request); return user ? dbJson(request, response, 200, { user }) : dbJson(request, response, 401, { error: 'Phiên đăng nhập không hợp lệ' }); }
     const user = authUser(request); if (!user) return dbJson(request, response, 401, { error: 'Cần đăng nhập' });
     const [resource, id] = pathname.replace('/api/', '').split('/');
+    if (resource === 'users') {
+      if (!['ADMIN', 'LEADER'].includes(user.role)) return dbJson(request, response, 403, { error: 'Kh?ng c? quy?n' });
+      if (request.method === 'GET' && !id) {
+        const rows = await dbQuery('SELECT id, phone, email, name, role, team_id, leader_id, active, created_at FROM users ORDER BY created_at DESC');
+        return dbJson(request, response, 200, { items: rows.map(row => ({ ...dbUser(row), createdAt: row.created_at })) });
+      }
+      if (request.method === 'PUT' && id) {
+        if (user.role !== 'ADMIN') return dbJson(request, response, 403, { error: 'Ch? Admin ???c c?p nh?t t?i kho?n' });
+        const body = await readDbBody(request);
+        await dbQuery('UPDATE users SET role = ?, team_id = ?, leader_id = ?, name = COALESCE(?, name), active = COALESCE(?, active) WHERE id = ?', [body.role, body.teamId || null, body.leaderId || null, body.name || null, body.active == null ? null : (body.active ? 1 : 0), id]);
+        return dbJson(request, response, 200, { ok: true });
+      }
+    }
     if (resource === 'customers') {
       if (request.method === 'GET') { const where = user.role === 'SALE' ? 'WHERE sale_id = ?' : user.role === 'LEADER' ? 'WHERE leader_id = ? OR team_id = ?' : ''; const params = user.role === 'SALE' ? [user.id] : user.role === 'LEADER' ? [user.id, user.teamId] : []; const rows = await dbQuery(`SELECT * FROM customers ${where} ORDER BY updated_at DESC`, params); return dbJson(request, response, 200, { items: rows.map(dbCustomer) }); }
       const body = await readDbBody(request); if (request.method === 'POST') { await dbQuery('INSERT INTO customers (id,name,phone,email,source,campaign,website_id,status,sale_id,leader_id,team_id,note,custom_fields_json) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)', [body.id,body.name,body.phone,body.email||null,body.source||null,body.campaign||null,body.websiteId||null,body.status||'NEW',body.saleId||null,body.leaderId||null,body.teamId||null,body.note||null,JSON.stringify(body.customFields||{})]); return dbJson(request,response,201,{item:body}); }
@@ -690,7 +717,7 @@ const server = http.createServer(async (request, response) => {
     if (pathname === '/api/session-context') return handleSessionContext(request, response);
     if (pathname === '/api/email/status') return handleEmailStatus(request, response);
     if (pathname === '/api/email/notify') return handleEmailNotify(request, response);
-    if (pathname === '/api/db/health' || pathname.startsWith('/api/auth/') || pathname.startsWith('/api/customers') || pathname.startsWith('/api/orders') || pathname.startsWith('/api/products')) return handleDbApi(request, response, pathname);
+    if (pathname === '/api/db/health' || pathname.startsWith('/api/auth/') || pathname.startsWith('/api/users') || pathname.startsWith('/api/customers') || pathname.startsWith('/api/orders') || pathname.startsWith('/api/products')) return handleDbApi(request, response, pathname);
     if (pathname === '/api/health') return sendJson(response, 200, { ok: true, inbox: inbox.length, token: Boolean(WEBHOOK_TOKEN) });
 
     if (pathname.startsWith('/api/')) {
@@ -709,6 +736,15 @@ const server = http.createServer(async (request, response) => {
 });
 
 loadInbox();
+async function seedAdmin() {
+  if (!dbConfigured) return;
+  const rows = await dbQuery('SELECT COUNT(*) AS total FROM users');
+  if (Number(rows[0]?.total || 0) === 0) {
+    await dbQuery("INSERT INTO users (id, phone, email, password_hash, name, role, active) VALUES (?, ?, ?, ?, ?, 'ADMIN', 1)", ['u-admin-start', '0933445566', 'admin@nvtagency.top', 'admin123', 'Start']);
+    console.log('[mysql] ?? t?o t?i kho?n Admin m?c ??nh.');
+  }
+}
+seedAdmin().catch(error => console.error('[mysql] Seed Admin th?t b?i:', error.message));
 server.listen(PORT, HOST, () => {
   const lan = HOST === '0.0.0.0' ? ' (mọi interface — máy khác trong LAN vào được)' : '';
   console.log(`\nCRM webhook server chạy tại http://localhost:${PORT}${lan}`);
