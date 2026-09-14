@@ -21,6 +21,7 @@ const fsp = require('node:fs/promises');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { dbConfigured, dbQuery, dbHealth } = require('./db.js');
+const { persistWebhook } = require('./webhook-store.cjs');
 let nodemailer = null;
 try { nodemailer = require('nodemailer'); } catch { /* email optional until npm install */ }
 
@@ -581,10 +582,13 @@ async function handleWebhook(request, response, slug) {
 
   const existing = inbox.find(item => item.dedupeKey === key);
   if (existing) {
-    // Retry của LadiPage: KHÔNG tạo bản ghi mới, chỉ đếm lần gửi lại.
-    existing.retryCount = Number(existing.retryCount || 0) + 1;
-    scheduleFlush();
-    sendJson(response, 200, { received: true, duplicate: true, id: existing.id });
+    try {
+      const saved = await persistWebhook(existing);
+      sendJson(response, 200, { received: true, duplicate: true, id: saved.eventId });
+    } catch (error) {
+      console.error('[webhook-mysql]', error.message);
+      sendJson(response, 503, { received: false, error: 'Chưa lưu được MySQL. Vui lòng gửi lại.' });
+    }
     return;
   }
 
@@ -604,6 +608,15 @@ async function handleWebhook(request, response, slug) {
     consumedAt: ''
   };
 
+  try {
+    const saved = await persistWebhook(record);
+    record.customerId = saved.customerId;
+    record.persisted = true;
+  } catch (error) {
+    console.error('[webhook-mysql]', error.message);
+    sendJson(response, 503, { received: false, error: 'Chưa lưu được MySQL. Vui lòng gửi lại.' });
+    return;
+  }
   inbox.push(record);
   if (inbox.length > MAX_INBOX_RECORDS) inbox.splice(0, inbox.length - MAX_INBOX_RECORDS);
   scheduleFlush();
@@ -748,6 +761,16 @@ const server = http.createServer(async (request, response) => {
 });
 
 loadInbox();
+// Khôi phục inbox cũ theo ID ổn định; không xóa file gốc sau khi nhập.
+async function recoverLegacyInbox() {
+  for (const record of inbox) {
+    if (!record.dedupeKey || !record.customer) continue;
+    const saved = await persistWebhook(record);
+    record.customerId = saved.customerId;
+    record.persisted = true;
+  }
+}
+if (dbConfigured) recoverLegacyInbox().catch(error => console.error('[webhook-recovery] Chưa nhập xong inbox cũ:', error.message));
 async function seedAdmin() {
   if (!dbConfigured) return;
   const rows = await dbQuery('SELECT COUNT(*) AS total FROM users');

@@ -941,6 +941,7 @@ function webhookIngestFields(item, website) {
 
 function ingestWebhookRecord(record) {
   if (!record || typeof record !== 'object') return 'ignored';
+  if (record.persisted || record.customerId) return 'ignored'; // Khách đã được backend lưu; lấy qua API MySQL.
   if (record.status !== 'NEW') return 'ignored'; // INVALID đã bị server chặn ở 422
   if (!claimWebhookRecord(record.id)) return 'duplicate';
   const customer = record.customer && typeof record.customer === 'object' ? record.customer : {};
@@ -978,6 +979,8 @@ async function pullWebhookInbox(manual = false) {
     } finally { if (timer) clearTimeout(timer); }
 
     const items = Array.isArray(payload && payload.items) ? payload.items : [];
+    // SSE chỉ báo có dữ liệu; danh sách khách phải đọc từ nguồn MySQL.
+    if (items.some(record => record.persisted || record.customerId)) await syncServerState();
     const tally = { created: 0, resubmission: 0, pending: 0, ignored: 0, duplicate: 0 };
     for (const record of items) {
       const outcome = ingestWebhookRecord(record);
@@ -1358,7 +1361,10 @@ async function syncServerState() {
     if (currentAccount.role === 'ADMIN' || currentAccount.role === 'LEADER') requests.push(fetch(`${base}/api/users`, { headers }));
     const responses = await Promise.all(requests);
     if (responses.some(response => response.status === 401 || response.status === 503)) return false;
-    if (responses[0].ok) { const payload = await responses[0].json(); if (Array.isArray(payload.items)) state.customers = payload.items; }
+    if (responses[0].ok) { const payload = await responses[0].json(); if (Array.isArray(payload.items)) state.customers = payload.items.map(customer => {
+      const website = customer.customFields?.webhookSlug && websiteByWebhookSlug(customer.customFields.webhookSlug);
+      return { ...customer, websiteId: customer.websiteId || website?.id || null };
+    }); }
     if (responses[1].ok) { const payload = await responses[1].json(); if (Array.isArray(payload.items)) state.orders = payload.items; }
     if (responses[2].ok) { const payload = await responses[2].json(); if (Array.isArray(payload.items)) { state.products = payload.items; PRODUCTS = state.products; } }
     if (responses[3]?.ok) { const payload = await responses[3].json(); if (Array.isArray(payload.items)) {

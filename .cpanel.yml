@@ -1,5 +1,8 @@
----
+﻿---
 deployment:
   tasks:
     - export DEPLOYPATH=/home/gdyeksti/public_html/
-    - /bin/cp -R * $DEPLOYPATH
+    - export CRMPATH=/home/gdyeksti/crm/
+    - /bin/cp -R * 
+    - /bin/cp -R * 
+    - /bin/touch /home/gdyeksti/crm/tmp/restart.txt
