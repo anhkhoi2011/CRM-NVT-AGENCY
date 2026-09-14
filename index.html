@@ -112,7 +112,8 @@
     const careClassOf = customer => customer.customFields?.customerClass || '';
 
     function careGroups(customers) {
-      return CARE_GROUPS.map(group => {
+      const configured = (typeof state !== 'undefined' && Array.isArray(state.careGroups) && state.careGroups.length) ? state.careGroups.map(group => ({...group, label: group.name || group.label, classes: group.values || group.classes || [], empty: 'Ch?a c? kh?ch trong m?c n?y.', icon: group.icon || '?', color: group.color || '#246b9b'})) : CARE_GROUPS;
+      return configured.map(group => {
         const keys = careKey(group);
         return {
           ...group,
@@ -193,6 +194,15 @@
       });
     }
 
+    document.addEventListener('click', event => {
+      if (!event.target.closest?.('#newCareGroupButton') || currentAccount.role !== 'ADMIN') return;
+      const name = window.prompt('T?n m?c ch?m s?c:'); if (!name?.trim()) return;
+      const values = window.prompt('Gi? tr? c?t Ph?n lo?i kh?ch h?ng, ng?n c?ch b?ng d?u ph?y:','Premium, Whale');
+      const list = String(values || '').split(',').map(value => value.trim()).filter(Boolean); if (!list.length) return;
+      state.careGroups = [...(state.careGroups || CARE_GROUPS.map((group,index) => ({id:'CARE-'+(index+1),name:group.label,fieldId:'customerClass',values:group.classes}))), {id:'CARE-'+Date.now(),name:name.trim(),fieldId:'customerClass',values:list}];
+      saveState(); render();
+    });
+
     VIEW_RENDERERS.care = careView;
     insertCareNavigation();
     document.addEventListener('click', event => { const tab = event.target.closest ? event.target.closest('[data-care-tab]') : null; if (!tab) return; window.__nvtCareTab = tab.dataset.careTab; render(); });
@@ -203,5 +213,28 @@
   </script>
 
 
+
+  <script>
+  // Don dep thong tin phu tren trang Cham soc va thay bang thong ke data moi.
+  window.addEventListener('DOMContentLoaded', () => {
+    const cleanCare = () => {
+      document.querySelectorAll('.toolbar').forEach(node => {
+        const text = node.textContent || '';
+        if (/kh.ch trong ph.m vi|Ngo.i 4 nh.m|c.t c.n l.i/.test(text)) node.remove();
+      });
+      document.querySelectorAll('.queue-assignment-panel').forEach(panel => {
+        if (panel.dataset.statsReady) return;
+        panel.dataset.statsReady = '1';
+        const customers = Array.isArray(typeof state !== 'undefined' ? state.customers) ? window.state.customers : [];
+        const now = Date.now();
+        const parse = value => Date.parse(String(value || '').replace(' ', 'T'));
+        const count = days => customers.filter(row => { const time=parse(row.createdAt); return Number.isFinite(time) && time >= now-days*86400000; }).length;
+        panel.innerHTML = `<div class="panel-head"><div><div class="panel-title">Th?ng k? data m?i</div><div class="panel-sub">Theo th?i gian nh?n data</div></div></div><div class="panel-body"><div class="stat-row"><div><small>H?m nay</small><b>${count(1)}</b></div><div><small>3 ng?y g?n nh?t</small><b>${count(3)}</b></div><div><small>7 ng?y g?n nh?t</small><b>${count(7)}</b></div></div></div>`;
+      });
+    };
+    cleanCare();
+    new MutationObserver(cleanCare).observe(document.body, {childList:true, subtree:true});
+  });
+  </script>
 </body>
 </html>
