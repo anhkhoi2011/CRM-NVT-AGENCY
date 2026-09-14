@@ -1,8 +1,9 @@
-﻿---
+---
 deployment:
   tasks:
-    - export DEPLOYPATH=/home/gdyeksti/public_html/
+    - export PUBLICPATH=/home/gdyeksti/public_html/
     - export CRMPATH=/home/gdyeksti/crm/
-    - /bin/cp -R * 
-    - /bin/cp -R * 
-    - /bin/touch /home/gdyeksti/crm/tmp/restart.txt
+    - /bin/mkdir -p $PUBLICPATH $CRMPATH $CRMPATH/tmp
+    - /bin/cp -R index.html crm.js crm.css logo.jpg login-background.jpg $PUBLICPATH
+    - /bin/cp -R index.html crm.js crm.css logo.jpg login-background.jpg webhook-server.cjs webhook-store.cjs crm-data.cjs crm-defaults.json system-accounts.cjs system-accounts.json db.js app.js package.json package-lock.json database $CRMPATH
+    - /bin/touch $CRMPATH/tmp/restart.txt

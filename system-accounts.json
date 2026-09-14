@@ -1,0 +1,23 @@
+[
+  {
+    "id": "u-admin-start",
+    "email": "admin@nvtagency.top",
+    "name": "Admin",
+    "role": "ADMIN",
+    "passwordHash": "$2b$12$DWT.djvENn9bDGKI7O4qLOrSBJJlY5QQv6FSGyQVeRKQfcSvOd4lu"
+  },
+  {
+    "id": "u-marketing",
+    "email": "marketing@nvtagency.top",
+    "name": "Marketing",
+    "role": "MARKETING",
+    "passwordHash": "$2b$12$UG3AyIXMwXZq2yWKMkhXqO7dnp6831LkFvp1Xx/C9.LbiBju671W6"
+  },
+  {
+    "id": "u-accounting",
+    "email": "ketoan@nvtagency.top",
+    "name": "Kế toán",
+    "role": "ACCOUNTING",
+    "passwordHash": "$2b$12$rwc77Xlwu3PL6HUG1rkcJe4vni2250PieRxOw2z0P8kR8R.e2jHwC"
+  }
+]

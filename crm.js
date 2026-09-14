@@ -4,17 +4,9 @@ const STORAGE_KEY = 'nvt-crm-production-v1';
 const SESSION_KEY = 'nvt-crm-session-v1';
 const THEME_KEY = 'nvt-crm-theme-v1';
 
-const ACCOUNTS = [
-  { id: 'u-admin', phone: '0933445566', password: 'admin123', role: 'ADMIN', name: 'Start', initials: 'ST', scope: 'ALL' },
-  { id: 'u-leader-1', phone: '0977000001', password: 'leader123', role: 'LEADER', name: 'Phạm Thu Hà', initials: 'PH', scope: 'TEAM', teamId: 'T2', leaderId: 'l1' },
-  { id: 'u-sale-1', phone: '0966000001', password: 'sale123', role: 'SALE', name: 'Nguyễn Thị Mai', initials: 'NM', scope: 'OWN', teamId: 'T2', leaderId: 'l1', saleId: 's1' }
-];
-
-const STAFF_SEED = [
-  { id: 'l1', name: 'Phạm Thu Hà', role: 'LEADER', teamId: 'T2', initials: 'PH' },
-  { id: 's1', name: 'Nguyễn Thị Mai', role: 'SALE', teamId: 'T2', leaderId: 'l1', initials: 'NM' }
-];
-let STAFF = structuredClone(STAFF_SEED);
+const ACCOUNTS = [];
+const STAFF_SEED = [];
+let STAFF = [];
 
 let PRODUCTS = [];
 
@@ -74,6 +66,16 @@ const NAVIGATION = {
     ['Tổ chức', [['team', 'Đội ngũ', '♧']]],
     ['Hệ thống', [['attendance', 'Điểm danh', '✓'], ['notifications', 'Thông báo', '●'], ['audit', 'User log', '◉'], ['settings', 'Cài đặt', '⚙']]]
   ],
+  MARKETING: [
+    ['Phân tích', [['dashboard', 'Tổng quan', '◫'], ['marketing', 'Dữ liệu marketing', '⌁'], ['websites', 'Websites', '◇']]],
+    ['Tra cứu', [['customers', 'Khách hàng', '♙'], ['orders', 'Đơn hàng', '▤'], ['products', 'Sản phẩm', '□']]],
+    ['Cá nhân', [['notifications', 'Thông báo', '●']]]
+  ],
+  ACCOUNTING: [
+    ['Kế toán', [['dashboard', 'Tổng quan', '◫'], ['orders', 'Đơn hàng', '▤'], ['revenue', 'Doanh thu', '₫'], ['products', 'Sản phẩm', '□']]],
+    ['Tra cứu', [['customers', 'Khách hàng', '♙']]],
+    ['Cá nhân', [['notifications', 'Thông báo', '●']]]
+  ],
   LEADER: [
     ['Vận hành', [['dashboard', 'Tổng quan đội', '◫'], ['customers', 'Khách hàng Team', '♙']]],
     ['Kinh doanh', [['orders', 'Đơn hàng', '▤'], ['revenue', 'Doanh thu', '₫']]],
@@ -109,7 +111,7 @@ function initialState() {
   return {
     version: 3,
     optionPaletteVersion: 2,
-    members: structuredClone(STAFF_SEED),
+    members: [],
     registrations: [],
     registeredAccounts: [],
     disabledAccountIds: [],
@@ -136,18 +138,16 @@ function initialState() {
     integrations: [],
     leaderDistribution: {
       enabled: true,
-      enabledLeaderIds: ['l1'],
-      weights: { l1: 1 },
+      enabledLeaderIds: [],
+      weights: {},
       sourceRules: []
     },
     saleDistributionByLeader: {
-      l1: { enabledSaleIds: ['s1'], weights: { s1: 1 } }
+
     },
     settings: { leaderCanUpdate: true, notifyMilestones: true, leaderAttendanceRequired: true, assignmentMode: 'MANUAL', saleAssignmentModes: {}, assignmentCursor: { leaders: 0, salesByTeam: {} }, slaMinutes: 30, customAccent: '#e8572a', fontFamily: 'aptos', navigationFontSize: 12, contentFontSize: 14, dataBotToken: '', dataBotChatId: '', memberBotToken: '', memberBotChatId: '', webhookPublicBase: 'https://nvtagency.top', attendanceIp: '', attendanceDeadline: '09:00', acceptTimeoutHours: 24, notifyAccountCreated: true, notifyDataReceived: true, emailNotificationsEnabled: true },
     security: {
-      adminPassword: 'admin123',
       twoFactorEnabled: false,
-      twoFactorCode: '260907',
       loginHistory: []
     }
   };
@@ -735,7 +735,7 @@ function webhookPanelMarkup(website) {
    cũng không được nhìn trường nguồn (hợp đồng §9).
 
    Slug webhook là khóa truy cập nên KHÔNG bao giờ đi vào note của khách hay
-   audit log. Nó chỉ nằm trong localStorage của Admin, ngang hàng với
+   audit log. Dữ liệu chờ được đồng bộ vào MySQL, cùng với
    state.websites[].webhookSlug vốn đã được lưu ở đó.
 -------------------------------------------------------------------------- */
 const WEBHOOK_CURSOR_KEY = 'nvt-crm-webhook-cursor-v2';
@@ -764,47 +764,14 @@ let webhookEventSource = null;
 let webhookPollTimer = null;
 let webhookPulling = false;
 
-function loadWebhookPending() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(WEBHOOK_PENDING_KEY) || '[]');
-    if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter(item => item && typeof item.id === 'string' && item.customer && typeof item.customer === 'object')
-      .slice(-WEBHOOK_PENDING_CAP);
-  } catch (error) { return []; }
-}
-
-function saveWebhookPending() {
-  try { localStorage.setItem(WEBHOOK_PENDING_KEY, JSON.stringify(webhookPending.slice(-WEBHOOK_PENDING_CAP))); } catch (error) {}
-}
-
-function loadWebhookCursor() {
-  try { return String(localStorage.getItem(WEBHOOK_CURSOR_KEY) || '').slice(0, 64); } catch (error) { return ''; }
-}
-
-function saveWebhookCursor(id) {
-  try { localStorage.setItem(WEBHOOK_CURSOR_KEY, String(id || '').slice(0, 64)); } catch (error) {}
-}
-
-function loadWebhookConsumed() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(WEBHOOK_CONSUMED_KEY) || '[]');
-    return Array.isArray(parsed) ? parsed.filter(id => typeof id === 'string').slice(-WEBHOOK_CONSUMED_RING) : [];
-  } catch (error) { return []; }
-}
-
-// Trả về false khi bản ghi đã được xử lý rồi. Vòng ring này là chốt chặn cuối:
-// server trả VỀ TOÀN BỘ inbox khi cursor không còn tồn tại trong đó (inbox bị
-// xoá, hoặc bị cắt theo giới hạn 5000 bản ghi). Không có nó thì mỗi lần như vậy
-// cả loạt khách cũ sẽ bị ingest lại thành "điền lại form".
-function claimWebhookRecord(id) {
-  if (!id) return false;
-  const consumed = loadWebhookConsumed();
-  if (consumed.includes(id)) return false;
-  consumed.push(id);
-  try { localStorage.setItem(WEBHOOK_CONSUMED_KEY, JSON.stringify(consumed.slice(-WEBHOOK_CONSUMED_RING))); } catch (error) {}
-  return true;
-}
+let webhookCursor = '';
+const webhookConsumed = new Set();
+function loadWebhookPending(){return [];}
+function saveWebhookPending(){state.webhookPending=webhookPending;saveState();}
+function loadWebhookCursor(){return webhookCursor;}
+function saveWebhookCursor(id){webhookCursor=String(id||'');}
+function loadWebhookConsumed(){return [...webhookConsumed];}
+function claimWebhookRecord(id){if(!id||webhookConsumed.has(id))return false;webhookConsumed.add(id);return true;}
 
 function webhookApiBase() {
   const origin = typeof window !== 'undefined' && window && window.location ? window.location.origin : '';
@@ -875,7 +842,7 @@ async function refreshSessionContext() {
     const timer = controller ? setTimeout(() => controller.abort(), WEBHOOK_FETCH_TIMEOUT_MS) : null;
     let payload;
     try {
-      const response = await fetch(`${base}/api/session-context`, { headers: { Accept: 'application/json' }, signal: controller ? controller.signal : undefined });
+      const response = await fetch(`${base}/api/session-context`, { headers: { Accept: 'application/json', Authorization: `Bearer ${serverSyncToken}` }, signal: controller ? controller.signal : undefined });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       payload = await response.json();
     } finally { if (timer) clearTimeout(timer); }
@@ -971,7 +938,7 @@ async function pullWebhookInbox(manual = false) {
     let payload;
     try {
       const response = await fetch(`${base}/api/data-sources/inbox?since=${encodeURIComponent(loadWebhookCursor())}`, {
-        headers: { Accept: 'application/json' },
+        headers: { Accept: 'application/json', Authorization: `Bearer ${serverSyncToken}` },
         signal: controller ? controller.signal : undefined
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -1040,7 +1007,7 @@ function startWebhookConsumer() {
     try {
       webhookEventSource = new EventSource(`${base}/api/data-sources/stream`);
       webhookEventSource.onopen = () => setWebhookTransport('live', 'Đang nghe webhook landing page theo thời gian thật (SSE).');
-      webhookEventSource.onmessage = () => { pullWebhookInbox(false); };
+      webhookEventSource.onmessage = () => { syncServerState(); pullWebhookInbox(false); };
       // SSE tự nối lại theo "retry: 3000" của server; vòng poll vẫn chạy nền nên
       // data tới trong lúc đứt kênh không bị mất.
       webhookEventSource.onerror = () => setWebhookTransport('polling', 'Kênh trực tiếp gián đoạn — đang hỏi server định kỳ, data không bị mất.');
@@ -1190,88 +1157,7 @@ function sanitizeSecurity(security, defaults) {
   };
 }
 
-function loadState() {
-  const defaults = initialState();
-  try {
-    // The previous storage key belonged to the sample CRM and must never be reused.
-    localStorage.removeItem('nvt-crm-complete-v2');
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (saved && saved.version === 3) {
-      const settings = sanitizeSettings(saved.settings, defaults.settings);
-      let members = uniqueRecords(saved.members, defaults.members, normalizeMemberRecord);
-      const leaderIds = new Set(members.filter(member => member.role === 'LEADER').map(member => member.id));
-      members = members.filter(member => member.role === 'LEADER' || leaderIds.has(member.leaderId));
-      if (!members.length) members = structuredClone(defaults.members);
-      const websites = uniqueRecords(saved.websites, defaults.websites, normalizeWebsiteRecord);
-      if (!websites.length) websites.push(...structuredClone(defaults.websites));
-      // The public LadiPage form now uses the rotated slug. Migrate only the
-      // original seeded website slug; never overwrite an admin-customized slug.
-      const seededWebsite = websites.find(website => website.id === 'WEB-NVT');
-      if (seededWebsite?.webhookSlug === 'ds-1789015513831-ZPKFFVK9S9A') {
-        seededWebsite.webhookSlug = 'ds-1789180581447-IIM6U3AAD1R';
-        seededWebsite.connectionStatus = 'PENDING_BACKEND';
-        seededWebsite.lastError = '';
-      }
-      let customFieldDefinitions = uniqueRecords(saved.customFieldDefinitions, defaults.customFieldDefinitions, normalizeCustomFieldDefinition);
-      customFieldDefinitions = customFieldDefinitions.filter(field => !['googleDocs', 'DATE', 'NUMBER', 'URL'].includes(field.id) && !['DATE', 'NUMBER', 'URL'].includes(field.type));
-      if (!customFieldDefinitions.some(field => field.id === 'customerLevel')) customFieldDefinitions.unshift(structuredClone(CUSTOM_FIELD_SEED[0]));
-      if (saved.optionPaletteVersion !== 2) {
-        customFieldDefinitions.forEach(field => field.options.forEach(option => {
-          option.color = SEMANTIC_OPTION_COLORS[field.id]?.[option.value] || option.color;
-        }));
-      }
-      const customers = uniqueRecords(saved.customers, defaults.customers, item => normalizeCustomerRecord(item, members, websites, customFieldDefinitions));
-      const customerIds = new Set(customers.map(customer => customer.id));
-      const customerFieldHistory = uniqueRecords(saved.customerFieldHistory, defaults.customerFieldHistory, item => normalizeFieldHistoryRecord(item, customerIds));
-      customers.forEach(customer => {
-        if (!customerFieldHistory.some(item => item.customerId === customer.id && item.fieldId === 'customerLevel')) {
-          customerFieldHistory.push({ id: `FLD-MIG-${customer.id}`, customerId: customer.id, fieldId: 'customerLevel', fieldLabel: customFieldDefinitions.find(field => field.id === 'customerLevel')?.label || 'Level khách hàng', from: '', to: customer.customFields.customerLevel || 'L0', actorId: 'SYSTEM', actor: 'Chuyển đổi dữ liệu', role: 'SYSTEM', at: customer.createdAt, source: 'MIGRATION' });
-        }
-      });
-      const assignmentHistory = uniqueRecords(saved.assignmentHistory, defaults.assignmentHistory, item => normalizeAssignmentHistoryRecord(item, customerIds));
-      customers.filter(customer => customer.saleId || customer.leaderId).forEach(customer => {
-        if (!assignmentHistory.some(item => item.customerId === customer.id)) {
-          assignmentHistory.push({ id: `ASN-MIG-${customer.id}`, customerId: customer.id, fromSaleId: null, fromSaleName: '', toSaleId: customer.saleId, toSaleName: members.find(member => member.id === customer.saleId)?.name || '', fromLeaderId: null, fromLeaderName: '', toLeaderId: customer.leaderId, toLeaderName: members.find(member => member.id === customer.leaderId)?.name || '', teamId: customer.teamId, actorId: 'SYSTEM', actor: 'Chuyển đổi dữ liệu', role: 'SYSTEM', at: customer.createdAt, reason: 'Khôi phục phân công hiện có', source: 'SYSTEM' });
-        }
-      });
-      const leaderDistribution = sanitizeLeaderDistribution(saved.leaderDistribution, members, defaults.leaderDistribution);
-      const saleDistributionByLeader = sanitizeSaleDistribution(saved.saleDistributionByLeader, members, defaults.saleDistributionByLeader);
-      return {
-        version: 3,
-        optionPaletteVersion: 2,
-        members,
-        registrations: [],
-        registeredAccounts: Array.isArray(saved.registeredAccounts) ? saved.registeredAccounts.filter(item => item && cleanId(item.id) && item.phone && item.password).map(item => ({ id: cleanId(item.id), name: cleanText(item.name, 'Tài khoản mới', 160), phone: cleanText(item.phone, '', 20), email: cleanText(item.email, '', 254), password: cleanText(item.password, '', 200), role: ['LEADER','SALE'].includes(item.role) ? item.role : 'UNASSIGNED', initials: cleanText(item.initials, 'NV', 4).toUpperCase(), scope: item.role === 'LEADER' ? 'TEAM' : item.role === 'SALE' ? 'OWN' : 'NONE', teamId: cleanId(item.teamId) || '', leaderId: cleanId(item.leaderId) || null, saleId: cleanId(item.saleId) || null, memberId: cleanId(item.memberId) || null, ipAddress: cleanText(item.ipAddress || item.ip, 'Chưa xác định', 64), active: item.active !== false })) : defaults.registeredAccounts,
-        disabledAccountIds: Array.isArray(saved.disabledAccountIds) ? saved.disabledAccountIds.filter(id => cleanId(id)) : defaults.disabledAccountIds,
-        customFieldDefinitions,
-        customers,
-        customerFieldHistory,
-        assignmentHistory,
-        resubmissions: uniqueRecords(saved.resubmissions, defaults.resubmissions, item => normalizeResubmissionRecord(item, customerIds, websites)),
-        notes: uniqueRecords(saved.notes, defaults.notes, item => normalizeNoteRecord(item, customerIds)),
-        imports: uniqueRecords(saved.imports, defaults.imports, normalizeImportRecord),
-        products: Array.isArray(saved.products) ? saved.products.filter(item => item && item.id && item.name).map(item => ({ id: cleanId(item.id), sku: cleanText(item.sku, '', 60), name: cleanText(item.name, 'Sản phẩm', 200), category: cleanText(item.category, 'Khác', 100), price: Math.max(0, Number(item.price) || 0), type: item.type === 'RENTAL' ? 'RENTAL' : 'SALE', rentalMonths: [1, 3, 6, 12].includes(Number(item.rentalMonths)) ? Number(item.rentalMonths) : null, active: item.active !== false })) : defaults.products,
-        productCategories: Array.isArray(saved.productCategories) && saved.productCategories.length ? [...new Set(saved.productCategories.map(item => cleanText(item, '', 100)).filter(Boolean))] : defaults.productCategories,
-        attendance: uniqueRecords(saved.attendance, defaults.attendance, item => normalizeAttendanceRecord(item, members)),
-        dataOffers: uniqueRecords(saved.dataOffers, defaults.dataOffers, item => normalizeDataOfferRecord(item, customerIds, members)),
-        orders: uniqueRecords(saved.orders, defaults.orders, item => normalizeOrderRecord(item, customers, members, websites)).filter(order => !/^ORD-\d{4}$/.test(order.id)),
-        traffic: uniqueRecords(saved.traffic, defaults.traffic, item => normalizeTrafficRecord(item, members)),
-        tasks: uniqueRecords(saved.tasks, defaults.tasks, item => normalizeTaskRecord(item, settings.slaMinutes, customerIds, members)),
-        notifications: uniqueRecords(saved.notifications, defaults.notifications, item => normalizeNotificationRecord(item, members)),
-        audit: uniqueRecords(saved.audit, defaults.audit, normalizeAuditRecord),
-        websites,
-        integrations: uniqueRecords(saved.integrations, defaults.integrations, normalizeIntegrationRecord).filter(item => item.provider !== 'REMOVED_PAYMENT'),
-        leaderDistribution,
-        saleDistributionByLeader,
-        settings,
-        security: sanitizeSecurity(saved.security, defaults.security)
-      };
-    }
-  } catch (error) {}
-  return defaults;
-}
-
-let state = loadState();
+let state = initialState();
 PRODUCTS = state.products;
 STAFF = state.members.filter(person => person.active !== false);
 applyAppearanceSettings();
@@ -1336,55 +1222,186 @@ function orderSource(source) {
   return TRAFFIC_META.some(item => item.source === source) ? source : 'Chưa quy nguồn';
 }
 
+// Chỉ giữ dữ liệu làm việc trong RAM. Server là nguồn dữ liệu duy nhất.
+const SERVER_LISTS = ['customers','orders','products','members','registrations','customFieldDefinitions','customerFieldHistory','assignmentHistory','resubmissions','notes','imports','attendance','dataOffers','traffic','tasks','notifications','audit','websites','integrations','webhookPending'];
+const SERVER_OBJECTS = ['settings','leaderDistribution','saleDistributionByLeader','productCategories'];
+let serverSyncToken = '', serverSyncTimer = null, serverSaveTimer = null;
+let serverSaveRunning = false, serverReading = false, serverStateLoaded = false;
+let serverBaseline = new Map(), serverVersions = {}, serverPendingRequest = null;
+let serverConflict = false, serverMutationVersion = 0;
+let serverSavePromise = null;
+function stableJson(value) {
+  if (Array.isArray(value)) return '[' + value.map(stableJson).join(',') + ']';
+  if (value && typeof value === 'object') return '{' + Object.keys(value).sort().map(k => JSON.stringify(k)+':'+stableJson(value[k])).join(',') + '}';
+  return JSON.stringify(value);
+}
+function serverRecords(source=state) {
+  const result=new Map();
+  for(const key of SERVER_LISTS)for(const value of source[key]||[])result.set(`${key}/${value.id}`,structuredClone(value));
+  // Tài khoản chưa phân quyền cùng khóa members, không lưu mật khẩu ở frontend.
+  for(const value of source.registeredAccounts||[])if(!result.has(`members/${value.id}`))result.set(`members/${value.id}`,structuredClone(value));
+  for(const key of SERVER_OBJECTS)if(source[key]!==undefined)result.set(`${key}/$`,structuredClone(source[key]));
+  return result;
+}
+function hasServerChanges() {
+  const now=serverRecords();
+  return now.size!==serverBaseline.size || [...now].some(([key,r])=>stableJson(r)!==stableJson(serverBaseline.get(key)));
+}
+function setSaveStatus(message,failed=false) {
+  const node=$('#serverSaveStatus');if(node){node.textContent=message;node.style.color=failed?'#c33d42':'';}
+}
+function pendingChanges() {
+  const now=serverRecords(), changes=[];
+  for(const key of new Set([...now.keys(),...serverBaseline.keys()])) {
+    if(stableJson(now.get(key))===stableJson(serverBaseline.get(key)))continue;
+    const slash=key.indexOf('/');changes.push({key:key.slice(0,slash),id:key.slice(slash+1),base:serverVersions[key]??null,value:now.get(key)??null});
+  }
+  return changes;
+}
+function applyServerSnapshot(payload, keepEdits=null) {
+  const defaults=initialState();
+  const remote={...defaults,...payload.state,security:{twoFactorEnabled:false,loginHistory:[]}};
+  remote.members=(remote.members||[]).map(r=>({...r,initials:r.initials||memberInitials(r.name)}));
+  const remoteRecords=serverRecords(remote);
+  // Trong khi lưu, thao tác mới vẫn ở RAM; chỉ thay bản ghi không có sửa tiếp.
+  if(keepEdits) {
+    const current=serverRecords();
+    for(const key of new Set([...current.keys(),...keepEdits.keys()])) {
+      if(stableJson(current.get(key))===stableJson(keepEdits.get(key)))continue;
+      const slash=key.indexOf('/'), collection=key.slice(0,slash), id=key.slice(slash+1), value=current.get(key);
+      if(SERVER_OBJECTS.includes(collection)){remote[collection]=value;continue;}
+      remote[collection]=(remote[collection]||[]).filter(r=>r.id!==id);
+      if(value)remote[collection].push(value);
+      if(collection==='members')remote.registeredAccounts=(remote.registeredAccounts||[]).filter(r=>r.id!==id);
+    }
+  }
+  // Giữ tham chiếu bản ghi: các form/drawer đang mở vẫn sửa đúng đối tượng trong state.
+  for(const key of [...SERVER_LISTS,'registeredAccounts']){
+    const existing=new Map((state[key]||[]).map(r=>[r.id,r]));
+    remote[key]=(remote[key]||[]).map(value=>{
+      const old=existing.get(value.id);if(!old)return value;
+      for(const field of Object.keys(old))if(!Object.hasOwn(value,field))delete old[field];
+      Object.assign(old,value);return old;
+    });
+  }
+  state=remote; STAFF=state.members.filter(r=>r.active!==false);PRODUCTS=state.products;
+  webhookPending=state.webhookPending||[];
+  serverBaseline=remoteRecords;serverVersions=payload.versions||{};serverStateLoaded=true;
+  if(payload.user)currentAccount=hydrateSessionAccount(payload.user);
+}
+function scheduleServerPersistence() {
+  if(!serverSyncToken||!serverStateLoaded)return;
+  if(serverConflict){setSaveStatus('Xung đột: xuất bản nháp và tải lại',true);return;}
+  clearTimeout(serverSaveTimer);
+  serverSaveTimer=setTimeout(()=>{serverSaveTimer=null;flushServerPersistence();},250);
+}
 function saveState() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (error) {}
+  serverMutationVersion++;
+  if(!currentAccount||!serverStateLoaded)return;
+  setSaveStatus('Đang chờ lưu MySQL…');scheduleServerPersistence();
 }
-
-let serverSyncToken = '';
-let serverSyncTimer = null;
-function startServerSyncPolling() {
-  if (serverSyncTimer) clearInterval(serverSyncTimer);
-  serverSyncTimer = setInterval(() => {
-    if (currentAccount && serverSyncToken) syncServerState();
-  }, 1000);
+async function flushServerPersistence() {
+  clearTimeout(serverSaveTimer);serverSaveTimer=null;
+  if(serverSavePromise)return serverSavePromise;
+  if(!serverSyncToken||!serverStateLoaded||serverConflict)return false;
+  serverSavePromise=(async()=>{
+    serverSaveRunning=true;
+    try {
+      do {
+        if(!serverPendingRequest) {
+          const changes=pendingChanges();if(!changes.length){setSaveStatus('Đã lưu MySQL');return true;}
+          serverPendingRequest={requestId:makeRecordId('SAVE'),changes,snapshot:serverRecords()};
+        }
+        const request=serverPendingRequest,token=serverSyncToken;
+        const response=await fetch(`${webhookApiBase()}/api/state`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({requestId:request.requestId,changes:request.changes})});
+        const payload=await response.json();
+        if(token!==serverSyncToken)return false;
+        if(!response.ok){
+          if([400,403,409,413].includes(response.status)){serverConflict=true;serverPendingRequest=null;}
+          if(response.status===401)setSaveStatus('Phiên hết hạn: xuất bản nháp rồi đăng nhập lại',true);
+          throw new Error(payload.error||`HTTP ${response.status}`);
+        }
+        applyServerSnapshot(payload,request.snapshot);serverPendingRequest=null;
+      }while(hasServerChanges());
+      setSaveStatus('Đã lưu MySQL');return true;
+    }catch(error){setSaveStatus(error.message+' — chưa lưu, giữ trang mở',true);return false;}
+    finally{serverSaveRunning=false;}
+  })();
+  try{return await serverSavePromise;}finally{serverSavePromise=null;}
 }
-function stopServerSyncPolling() {
-  if (serverSyncTimer) { clearInterval(serverSyncTimer); serverSyncTimer = null; }
-}
-
+function startServerSyncPolling(){stopServerSyncPolling();serverSyncTimer=setInterval(()=>{if(currentAccount&&serverSyncToken)syncServerState();},1000);}
+function stopServerSyncPolling(){if(serverSyncTimer)clearInterval(serverSyncTimer);serverSyncTimer=null;}
 async function syncServerState() {
-  const base = webhookApiBase();
-  if (!base || !currentAccount || !serverSyncToken) return false;
-  try {
-    const headers = { Accept: 'application/json', Authorization: `Bearer ${serverSyncToken}` };
-    const requests = [fetch(`${base}/api/customers`, { headers }), fetch(`${base}/api/orders`, { headers }), fetch(`${base}/api/products`, { headers })];
-    if (currentAccount.role === 'ADMIN' || currentAccount.role === 'LEADER') requests.push(fetch(`${base}/api/users`, { headers }));
-    const responses = await Promise.all(requests);
-    if (responses.some(response => response.status === 401 || response.status === 503)) return false;
-    if (responses[0].ok) { const payload = await responses[0].json(); if (Array.isArray(payload.items)) state.customers = payload.items.map(customer => {
-      const website = customer.customFields?.webhookSlug && websiteByWebhookSlug(customer.customFields.webhookSlug);
-      return { ...customer, websiteId: customer.websiteId || website?.id || null };
-    }); }
-    if (responses[1].ok) { const payload = await responses[1].json(); if (Array.isArray(payload.items)) state.orders = payload.items; }
-    if (responses[2].ok) { const payload = await responses[2].json(); if (Array.isArray(payload.items)) { state.products = payload.items; PRODUCTS = state.products; } }
-    if (responses[3]?.ok) { const payload = await responses[3].json(); if (Array.isArray(payload.items)) {
-      state.registeredAccounts = payload.items.filter(user => user.role === 'UNASSIGNED').map(user => ({ ...user, initials: memberInitials(user.name), scope: 'NONE', teamId: user.teamId || '', leaderId: user.leaderId || null, active: user.active !== false }));
-      state.members = payload.items.filter(user => ['LEADER', 'SALE'].includes(user.role)).map(user => ({ ...user, initials: memberInitials(user.name), teamId: user.teamId || '', leaderId: user.leaderId || null, saleId: user.role === 'SALE' ? user.id : null, scope: user.role === 'LEADER' ? 'TEAM' : 'OWN', active: user.active !== false }));
-      STAFF = state.members.filter(person => person.active !== false);
-    } }
-    saveState(); refreshTaskStatuses(); render(); return true;
-  } catch (error) { return false; }
+  if(!serverSyncToken||!currentAccount||serverReading||serverSaveRunning||serverSaveTimer||serverConflict)return false;
+  if(serverStateLoaded&&(serverPendingRequest||hasServerChanges()))return flushServerPersistence();
+  if(serverStateLoaded&&($('#modalRoot')?.children.length||$('#drawerRoot')?.children.length||['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)))return false;
+  serverReading=true;const version=serverMutationVersion,token=serverSyncToken;
+  try{
+    const response=await fetch(`${webhookApiBase()}/api/state`,{headers:{Authorization:`Bearer ${token}`},cache:'no-store'});
+    const payload=await response.json();if(!response.ok)throw new Error(payload.error||'Không tải được dữ liệu');
+    if(version!==serverMutationVersion||token!==serverSyncToken||(serverStateLoaded&&hasServerChanges()))return false;
+    const before=stableJson(state);applyServerSnapshot(payload);
+    setSaveStatus('Đã đồng bộ MySQL');
+    if(before!==stableJson(state)&&!$('#modalRoot')?.children.length&&!$('#drawerRoot')?.children.length&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName))render();
+    return true;
+  }catch(error){setSaveStatus(error.message,true);return false;}finally{serverReading=false;}
 }
-
-async function pushServerRecord(resource, method, id, record) {
-  const base = webhookApiBase();
-  if (!base || !serverSyncToken) return false;
-  try {
-    const response = await fetch(`${base}/api/${resource}${id ? `/${encodeURIComponent(id)}` : ''}`, { method, headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: `Bearer ${serverSyncToken}` }, body: JSON.stringify(record) });
-    return response.ok;
-  } catch (error) { return false; }
+// Tất cả thao tác đi qua một giao dịch, bao gồm lịch sử và phân công liên quan.
+async function pushServerRecord(resource,method,id,record) {
+  if(!serverStateLoaded||!serverSyncToken){setSaveStatus('Chưa kết nối MySQL',true);return false;}
+  const key=resource==='users'?'members':resource;
+  if(!SERVER_LISTS.includes(key))return false;
+  const recordId=id||record.id;
+  if(method==='DELETE')state[key]=state[key].filter(r=>r.id!==recordId);
+  else {
+    const old=state[key].find(r=>r.id===recordId)||state.registeredAccounts.find(r=>r.id===recordId)||{};
+    const next={...old,...record,id:recordId};
+    state[key]=state[key].filter(r=>r.id!==recordId);state[key].push(next);
+    if(key==='members')state.registeredAccounts=state.registeredAccounts.filter(r=>r.id!==recordId);
+  }
+  serverMutationVersion++;return flushServerPersistence();
 }
-
+async function persistCustomer(customer){return pushServerRecord('customers','PUT',customer.id,customer);}
+async function persistOrder(order){return pushServerRecord('orders','PUT',order.id,order);}
+function makeRecordId(prefix){const bytes=new Uint8Array(12);crypto.getRandomValues(bytes);return `${prefix}-${Date.now()}-${Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('')}`;}
+function exportWorkingCopy(){downloadRecovery({kind:'nvt-working-copy',state,changes:pendingChanges()},'nvt-working-copy.json');}
+function downloadRecovery(value,name){const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+function exportLegacyData(){
+  // Chỉ đọc để xuất bản sao; không dùng lại dữ liệu cũ để đăng nhập/lưu nghiệp vụ.
+  const data={};for(let i=0;i<localStorage.length;i++){const key=localStorage.key(i);if(key&&key.startsWith('nvt')){try{data[key]=JSON.parse(localStorage.getItem(key));}catch{data[key]=localStorage.getItem(key);}}}
+  downloadRecovery({kind:'nvt-legacy-export',data},'nvt-legacy-backup.json');
+}
+function importRecoveryModal(){
+ if(currentAccount?.role!=='ADMIN'){toast('Chỉ Admin được nhập bản sao');return;}
+ openModal('Nhập bản sao dữ liệu', `<p>Chỉ thêm bản ghi có ID chưa tồn tại. Cấu hình và mật khẩu không nhập tự động. Hãy giữ file gốc để đối chiếu các mục bị bỏ qua.</p><input id="recoveryFile" type="file" accept="application/json,.json"><p id="recoveryPreview"></p><button class="button button-primary" id="confirmRecovery" disabled>Nhập vào MySQL</button>`);
+ let additions=[];
+ $('#recoveryFile').onchange=async event=>{
+  $('#confirmRecovery').disabled=true;
+  try{
+   const file=event.target.files[0];if(!file)return;if(file.size>8*1024*1024)throw new Error('File vượt 8 MB; hãy chia nhỏ bản sao');
+   const raw=JSON.parse(await file.text());
+   const source=raw.state||(raw.kind==='nvt-legacy-export'?Object.values(raw.data||{}).find(v=>v&&Array.isArray(v.customers)):raw);
+   if(!source||!Array.isArray(source.customers))throw new Error('Không nhận diện được bản sao CRM');
+   additions=[];let skipped=0;
+   const existing=serverRecords();
+   for(const key of SERVER_LISTS)for(const original of Array.isArray(source[key])?source[key]:[]){
+    if(!original?.id||existing.has(`${key}/${original.id}`)){skipped++;continue;}
+    const value=structuredClone(original);
+    for(const field of ['password','password_hash','adminPassword','twoFactorCode'])delete value[field];
+    if(key==='members'){value.loginEnabled=false;if(!['SALE','LEADER'].includes(value.role)){skipped++;continue;}}
+    additions.push({key,value});existing.set(`${key}/${value.id}`,value);
+   }
+   if(additions.length>2000)throw new Error('Bản sao có trên 2.000 bản ghi mới; hãy chia thành nhiều file');
+   $('#recoveryPreview').textContent=`${additions.length} bản ghi mới; ${skipped} mục đã có/không hợp lệ bỏ qua. Tài khoản đăng nhập cần đăng ký và phân quyền riêng.`;
+   $('#confirmRecovery').disabled=!additions.length;
+  }catch(error){$('#recoveryPreview').textContent=error.message;}
+ };
+ $('#confirmRecovery').onclick=async()=>{
+  if(!await flushServerPersistence())return;
+  for(const {key,value} of additions)if(!state[key].some(r=>r.id===value.id))state[key].push(value);
+  saveState();if(await flushServerPersistence()){closeModal();render();toast('Đã nhập bản sao vào MySQL');}
+ };
+}
 function refreshTaskStatuses() {
   state.tasks.forEach(task => {
     if (task.slaBased && task.createdAt) task.dueAt = shiftStamp(task.createdAt, state.settings.slaMinutes);
@@ -1509,6 +1526,7 @@ function financialEvents(orders, periodCheck = null) {
 }
 
 function orderEditState(order) {
+  if (['MARKETING', 'ACCOUNTING'].includes(currentAccount.role)) return { allowed: false, label: 'Chỉ có quyền xem' };
   if (currentAccount.role === 'ADMIN') return { allowed: true, label: 'Admin toàn quyền' };
   const created = Date.parse(`${String(order.createdAt).replace(' ', 'T')}+07:00`);
   const remaining = 3 * 24 * 60 * 60 * 1000 - (Date.now() - created);
@@ -1527,13 +1545,13 @@ function statusBadge(status, type = 'customer') {
 }
 
 function audit(action, entity, detail) {
-  state.audit.unshift({ id: `AUD-${Date.now()}`, actorId: currentAccount.id, actor: currentAccount.name, role: currentAccount.role, action, entity, detail, ip: currentAccount.ip || sessionIp('127.0.0.1'), at: stamp() });
+  state.audit.unshift({ id: makeRecordId('AUD'), actorId: currentAccount.id, actor: currentAccount.name, role: currentAccount.role, action, entity, detail, ip: currentAccount.ip || sessionIp('127.0.0.1'), at: stamp() });
 }
 
 function toast(message) {
   const element = document.createElement('div');
   element.className = 'toast';
-  element.textContent = message;
+  element.textContent = serverStateLoaded && (hasServerChanges() || serverSaveRunning) ? `Đang lưu: ${message}` : message;
   $('#toastRoot').append(element);
   setTimeout(() => element.remove(), 3200);
 }
@@ -2102,7 +2120,7 @@ function productModal(id = null) {
   openModal(existing ? 'Sửa sản phẩm' : 'Thêm sản phẩm', `<form id="productForm"><div class="form-grid"><label class="form-field">Tên sản phẩm *<input id="productName" required maxlength="200" value="${escapeHtml(item.name)}"></label><label class="form-field">Mã SKU<input id="productSku" maxlength="60" value="${escapeHtml(item.sku)}"></label><label class="form-field">Loại sản phẩm *<select id="productType"><option value="SALE" ${item.type !== 'RENTAL' ? 'selected' : ''}>Bán</option><option value="RENTAL" ${item.type === 'RENTAL' ? 'selected' : ''}>Thuê</option></select></label><label class="form-field">Gói thuê<select id="productRentalMonths"><option value="">Không áp dụng</option><option value="1" ${item.rentalMonths === 1 ? 'selected' : ''}>1 tháng</option><option value="3" ${item.rentalMonths === 3 ? 'selected' : ''}>3 tháng</option><option value="6" ${item.rentalMonths === 6 ? 'selected' : ''}>6 tháng</option><option value="12" ${item.rentalMonths === 12 ? 'selected' : ''}>12 tháng</option></select></label><label class="form-field">Danh mục *<select id="productCategory" required><option value="">Chọn danh mục</option>${categories.map(category => `<option value="${escapeHtml(category)}" ${category === item.category ? 'selected' : ''}>${escapeHtml(category)}</option>`).join('')}</select></label><label class="form-field">Đơn giá *<input id="productPrice" type="number" required min="0" step="1000" value="${item.price}"></label></div><div class="modal-actions"><button class="button" type="button" data-close-modal>Hủy</button><button class="button button-primary" type="submit">Lưu sản phẩm</button></div></form>`);
   const syncRental = () => { $('#productRentalMonths').disabled = $('#productType').value !== 'RENTAL'; if ($('#productType').value !== 'RENTAL') $('#productRentalMonths').value = ''; };
   $('#productType').addEventListener('change', syncRental); syncRental();
-  $('#productForm').onsubmit = event => {
+  $('#productForm').onsubmit = async event => {
     event.preventDefault();
     const type = $('#productType').value === 'RENTAL' ? 'RENTAL' : 'SALE';
     const rentalMonths = type === 'RENTAL' ? Number($('#productRentalMonths').value) : null;
@@ -2110,11 +2128,14 @@ function productModal(id = null) {
     if (!values.name || !values.category || !Number.isFinite(values.price) || values.price < 0) return;
     if (values.type === 'RENTAL' && !values.rentalMonths) { toast('Sản phẩm thuê phải chọn gói 1, 3, 6 hoặc 12 tháng'); return; }
     if (values.sku && PRODUCTS.some(product => product.id !== id && product.sku && normalize(product.sku) === normalize(values.sku))) { toast('Mã SKU đã tồn tại'); return; }
-    if (existing) Object.assign(existing, values); else PRODUCTS.unshift({ id: `PRD-${Date.now()}`, ...values, active: true });
-    state.products = PRODUCTS; audit(existing ? 'EDIT_PRODUCT' : 'CREATE_PRODUCT', existing?.id || PRODUCTS[0].id, values.name); saveState(); closeModal(); render();
+    const product = existing || { id: `PRD-${Date.now()}`, ...values, active: true };
+    if (existing) Object.assign(existing, values); else PRODUCTS.unshift(product);
+    state.products = PRODUCTS;
+    if (!await pushServerRecord('products', 'POST', null, product)) { toast('Không thể lưu sản phẩm lên MySQL'); return; }
+    audit(existing ? 'EDIT_PRODUCT' : 'CREATE_PRODUCT', product.id, values.name); saveState(); closeModal(); render();
   };
 }
-function toggleProduct(id) {
+async function toggleProduct(id) {
   if (currentAccount.role !== 'ADMIN') return;
   const product = productById(id); if (!product) return;
   product.active = product.active === false;
@@ -2123,13 +2144,14 @@ function toggleProduct(id) {
   saveState(); render();
 }
 
-function deleteProduct(id) {
+async function deleteProduct(id) {
   if (currentAccount.role !== 'ADMIN') return;
   const product = productById(id);
   if (!product || !window.confirm(`Xóa sản phẩm "${product.name}"? Các đơn hàng cũ vẫn giữ nguyên thông tin đã ghi nhận.`)) return;
   PRODUCTS = PRODUCTS.filter(item => item.id !== id);
   state.products = PRODUCTS;
   audit('DELETE_PRODUCT', id, product.name);
+  if (!await pushServerRecord('products', 'POST', null, { ...product, active: false })) { toast('Không thể lưu trạng thái sản phẩm trên MySQL'); return; }
   saveState(); render();
 }
 
@@ -2247,7 +2269,7 @@ function assignRegisteredAccountModal(accountId) {
   const leaderOptions = leaders.map(leader => '<option value="' + escapeHtml(leader.id) + '">' + escapeHtml(leader.name) + ' · ' + escapeHtml(leader.teamId) + '</option>').join('');
   openModal('Phân chức vụ cho tài khoản', '<form id="assignAccountForm"><div class="form-grid"><label class="form-field full">Họ tên<input id="assignAccountName" value="' + escapeHtml(account.name) + '" required maxlength="160"></label><label class="form-field">Chức vụ<select id="assignAccountRole"><option value="SALE">SALE</option><option value="LEADER">LEADER</option></select></label><label class="form-field">Team<input id="assignAccountTeam" value="T2" required maxlength="20"></label><label class="form-field">Leader trực tiếp<select id="assignAccountLeader"><option value="">Không áp dụng</option>' + leaderOptions + '</select></label></div><div class="modal-actions"><button class="button" type="button" data-close-modal>Huỷ</button><button class="button button-primary" type="submit">Lưu phân chức vụ</button></div></form>');
   $('[data-close-modal]')?.addEventListener('click', closeModal);
-  $('#assignAccountForm').onsubmit = event => {
+  $('#assignAccountForm').onsubmit = async event => {
     event.preventDefault();
     const role = $('#assignAccountRole').value;
     const teamId = $('#assignAccountTeam').value.trim().toUpperCase();
@@ -2256,20 +2278,10 @@ function assignRegisteredAccountModal(accountId) {
     const name = $('#assignAccountName').value.trim();
     if (!name || !/^[A-Z0-9_-]{1,20}$/.test(teamId)) { toast('Thông tin không hợp lệ'); return; }
     if (role === 'SALE' && (!leader || leader.teamId !== teamId)) { toast('Sale phải thuộc đúng Team của Leader'); return; }
-    const memberId = account.id;
-    const assignment = { role, teamId, leaderId: role === 'SALE' ? leaderId : null, name, active: true };
-    pushServerRecord('users', 'PUT', account.id, assignment).then(ok => { if (!ok) toast('Kh?ng th? l?u ph?n quy?n l?n server'); else syncServerState(); });
-    const member = { id: memberId, name, email: account.email || '', role, teamId, leaderId: role === 'SALE' ? leaderId : null, initials: memberInitials(name), createdBy: currentAccount.name, active: true };
-    state.members.push(member);
-    account.role = role; account.scope = role === 'LEADER' ? 'TEAM' : 'OWN'; account.teamId = teamId; account.leaderId = member.leaderId; account.saleId = role === 'SALE' ? memberId : null; account.memberId = memberId;
-    STAFF = state.members.filter(person => person.active !== false);
-    queueEmailNotification(
-      [account.email],
-      `Tài khoản ${role === 'SALE' ? 'Sale' : 'Leader'} đã được kích hoạt`,
-      `Xin chào ${name},\n\nTài khoản NVT AGENCY của bạn đã được Admin kích hoạt.\nChức vụ: ${role === 'SALE' ? 'Sale' : 'Leader'}\nTeam: ${teamId}${role === 'SALE' ? `\nLeader phụ trách: ${leader?.name || 'Chưa cập nhật'}` : ''}\n\nBạn có thể đăng nhập CRM để bắt đầu làm việc.`
-    );
+    const assignment = { role, teamId, leaderId: role === 'SALE' ? leaderId : null, name, active: true, initials: memberInitials(name) };
     audit('ASSIGN_REGISTERED_ACCOUNT', account.id, name + ' · ' + role + ' · ' + teamId);
-    saveState(); closeModal(); render(); toast('Đã phân chức vụ và đưa tài khoản vào đội ngũ');
+    if (!await pushServerRecord('users', 'PUT', account.id, assignment)) { toast('Chưa lưu được phân quyền; xem trạng thái lưu'); return; }
+    closeModal(); await syncServerState(); render(); toast('Đã lưu phân quyền vào MySQL');
   };
 }
 
@@ -2286,14 +2298,23 @@ function teamMemberModal(id = null, registrationId = null) {
   $('#teamMemberForm').onsubmit = event => { event.preventDefault(); saveTeamMember(id, registrationId); };
 }
 
+async function saveAccountPassword(body){
+  if(!await flushServerPersistence())return false;
+  try{
+    const response=await fetch(`${webhookApiBase()}/api/auth/password`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${serverSyncToken}`},body:JSON.stringify(body)});
+    const payload=await response.json();if(!response.ok)throw new Error(payload.error||'Không đổi được mật khẩu');return true;
+  }catch(error){toast(error.message);return false;}
+}
 function resetMemberPasswordModal(id) {
-  if (currentAccount.role !== 'ADMIN') { toast('FORBIDDEN · chỉ Admin được khôi phục mật khẩu'); return; }
-  const member = STAFF.find(person => person.id === id);
-  const account = member?.id === 'l1' ? ACCOUNTS.find(item => item.id === 'u-leader-1') : member?.id === 's1' ? ACCOUNTS.find(item => item.id === 'u-sale-1') : null;
-  if (!account) { toast('Nhân sự này chưa liên kết tài khoản đăng nhập'); return; }
-  openModal('Đặt lại mật khẩu', `<form id="resetMemberPasswordForm"><p class="panel-sub">${escapeHtml(member.name)} · mật khẩu mới sẽ không hiển thị lại sau khi lưu.</p><label class="form-field">Mật khẩu mới<input id="resetMemberPassword" type="password" minlength="8" required autocomplete="new-password"></label><label class="form-field" style="margin-top:12px">Nhập lại mật khẩu<input id="resetMemberPasswordConfirm" type="password" minlength="8" required autocomplete="new-password"></label><div class="modal-actions"><button class="button" type="button" data-close-modal>Huỷ</button><button class="button button-primary" type="submit">Lưu mật khẩu</button></div></form>`);
-  $('[data-close-modal]')?.addEventListener('click', closeModal);
-  $('#resetMemberPasswordForm').onsubmit = event => { event.preventDefault(); const next = $('#resetMemberPassword').value, confirm = $('#resetMemberPasswordConfirm').value; if (next.length < 8 || next !== confirm) { toast('Mật khẩu tối thiểu 8 ký tự và phải trùng nhau'); return; } account.password = next; audit('RESET_MEMBER_PASSWORD', member.id, member.name); saveState(); closeModal(); toast(`Đã cập nhật mật khẩu cho ${member.name}`); };
+  if(currentAccount.role!=='ADMIN')return;
+  const member=state.members.find(r=>r.id===id);
+  if(!member?.loginEnabled){toast('Nhân sự này chưa có tài khoản đăng nhập. Cần đăng ký tài khoản trước.');return;}
+  openModal('Đặt lại mật khẩu', `<form id="resetMemberPasswordForm"><label class="form-field">Mật khẩu mới<input id="resetMemberPassword" type="password" minlength="8" required autocomplete="new-password"></label><label class="form-field">Nhập lại<input id="resetMemberPasswordConfirm" type="password" required></label><button class="button button-primary" type="submit">Lưu mật khẩu</button></form>`);
+  $('#resetMemberPasswordForm').onsubmit=async event=>{
+    event.preventDefault();const password=$('#resetMemberPassword').value;
+    if(password!==$('#resetMemberPasswordConfirm').value){toast('Mật khẩu xác nhận chưa khớp');return;}
+    if(await saveAccountPassword({userId:id,password})){closeModal();toast('Đã đổi mật khẩu và kết thúc các phiên đăng nhập cũ');}
+  };
 }
 
 function saveTeamMember(id = null, registrationId = null) {
@@ -2767,14 +2788,31 @@ function navigate(view) {
   if (currentAccount && serverSyncToken) syncServerState();
 }
 
+function departmentView() {
+  const role=currentAccount.role;
+  const titles={dashboard:'Tổng quan',customers:'Tra cứu khách hàng',orders:'Tra cứu đơn hàng',products:'Tra cứu sản phẩm',revenue:'Đối chiếu doanh thu',marketing:'Dữ liệu marketing',websites:'Nguồn website',notifications:'Thông báo'};
+  const table=(headers,rows)=>`<section class="panel"><div class="table-wrap"><table><thead><tr>${headers.map(v=>`<th>${escapeHtml(v)}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map(v=>`<td>${escapeHtml(String(v??''))}</td>`).join('')}</tr>`).join('')||`<tr><td colspan="${headers.length}">Chưa có dữ liệu</td></tr>`}</tbody></table></div></section>`;
+  let body='';
+  if(currentView==='customers')body=table(['Tên','Điện thoại','Email','Nguồn','Trạng thái'],state.customers.map(r=>[r.name,r.phone,r.email,r.source,r.status]));
+  else if(currentView==='orders')body=table(['Mã đơn','Khách hàng','Sản phẩm','Thành tiền','Trạng thái','Thanh toán lúc'],state.orders.map(r=>[r.code,r.customerName||customerById(r.customerId)?.name,r.productName,money(r.total),r.status,r.paidAt]));
+  else if(currentView==='products')body=table(['Tên sản phẩm','SKU','Danh mục','Giá','Hoạt động'],state.products.map(r=>[r.name,r.sku,r.category,money(r.price),r.active?'Có':'Không']));
+  else if(currentView==='websites')body=table(['Tên','Tên miền','Trạng thái'],state.websites.map(r=>[r.name,r.domain,r.status]));
+  else if(currentView==='marketing')body=table(['Nguồn','Khách hàng','Đơn hàng'],[...new Set(state.customers.map(r=>r.source||'Chưa xác định'))].map(source=>[source,state.customers.filter(r=>(r.source||'Chưa xác định')===source).length,state.orders.filter(r=>r.source===source).length]));
+  else if(currentView==='revenue')body=table(['Mã đơn','Khách hàng','Loại','Thời điểm','Số tiền','Đối soát'],financialEvents(state.orders).map(r=>[r.code,r.customerName,r.label,r.occurredAt,money(r.amount),r.reconciled?'Đã đối soát':'Chưa đối soát']));
+  else if(currentView==='notifications')body=table(['Tiêu đề','Nội dung','Thời điểm'],state.notifications.map(r=>[r.title,r.text,r.at]));
+  else body=table(['Chỉ tiêu','Giá trị'],[['Khách hàng',state.customers.length],['Đơn hàng',state.orders.length],['Sản phẩm',state.products.length],['Doanh thu thuần',money(netRevenue(state.orders))]]);
+  return pageHead(titles[currentView]||'Tổng quan',`${role==='MARKETING'?'Marketing':'Kế toán'} · quyền tra cứu, không sửa dữ liệu`, '<button class="button" id="departmentPasswordButton">Đổi mật khẩu của tôi</button>')+body;
+}
+
 function render() {
   if (!currentAccount) return;
-  const renderer = VIEW_RENDERERS[currentView] || dashboardView;
+  const renderer = ['MARKETING','ACCOUNTING'].includes(currentAccount.role) ? departmentView : VIEW_RENDERERS[currentView] || dashboardView;
   $('#content').innerHTML = renderer();
   $('#breadcrumb').textContent = viewLabel(currentView);
   renderNavigation();
   updateSessionChrome();
-  bindViewActions();
+  if(['MARKETING','ACCOUNTING'].includes(currentAccount.role))$('#departmentPasswordButton')?.addEventListener('click',changePasswordModal);
+  else bindViewActions();
 }
 
 function renderPreservingCustomerScroll() {
@@ -2952,7 +2990,7 @@ function openCustomerDrawer(id) {
   $('[data-revoke-customer]')?.addEventListener('click', () => revokeCustomer(id));
 }
 
-function updateCustomer(id) {
+async function updateCustomer(id) {
   const customer = customerById(id);
   if (!canViewCustomer(customer)) { closeDrawer(); toast('FORBIDDEN · không thể cập nhật khách ngoài scope'); return; }
   if (!canUpdateCustomer(customer)) { toast('FORBIDDEN · tài khoản không có quyền cập nhật'); return; }
@@ -2967,7 +3005,7 @@ function updateCustomer(id) {
   saveState(); render(); openCustomerDrawer(id); toast('Đã cập nhật trạng thái khách hàng');
 }
 
-function quickUpdateCustomerStatus(id, nextStatus) {
+async function quickUpdateCustomerStatus(id, nextStatus) {
   const customer = customerById(id);
   if (!canViewCustomer(customer) || !canUpdateCustomer(customer) || !Object.hasOwn(STATUS_META, nextStatus)) { toast('Không thể cập nhật trạng thái'); return; }
   const oldStatus = customer.status;
@@ -2975,15 +3013,17 @@ function quickUpdateCustomerStatus(id, nextStatus) {
   customer.status = nextStatus;
   customer.updatedAt = stamp();
   audit('UPDATE_CUSTOMER_STATUS', customer.id, `${STATUS_META[oldStatus]?.label || oldStatus} -> ${STATUS_META[nextStatus].label}`);
+  if (!await persistCustomer(customer)) { toast('Không thể lưu khách hàng lên MySQL'); return; }
   saveState(); renderPreservingCustomerScroll();
 }
 
-function quickUpdateCustomerField(customerId, fieldId, value) {
+async function quickUpdateCustomerField(customerId, fieldId, value) {
   const field = state.customFieldDefinitions.find(item => item.id === fieldId && item.active !== false);
   if (!field || !['SELECT', 'CHECKBOX'].includes(field.type)) { toast('Cột option không hợp lệ'); render(); return false; }
   const result = setCustomerCustomFields(customerId, { [fieldId]: value });
   if (result.error) { toast(result.error === 'FORBIDDEN' ? 'FORBIDDEN · không có quyền cập nhật cột này' : result.error); render(); return false; }
   if (!result.updated) return false;
+  if (!await persistCustomer(customerById(customerId))) { toast('Không thể lưu khách hàng lên MySQL'); return false; }
   saveState(); renderPreservingCustomerScroll();
   return true;
 }
@@ -3063,6 +3103,7 @@ async function changeOrderStatus(id, status) {
     if (customer) { customer.status = 'PAID'; customer.updatedAt = stamp(); customer.note = `Đã thanh toán đơn ${order.code}`; state.notes.unshift({ id: `NOTE-${Date.now()}-${customer.id}`, customerId: customer.id, authorId: currentAccount.id, author: currentAccount.name, role: currentAccount.role, text: customer.note, at: stamp() }); }
   }
   audit(status === 'PAID' ? 'PAYMENT_CONFIRMED' : 'ORDER_REFUNDED', order.id, `${order.code} · ${money(order.total)}`);
+  if (!await persistOrder(order)) { toast('Không thể cập nhật đơn hàng lên MySQL'); return; }
   saveState(); closeDrawer(); render(); toast(status === 'PAID' ? 'Đã ghi nhận thanh toán' : 'Đã ghi nhận hoàn tiền');
 }
 
@@ -3177,7 +3218,7 @@ function ingestCustomer(record, context = {}) {
   if (!website) return { created: false, error: 'Landing page nguồn không hợp lệ' };
   const customFields = Object.fromEntries(state.customFieldDefinitions.map(field => [field.id, sanitizeCustomFieldValue(record.customFields?.[field.id] ?? defaultCustomFieldValue(field), field)]));
   const customer = {
-    id: cleanId(record.id) && !state.customers.some(item => item.id === record.id) ? record.id : `CUS-${Date.now()}-${state.customers.length}`,
+    id: cleanId(record.id) && !state.customers.some(item => item.id === record.id) ? record.id : makeRecordId('CUS'),
     name,
     phone,
     email: cleanText(record.email, '', 254).trim(),
@@ -3222,9 +3263,9 @@ function newCustomerModal() {
     await refreshSessionContext();
     const result = ingestCustomer({ name: $('#newCustomerName').value.trim(), phone: $('#newCustomerPhone').value, email: $('#newCustomerEmail').value.trim(), ipAddress: sessionContextIp, source: $('#newCustomerSource').value, campaign: 'MANUAL-CRM', websiteId: $('#newCustomerWebsite').value, note: $('#newCustomerNote').value.trim() }, { intakeType: 'MANUAL', sourceLabel: 'Nhập thủ công' });
     if (!result.created && !result.duplicate) { toast(result.error); return; }
-    if (result.created && serverSyncToken) {
-      const saved = await pushServerRecord('customers', 'POST', null, result.customer);
-      if (!saved) { toast('Kh?ng th? l?u kh?ch h?ng l?n MySQL'); return; }
+    if (result.created) {
+      const saved = await persistCustomer(result.customer);
+      if (!saved) { toast('Không thể lưu khách hàng lên MySQL'); return; }
       await syncServerState();
     }
     saveState(); closeModal(); render(); toast(result.message);
@@ -3252,7 +3293,7 @@ function addImportedCustomers(records, sourceLabel) {
 
 function recordCustomerImport(source, filename, records, status = 'SUCCESS') {
   state.imports.unshift({ id: `IMP-${Date.now()}-${state.imports.length}`, source, filename, records, importedAt: stamp(), actor: currentAccount.name, status });
-  state.imports = state.imports.slice(0, 30);
+
   audit('IMPORT_CUSTOMERS', 'CUSTOMERS', `${source} · ${filename} · ${records} khách`);
 }
 
@@ -3305,13 +3346,14 @@ function editOrderModal(id) {
   if (!order || !access?.allowed || !canViewCustomer(customerById(order.customerId))) { toast('Đơn hàng đã khóa hoặc nằm ngoài phạm vi'); return; }
   openModal('Sửa đơn hàng', `<form id="editOrderForm"><label class="form-field">Sản phẩm<select id="editOrderProduct">${PRODUCTS.map(product => `<option value="${escapeHtml(product.id)}" ${product.id === order.productId ? 'selected' : ''}>${escapeHtml(product.name)} · ${money(product.price)}</option>`).join('')}</select></label><label class="form-field" style="margin-top:12px">Số lượng<input id="editOrderQty" type="number" min="1" max="10" value="${order.qty}"></label><div class="modal-actions"><button class="button" type="button" data-close-modal>Hủy</button><button class="button button-primary" type="submit">Lưu thay đổi</button></div></form>`);
   $('[data-close-modal]')?.addEventListener('click', closeModal);
-  $('#editOrderForm').onsubmit = event => { event.preventDefault(); const product = productById($('#editOrderProduct').value), qty = Number($('#editOrderQty').value); if (!product || !Number.isInteger(qty) || qty < 1 || qty > 10) { toast('Sản phẩm hoặc số lượng không hợp lệ'); return; } const previous = { productId: order.productId, qty: order.qty, total: order.total }; order.productId = product.id; order.productName = product.name; order.sku = product.sku; order.qty = qty; order.unitPrice = product.price; order.subtotal = product.price * qty; order.total = order.subtotal - order.discount; audit('EDIT_ORDER', order.id, `${previous.productId} · ${previous.qty} → ${product.id} · ${qty}`); saveState(); closeModal(); render(); };
+  $('#editOrderForm').onsubmit = async event => { event.preventDefault(); const product = productById($('#editOrderProduct').value), qty = Number($('#editOrderQty').value); if (!product || !Number.isInteger(qty) || qty < 1 || qty > 10) { toast('Sản phẩm hoặc số lượng không hợp lệ'); return; } const previous = { productId: order.productId, qty: order.qty, total: order.total }; order.productId = product.id; order.productName = product.name; order.sku = product.sku; order.qty = qty; order.unitPrice = product.price; order.subtotal = product.price * qty; order.total = order.subtotal - order.discount; audit('EDIT_ORDER', order.id, `${previous.productId} · ${previous.qty} → ${product.id} · ${qty}`); if (!await persistOrder(order)) { toast('Không thể lưu đơn hàng lên MySQL'); return; } saveState(); closeModal(); render(); };
 }
 
-function deleteOrder(id) {
+async function deleteOrder(id) {
   const order = state.orders.find(item => item.id === id); const access = order && orderEditState(order);
   if (!order || !access?.allowed || !canViewCustomer(customerById(order.customerId))) { toast('Đơn hàng đã khóa hoặc nằm ngoài phạm vi'); return; }
   if (!window.confirm(`Xóa đơn ${order.code}?`)) return;
+  if (!await pushServerRecord('orders', 'DELETE', id, order)) { toast('Không thể xóa đơn hàng trên MySQL'); return; }
   state.orders = state.orders.filter(item => item.id !== id); audit('DELETE_ORDER', id, order.code); saveState(); render();
 }
 
@@ -3323,7 +3365,7 @@ function newOrderModal(customerId = '') {
   if (!availableProducts.length) { toast('Chưa có sản phẩm đang bán. Admin hãy tạo sản phẩm trước.'); return; }
   openModal('Tạo đơn hàng', `<form id="newOrderForm"><div class="form-grid"><label class="form-field">Khách hàng<select id="newOrderCustomer">${customers.map(customer => `<option value="${escapeHtml(customer.id)}" ${customer.id === customerId ? 'selected' : ''}>${escapeHtml(customer.name)} · ${escapeHtml(customer.phone)}</option>`).join('')}</select></label><label class="form-field">Sản phẩm<select id="newOrderProduct">${availableProducts.map(product => `<option value="${escapeHtml(product.id)}">${escapeHtml(product.name)} · ${money(product.price)}</option>`).join('')}</select></label><label class="form-field">Số lượng<input id="newOrderQty" type="number" min="1" max="10" value="1"></label></div><div class="form-hint">Đơn mới ở trạng thái Chờ thanh toán.</div><div class="modal-actions"><button class="button" type="button" data-close-modal>Huỷ</button><button class="button button-primary" type="submit">Tạo đơn</button></div></form>`);
   $('[data-close-modal]')?.addEventListener('click', closeModal);
-  $('#newOrderForm').onsubmit = async event => { event.preventDefault(); const customer = customerById($('#newOrderCustomer').value), product = productById($('#newOrderProduct').value), requestedQty = Number($('#newOrderQty').value), qty = Math.floor(requestedQty); if (!customer || !canViewCustomer(customer) || !customer.saleId || !product || !Number.isFinite(requestedQty) || qty !== requestedQty || qty < 1 || qty > 10) { toast('D? li?u ??n h?ng kh?ng h?p l?'); return; } const id = `ORD-${Date.now()}`; const order = { id, code: `NVT-2609-${String(state.orders.length + 1200)}`, customerId: customer.id, customerName: customer.name, saleId: customer.saleId, leaderId: customer.leaderId, teamId: customer.teamId, source: orderSource(customer.source), campaign: customer.campaign || 'UNATTRIBUTED', websiteId: customer.websiteId || null, productId: product.id, productName: product.name, sku: product.sku, qty, unitPrice: product.price, subtotal: product.price * qty, discount: 0, total: product.price * qty, refund: 0, status: 'PENDING', createdAt: stamp(), paidAt: null, refundedAt: null, paymentReconciled: false, refundReconciled: null }; if (serverSyncToken && !await pushServerRecord('orders', 'POST', null, order)) { toast('Kh?ng th? l?u ??n h?ng l?n MySQL'); return; } state.orders.unshift(order); audit('CREATE_ORDER', id, `${order.code} ? ${order.productName}`); if (serverSyncToken) await syncServerState(); saveState(); closeModal(); render(); toast('?? t?o ??n ch? thanh to?n'); };
+  $('#newOrderForm').onsubmit = async event => { event.preventDefault(); const customer = customerById($('#newOrderCustomer').value), product = productById($('#newOrderProduct').value), requestedQty = Number($('#newOrderQty').value), qty = Math.floor(requestedQty); if (!customer || !canViewCustomer(customer) || !customer.saleId || !product || !Number.isFinite(requestedQty) || qty !== requestedQty || qty < 1 || qty > 10) { toast('Dữ liệu đơn hàng không hợp lệ'); return; } const id = makeRecordId('ORD'); const order = { id, code: `NVT-${id.slice(4)}`, customerId: customer.id, customerName: customer.name, saleId: customer.saleId, leaderId: customer.leaderId, teamId: customer.teamId, source: orderSource(customer.source), campaign: customer.campaign || 'UNATTRIBUTED', websiteId: customer.websiteId || null, productId: product.id, productName: product.name, sku: product.sku, qty, unitPrice: product.price, subtotal: product.price * qty, discount: 0, total: product.price * qty, refund: 0, status: 'PENDING', createdAt: stamp(), paidAt: null, refundedAt: null, paymentReconciled: false, refundReconciled: null }; if (!await persistOrder(order)) { toast('Không thể lưu đơn hàng lên MySQL'); return; } audit('CREATE_ORDER', id, `${order.code} ? ${order.productName}`); if (serverSyncToken) await syncServerState(); saveState(); closeModal(); render(); toast('Đã tạo đơn chờ thanh toán'); };
 }
 
 function assignmentCandidates(customer) {
@@ -3487,33 +3529,8 @@ function acceptDataOffer(offerId) {
 
 /* Quét định kỳ: offer quá hạn thì khách GIỮ leader/team và saleId null — tức trả về
    đúng leader đã chia để leader chọn sale khác, không đẩy lên phễu Admin. */
-function expireStaleOffers() {
-  if (!currentAccount) return false;
-  const hours = state.settings.acceptTimeoutHours || 8;
-  let changed = false;
-  state.dataOffers.forEach(offer => {
-    if (offer.status !== 'PENDING' || offerMinutesLeft(offer) > 0) return;
-    offer.status = 'EXPIRED';
-    offer.resolvedAt = stamp();
-    const customer = customerById(offer.customerId);
-    if (customer && !customer.saleId) {
-      customer.leaderId = offer.leaderId;
-      customer.teamId = offer.teamId;
-      customer.updatedAt = stamp();
-      customer.note = 'Sale chưa nhận kịp hạn · trả về leader chia lại';
-    }
-    state.notifications.unshift({ id: `NT-EXPIRE-${offer.id}`, role: 'LEADER', leaderId: offer.leaderId, teamId: offer.teamId, title: 'Sale chưa nhận data kịp hạn', text: `${customer ? customer.name : offer.customerId} quá ${hours} giờ · trả về bạn chia sale khác`, at: stamp(), readBy: [] });
-    queueEmailNotification(
-      [staffEmail(offer.leaderId)],
-      `Sale chưa nhận data đúng hạn - ${customer ? customer.name : offer.customerId}`,
-      `Xin chào ${staffName(offer.leaderId)},\n\nSale chưa nhận data đúng hạn ${hours} giờ, data đã trả về để bạn chia lại.\nKhách hàng: ${customer ? customer.name : offer.customerId}\nSố điện thoại: ${customer?.phone || 'Chưa có'}\nThời gian: ${stamp()}`
-    );
-    audit('EXPIRE_DATA_OFFER', offer.customerId, `${offer.saleId} quá hạn ${hours}h`);
-    changed = true;
-  });
-  if (changed) { saveState(); render(); }
-  return changed;
-}
+// Hết hạn offer do máy chủ xử lý; trình duyệt không tự sửa các bản ghi này.
+function expireStaleOffers() { return false; }
 
 function applyCustomerAssignment(customer, target, reason, source = 'MANUAL', direct = false) {
   if (!customer || !target) return false;
@@ -3847,32 +3864,16 @@ function saveSettings() {
   saveState(); render(); toast('Đã lưu SLA');
 }
 
-function toggleTwoFactor() {
-  if (currentAccount.role !== 'ADMIN') { toast('FORBIDDEN · chỉ Admin được đổi bảo mật'); return; }
-  state.security.twoFactorEnabled = !state.security.twoFactorEnabled;
-  audit('UPDATE_2FA', 'SECURITY', state.security.twoFactorEnabled ? 'Bật xác thực hai lớp' : 'Tắt xác thực hai lớp');
-  saveState(); render(); toast(state.security.twoFactorEnabled ? 'Đã bật 2FA cục bộ · cần backend TOTP trước khi vận hành thật' : 'Đã tắt 2FA');
-}
-
+function toggleTwoFactor() { toast('Chưa cấu hình xác thực hai lớp trên máy chủ. Tính năng này hiện chưa bật.'); }
 function changePasswordModal() {
-  if (currentAccount.role !== 'ADMIN') { toast('FORBIDDEN · chỉ Admin được đổi mật khẩu'); return; }
-  openModal('Đổi mật khẩu tài khoản Start', `<form id="changePasswordForm"><div class="form-grid"><label class="form-field full">Mật khẩu hiện tại<input id="currentAdminPassword" type="password" autocomplete="current-password" required></label><label class="form-field">Mật khẩu mới<input id="newAdminPassword" type="password" autocomplete="new-password" minlength="8" maxlength="128" required></label><label class="form-field">Nhập lại mật khẩu<input id="confirmAdminPassword" type="password" autocomplete="new-password" minlength="8" maxlength="128" required></label></div><div class="credential-hint">Mật khẩu mới phải có ít nhất 8 ký tự. Trước khi vận hành thật, backend phải hash bằng Argon2id/bcrypt và vô hiệu hóa phiên cũ.</div><div class="modal-actions"><button class="button" type="button" data-close-modal>Huỷ</button><button class="button button-primary" type="submit">Cập nhật mật khẩu</button></div></form>`);
-  $('[data-close-modal]')?.addEventListener('click', closeModal);
-  $('#changePasswordForm').onsubmit = event => {
-    event.preventDefault();
-    const current = $('#currentAdminPassword').value, next = $('#newAdminPassword').value, confirm = $('#confirmAdminPassword').value;
-    if (current !== state.security.adminPassword) { toast('Mật khẩu hiện tại không đúng'); return; }
-    if (next.length < 8 || next.length > 128 || next !== confirm || next === current) { toast('Mật khẩu mới hoặc xác nhận chưa hợp lệ'); return; }
-    state.security.adminPassword = next;
-    audit('CHANGE_PASSWORD', 'SECURITY', 'Tài khoản Start đã đổi mật khẩu');
-    saveState(); closeModal(); render(); toast('Đã đổi mật khẩu tài khoản Start');
+  openModal('Đổi mật khẩu', `<form id="changePasswordForm"><label class="form-field">Mật khẩu hiện tại<input id="currentAdminPassword" type="password" required autocomplete="current-password"></label><label class="form-field">Mật khẩu mới<input id="newAdminPassword" type="password" minlength="8" required autocomplete="new-password"></label><label class="form-field">Nhập lại<input id="confirmAdminPassword" type="password" required></label><button class="button button-primary" type="submit">Cập nhật mật khẩu</button></form>`);
+  $('#changePasswordForm').onsubmit=async event=>{
+    event.preventDefault();const password=$('#newAdminPassword').value;
+    if(password!==$('#confirmAdminPassword').value){toast('Mật khẩu xác nhận chưa khớp');return;}
+    if(await saveAccountPassword({password,currentPassword:$('#currentAdminPassword').value})){closeModal();endSession(true);toast('Đã đổi mật khẩu. Hãy đăng nhập lại.');}
   };
 }
 
-function recordAdminLogin(success, account = ACCOUNTS[0]) {
-  state.security.loginHistory.unshift({ id: `LOGIN-${Date.now()}-${state.security.loginHistory.length}`, ip: sessionIp('127.0.0.1'), accountId: account.id, accountName: account.name, role: account.role, device: 'Trình duyệt hiện tại', location: sessionContextLoaded ? 'IP do server webhook xác định' : 'Backend cần cung cấp IP thật qua reverse proxy', at: stamp(), success });
-  state.security.loginHistory = state.security.loginHistory.slice(0, 30);
-}
 
 function csvCell(value) {
   const raw = String(value ?? '');
@@ -4066,17 +4067,11 @@ function bindViewActions() {
 
 function registeredLoginAccounts() { return (state.registeredAccounts || []).filter(account => account.active !== false && !(state.disabledAccountIds || []).includes(account.id)); }
 function loginAccounts() { return [...ACCOUNTS.filter(account => !(state.disabledAccountIds || []).includes(account.id)), ...registeredLoginAccounts()]; }
-function credentialPassword(account) {
-  return account.role === 'ADMIN' ? state.security.adminPassword : account.password;
-}
-function accountMember(account) { return state.members.find(member => member.id === (account.saleId || account.leaderId || account.memberId)); }
-function accountCanLogin(account) { return !!account && (account.role === 'ADMIN' || account.role === 'UNASSIGNED' || accountMember(account)?.active !== false); }
-
+function accountMember(account) { return state.members.find(member => member.id === account.id); }
+function accountCanLogin(account) { return !!account && account.active !== false && account.role !== 'UNASSIGNED'; }
 function updateLoginTwoFactorField() {
-  const phone = $('#loginPhone')?.value.replace(/\D/g, '');
-  const show = phone === ACCOUNTS[0].phone && state.security.twoFactorEnabled;
-  $('#loginOtpField')?.classList.toggle('is-hidden', !show);
-  if (!show && $('#loginOtp')) $('#loginOtp').value = '';
+  $('#loginOtpField')?.classList.add('is-hidden');
+  if($('#loginOtp'))$('#loginOtp').value='';
 }
 
 function renderAccountCards(selectedId = null) {
@@ -4111,9 +4106,6 @@ async function submitRegistration() {
     if (message) { message.className = 'form-message error full'; message.textContent = 'Vui lòng kiểm tra số điện thoại, Gmail và mật khẩu (tối thiểu 8 ký tự).'; }
     return;
   }
-  const duplicate = state.registrations.some(item => item.status === 'PENDING' && (item.phone === phone || item.email.toLowerCase() === email)) || loginAccounts().some(account => account.phone === phone || account.email?.toLowerCase() === email);
-  if (duplicate) { if (message) { message.className = 'form-message error full'; message.textContent = 'Thông tin này đã có hồ sơ đăng ký hoặc tài khoản trong hệ thống.'; } return; }
-  
   const name = email.split('@')[0];
   let id = `u-reg-${Date.now()}`;
   const base = webhookApiBase();
@@ -4139,9 +4131,6 @@ async function submitRegistration() {
   }
 
 
-  await refreshSessionContext();
-  state.registeredAccounts.unshift({ id, name, phone, email, password, role: 'UNASSIGNED', initials: memberInitials(name), scope: 'NONE', teamId: '', leaderId: null, saleId: null, memberId: null, ipAddress: sessionIp('Chua xac dinh'), active: true, registeredAt: stamp() });
-  saveState();
   $('#registerForm')?.reset();
   switchAuthMode('login');
   $('#loginPhone').value = phone;
@@ -4153,7 +4142,9 @@ async function submitRegistration() {
   }
 }
 
-function startSession(account, restored = false) {
+async function startSession(account, restored = false, token = serverSyncToken) {
+  serverSyncToken=token;serverStateLoaded=false;serverConflict=false;serverPendingRequest=null;
+  state=initialState();
   currentAccount = hydrateSessionAccount(account);
   currentView = 'dashboard';
   dateRange = 7;
@@ -4165,20 +4156,24 @@ function startSession(account, restored = false) {
   globalQuery = '';
   selectedPoolIds.clear();
   customerOwnerFilter = 'ALL';
-  try { sessionStorage.setItem(SESSION_KEY, JSON.stringify({ accountId: account.id, token: serverSyncToken })); } catch (error) {}
-  $('#loginScreen').classList.add('is-hidden');
-  $('#appShell').classList.remove('is-hidden');
-  if (!restored) { audit('LOGIN', 'SESSION', `Đăng nhập tài khoản ${account.role}`); saveState(); }
+  try { sessionStorage.setItem(SESSION_KEY, JSON.stringify({ token: serverSyncToken })); } catch (error) {}
+  if(!await syncServerState()){ $('#appShell').classList.add('is-hidden');$('#loginScreen').classList.remove('is-hidden');$('#loginError').textContent='Không tải được dữ liệu MySQL. Hãy đăng nhập lại.';serverSyncToken='';currentAccount=null;sessionStorage.removeItem(SESSION_KEY);return; }
+  $('#loginScreen').classList.add('is-hidden');$('#appShell').classList.remove('is-hidden');
+  if (!restored && !['MARKETING','ACCOUNTING'].includes(account.role)) { audit('LOGIN', 'SESSION', `Đăng nhập tài khoản ${account.role}`); saveState(); }
   render();
   startWebhookConsumer();
   startServerSyncPolling();
 }
 
-function endSession() {
+async function endSession(skipFlush=false) {
+  if(!skipFlush&&serverStateLoaded&&(hasServerChanges()||serverPendingRequest)&&!await flushServerPersistence()){toast('Chưa lưu xong. Hãy xuất bản nháp trước khi đăng xuất.');return;}
   stopWebhookConsumer();
   stopServerSyncPolling();
+  const logoutToken=serverSyncToken;
+  if(logoutToken)fetch(`${webhookApiBase()}/api/auth/logout`,{method:'POST',headers:{Authorization:`Bearer ${logoutToken}`}}).catch(()=>{});
   serverSyncToken = '';
-  if (currentAccount) { audit('LOGOUT', 'SESSION', `Đăng xuất tài khoản ${currentAccount.role}`); saveState(); }
+  serverStateLoaded = false; clearTimeout(serverSaveTimer); serverSaveTimer = null;
+
   currentAccount = null;
   currentView = 'dashboard';
   selectedPoolIds.clear();
@@ -4204,6 +4199,15 @@ function trapFocus(container, event) {
 }
 
 function bindGlobalActions() {
+  const controls=document.createElement('div');controls.className='panel-actions';
+  controls.innerHTML='<span id="serverSaveStatus" role="status">Chưa đồng bộ</span><button class="button button-small" id="syncNowButton">Đồng bộ máy chủ</button><button class="button button-small" id="exportDraftButton">Xuất bản nháp</button><button class="button button-small" id="importRecoveryButton">Nhập bản sao</button><button class="button button-small" id="reloadServerButton">Tải lại từ máy chủ</button>';
+  $('.topbar-actions')?.prepend(controls);
+  $('#syncNowButton').onclick=async()=>{if(serverPendingRequest||hasServerChanges())await flushServerPersistence();else await syncServerState();};
+  $('#exportDraftButton').onclick=exportWorkingCopy;
+  $('#importRecoveryButton').onclick=importRecoveryModal;
+  $('#reloadServerButton').onclick=async()=>{if((hasServerChanges()||serverPendingRequest)&&!confirm('Tải lại sẽ bỏ bản nháp chưa lưu trên trang này. Hãy Xuất bản nháp trước. Tiếp tục?'))return;serverPendingRequest=null;serverConflict=false;serverStateLoaded=false;await syncServerState();render();};
+  const legacy=document.createElement('button');legacy.type='button';legacy.className='text-button';legacy.textContent='Xuất dữ liệu trình duyệt cũ';legacy.onclick=exportLegacyData;$('.login-card')?.append(legacy);
+
   $('#loginTab')?.addEventListener('click', () => switchAuthMode('login'));
   $('#registerTab')?.addEventListener('click', () => switchAuthMode('register'));
   $$('[data-switch-auth]').forEach(button => button.addEventListener('click', () => switchAuthMode(button.dataset.switchAuth)));
@@ -4222,21 +4226,23 @@ function bindGlobalActions() {
     const base = webhookApiBase();
     if (base) {
       try {
-        const response = await fetch(`${base}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ identifier: phone || email, password }) });
+        const response = await fetch(`${base}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ identifier: identifier.includes('@') ? email : phone, password }) });
         const payload = await response.json().catch(() => ({}));
-        if (response.ok && payload.user) { serverSyncToken = payload.token || ''; startSession(payload.user); await syncServerState(); return; }
-      } catch (error) { /* fallback sang t?i kho?n local khi server t?m th?i kh?ng kh? d?ng */ }
+        if (response.ok && payload.user) { await startSession(payload.user, false, payload.token); return; }
+        $('#loginError').textContent = payload.error || `Đăng nhập thất bại (HTTP ${response.status}). Kiểm tra ứng dụng Node và MySQL.`;
+        return;
+      } catch (error) {
+        $('#loginError').textContent = 'Không kết nối được MySQL. Hãy kiểm tra server.';
+        return;
+      }
+
     }
-    const account = loginAccounts().find(item => item.phone === phone || item.email?.toLowerCase() === email);
-    if (!account || !accountCanLogin(account) || password !== credentialPassword(account)) { if (account) { recordAdminLogin(false, account); saveState(); } $('#loginError').textContent = 'Số điện thoại hoặc mật khẩu không đúng.'; return; }
-    if (account.role === 'ADMIN' && state.security.twoFactorEnabled && $('#loginOtp').value.trim() !== state.security.twoFactorCode) { recordAdminLogin(false, account); saveState(); $('#loginError').textContent = 'Mã xác thực 2FA không đúng.'; updateLoginTwoFactorField(); return; }
-    recordAdminLogin(true, account);
-    $('#loginError').textContent = '';
-    startSession(account);
+    $('#loginError').textContent = 'Cần kết nối server để đăng nhập và lưu dữ liệu.';
   };
   $('#registerForm')?.addEventListener('submit', event => { event.preventDefault(); submitRegistration(); });
   $('#loginPhone').oninput = updateLoginTwoFactorField;
-  $('#logoutButton').onclick = endSession;
+  $('#logoutButton').onclick = async () => { if (serverStateLoaded && hasServerChanges() && !await flushServerPersistence()) return; endSession(); };
+  window.addEventListener('beforeunload', event => { if (serverSaveRunning || (serverStateLoaded && hasServerChanges())) { event.preventDefault(); event.returnValue = ''; } });
   $('#notificationButton').onclick = () => navigate('notifications');
   $('#menuButton').onclick = () => $('#sidebar').classList.toggle('open');
   $('#themeButton').onclick = () => {
@@ -4252,7 +4258,7 @@ function bindGlobalActions() {
     if (event.key === 'Escape') { if ($('#modalRoot').children.length) closeModal(); else if ($('#drawerRoot').children.length) closeDrawer(); else $('#sidebar').classList.remove('open'); }
     if (event.key === 'Tab') { const modal = $('.modal'); const drawer = $('.drawer'); if (modal) trapFocus(modal, event); else if (drawer) trapFocus(drawer, event); }
   });
-  window.addEventListener('storage', event => { if (event.key === STORAGE_KEY && currentAccount) { state = loadState(); STAFF = state.members.filter(person => person.active !== false); refreshTaskStatuses(); render(); } });
+
 }
 
 /* Keep credential records and personnel profiles aligned. The member profile is
@@ -4287,8 +4293,8 @@ function synchronizeAccountIdentity(member) {
 }
 
 function hydrateSessionAccount(account) {
-  const session = { ...account };
-  const member = accountMember(account);
+  const session = { ...account, initials: memberInitials(account.name), scope: ['ADMIN', 'MARKETING', 'ACCOUNTING'].includes(account.role) ? 'ALL' : account.role === 'LEADER' ? 'TEAM' : account.role === 'SALE' ? 'OWN' : 'NONE', saleId: account.role === 'SALE' ? account.id : null, leaderId: account.role === 'LEADER' ? account.id : account.leaderId };
+  const member = state.members.find(r=>r.id===account.id);
   if (member) {
     session.name = member.name;
     session.initials = member.initials;
@@ -4343,29 +4349,6 @@ bindViewActions = function bindViewActionsWithProfileAndTypography() {
   });
 };
 
-const baseSubmitRegistration = submitRegistration;
-submitRegistration = async function submitRegistrationWithAdminNotification() {
-  const before = state.registeredAccounts.length;
-  await baseSubmitRegistration();
-  if (state.registeredAccounts.length === before) return;
-  const account = state.registeredAccounts[0];
-  state.notifications.unshift({
-    id: `NT-REGISTER-${Date.now()}`,
-    role: 'ADMIN',
-    title: 'Tài khoản mới chờ phân chức vụ',
-    text: `${account.name} · ${account.phone} · mở Đội ngũ để phân Sale hoặc Leader`,
-    at: stamp(),
-    readBy: []
-  });
-  audit('REGISTER_ACCOUNT', account.id, `${account.name} · chờ phân chức vụ`);
-  queueEmailNotification(
-    [account.email],
-    'Đăng ký tài khoản NVT AGENCY thành công',
-    `Xin chào ${account.name},\n\nBạn đã đăng ký tài khoản NVT AGENCY thành công vào lúc ${account.registeredAt}.\n\nTài khoản đang chờ Admin phân chức vụ Sale hoặc Leader. Bạn sẽ nhận được email tiếp theo khi tài khoản được kích hoạt.`
-  );
-  saveState();
-};
-
 const baseSaveTeamMember = saveTeamMember;
 saveTeamMember = function saveTeamMemberWithIdentitySync(id = null, registrationId = null) {
   const result = baseSaveTeamMember(id, registrationId);
@@ -4376,7 +4359,7 @@ saveTeamMember = function saveTeamMemberWithIdentitySync(id = null, registration
 
 let offerSweepTimer = null;
 
-function initialize() {
+async function initialize() {
   let theme = 'light';
   try { theme = localStorage.getItem(THEME_KEY) || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); } catch (error) {}
   document.documentElement.dataset.theme = theme;
@@ -4392,9 +4375,10 @@ function initialize() {
   try {
     const session = JSON.parse(sessionStorage.getItem(SESSION_KEY));
     if (session?.token) serverSyncToken = session.token;
-    const account = loginAccounts().find(item => item.id === session?.accountId);
+    const response = session?.token ? await fetch(`${webhookApiBase()}/api/auth/me`, { headers: { Authorization: `Bearer ${session.token}` } }) : null;
+    const account = response?.ok ? (await response.json()).user : null;
     if (account) {
-      startSession(account, true);
+      await startSession(account, true);
       if (serverSyncToken) syncServerState();
       return;
     }

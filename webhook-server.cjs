@@ -20,7 +20,10 @@ const fs = require('node:fs');
 const fsp = require('node:fs/promises');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { dbConfigured, dbQuery, dbHealth } = require('./db.js');
+const bcrypt = require('bcryptjs');
+const crmData = require('./crm-data.cjs');
+const { dbConfigured, dbQuery, dbHealth, pool } = require('./db.js');
+const { provisionSystemAccounts } = require('./system-accounts.cjs');
 const { persistWebhook } = require('./webhook-store.cjs');
 let nodemailer = null;
 try { nodemailer = require('nodemailer'); } catch { /* email optional until npm install */ }
@@ -34,7 +37,7 @@ const DEFAULT_WEBHOOK_DATA_DIR = process.env.WEBHOOK_DATA_DIR
 const INBOX_FILE = process.env.WEBHOOK_INBOX_FILE
   ? path.resolve(process.env.WEBHOOK_INBOX_FILE)
   : path.join(DEFAULT_WEBHOOK_DATA_DIR, '.webhook-inbox.json');
-const MAX_BODY_BYTES = 256 * 1024;
+const MAX_BODY_BYTES = 8 * 1024 * 1024;
 const MAX_INBOX_RECORDS = 5000;
 
 const EMAIL_TOKEN = (process.env.CRM_EMAIL_TOKEN || '').trim();
@@ -52,86 +55,88 @@ const mailTransporter = SMTP_ENABLED ? nodemailer.createTransport({
   auth: { user: SMTP_USER, pass: SMTP_PASS }
 }) : null;
 
-const dbSessions = new Map();
 function dbJson(request, response, status, payload) { return sendJson(response, status, payload, { 'Access-Control-Allow-Origin': request.headers.origin || '*', Vary: 'Origin' }); }
-function authUser(request) {
-  const value = String(request.headers.authorization || '');
-  const token = value.replace(/^Bearer\s+/i, '').trim();
-  const session = token && dbSessions.get(token);
-  if (!session || session.expiresAt < Date.now()) { if (token) dbSessions.delete(token); return null; }
-  return session.user;
+function tokenHash(request) { return crypto.createHash('sha256').update(String(request.headers.authorization || '').replace(/^Bearer\s+/i, '').trim()).digest('hex'); }
+async function authUser(request) {
+  const rows = await dbQuery('SELECT u.* FROM crm_sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>NOW() AND u.active=1 LIMIT 1', [tokenHash(request)]);
+  return rows[0] ? crmData.userRow(rows[0]) : null;
 }
 function readDbBody(request) { return readBody(request).then(buffer => JSON.parse(buffer.toString('utf8') || '{}')); }
-function dbUser(row) { return { id: row.id, phone: row.phone, email: row.email, name: row.name, role: row.role, teamId: row.team_id, leaderId: row.leader_id, active: Boolean(row.active) }; }
-function dbCustomer(row) { return { ...row, customFields: row.custom_fields_json || {}, createdAt: row.created_at, updatedAt: row.updated_at, saleId: row.sale_id, leaderId: row.leader_id, teamId: row.team_id, websiteId: row.website_id }; }
-function dbOrder(row) { return { ...row, total: Number(row.total_amount), items: row.items_json || [], customerId: row.customer_id, saleId: row.sale_id, leaderId: row.leader_id, teamId: row.team_id, createdAt: row.created_at, updatedAt: row.updated_at }; }
-function dbProduct(row) { return { ...row, price: Number(row.price), rentalMonths: row.rental_months, createdAt: row.created_at, updatedAt: row.updated_at }; }
-
+async function passwordMatches(value, stored) {
+  if (/^\$2[aby]\$/.test(stored || '')) return bcrypt.compare(value, stored);
+  // Hỗ trợ mật khẩu cũ; nâng cấp sang bcrypt sau lần đăng nhập đúng.
+  return value.length > 0 && value === stored;
+}
 async function handleDbApi(request, response, pathname) {
-  if (request.method === 'OPTIONS') { response.writeHead(204, { 'Access-Control-Allow-Origin': request.headers.origin || '*', 'Access-Control-Allow-Headers': 'Content-Type, Authorization', 'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS' }); return response.end(); }
-  if (!dbConfigured) return dbJson(request, response, 503, { error: 'MySQL chưa được cấu hình trên server' });
+  if (request.method === 'OPTIONS') { response.writeHead(204, { 'Access-Control-Allow-Origin': request.headers.origin || '*', 'Access-Control-Allow-Headers': 'Content-Type, Authorization', 'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS' }); return response.end(); }
+  if (!dbConfigured) return dbJson(request,response,503,{error:'MySQL chưa được cấu hình. Không thể lưu dữ liệu.'});
   try {
-    if (pathname === '/api/db/health') return dbJson(request, response, 200, await dbHealth());
-    // ??ng k? c?ng khai: t?i kho?n m?i ch? Admin ph?n ch?c v?.
+    if (!await systemAccountsReady) return dbJson(request,response,503,{error:'Khởi tạo tài khoản hệ thống chưa hoàn tất. Kiểm tra schema và quyền MySQL trong log Node.'});
+    if (pathname === '/api/db/health') return dbJson(request,response,200,await dbHealth());
     if (pathname === '/api/auth/register' && request.method === 'POST') {
       const body = await readDbBody(request);
-      const phone = String(body.phone || '').replace(/\D/g, '');
-      const email = String(body.email || '').trim().toLowerCase();
-      const password = String(body.password || '');
-      const name = String(body.name || email.split('@')[0] || 'T?i kho?n m?i').trim();
-      if (!/^\d{9,15}$/.test(phone) || !email || password.length < 8 || !name) return dbJson(request, response, 400, { error: 'D? li?u ??ng k? kh?ng h?p l?' });
-      const duplicate = await dbQuery('SELECT id FROM users WHERE phone = ? OR email = ? LIMIT 1', [phone, email]);
-      if (duplicate.length) return dbJson(request, response, 400, { error: 'S? ?i?n tho?i ho?c email ?? t?n t?i' });
-      const id = `u-reg-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
-      await dbQuery("INSERT INTO users (id, phone, email, password_hash, name, role, active) VALUES (?, ?, ?, ?, ?, 'UNASSIGNED', 1)", [id, phone, email, password, name]);
-      return dbJson(request, response, 201, { success: true, message: '??ng k? th?nh c?ng', id });
+      const phone = String(body.phone || '').replace(/\D/g,''), email = String(body.email || '').trim().toLowerCase();
+      const name = String(body.name || '').trim(), password = String(body.password || '');
+      if (!/^\d{9,15}$/.test(phone) || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length>254 || !name || name.length>160 || password.length<8 || Buffer.byteLength(password)>72) return dbJson(request,response,400,{error:'Tên, SĐT, email hoặc mật khẩu không hợp lệ (8 ký tự, tối đa 72 byte).'});
+      const id = `u-reg-${crypto.randomUUID()}`;
+      try { await dbQuery("INSERT INTO users(id,phone,email,password_hash,name,role,active) VALUES (?,?,?,?,?,'UNASSIGNED',1)",[id,phone,email,await bcrypt.hash(password,12),name]); }
+      catch(e) { if(e.code==='ER_DUP_ENTRY')return dbJson(request,response,400,{error:'Số điện thoại hoặc email đã tồn tại'});throw e; }
+      notifyInboxListeners({id,kind:'users',receivedAt:stamp()});
+      return dbJson(request,response,201,{success:true,message:'Đăng ký thành công',id});
     }
     if (pathname === '/api/auth/login' && request.method === 'POST') {
-      const body = await readDbBody(request); const rows = await dbQuery('SELECT * FROM users WHERE (phone = ? OR email = ?) AND active = 1 LIMIT 1', [String(body.identifier || ''), String(body.identifier || '').toLowerCase()]); const row = rows[0];
-      if (!row || String(body.password || '') !== String(row.password_hash || '')) return dbJson(request, response, 401, { error: 'Thông tin đăng nhập không đúng' });
-      const token = crypto.randomBytes(32).toString('hex'); dbSessions.set(token, { user: dbUser(row), expiresAt: Date.now() + 86400000 }); return dbJson(request, response, 200, { token, user: dbUser(row) });
+      const body = await readDbBody(request), identifier=String(body.identifier||'').trim().toLowerCase();
+      const rows=await dbQuery('SELECT * FROM users WHERE (phone=? OR email=?) AND active=1 LIMIT 1',[identifier,identifier]);
+      const row=rows[0], password=String(body.password||'');
+      if(!row||!await passwordMatches(password,row.password_hash))return dbJson(request,response,401,{error:'Thông tin đăng nhập không đúng'});
+      if(row.role==='UNASSIGNED')return dbJson(request,response,403,{error:'Tài khoản đã đăng ký, đang chờ Admin phân chức vụ.'});
+      if(!/^\$2[aby]\$/.test(row.password_hash))await dbQuery('UPDATE users SET password_hash=? WHERE id=?',[await bcrypt.hash(password,12),row.id]);
+      const token=crypto.randomBytes(32).toString('hex');
+      await dbQuery('INSERT INTO crm_sessions(token_hash,user_id,expires_at) VALUES (?,?,DATE_ADD(NOW(),INTERVAL 1 DAY))',[crypto.createHash('sha256').update(token).digest('hex'),row.id]);
+      return dbJson(request,response,200,{token,user:crmData.userRow(row)});
     }
-    if (pathname === '/api/auth/me' && request.method === 'GET') { const user = authUser(request); return user ? dbJson(request, response, 200, { user }) : dbJson(request, response, 401, { error: 'Phiên đăng nhập không hợp lệ' }); }
-    const user = authUser(request); if (!user) return dbJson(request, response, 401, { error: 'Cần đăng nhập' });
-    const [resource, id] = pathname.replace('/api/', '').split('/');
-    if (resource === 'users') {
-      if (!['ADMIN', 'LEADER'].includes(user.role)) return dbJson(request, response, 403, { error: 'Kh?ng c? quy?n' });
-      if (request.method === 'GET' && !id) {
-        const rows = await dbQuery('SELECT id, phone, email, name, role, team_id, leader_id, active, created_at FROM users ORDER BY created_at DESC');
-        return dbJson(request, response, 200, { items: rows.map(row => ({ ...dbUser(row), createdAt: row.created_at })) });
+    const user=await authUser(request);
+    if(!user)return dbJson(request,response,401,{error:'Phiên đã hết hạn. Đăng nhập lại để tiếp tục.'});
+    if(pathname==='/api/auth/me')return dbJson(request,response,200,{user});
+    if(pathname==='/api/auth/logout' && request.method==='POST'){await dbQuery('DELETE FROM crm_sessions WHERE token_hash=?',[tokenHash(request)]);return dbJson(request,response,200,{ok:true});}
+    if(pathname==='/api/auth/password' && request.method==='POST'){
+      const body=await readDbBody(request), id=body.userId||user.id, password=String(body.password||'');
+      if(password.length<8||Buffer.byteLength(password)>72)return dbJson(request,response,400,{error:'Mật khẩu phải từ 8 ký tự và không quá 72 byte'});
+      if(id!==user.id&&user.role!=='ADMIN')return dbJson(request,response,403,{error:'Không có quyền'});
+      const rows=await dbQuery('SELECT password_hash FROM users WHERE id=?',[id]);
+      if(!rows.length)return dbJson(request,response,404,{error:'Nhân sự chưa có tài khoản đăng nhập'});
+      if(id===user.id&&!await passwordMatches(String(body.currentPassword||''),rows[0].password_hash))return dbJson(request,response,400,{error:'Mật khẩu hiện tại không đúng'});
+      await dbQuery('UPDATE users SET password_hash=? WHERE id=?',[await bcrypt.hash(password,12),id]);
+      await dbQuery('DELETE FROM crm_sessions WHERE user_id=?',[id]);
+      return dbJson(request,response,200,{ok:true});
+    }
+    if(pathname==='/api/state'){
+      if(request.method==='GET')return dbJson(request,response,200,{...await crmData.read(user),user});
+      if(request.method==='POST'){
+        const body=await readDbBody(request);
+        const result=await crmData.write(user,body.requestId,body.changes);
+        notifyInboxListeners({id:body.requestId,kind:'state',receivedAt:stamp()});
+        return dbJson(request,response,200,result);
       }
-      if (request.method === 'DELETE' && id) {
-        if (user.role !== 'ADMIN') return dbJson(request, response, 403, { error: 'Ch? Admin ???c kh?a t?i kho?n' });
-        await dbQuery('UPDATE users SET active = 0 WHERE id = ?', [id]);
-        return dbJson(request, response, 200, { ok: true });
-      }
-      if (request.method === 'PUT' && id) {
-        if (user.role !== 'ADMIN') return dbJson(request, response, 403, { error: 'Ch? Admin ???c c?p nh?t t?i kho?n' });
-        const body = await readDbBody(request);
-        await dbQuery('UPDATE users SET role = ?, team_id = ?, leader_id = ?, name = COALESCE(?, name), active = COALESCE(?, active) WHERE id = ?', [body.role, body.teamId || null, body.leaderId || null, body.name || null, body.active == null ? null : (body.active ? 1 : 0), id]);
-        return dbJson(request, response, 200, { ok: true });
-      }
     }
-    if (resource === 'customers') {
-      if (request.method === 'GET') { const where = user.role === 'SALE' ? 'WHERE sale_id = ?' : user.role === 'LEADER' ? 'WHERE leader_id = ? OR team_id = ?' : ''; const params = user.role === 'SALE' ? [user.id] : user.role === 'LEADER' ? [user.id, user.teamId] : []; const rows = await dbQuery(`SELECT * FROM customers ${where} ORDER BY updated_at DESC`, params); return dbJson(request, response, 200, { items: rows.map(dbCustomer) }); }
-      const body = await readDbBody(request); if (request.method === 'POST') { await dbQuery('INSERT INTO customers (id,name,phone,email,source,campaign,website_id,status,sale_id,leader_id,team_id,note,custom_fields_json) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)', [body.id,body.name,body.phone,body.email||null,body.source||null,body.campaign||null,body.websiteId||null,body.status||'NEW',body.saleId||null,body.leaderId||null,body.teamId||null,body.note||null,JSON.stringify(body.customFields||{})]); return dbJson(request,response,201,{item:body}); }
-      if (request.method === 'DELETE' && id) { await dbQuery("UPDATE customers SET status = 'ARCHIVED' WHERE id = ?", [id]); return dbJson(request,response,200,{ok:true}); }
-      if (request.method === 'PUT' && id) { await dbQuery('UPDATE customers SET name=?,phone=?,email=?,source=?,campaign=?,status=?,sale_id=?,leader_id=?,team_id=?,note=?,custom_fields_json=? WHERE id=?',[body.name,body.phone,body.email||null,body.source||null,body.campaign||null,body.status||'NEW',body.saleId||null,body.leaderId||null,body.teamId||null,body.note||null,JSON.stringify(body.customFields||{}),id]); return dbJson(request,response,200,{ok:true}); }
+    // API cũ đọc cùng nguồn; ghi bắt buộc kèm phiên bản để không ghi đè âm thầm.
+    const [resource,encodedId]=pathname.replace('/api/','').split('/');
+    const id=encodedId?decodeURIComponent(encodedId):null;
+    const key=resource==='users'?'members':resource;
+    if(['customers','orders','products','users','settings'].includes(resource)){
+      if(resource==='users'&&!['ADMIN','LEADER'].includes(user.role))return dbJson(request,response,403,{error:'Không có quyền xem users'});
+      const snapshot=await crmData.read(user);
+      if(request.method==='GET')return dbJson(request,response,200,{items:resource==='users'?snapshot.state.accounts:snapshot.state[key],versions:snapshot.versions});
+      const body=await readDbBody(request), recordId=key==='settings'?'$':id||body.id;
+      if(request.method!=='POST'&&!Object.hasOwn(body,'_revision'))return dbJson(request,response,428,{error:'Hãy tải lại bản CRM mới; cập nhật cần phiên bản bản ghi'});
+      const {_revision,...fields}=body;
+      const old=key==='settings'?snapshot.state.settings:[...(snapshot.state[key]||[]),...(key==='members'?snapshot.state.registeredAccounts:[])].find(r=>r.id===recordId);
+      const value=request.method==='DELETE'?null:{...old,...fields,...(key==='settings'?{}:{id:recordId})};
+      const result=await crmData.write(user,crypto.randomUUID(),[{key,id:recordId,base:_revision??null,value}]);
+      return dbJson(request,response,request.method==='POST'?201:200,result);
     }
-    if (resource === 'orders') {
-      if (request.method === 'GET') { const where = user.role === 'SALE' ? 'WHERE sale_id = ?' : ''; const rows = await dbQuery(`SELECT * FROM orders ${where} ORDER BY updated_at DESC`, user.role === 'SALE' ? [user.id] : []); return dbJson(request,response,200,{items:rows.map(dbOrder)}); }
-      const body = await readDbBody(request); if (request.method === 'POST') { await dbQuery('INSERT INTO orders (id,code,customer_id,sale_id,leader_id,team_id,total_amount,status,items_json,note) VALUES (?,?,?,?,?,?,?,?,?,?)',[body.id,body.code,body.customerId,body.saleId||null,body.leaderId||null,body.teamId||null,body.total||0,body.status||'PENDING',JSON.stringify(body.items||[]),body.note||null]); return dbJson(request,response,201,{item:body}); }
-      if (request.method === 'DELETE' && id) { await dbQuery("UPDATE orders SET status = 'CANCELLED' WHERE id = ?", [id]); return dbJson(request,response,200,{ok:true}); }
-      if (request.method === 'PUT' && id) { await dbQuery('UPDATE orders SET code=?,customer_id=?,sale_id=?,leader_id=?,team_id=?,total_amount=?,status=?,items_json=?,note=? WHERE id=?',[body.code,body.customerId,body.saleId||null,body.leaderId||null,body.teamId||null,body.total||0,body.status||'PENDING',JSON.stringify(body.items||[]),body.note||null,id]); return dbJson(request,response,200,{ok:true}); }
-    }
-    if (resource === 'settings') {
-      if (!['ADMIN', 'LEADER'].includes(user.role)) return dbJson(request, response, 403, { error: 'Kh?ng c? quy?n' });
-      if (request.method === 'GET') { const rows = await dbQuery('SELECT setting_key, setting_value FROM system_settings ORDER BY setting_key'); return dbJson(request, response, 200, { items: rows.map(row => ({ key: row.setting_key, value: row.setting_value })) }); }
-      if (request.method === 'PUT' && id) { const body = await readDbBody(request); await dbQuery('INSERT INTO system_settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)', [id, JSON.stringify(body.value ?? body)]); return dbJson(request, response, 200, { ok: true }); }
-    }
-    if (resource === 'products') { if (request.method === 'GET') return dbJson(request,response,200,{items:(await dbQuery('SELECT * FROM products WHERE active=1 ORDER BY name')).map(dbProduct)}); const body=await readDbBody(request); if(request.method==='POST'){await dbQuery('INSERT INTO products (id,sku,name,category,price,type,rental_months,active) VALUES (?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE name=VALUES(name),category=VALUES(category),price=VALUES(price),active=VALUES(active)',[body.id,body.sku||null,body.name,body.category||null,body.price||0,body.type||'SALE',body.rentalMonths||null,body.active===false?0:1]);return dbJson(request,response,201,{item:body});} }
     return dbJson(request,response,404,{error:'API không tồn tại'});
-  } catch (error) { console.error('[mysql-api]', error); return dbJson(request,response,500,{error:'Lỗi cơ sở dữ liệu'}); }
+  }catch(e){console.error('[mysql-api]',e.message);return dbJson(request,response,e.status|| (e instanceof SyntaxError?400:500),{error:e.status?e.message:e instanceof SyntaxError?'JSON không hợp lệ':'Không lưu được MySQL. Giữ trang mở và thử lại.'});}
 }
 
 /**
@@ -636,13 +641,15 @@ async function handleWebhook(request, response, slug) {
 const sseClients = new Set();
 
 function notifyInboxListeners(record) {
-  const event = `data: ${JSON.stringify({ id: record.id, receivedAt: record.receivedAt, slug: record.slug })}\n\n`;
+  const event = `data: ${JSON.stringify({ changed: true })}\n\n`;
   for (const client of sseClients) {
     try { client.write(event); } catch { sseClients.delete(client); }
   }
 }
 
-function handleInbox(request, response, url) {
+async function handleInbox(request, response, url) {
+  const user=await authUser(request);
+  if(user?.role!=='ADMIN')return sendJson(response,403,{error:'Chỉ Admin được xem inbox'},corsHeaders(request));
   const since = url.searchParams.get('since') || '';
   const includeRaw = url.searchParams.get('raw') === '1';
   const startIndex = since ? inbox.findIndex(item => item.id === since) : -1;
@@ -697,6 +704,7 @@ function handleSessionContext(request, response) {
 
 async function serveStatic(request, response, urlPathname) {
   const decoded = decodeURIComponent(urlPathname);
+  if (!['/','/index.html','/crm.js','/crm.css','/logo.jpg','/login-background.jpg'].includes(decoded)) return sendJson(response,404,{error:'Không tìm thấy tài nguyên'});
   let relative = decoded === '/' ? '/index.html' : decoded;
   const absolute = path.resolve(REPO_ROOT, `.${path.posix.normalize(relative)}`);
 
@@ -742,7 +750,7 @@ const server = http.createServer(async (request, response) => {
     if (pathname === '/api/session-context') return handleSessionContext(request, response);
     if (pathname === '/api/email/status') return handleEmailStatus(request, response);
     if (pathname === '/api/email/notify') return handleEmailNotify(request, response);
-    if (pathname === '/api/db/health' || pathname.startsWith('/api/auth/') || pathname.startsWith('/api/users') || pathname.startsWith('/api/customers') || pathname.startsWith('/api/orders') || pathname.startsWith('/api/products')) return handleDbApi(request, response, pathname);
+    if (pathname === '/api/db/health' || pathname.startsWith('/api/auth/') || pathname.startsWith('/api/users') || pathname.startsWith('/api/customers') || pathname.startsWith('/api/orders') || pathname.startsWith('/api/products') || pathname.startsWith('/api/settings') || pathname === '/api/state') return handleDbApi(request, response, pathname);
     if (pathname === '/api/health') return sendJson(response, 200, { ok: true, inbox: inbox.length, token: Boolean(WEBHOOK_TOKEN) });
 
     if (pathname.startsWith('/api/')) {
@@ -771,15 +779,13 @@ async function recoverLegacyInbox() {
   }
 }
 if (dbConfigured) recoverLegacyInbox().catch(error => console.error('[webhook-recovery] Chưa nhập xong inbox cũ:', error.message));
-async function seedAdmin() {
-  if (!dbConfigured) return;
-  const rows = await dbQuery('SELECT COUNT(*) AS total FROM users');
-  if (Number(rows[0]?.total || 0) === 0) {
-    await dbQuery("INSERT INTO users (id, phone, email, password_hash, name, role, active) VALUES (?, ?, ?, ?, ?, 'ADMIN', 1)", ['u-admin-start', '0933445566', 'admin@nvtagency.top', 'admin123', 'Start']);
-    console.log('[mysql] ?? t?o t?i kho?n Admin m?c ??nh.');
-  }
-}
-seedAdmin().catch(error => console.error('[mysql] Seed Admin th?t b?i:', error.message));
+const systemAccountsReady = (async () => {
+  if (!dbConfigured) return false;
+  await crmData.prepare();
+  const result = await provisionSystemAccounts(pool);
+  if (result.applied) console.log('[mysql] Đã cấu hình Admin, Marketing, Kế toán theo yêu cầu.');
+  return true;
+})().catch(error => { console.error('[mysql] Không khởi tạo được tài khoản:', error.message); return false; });
 server.listen(PORT, HOST, () => {
   const lan = HOST === '0.0.0.0' ? ' (mọi interface — máy khác trong LAN vào được)' : '';
   console.log(`\nCRM webhook server chạy tại http://localhost:${PORT}${lan}`);

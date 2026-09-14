@@ -5,7 +5,8 @@
   "description": "NVT Agency CRM static app and webhook server",
   "main": "app.js",
   "scripts": {
-    "start": "node app.js"
+    "start": "node app.js",
+    "test": "node --test test-persistence.cjs test-webhook-store.cjs"
   },
   "engines": {
     "node": ">=18"

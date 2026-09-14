@@ -14,7 +14,8 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: Number(process.env.DB_CONNECTION_LIMIT || 5),
   queueLimit: 0,
-  charset: 'utf8mb4'
+  charset: 'utf8mb4',
+  dateStrings: true
 });
 
 const dbConfigured = Boolean(process.env.DB_HOST || process.env.DB_NAME || process.env.DB_USER);
