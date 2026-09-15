@@ -195,15 +195,6 @@
       });
     }
 
-    document.addEventListener('click', event => {
-      if (!event.target.closest?.('#newCareGroupButton') || currentAccount.role !== 'ADMIN') return;
-      const name = window.prompt('Ten muc cham soc:'); if (!name?.trim()) return;
-      const values = window.prompt('Gia tri cot phan loai, cach nhau bang dau phay:','Premium, Whale');
-      const list = String(values || '').split(',').map(value => value.trim()).filter(Boolean); if (!list.length) return;
-      state.careGroups = [...(state.careGroups || CARE_GROUPS.map((group,index) => ({id:'CARE-'+(index+1),name:group.label,fieldId:'customerClass',values:group.classes}))), {id:'CARE-'+Date.now(),name:name.trim(),fieldId:'customerClass',values:list}];
-      saveState(); render();
-    });
-
     VIEW_RENDERERS.care = careView;
     insertCareNavigation();
     document.addEventListener('click', event => { const tab = event.target.closest ? event.target.closest('[data-care-tab]') : null; if (!tab) return; window.__nvtCareTab = tab.dataset.careTab; render(); });

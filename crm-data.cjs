@@ -251,7 +251,7 @@ async function distributeAutomatic(c, data = null) {
  const settings = JSON.parse(JSON.stringify(data.settings.get('$') || {}));
  if (config.enabled !== true) return 0;
  const mode = settings.assignmentMode;
- const automatic = ['ROUND_ROBIN','BALANCED'].includes(mode);
+ const automatic = ['EQUAL','ROUND_ROBIN','BALANCED'].includes(mode);
  const members = [...data.members.values()].filter(p => p.active !== false);
  const leaders = members.filter(p => p.role === 'LEADER' && p.teamId && (config.enabledLeaderIds || []).includes(p.id)).sort((a,b)=>a.id.localeCompare(b.id));
  if (!leaders.length) return 0;
@@ -268,12 +268,13 @@ async function distributeAutomatic(c, data = null) {
    const load = person => [...data.customers.values()].filter(row => team ? row.saleId === person.id : row.leaderId === person.id).length + (team ? [...data.dataOffers.values()].filter(o=>o.saleId===person.id&&o.status==='PENDING').length : 0);
    return people.slice().sort((a,b)=>load(a)/weight(weights,a.id)-load(b)/weight(weights,b.id)||a.id.localeCompare(b.id))[0];
   }
-  const weighted = people.flatMap(p=>Array.from({length:weight(weights,p.id)},()=>p));
+  const weighted = mode === 'ROUND_ROBIN';
+  const candidates = weighted ? people.flatMap(person => Array.from({length: weight(weights, person.id)}, () => person)) : people;
   const raw = team ? cursor.salesByTeam[key] : cursor.leaders;
   const index = Number.isSafeInteger(raw) && raw >= 0 ? raw : 0;
-  const person = weighted[index % weighted.length];
-  if (team) cursor.salesByTeam[key] = (index+1)%weighted.length;
-  else cursor.leaders = (index+1)%weighted.length;
+  const person = candidates[index % candidates.length];
+  if (team) cursor.salesByTeam[key] = (index+1)%candidates.length;
+  else cursor.leaders = (index+1)%candidates.length;
   return person;
  };
  const put = async (key,id,value) => {
@@ -287,8 +288,12 @@ async function distributeAutomatic(c, data = null) {
   .sort((a,b)=>String(a.createdAt||'').localeCompare(String(b.createdAt||''))||a.id.localeCompare(b.id));
  let count = 0;
  for (const row of waiting) {
-  const rule = (config.sourceRules || []).find(rule => rule.active !== false && leaders.some(p=>p.id===rule.targetLeaderId) && (rule.matchType==='WEBSITE' ? row.websiteId===rule.matchValue : rule.matchType==='SOURCE' ? normalize(row.source)===normalize(rule.matchValue) : rule.matchType==='CAMPAIGN' && normalize(row.campaign)===normalize(rule.matchValue)));
-  const leader = rule ? leaders.find(p=>p.id===rule.targetLeaderId) : automatic ? pick(leaders,config.weights,'leaders',false) : null;
+  const sourceRule = (config.sourceRules || []).find(rule => {
+   if (rule.active === false || !leaders.some(leader => leader.id === rule.targetLeaderId)) return false;
+   const value = rule.matchType === 'WEBSITE' ? row.websiteId : rule.matchType === 'CAMPAIGN' ? row.campaign : row.source;
+   return normalize(value) === normalize(rule.matchValue);
+  });
+  const leader = automatic ? (sourceRule ? leaders.find(item => item.id === sourceRule.targetLeaderId) : pick(leaders,config.weights,'leaders',false)) : null;
   if (!leader) continue;
   const saleConfig = saleConfigs[leader.id] || {};
   const recipients = members.filter(p=>p.teamId===leader.teamId && (p.id===leader.id ? saleConfig.leaderEnabled!==false : p.role==='SALE'&&p.leaderId===leader.id&&(!Array.isArray(saleConfig.enabledSaleIds)||saleConfig.enabledSaleIds.includes(p.id)))).sort((a,b)=>a.id.localeCompare(b.id));

@@ -1,4 +1,4 @@
-﻿-- NVT AGENCY CRM - MySQL schema
+﻿  -- NVT AGENCY CRM - MySQL schema
 -- Chạy trong cPanel phpMyAdmin sau khi tạo database.
 CREATE TABLE IF NOT EXISTS users (
   id VARCHAR(96) PRIMARY KEY,

@@ -362,7 +362,7 @@ function sanitizeSaleDistribution(input, members, defaults) {
 
 function sanitizeSettings(settings, defaults) {
   const input = settings && typeof settings === 'object' && !Array.isArray(settings) ? settings : {};
-  const assignmentMode = ['MANUAL', 'ROUND_ROBIN', 'BALANCED'].includes(input.assignmentMode)
+  const assignmentMode = ['MANUAL', 'EQUAL', 'ROUND_ROBIN', 'BALANCED'].includes(input.assignmentMode)
     ? input.assignmentMode
     : input.autoAssign === true ? 'BALANCED' : defaults.assignmentMode;
   const rawCursor = input.assignmentCursor && typeof input.assignmentCursor === 'object' && !Array.isArray(input.assignmentCursor) ? input.assignmentCursor : {};
@@ -370,7 +370,7 @@ function sanitizeSettings(settings, defaults) {
     ? Object.fromEntries(Object.entries(rawCursor.salesByTeam).filter(([teamId, cursor]) => cleanId(teamId) && Number.isInteger(cursor) && cursor >= 0).map(([teamId, cursor]) => [teamId, cursor]))
     : {};
   const saleAssignmentModes = input.saleAssignmentModes && typeof input.saleAssignmentModes === 'object' && !Array.isArray(input.saleAssignmentModes)
-    ? Object.fromEntries(Object.entries(input.saleAssignmentModes).filter(([leaderId, mode]) => cleanId(leaderId) && ['MANUAL', 'ROUND_ROBIN', 'BALANCED'].includes(mode)))
+    ? Object.fromEntries(Object.entries(input.saleAssignmentModes).filter(([leaderId, mode]) => cleanId(leaderId) && ['MANUAL', 'EQUAL', 'ROUND_ROBIN', 'BALANCED'].includes(mode)))
     : {};
   return {
     leaderCanUpdate: typeof input.leaderCanUpdate === 'boolean' ? input.leaderCanUpdate : defaults.leaderCanUpdate,
@@ -734,7 +734,7 @@ function websiteByWebhookSlug(slug) {
 function webhookPanelMarkup(website) {
   const url = webhookUrlFor(website);
   const urlRow = url
-    ? `<div class="webhook-url-row"><input class="mono webhook-url" id="webhookUrl-${escapeHtml(website.id)}" readonly value="${escapeHtml(url)}" aria-label="Webhook URL của ${escapeHtml(website.name)}"></div>`
+    ? `<div class="webhook-url-row"><input class="mono webhook-url" id="webhookUrl-${escapeHtml(website.id)}" readonly data-copy-webhook="${escapeHtml(website.id)}" value="${escapeHtml(url)}" title="Chạm hoặc nhấn đúp để sao chép URL webhook" aria-label="Webhook URL của ${escapeHtml(website.name)}"></div>`
     : `<div class="webhook-url-row"><span class="webhook-empty">Chưa có URL webhook</span></div>`;
   return `<div class="webhook-box"><div class="webhook-box-head"><b>Webhook nhận data landing page</b><span class="webhook-tag mono">POST - application/json</span></div>${urlRow}</div>`;
 }
@@ -2097,7 +2097,7 @@ function customersView() {
 function leaderRecipientSettings() {
   const people=teamRecipients(currentAccount.leaderId,currentAccount.teamId);
   const config=state.saleDistributionByLeader[currentAccount.leaderId]||{};
-  return pageHead('Tỷ trọng nhận data trong Team','Tỷ trọng 2 nhận gấp đôi tỷ trọng 1. Leader cũng tham gia nhận data.','') + `<section class="panel"><div class="panel-body">${people.map(p=>`<div class="field-manager-row"><b>${escapeHtml(p.name)}${p.teamLeaderRecipient?' (Leader)':''}</b><label>Tỷ trọng<input type="number" min="1" max="100" value="${config.weights?.[p.id]||1}" data-team-weight="${escapeHtml(p.id)}"></label><label><input type="checkbox" data-team-enabled="${escapeHtml(p.id)}" ${(p.teamLeaderRecipient?config.leaderEnabled!==false:!config.enabledSaleIds||config.enabledSaleIds.includes(p.id))?'checked':''}>Nhận data</label></div>`).join('')}<p>Sale có 24 giờ để nhận data. Quá hạn, ô phụ trách để trống để Leader phân lại tại Khách hàng Team.</p></div></section>`;
+  return pageHead('Tỷ trọng nhận data trong Team','','') + `<section class="panel"><div class="panel-body">${people.map(p=>`<div class="field-manager-row"><b>${escapeHtml(p.name)}${p.teamLeaderRecipient?' (Leader)':''}</b><label>Tỷ trọng<input type="number" min="1" max="100" value="${config.weights?.[p.id]||1}" data-team-weight="${escapeHtml(p.id)}"></label><label><input type="checkbox" data-team-enabled="${escapeHtml(p.id)}" ${(p.teamLeaderRecipient?config.leaderEnabled!==false:!config.enabledSaleIds||config.enabledSaleIds.includes(p.id))?'checked':''}>Nhận data</label></div>`).join('')}</div></section>`;
 }
 function updateTeamRecipient(id, field, value) {
   if(currentAccount.role!=='LEADER')return;
@@ -2121,19 +2121,8 @@ function poolView() {
   return pageHead(`Khách mới · ${pool.length}`, 'Data chưa phân được hiển thị bằng số trên menu; sau khi giao sẽ chuyển sang Khách hàng tổng.', '') +
     `<div class="grid grid-2"><section class="panel"><div class="panel-head"><div><div class="panel-title">Khách mới đang chờ phân</div><div class="panel-sub">${pool.length} bản ghi phù hợp phạm vi tài khoản</div></div>${pool.length ? '<button class="button button-small" id="selectPoolButton" type="button">Chọn tất cả</button>' : ''}</div><div class="panel-body">${pool.map(customer => `<label class="rank-row" style="grid-template-columns:24px minmax(0,1fr) auto"><input style="width:auto" type="checkbox" data-pool-id="${escapeHtml(customer.id)}" ${selectedPoolIds.has(customer.id) ? 'checked' : ''}><div><b>${escapeHtml(customer.name)}</b><small>${currentAccount.role === 'ADMIN' ? escapeHtml(customerLandingName(customer)) : escapeHtml(customer.phone || '')}</small><div class="cell-sub">${currentAccount.role === 'ADMIN' ? `${escapeHtml(customer.source)} · ` : ''}${escapeHtml(customer.createdAt)} · ${escapeHtml(customer.note)}</div></div>${statusBadge(customer.status)}</label>`).join('') || `<div class="empty"><b>Không còn khách mới</b><span>Tất cả data trong phạm vi đã được phân.</span></div>`}</div></section>
     <aside class="panel"><div class="panel-head"><div><div class="panel-title">Phân data cho ${targetLabel}</div><div class="panel-sub">${currentAccount.role === 'LEADER' ? `Chỉ nhân sự thuộc Team ${escapeHtml(currentAccount.teamId)}` : 'Admin phân theo đúng tuyến quản lý'}</div></div></div><div class="panel-body">
-      <div class="section-label">Tự động cho data mới</div><label class="form-field">Chế độ<select id="assignmentModeSelect"><option value="MANUAL" ${automaticMode === 'MANUAL' ? 'selected' : ''}>Thủ công</option><option value="ROUND_ROBIN" ${automaticMode === 'ROUND_ROBIN' ? 'selected' : ''}>Lần lượt (round-robin)</option><option value="BALANCED" ${automaticMode === 'BALANCED' ? 'selected' : ''}>Cân bằng theo tải hiện tại</option></select></label><div class="connection-actions" style="margin:12px 0 18px"><button class="button button-small" data-bulk-distribute="ROUND_ROBIN" ${!pool.length || !targets.length ? 'disabled' : ''}>Chia lần lượt toàn bộ</button><button class="button button-small button-primary" data-bulk-distribute="BALANCED" ${!pool.length || !targets.length ? 'disabled' : ''}>Chia đều toàn bộ cho ${targetLabel}</button></div>
+      <div class="section-label">Tự động cho data mới</div><label class="form-field">Chế độ<select id="assignmentModeSelect"><option value="MANUAL" ${automaticMode === 'MANUAL' ? 'selected' : ''}>Thủ công</option><option value="EQUAL" ${automaticMode === 'EQUAL' || automaticMode === 'ROUND_ROBIN' ? 'selected' : ''}>Chia đều</option><option value="BALANCED" ${automaticMode === 'BALANCED' ? 'selected' : ''}>Chia theo tỷ trọng</option></select></label><div class="connection-actions" style="margin:12px 0 18px"><button class="button button-small" data-bulk-distribute="EQUAL" ${!pool.length || !targets.length ? 'disabled' : ''}>Chia đều</button><button class="button button-small button-primary" data-bulk-distribute="BALANCED" ${!pool.length || !targets.length ? 'disabled' : ''}>Chia theo tỷ trọng</button></div>
       <div class="section-label">Phân thủ công bản ghi đã chọn</div><label class="form-field">${targetLabel} nhận khách<select id="poolTarget">${targets.map(person => `<option value="${escapeHtml(person.id)}">${escapeHtml(person.name)} · ${escapeHtml(person.teamId)}</option>`).join('')}</select></label><label class="form-field" style="margin-top:12px">Lý do<textarea id="poolReason" rows="4" placeholder="Ví dụ: Data từ chiến dịch tháng 9"></textarea></label><button id="assignPoolButton" class="button button-primary button-block" style="margin-top:13px" type="button" ${!targets.length ? 'disabled' : ''}>Phân cho ${targetLabel}</button><div class="credential-hint">Sau khi phân, data chuyển sang Khách hàng tổng; nguồn, campaign và landing page vẫn được giữ nguyên.</div></div></aside></div>`;
-}
-
-function automaticDistributionNotice() {
-  const status = serverAutomationStatus;
-  let text;
-  if (!status || status.engine !== 'server-v1') text = 'Máy chủ chưa xác nhận bộ chia tự động. Cập nhật backend và khởi động lại Node.js trên hosting.';
-  else if (!status.enabled) text = 'Tự động trên máy chủ: đang tắt.';
-  else if (!status.eligibleLeaderCount) text = 'Chưa có Leader hợp lệ nhận data. Bật Leader đang hoạt động và có Team tại Danh sách Leader.';
-  else if (status.mode === 'MANUAL') text = 'Chế độ mặc định là thủ công; chỉ chia tự động cho khách khớp luật theo nguồn.';
-  else text = `Tự động trên máy chủ: đang bật · ${status.eligibleLeaderCount} Leader nhận data. Khách landing được chia ngay khi lưu, kể cả khi Admin đóng CRM.`;
-  return `<div class="credential-hint" role="status" style="margin-bottom:12px">${escapeHtml(text)}</div>`;
 }
 
 function distributionView() {
@@ -2150,27 +2139,23 @@ function distributionView() {
     ...state.customers.map(customer => ({ id: `NEW:${customer.id}`, at: customer.createdAt, customer, kind: 'NEW', source: customer.source, campaign: customer.campaign })),
     ...state.resubmissions.map(item => ({ id: `RETURN:${item.id}`, at: item.at, customer: customerById(item.customerId), kind: 'RETURN', source: item.source, campaign: item.campaign, registeredAccount: item.registeredAccount }))
   ].filter(item => item.customer).sort((a, b) => b.at.localeCompare(a.at) || b.id.localeCompare(a.id)).slice(0, 60);
-  const tabs = [['QUEUE', `Thứ tự data mới vào (${pool.length})`], ['AUTO', 'Tự động'], ['SOURCE', 'Theo nguồn'], ['LEADERS', 'Danh sách Leader'], ['SALES', 'Sale theo Leader']];
+  const tabs = [[`QUEUE`, `Thứ tự data mới vào (${pool.length})`], [`AUTO`, `Tự động`], [`LEADERS`, `Danh sách Leader`], [`SALES`, `Sale theo Leader`]];
   let body = '';
   if (distributionTab === 'QUEUE') {
-    body = `<div class="grid grid-2 distribution-queue-layout"><section class="panel"><div class="panel-head"><div><div class="panel-title">Thứ tự data mới vào</div><div class="panel-sub">Mới nhất ở trên · gồm data mới và khách điền lại form</div></div>${pool.length ? '<button class="button button-small" id="selectPoolButton" type="button">Chọn tất cả đang chờ</button>' : ''}</div><div class="table-wrap"><table class="intake-order-table"><thead><tr><th>Thứ tự</th><th>Ngày data</th><th>Khách hàng</th><th>Loại data</th><th>Nguồn</th><th>Đang phụ trách</th></tr></thead><tbody>${intakeRows.map((item, index) => { const customer = item.customer; const dataDate = dataDateParts(item.at); const waiting = item.kind === 'NEW' && !customer.saleId && !customer.leaderId; return `<tr class="${waiting ? 'queue-waiting' : ''}"><td><div class="queue-sequence">#${index + 1}</div>${waiting ? `<input type="checkbox" data-pool-id="${escapeHtml(customer.id)}" ${selectedPoolIds.has(customer.id) ? 'checked' : ''} aria-label="Chọn ${escapeHtml(customer.name)}">` : ''}</td><td class="data-date-cell"><b>${escapeHtml(dataDate.date)}</b><small>${escapeHtml(dataDate.time)}</small></td><td><div class="cell-main">${escapeHtml(customer.name)}</div><div class="cell-sub">${escapeHtml(customer.phone)}</div></td><td>${item.kind === 'RETURN' ? `<span class="status ${item.registeredAccount ? 'status-cancelled' : 'status-info'}">${item.registeredAccount ? 'Trùng · Đã đăng ký TK' : 'Điền lại form'}</span>` : waiting ? '<span class="status status-pending">Chờ chia Leader</span>' : '<span class="status status-paid">Data mới</span>'}</td><td>${(() => { const source = customerSourceDetails(customer); const campaign = item.campaign && item.campaign !== 'UNATTRIBUTED' ? item.campaign : ''; return `<div class="cell-main">${escapeHtml(source.name)}</div><div class="cell-sub mono">${escapeHtml(source.url || source.domain || (customer.webhookSlug ? `Webhook ${customer.webhookSlug}` : 'Chưa gắn URL nguồn'))}</div><div class="cell-sub">${escapeHtml([item.source, campaign].filter(Boolean).join(' · '))}</div>`; })()}</td><td>${quickSaleControl(customer)}</td></tr>`; }).join('') || '<tr><td colspan="6"><div class="empty"><b>Chưa có data</b><span>Data mới từ form/API sẽ xuất hiện theo thời gian tại đây.</span></div></td></tr>'}</tbody></table></div></section><aside class="panel queue-assignment-panel"><div class="panel-head"><div><div class="panel-title">Xử lý hàng chờ</div><div class="panel-sub">${pool.length} data chưa có Leader · ưu tiên cũ nhất trước</div></div></div><div class="panel-body">${webhookQueueNoticeMarkup()}<div class="connection-actions" style="margin:0 0 18px"><button class="button button-small" data-bulk-distribute="ROUND_ROBIN" ${!pool.length || !enabledLeaders.size ? 'disabled' : ''}>Chia lần lượt</button><button class="button button-small button-primary" data-bulk-distribute="BALANCED" ${!pool.length || !enabledLeaders.size ? 'disabled' : ''}>Chia cân bằng</button></div><label class="form-field">Leader nhận data<select id="poolTarget">${leaders.filter(leader => enabledLeaders.has(leader.id)).map(leader => `<option value="${escapeHtml(leader.id)}">${escapeHtml(leader.name)} · ${escapeHtml(leader.teamId)}</option>`).join('')}</select></label><label class="form-field" style="margin-top:12px">Lý do<textarea id="poolReason" rows="3" placeholder="Phân theo thứ tự data vào">Phân theo thứ tự data vào</textarea></label><button id="assignPoolButton" class="button button-primary button-block" style="margin-top:13px" type="button" ${!pool.length || !enabledLeaders.size ? 'disabled' : ''}>Phân data đã chọn</button><div class="credential-hint">Khách điền lại form không vào chia ngẫu nhiên: hệ thống tự trả về đúng Sale cũ và vẫn hiện trong danh sách thứ tự phía bên trái.</div></div></aside></div>`;
+    body = `<div class="grid grid-2 distribution-queue-layout"><section class="panel"><div class="panel-head"><div><div class="panel-title">Thứ tự data mới vào</div><div class="panel-sub">Mới nhất ở trên · gồm data mới và khách điền lại form</div></div>${pool.length ? '<button class="button button-small" id="selectPoolButton" type="button">Chọn tất cả đang chờ</button>' : ''}</div><div class="table-wrap"><table class="intake-order-table"><thead><tr><th>Thứ tự</th><th>Ngày data</th><th>Khách hàng</th><th>Loại data</th><th>Nguồn</th><th>Đang phụ trách</th></tr></thead><tbody>${intakeRows.map((item, index) => { const customer = item.customer; const dataDate = dataDateParts(item.at); const waiting = item.kind === 'NEW' && !customer.saleId && !customer.leaderId; return `<tr class="${waiting ? 'queue-waiting' : ''}"><td><div class="queue-sequence">#${index + 1}</div>${waiting ? `<input type="checkbox" data-pool-id="${escapeHtml(customer.id)}" ${selectedPoolIds.has(customer.id) ? 'checked' : ''} aria-label="Chọn ${escapeHtml(customer.name)}">` : ''}</td><td class="data-date-cell"><b>${escapeHtml(dataDate.date)}</b><small>${escapeHtml(dataDate.time)}</small></td><td><div class="cell-main">${escapeHtml(customer.name)}</div><div class="cell-sub">${escapeHtml(customer.phone)}</div></td><td>${item.kind === 'RETURN' ? `<span class="status ${item.registeredAccount ? 'status-cancelled' : 'status-info'}">${item.registeredAccount ? 'Trùng · Đã đăng ký TK' : 'Điền lại form'}</span>` : waiting ? '<span class="status status-pending">Chờ chia Leader</span>' : '<span class="status status-paid">Data mới</span>'}</td><td>${(() => { const source = customerSourceDetails(customer); const campaign = item.campaign && item.campaign !== 'UNATTRIBUTED' ? item.campaign : ''; return `<div class="cell-main">${escapeHtml(source.name)}</div><div class="cell-sub mono">${escapeHtml(source.url || source.domain || (customer.webhookSlug ? `Webhook ${customer.webhookSlug}` : 'Chưa gắn URL nguồn'))}</div><div class="cell-sub">${escapeHtml([item.source, campaign].filter(Boolean).join(' · '))}</div>`; })()}</td><td>${quickSaleControl(customer)}</td></tr>`; }).join('') || '<tr><td colspan="6"><div class="empty"><b>Chưa có data</b><span>Data mới từ form/API sẽ xuất hiện theo thời gian tại đây.</span></div></td></tr>'}</tbody></table></div></section><aside class="panel queue-assignment-panel"><div class="panel-head"><div><div class="panel-title">Xử lý hàng chờ</div><div class="panel-sub">${pool.length} data chưa có Leader · ưu tiên cũ nhất trước</div></div></div><div class="panel-body">${webhookQueueNoticeMarkup()}<div class="connection-actions" style="margin:0 0 18px"><button class="button button-small" data-bulk-distribute="EQUAL" ${!pool.length || !enabledLeaders.size ? 'disabled' : ''}>Chia đều</button><button class="button button-small button-primary" data-bulk-distribute="BALANCED" ${!pool.length || !enabledLeaders.size ? 'disabled' : ''}>Chia theo tỷ trọng</button></div><label class="form-field">Leader nhận data<select id="poolTarget">${leaders.filter(leader => enabledLeaders.has(leader.id)).map(leader => `<option value="${escapeHtml(leader.id)}">${escapeHtml(leader.name)} · ${escapeHtml(leader.teamId)}</option>`).join('')}</select></label><label class="form-field" style="margin-top:12px">Lý do<textarea id="poolReason" rows="3" placeholder="Phân theo thứ tự data vào">Phân theo thứ tự data vào</textarea></label><button id="assignPoolButton" class="button button-primary button-block" style="margin-top:13px" type="button" ${!pool.length || !enabledLeaders.size ? 'disabled' : ''}>Phân data đã chọn</button></div></aside></div>`;
   } else if (distributionTab === 'AUTO') {
-    body = `<div class="grid grid-2"><section class="panel"><div class="panel-head"><div><div class="panel-title">Cơ chế chia data mới</div><div class="panel-sub">Luật theo nguồn được ưu tiên, sau đó áp dụng chế độ mặc định</div></div><button class="toggle ${state.leaderDistribution.enabled ? 'on' : ''}" id="toggleLeaderDistribution" aria-pressed="${state.leaderDistribution.enabled}" aria-label="Bật tắt chia Leader"></button></div><div class="panel-body"><label class="form-field">Chế độ mặc định<select id="assignmentModeSelect"><option value="MANUAL" ${state.settings.assignmentMode === 'MANUAL' ? 'selected' : ''}>Thủ công</option><option value="ROUND_ROBIN" ${state.settings.assignmentMode === 'ROUND_ROBIN' ? 'selected' : ''}>Lần lượt có tỷ trọng</option><option value="BALANCED" ${state.settings.assignmentMode === 'BALANCED' ? 'selected' : ''}>Cân bằng tải / tỷ trọng</option></select></label><div class="credential-hint" style="margin-top:12px">Tỷ trọng 2 nhận gấp đôi lượt so với tỷ trọng 1. Cân bằng so sánh số khách hiện tại chia cho tỷ trọng, không phá lịch sử phân công cũ.</div></div></section><section class="panel"><div class="panel-head"><div><div class="panel-title">Tình trạng phân phối</div><div class="panel-sub">Chỉ Leader được bật mới nhận data mới</div></div></div><div class="panel-body"><div class="stat-row"><div><small>Leader hoạt động</small><b>${enabledLeaders.size}/${leaders.length}</b></div><div><small>Luật theo nguồn</small><b>${state.leaderDistribution.sourceRules.filter(rule => rule.active).length}</b></div><div><small>Khách đang chờ</small><b>${state.customers.filter(customer => !customer.leaderId && !customer.saleId).length}</b></div></div></div></section></div>`;
-  } else if (distributionTab === 'SOURCE') {
-    body = `<section class="panel"><div class="panel-head"><div><div class="panel-title">Luật chia Leader theo nguồn</div><div class="panel-sub">Ưu tiên Website/Landing, nguồn hoặc campaign chính xác trước chế độ mặc định</div></div></div><div class="panel-body"><form id="distributionSourceRuleForm" class="distribution-toolbar"><label class="form-field">Loại điều kiện<select id="distributionRuleType"><option value="WEBSITE">Website / Landing ID</option><option value="SOURCE">Tên nguồn</option><option value="CAMPAIGN">Campaign</option></select></label><label class="form-field">Giá trị khớp<input id="distributionRuleValue" required maxlength="200" placeholder="WEB-2 hoặc Facebook Ads"></label><label class="form-field">Giao cho Leader<select id="distributionRuleLeader">${leaders.filter(leader => enabledLeaders.has(leader.id)).map(leader => `<option value="${escapeHtml(leader.id)}">${escapeHtml(leader.name)} · ${escapeHtml(leader.teamId)}</option>`).join('')}</select></label><button class="button button-primary" type="submit" ${!enabledLeaders.size ? 'disabled' : ''}>+ Thêm luật</button></form><div class="credential-hint">Website ID có tại mục Websites. Luật không làm lộ nguồn cho tài khoản Leader/Sale và chỉ áp dụng cho data mới.</div></div><div class="table-wrap"><table><thead><tr><th>Ưu tiên</th><th>Điều kiện</th><th>Giá trị</th><th>Leader nhận</th><th>Trạng thái</th><th></th></tr></thead><tbody>${state.leaderDistribution.sourceRules.map((rule, index) => `<tr><td class="mono">#${index + 1}</td><td>${escapeHtml({ WEBSITE: 'Website / Landing', SOURCE: 'Nguồn', CAMPAIGN: 'Campaign' }[rule.matchType])}</td><td><b>${escapeHtml(rule.matchValue)}</b></td><td>${escapeHtml(staffName(rule.targetLeaderId))}</td><td><span class="status ${rule.active ? 'status-paid' : 'status-pending'}">${rule.active ? 'Đang áp dụng' : 'Tạm tắt'}</span></td><td><button class="button button-small" data-toggle-source-rule="${escapeHtml(rule.id)}">${rule.active ? 'Tắt' : 'Bật'}</button> <button class="button button-small button-danger" data-delete-source-rule="${escapeHtml(rule.id)}">Xóa</button></td></tr>`).join('') || '<tr><td colspan="6"><div class="empty"><b>Chưa có luật theo nguồn</b><span>Data mới sẽ dùng chế độ mặc định.</span></div></td></tr>'}</tbody></table></div></section>`;
-  } else if (distributionTab === 'LEADERS') {
+    body = `<div class="grid grid-2"><section class="panel"><div class="panel-head"><div><div class="panel-title">Cơ chế chia data mới</div></div><button class="toggle ${state.leaderDistribution.enabled ? 'on' : ''}" id="toggleLeaderDistribution" aria-pressed="${state.leaderDistribution.enabled}" aria-label="Bật tắt chia Leader"></button></div><div class="panel-body"><label class="form-field">Chế độ mặc định<select id="assignmentModeSelect"><option value="MANUAL" ${state.settings.assignmentMode === 'MANUAL' ? 'selected' : ''}>Thủ công</option><option value="EQUAL" ${state.settings.assignmentMode === 'EQUAL' || state.settings.assignmentMode === 'ROUND_ROBIN' ? 'selected' : ''}>Chia đều</option><option value="BALANCED" ${state.settings.assignmentMode === 'BALANCED' ? 'selected' : ''}>Chia theo tỷ trọng</option></select></label></div></section><section class="panel"><div class="panel-head"><div><div class="panel-title">Tình trạng phân phối</div></div></div><div class="panel-body"><div class="stat-row"><div><small>Leader hoạt động</small><b>${enabledLeaders.size}/${leaders.length}</b></div><div><small>Chế độ hiện tại</small><b>${state.settings.assignmentMode === 'MANUAL' ? 'Thủ công' : state.settings.assignmentMode === 'BALANCED' ? 'Theo tỷ trọng' : 'Chia đều'}</b></div><div><small>Khách đang chờ</small><b>${state.customers.filter(customer => !customer.leaderId && !customer.saleId).length}</b></div></div></div></section></div>`;  } else if (distributionTab === 'LEADERS') {
     body = `<section class="panel"><div class="panel-head"><div><div class="panel-title">Leader nhận data</div><div class="panel-sub">Bật/tắt và đặt tỷ trọng riêng cho từng Leader</div></div></div><div class="field-manager">${leaders.map(leader => { const saleCount = activeStaff().filter(member => member.role === 'SALE' && member.leaderId === leader.id).length; return `<div class="field-manager-row"><div class="avatar">${escapeHtml(leader.initials)}</div><div><b>${escapeHtml(leader.name)}</b><small>${escapeHtml(leader.teamId)} · ${saleCount} Sale · đang phụ trách ${assignmentLoad(leader)} khách</small></div><label class="weight-control">Tỷ trọng<input class="weight-input" type="number" min="1" max="100" value="${state.leaderDistribution.weights[leader.id] || 1}" data-distribution-weight="LEADER:${escapeHtml(leader.id)}"></label><label class="member-switch"><input type="checkbox" data-distribution-member="LEADER:${escapeHtml(leader.id)}" ${enabledLeaders.has(leader.id) ? 'checked' : ''}><span>${enabledLeaders.has(leader.id) ? 'Đang nhận' : 'Tạm tắt'}</span></label></div>`; }).join('') || '<div class="empty"><b>Chưa có Leader</b><span>Thêm Leader tại mục Đội ngũ trước.</span></div>'}</div></section>`;
   } else {
     body = `<section class="panel"><div class="panel-head"><div><div class="panel-title">Sale nhận data trong từng Team</div><div class="panel-sub">Leader chỉ có thể chia cho Sale đã được Admin bật ở đây</div></div><select id="distributionLeaderSelect">${leaders.map(leader => `<option value="${escapeHtml(leader.id)}" ${leader.id === distributionLeaderId ? 'selected' : ''}>${escapeHtml(leader.name)} · ${escapeHtml(leader.teamId)}</option>`).join('')}</select></div><div class="field-manager">${sales.map(sale => `<div class="field-manager-row"><div class="avatar">${escapeHtml(sale.initials)}</div><div><b>${escapeHtml(sale.name)}</b><small>${escapeHtml(sale.teamId)} · đang phụ trách ${assignmentLoad(sale)} khách</small></div><label class="weight-control">Tỷ trọng<input class="weight-input" type="number" min="1" max="100" value="${saleConfig.weights[sale.id] || 1}" data-distribution-weight="SALE:${escapeHtml(sale.id)}"></label><label class="member-switch"><input type="checkbox" data-distribution-member="SALE:${escapeHtml(sale.id)}" ${(sale.teamLeaderRecipient ? saleConfig.leaderEnabled !== false : enabledSales.has(sale.id)) ? 'checked' : ''}><span>${(sale.teamLeaderRecipient ? saleConfig.leaderEnabled !== false : enabledSales.has(sale.id)) ? 'Đang nhận' : 'Tạm tắt'}</span></label></div>`).join('') || '<div class="empty"><b>Leader chưa có Sale</b><span>Thêm hoặc điều chuyển Sale tại mục Đội ngũ.</span></div>'}</div></section>`;
   }
-  body = automaticDistributionNotice() + body;
-  return pageHead('Data', 'Kiểm soát tuyến phân data từ nguồn vào Leader, rồi từ Leader xuống Sale; lịch sử phụ trách cũ luôn được giữ.') + `<div class="distribution-tabs">${tabs.map(([id, label]) => `<button class="distribution-tab ${distributionTab === id ? 'active' : ''}" data-distribution-tab="${id}">${label}</button>`).join('')}</div>${body}`;
+  return pageHead('Data', 'Phân data cho Leader và Sale; lịch sử phụ trách cũ luôn được giữ.') + `<div class="distribution-tabs">${tabs.map(([id, label]) => `<button class="distribution-tab ${distributionTab === id ? 'active' : ''}" data-distribution-tab="${id}">${label}</button>`).join('')}</div>${body}`;
 }
 
 async function toggleLeaderDistribution() {
   if (currentAccount.role !== 'ADMIN') return;
   state.leaderDistribution.enabled = !state.leaderDistribution.enabled;
-  if (state.leaderDistribution.enabled && state.settings.assignmentMode === 'MANUAL') state.settings.assignmentMode = 'ROUND_ROBIN';
+  if (state.leaderDistribution.enabled && state.settings.assignmentMode === 'MANUAL') state.settings.assignmentMode = 'EQUAL';
   saveState();
   if (await flushServerPersistence()) { render(); toast('Đã lưu chế độ chia data trên máy chủ'); }
 }
@@ -3621,24 +3606,14 @@ function weightedCandidateList(candidates) {
 function chooseAssignmentTarget(customer, mode) {
   const candidates = assignmentCandidates(customer);
   if (!candidates.length) return null;
-  if (!customer.leaderId) {
-    const rule = matchingLeaderSourceRule(customer);
-    const target = rule && candidates.find(candidate => candidate.id === rule.targetLeaderId);
-    if (target) return target;
-  }
-  if (!['ROUND_ROBIN', 'BALANCED'].includes(mode)) return null;
+  if (!['EQUAL', 'ROUND_ROBIN', 'BALANCED'].includes(mode)) return null;
   if (mode === 'BALANCED') return candidates.slice().sort((a, b) => assignmentLoad(a) / assignmentWeight(a) - assignmentLoad(b) / assignmentWeight(b) || a.id.localeCompare(b.id))[0];
-  const weighted = weightedCandidateList(candidates);
-  if (customer.leaderId) {
-    const key = customer.leaderId;
-    const cursor = state.settings.assignmentCursor.salesByTeam[key] || 0;
-    const target = weighted[cursor % weighted.length];
-    state.settings.assignmentCursor.salesByTeam[key] = (cursor + 1) % weighted.length;
-    return target;
-  }
-  const cursor = state.settings.assignmentCursor.leaders || 0;
+  const key = customer.leaderId || 'leaders';
+  const cursor = customer.leaderId ? (state.settings.assignmentCursor.salesByTeam[key] || 0) : (state.settings.assignmentCursor.leaders || 0);
+  const weighted = mode === 'ROUND_ROBIN' ? weightedCandidateList(candidates) : candidates;
   const target = weighted[cursor % weighted.length];
-  state.settings.assignmentCursor.leaders = (cursor + 1) % weighted.length;
+  if (customer.leaderId) state.settings.assignmentCursor.salesByTeam[key] = (cursor + 1) % weighted.length;
+  else state.settings.assignmentCursor.leaders = (cursor + 1) % weighted.length;
   return target;
 }
 
@@ -3778,7 +3753,7 @@ function autoAssignCustomer(customer) {
   const mode = assignmentModeFor(customer);
   const target = chooseAssignmentTarget(customer, mode);
   if (!target) return false;
-  const assigned = applyCustomerAssignment(customer, target, `${mode === 'ROUND_ROBIN' ? 'Phân lần lượt' : 'Phân cân bằng'} tự động`);
+  const assigned = applyCustomerAssignment(customer, target, `${mode === 'BALANCED' ? 'Phân theo tỷ trọng' : 'Phân đều'} tự động`);
   if (assigned && target.role === 'LEADER') {
     const recipient = chooseAssignmentTarget(customer, mode);
     if (recipient) applyCustomerAssignment(customer, recipient, 'Chia theo tỷ trọng trong Team', 'AUTO');
@@ -3787,7 +3762,7 @@ function autoAssignCustomer(customer) {
 }
 
 async function setAssignmentMode(mode) {
-  if (currentAccount.role !== 'ADMIN' || !['MANUAL','ROUND_ROBIN','BALANCED'].includes(mode)) return;
+  if (currentAccount.role !== 'ADMIN' || !['MANUAL','EQUAL','ROUND_ROBIN','BALANCED'].includes(mode)) return;
   state.settings.assignmentMode = mode;
   state.leaderDistribution.enabled = mode !== 'MANUAL';
   // Server luu cau hinh va chia hang cho trong cung giao dich.
@@ -3796,7 +3771,7 @@ async function setAssignmentMode(mode) {
 }
 
 function bulkDistributePool(mode, fromAuto = false) {
-  if (!['ADMIN', 'LEADER'].includes(currentAccount.role) || !['ROUND_ROBIN', 'BALANCED'].includes(mode)) { toast('Không có quyền chia data'); return; }
+  if (!['ADMIN', 'LEADER'].includes(currentAccount.role) || !['EQUAL', 'ROUND_ROBIN', 'BALANCED'].includes(mode)) { toast('Không có quyền chia data'); return; }
   const pool = scopedCustomers().filter(isPoolCustomer).sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
   let distributed = 0;
   pool.forEach(customer => {
@@ -3815,7 +3790,7 @@ function bulkDistributePool(mode, fromAuto = false) {
   saveState();
   render();
   toast(distributed
-    ? `${fromAuto ? 'Đã tự động phân' : 'Đã phân'} ${distributed} data theo chế độ ${mode === 'ROUND_ROBIN' ? 'lần lượt' : 'cân bằng'}`
+    ? `${fromAuto ? 'Đã tự động phân' : 'Đã phân'} ${distributed} data theo chế độ ${mode === 'BALANCED' ? 'tỷ trọng' : 'chia đều'}`
     : (fromAuto ? 'Chưa có Leader được bật hoặc chưa có data phù hợp để tự động phân' : 'Không có data hoặc nhân sự phù hợp để phân'));
 }
 
@@ -4272,6 +4247,7 @@ function bindViewActions() {
   $('#newWebsiteButton')?.addEventListener('click', newWebsiteModal);
   $$('[data-edit-source]').forEach(button => button.onclick = () => editWebsiteSourceModal(button.dataset.editSource));
   $$('[data-generate-webhook]').forEach(button => button.onclick = () => generateWebhookFor(button.dataset.generateWebhook));
+  $$('[data-copy-webhook]').forEach(field => field.addEventListener('click', event => { event.preventDefault(); copyWebhookUrl(field.dataset.copyWebhook); }));
   $('[data-webhook-sync]')?.addEventListener('click', () => pullWebhookInbox(true));
   $$('[data-webhook-pending]').forEach(button => { button.onclick = () => webhookPendingModal(); });
   $('#newIntegrationButton')?.addEventListener('click', () => configureIntegrationModal());
@@ -4584,11 +4560,16 @@ function hydrateSessionAccount(account) {
       session.scope = 'OWN';
       session.saleId = member.id;
       session.leaderId = member.leaderId;
-    } else {
+    } else if (member.role === 'LEADER') {
       session.role = 'LEADER';
       session.scope = 'TEAM';
       session.leaderId = member.id;
       session.saleId = null;
+    } else if (member.role === 'ADMIN') {
+      session.role = 'ADMIN';
+      session.scope = 'ALL';
+      session.saleId = null;
+      session.leaderId = null;
     }
   }
   return session;

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Server webhook + static cho CRM NVT Agency.
  *
  * Chạy:  node webhook-server.cjs
@@ -67,8 +67,95 @@ async function passwordMatches(value, stored) {
   // Hỗ trợ mật khẩu cũ; nâng cấp sang bcrypt sau lần đăng nhập đúng.
   return value.length > 0 && value === stored;
 }
+
+// Chế độ demo chỉ được bật chủ động bằng DEMO_MODE=1. npm start/cPanel không bật cờ này.
+const DEMO_MODE = typeof process !== 'undefined' && process.env?.DEMO_MODE === '1';
+const demoUsers = [
+  { id: 'demo-admin', phone: '0900000001', email: 'admin.demo@local.test', name: 'Admin Demo', role: 'ADMIN', teamId: '', leaderId: null, active: true },
+  { id: 'demo-leader', phone: '0900000002', email: 'leader.demo@local.test', name: 'Leader Demo', role: 'LEADER', teamId: 'DEMO', leaderId: null, active: true },
+  { id: 'demo-sale', phone: '0900000003', email: 'sale.demo@local.test', name: 'Sale Demo', role: 'SALE', teamId: 'DEMO', leaderId: 'demo-leader', active: true }
+];
+const demoPasswords = {
+  'admin.demo@local.test': 'AdminDemo2026!',
+  'leader.demo@local.test': 'LeaderDemo2026!',
+  'sale.demo@local.test': 'SaleDemo2026!'
+};
+const demoSessions = new Map();
+const demoState = {
+  version: 3,
+  members: demoUsers.map(user => ({
+    ...user,
+    initials: user.name.split(/\s+/).map(part => part[0]).join('').toUpperCase(),
+    loginEnabled: true
+  })),
+  registeredAccounts: [],
+  customers: [
+    { id: 'DEMO-CUS-1', name: 'Khách demo Premium', phone: '0900000011', email: 'premium@local.test', source: 'Demo', campaign: 'DEMO', status: 'NEW', saleId: 'demo-sale', leaderId: 'demo-leader', teamId: 'DEMO', note: 'Dữ liệu demo', customFields: { customerClass: 'Premium' }, createdAt: '2026-09-15 09:00', updatedAt: '2026-09-15 09:00' },
+    { id: 'DEMO-CUS-2', name: 'Khách demo Whale', phone: '0900000012', email: 'whale@local.test', source: 'Demo', campaign: 'DEMO', status: 'CONTACTED', saleId: null, leaderId: 'demo-leader', teamId: 'DEMO', note: 'Dữ liệu demo', customFields: { customerClass: 'Whale' }, createdAt: '2026-09-15 10:00', updatedAt: '2026-09-15 10:00' }
+  ],
+  orders: [], products: [], productCategories: ['Demo'], registrations: [],
+  customFieldDefinitions: [], customerFieldHistory: [], assignmentHistory: [],
+  resubmissions: [], notes: [], imports: [], attendance: [], dataOffers: [],
+  traffic: [], tasks: [], notifications: [], audit: [], websites: [],
+  integrations: [], webhookPending: [], careGroups: [],
+  settings: { assignmentMode: 'BALANCED', leaderCanUpdate: true, leaderAttendanceRequired: true },
+  leaderDistribution: { enabled: true, enabledLeaderIds: ['demo-leader'], weights: { 'demo-leader': 1 }, sourceRules: [] },
+  saleDistributionByLeader: { 'demo-leader': { leaderEnabled: true, enabledSaleIds: ['demo-sale'], weights: { 'demo-leader': 1, 'demo-sale': 1 } } }
+};
+
+function demoToken(request) {
+  return String(request.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
+}
+function demoUserFromToken(request) {
+  return demoUsers.find(user => user.id === demoSessions.get(demoToken(request))) || null;
+}
+function demoPayload(user) {
+  const members = demoState.members.filter(member => member.role !== 'ADMIN' || user.role === 'ADMIN');
+  const automation = user.role === 'ADMIN' ? { engine: 'server-v1', enabled: demoState.leaderDistribution.enabled === true, mode: demoState.settings.assignmentMode || 'MANUAL', eligibleLeaderCount: demoState.leaderDistribution.enabledLeaderIds.length } : undefined;
+  return { state: { ...demoState, members }, versions: {}, automation, user };
+}
+async function handleDemoApi(request, response, pathname) {
+  if (pathname === '/api/db/health') return dbJson(request, response, 200, { configured: false, demo: true });
+  if (pathname === '/api/auth/login' && request.method === 'POST') {
+    const body = await readDbBody(request);
+    const identifier = String(body.identifier || '').trim().toLowerCase();
+    const user = demoUsers.find(item => item.email === identifier || item.phone === identifier);
+    if (!user || demoPasswords[user.email] !== String(body.password || '')) {
+      return dbJson(request, response, 401, { error: 'Thông tin đăng nhập demo không đúng' });
+    }
+    const token = `demo-${crypto.randomBytes(12).toString('hex')}`;
+    demoSessions.set(token, user.id);
+    return dbJson(request, response, 200, { token, user });
+  }
+  if (pathname === '/api/auth/me' && request.method === 'GET') {
+    const user = demoUserFromToken(request);
+    return user ? dbJson(request, response, 200, { user }) : dbJson(request, response, 401, { error: 'Phiên demo hết hạn' });
+  }
+  if (pathname === '/api/auth/logout') {
+    demoSessions.delete(demoToken(request));
+    return dbJson(request, response, 200, { ok: true });
+  }
+  const user = demoUserFromToken(request);
+  if (!user) return dbJson(request, response, 401, { error: 'Đăng nhập demo trước' });
+  if (pathname === '/api/state' && request.method === 'GET') return dbJson(request, response, 200, demoPayload(user));
+  if (pathname === '/api/state' && request.method === 'POST') {
+    const body = await readDbBody(request);
+    for (const change of body.changes || []) {
+      if (['settings', 'leaderDistribution', 'saleDistributionByLeader', 'careGroups'].includes(change.key)) {
+        demoState[change.key] = change.value;
+      } else if (Array.isArray(demoState[change.key])) {
+        demoState[change.key] = demoState[change.key].filter(item => item.id !== change.id);
+        if (change.value) demoState[change.key].push(change.value);
+      }
+    }
+    return dbJson(request, response, 200, { ...demoPayload(user), ok: true });
+  }
+  return dbJson(request, response, 404, { error: 'Demo API không hỗ trợ endpoint này' });
+}
+
 async function handleDbApi(request, response, pathname) {
   if (request.method === 'OPTIONS') { response.writeHead(204, { 'Access-Control-Allow-Origin': request.headers.origin || '*', 'Access-Control-Allow-Headers': 'Content-Type, Authorization', 'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS' }); return response.end(); }
+  if (DEMO_MODE) return handleDemoApi(request,response,pathname);
   if (!dbConfigured) return dbJson(request,response,503,{error:'MySQL chưa được cấu hình. Không thể lưu dữ liệu.'});
   try {
     if (!await systemAccountsReady) return dbJson(request,response,503,{error:'Khởi tạo tài khoản hệ thống chưa hoàn tất. Kiểm tra schema và quyền MySQL trong log Node.'});
@@ -661,7 +748,7 @@ function notifyInboxListeners(record) {
 }
 
 async function handleInbox(request, response, url) {
-  const user=await authUser(request);
+  const user = DEMO_MODE ? demoUserFromToken(request) : await authUser(request);
   if(user?.role!=='ADMIN')return sendJson(response,403,{error:'Chỉ Admin được xem inbox'},corsHeaders(request));
   const since = url.searchParams.get('since') || '';
   const includeRaw = url.searchParams.get('raw') === '1';
