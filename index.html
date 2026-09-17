@@ -2260,22 +2260,22 @@
 
         <!-- Sub-tabs hàng trên (4 Tabs đúng 100% Ảnh 1, 2, 3) -->
         <div class="sub-tabs-bar" style="margin-bottom: 20px; display: inline-flex; padding: 4px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 10px; gap: 4px; width: fit-content;">
-          <button hidden class="sub-tab-btn active" id="dataTabQueueBtn" onclick="switchDataSubTab('queue', this)" style="background: #e05326; color: #ffffff; font-weight: 700; padding: 8px 18px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; box-shadow: 0 2px 8px rgba(224, 83, 38, 0.25);">Thứ tự data mới vào (<span id="dataTabCountBadge">0</span>)</button>
-          <button class="sub-tab-btn" id="dataTabAutoBtn" onclick="switchDataSubTab('auto', this)" style="background: transparent; color: var(--text-muted); font-weight: 600; padding: 8px 18px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px;">Tự động</button>
+          <button class="sub-tab-btn active" id="dataTabQueueBtn" onclick="switchDataSubTab('queue', this)" style="background: #e05326; color: #ffffff; font-weight: 700; padding: 8px 18px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; box-shadow: 0 2px 8px rgba(224, 83, 38, 0.25);">Data Mới (<span id="dataTabCountBadge">0</span>)</button>
+          <button class="sub-tab-btn" id="dataTabAutoBtn" onclick="switchDataSubTab('auto', this)" style="background: transparent; color: var(--text-muted); font-weight: 600; padding: 8px 18px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px;">Chia Data</button>
           <button class="sub-tab-btn" id="dataTabLeadersBtn" onclick="switchDataSubTab('sales', document.getElementById('dataTabSalesBtn'))" style="display: none; background: transparent; color: var(--text-muted); font-weight: 600; padding: 8px 18px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px;">Danh sách Leader</button>
           <button class="sub-tab-btn" id="dataTabSalesBtn" onclick="switchDataSubTab('sales', this)" style="background: transparent; color: var(--text-muted); font-weight: 600; padding: 8px 18px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px;">Chỉnh sửa tỷ trọng</button>
         </div>
 
         <!-- [SUBVIEW 1] THỨ TỰ DATA MỚI VÀO (QUEUE) -->
         <div id="dataSubViewQueue" style="display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(320px, 0.7fr); gap: 18px; align-items: start;">
-          <!-- Cột Trái: Bảng Thứ tự data mới vào -->
+          <!-- Cột Trái: Bảng data chưa có Sale -->
           <div class="table-container">
-            <div class="table-head-bar" hidden>
+            <div class="table-head-bar">
               <div>
-                <b style="font-size: 14px;">Thứ tự data mới vào</b>
-                <div style="font-size: 11px; color: var(--text-muted);">Mới nhất ở trên · gồm data mới và khách điền lại form</div>
+                <b style="font-size: 14px;">Data chưa có Sale</b>
+                <div style="font-size: 11px; color: var(--text-muted);">Danh sách khách hàng chưa được phân Sale phụ trách</div>
               </div>
-              <button class="btn-action btn-secondary" onclick="selectAllDataQueue()">Chọn tất cả đang chờ</button>
+              <button class="btn-action btn-secondary" onclick="selectAllDataQueue()">Chọn data chưa có Sale</button>
             </div>
 
             <!-- Thanh tìm kiếm & lọc -->

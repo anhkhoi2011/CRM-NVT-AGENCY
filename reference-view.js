@@ -246,7 +246,11 @@ let appState = { customers: [], orders: [], careGroups: [] };
   }
 
   function selectAllDataQueue() {
-    document.querySelectorAll('.data-queue-check').forEach(ck => ck.checked = true);
+    document.querySelectorAll('.data-queue-check').forEach(ck => {
+      const customer = appState.customers.find(item => item.id === ck.value);
+      // Chỉ chọn data hoàn toàn chưa có người phụ trách; data đã thuộc Leader/Sale giữ nguyên.
+      ck.checked = Boolean(customer && !customer.leaderId && !customer.saleId);
+    });
   }
 
   function assignDataAction() {

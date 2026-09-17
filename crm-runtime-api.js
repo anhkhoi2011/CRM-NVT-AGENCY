@@ -388,7 +388,7 @@
     },
     async bulkAssignWaitingSales(mode) {
       requireRole(['ADMIN']);
-      const selectedMode=['EQUAL','ROUND_ROBIN','BALANCED'].includes(mode)?mode:(state.settings.assignmentMode==='EQUAL'||state.settings.assignmentMode==='ROUND_ROBIN'?state.settings.assignmentMode:'BALANCED');
+      const selectedMode=['EQUAL','ROUND_ROBIN','BALANCED','SALE_EMPTY','LEADER_EQUAL'].includes(mode)?mode:(state.settings.assignmentMode==='EQUAL'||state.settings.assignmentMode==='ROUND_ROBIN'?state.settings.assignmentMode:'BALANCED');
       const count=bulkAssignWaitingSales(selectedMode);
       if(!await flushServerPersistence())throw Error('Chua luu ket qua chia data cho Sale.');
       return {ok:true,count};

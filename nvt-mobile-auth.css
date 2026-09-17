@@ -393,3 +393,28 @@
     text-align: center !important;
   }
 }
+
+/* Fallback cho Safari/iOS: form phải hiện ngay khi chưa có phiên đăng nhập. */
+@media (max-width: 768px) {
+  #loginScreen:not(.is-hidden) {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  #loginScreen:not(.is-hidden) .nvt-auth-wrapper,
+  #loginScreen:not(.is-hidden) .nvt-auth-card {
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  #loginScreen:not(.is-hidden) .nvt-auth-wrapper {
+    display: flex !important;
+  }
+  #loginScreen:not(.is-hidden) .nvt-auth-card {
+    display: block !important;
+  }
+  #loginScreen:not(.is-hidden) #loginForm:not(.is-hidden),
+  #loginScreen:not(.is-hidden) #registerForm:not(.is-hidden) {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+}

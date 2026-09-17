@@ -4148,24 +4148,39 @@ async function setAssignmentMode(mode) {
 
 function bulkAssignWaitingSales(mode = 'BALANCED') {
   if (currentAccount?.role !== 'ADMIN') { toast('Khong co quyen chia data cho Sale'); return 0; }
-  const selectedMode = ['EQUAL', 'ROUND_ROBIN', 'BALANCED'].includes(mode) ? mode : 'BALANCED';
+  const selectedMode = ['EQUAL', 'ROUND_ROBIN', 'BALANCED', 'SALE_EMPTY', 'LEADER_EQUAL'].includes(mode) ? mode : 'BALANCED';
   const waiting = scopedCustomers().filter(customer => !customer.saleId).sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)) || a.id.localeCompare(b.id));
+  const enabledLeaders = activeStaff().filter(person => person.role === 'LEADER' && person.active !== false && state.leaderDistribution.enabledLeaderIds.includes(person.id)).sort((a, b) => a.id.localeCompare(b.id));
+  const allSales = activeStaff().filter(person => person.role === 'SALE' && person.active !== false).sort((a, b) => a.id.localeCompare(b.id));
   let distributed = 0;
+  let specialCursor = 0;
   waiting.forEach(customer => {
-    const target = chooseAssignmentTarget(customer, selectedMode);
+    let target = null;
+    if (selectedMode === 'LEADER_EQUAL') {
+      target = enabledLeaders.length ? enabledLeaders[specialCursor % enabledLeaders.length] : null;
+      specialCursor += 1;
+    } else if (selectedMode === 'SALE_EMPTY') {
+      const emptySales = allSales.filter(person => assignmentLoad(person) === 0);
+      const candidates = emptySales.length ? emptySales : allSales;
+      target = candidates.slice().sort((a, b) => assignmentLoad(a) - assignmentLoad(b) || a.id.localeCompare(b.id))[0] || null;
+    } else {
+      target = chooseAssignmentTarget(customer, selectedMode);
+    }
     if (!target) return;
-    const assigned = applyCustomerAssignment(customer, target, selectedMode === 'BALANCED' ? 'Phan theo ty trong cho Sale' : 'Phan deu cho Sale', 'AUTO');
+    const reason = selectedMode === 'SALE_EMPTY' ? 'Chia đều cho Sale chưa có khách' : selectedMode === 'LEADER_EQUAL' ? 'Chia đều cho Leader' : (selectedMode === 'BALANCED' ? 'Phân theo tỷ trọng cho Sale' : 'Phân đều cho Sale');
+    // Sale vẫn phải bấm "Nhận data" trong 24 giờ; không gán thẳng để bỏ qua SLA.
+    const assigned = applyCustomerAssignment(customer, target, reason, 'AUTO');
     if (!assigned) return;
-    if (target.role === 'LEADER') {
+    if (selectedMode !== 'LEADER_EQUAL' && target.role === 'LEADER') {
       const recipient = chooseAssignmentTarget(customer, selectedMode);
       if (recipient) applyCustomerAssignment(customer, recipient, 'Chia tiep cho Sale theo ty trong', 'AUTO');
     }
-    audit('AUTO_ASSIGN_WAITING_SALE', customer.id, `${target.name} · ${selectedMode}`);
+    audit('AUTO_ASSIGN_WAITING_SALE', customer.id, target.name+' · '+selectedMode);
     distributed += 1;
   });
   saveState();
   render();
-  toast(distributed ? `Da chia ${distributed} data chua co Sale theo thu tu phan phoi` : 'Khong co Sale hoac data phu hop de chia');
+  toast(distributed ? `Đã chia ${distributed} data chưa có Sale` : 'Không có Sale hoặc data phù hợp để chia');
   return distributed;
 }
 

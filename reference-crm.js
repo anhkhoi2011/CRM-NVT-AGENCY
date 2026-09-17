@@ -165,7 +165,7 @@
   }
   function project() {
     appState={customers:data.customers.slice().sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||''))||a.id.localeCompare(b.id)).map(c=>({
-      id:c.id,name:esc(c.name),phone:esc(c.phone),createdAt:fmtDate(c.createdAt),source:esc(data.websites.find(w=>w.id===c.websiteId)?.name||c.landingPageName||c.source||''),leader:esc(person(c.leaderId)),sale:esc(person(c.saleId)),level:esc(fieldOptions('customerLevel').find(o=>o.value===c.customFields?.customerLevel)?.label||c.customFields?.customerLevel||''),customerClass:esc(c.customFields?.customerClass||''),customerLevel:esc(c.customFields?.customerLevel||''),documentStatus:esc(c.customFields?.documentStatus||''),result:esc(c.customFields?.result||''),callStatus:esc(c.customFields?.callStatus||''),docStatus:esc(c.customFields?.documentStatus||''),careResult:esc(c.customFields?.result||''),status:c.status,note:esc(c.note),...Object.fromEntries(data.fields.filter(f=>!['customerClass','customerLevel','callStatus','documentStatus','result'].includes(f.id)).map(f=>[f.id,Array.isArray(c.customFields?.[f.id])?c.customFields[f.id].map(esc):esc(c.customFields?.[f.id]||'')]))
+      id:c.id,saleId:c.saleId||null,leaderId:c.leaderId||null,name:esc(c.name),phone:esc(c.phone),createdAt:fmtDate(c.createdAt),source:esc(data.websites.find(w=>w.id===c.websiteId)?.name||c.landingPageName||c.source||''),leader:esc(person(c.leaderId)),sale:esc(person(c.saleId)),level:esc(fieldOptions('customerLevel').find(o=>o.value===c.customFields?.customerLevel)?.label||c.customFields?.customerLevel||''),customerClass:esc(c.customFields?.customerClass||''),customerLevel:esc(c.customFields?.customerLevel||''),documentStatus:esc(c.customFields?.documentStatus||''),result:esc(c.customFields?.result||''),callStatus:esc(c.customFields?.callStatus||''),docStatus:esc(c.customFields?.documentStatus||''),careResult:esc(c.customFields?.result||''),status:c.status,note:esc(c.note),...Object.fromEntries(data.fields.filter(f=>!['customerClass','customerLevel','callStatus','documentStatus','result'].includes(f.id)).map(f=>[f.id,Array.isArray(c.customFields?.[f.id])?c.customFields[f.id].map(esc):esc(c.customFields?.[f.id]||'')]))
     })),orders:data.orders.map(o=>({id:o.id,code:esc(o.code),customerName:esc(o.customerName),phone:esc(data.customers.find(c=>c.id===o.customerId)?.phone||''),product:esc(o.productName),sale:esc(person(o.saleId)),leader:esc(person(o.leaderId)),total:o.total,status:o.status,rentalExpiry:o.rentalMonths?fmtDate(o.rentalEndsAt):'Vĩnh viễn'})),careGroups:(data.careGroups||[]).map(g=>({...g,name:esc(g.name),field:g.fieldId,values:g.values.map(esc)}))};
     appState.customers.forEach(c=>{const original=data.customers.find(item=>item.id===c.id);data.fields.forEach(f=>{const value=original.customFields?.[f.id];c[f.id]=Array.isArray(value)?value.map(esc):esc(value||'');});});
   }
@@ -1269,7 +1269,8 @@
   submitOrder=()=>run(()=>api.createOrder({customerId:q('#modalCustomerSelect').value,productId:q('#prodSelect').value,paymentMode:q('#modalPaymentType').value,paymentMethod:qa('#orderModal select')[3]?.selectedIndex===1?'CASH':'VietQR'}),result=>{closeOrderModal();alert('Đã lưu đơn '+result.code+' chờ xác nhận thanh toán.');});
   openDrawerForCust=function(id){selectedCustomer=id;renders.drawer(id);const c=data.customers.find(c=>c.id===id);if(!c)return;text('drawerName',c.name);text('drawerPhone',c.phone);text('drawerCreated','Ngày tạo: '+fmtDate(c.createdAt));text('drawerClass',c.customFields?.customerClass||'');text('drawerLevel',c.customFields?.customerLevel||'');q('#drawerCallBtn').href='tel:'+String(c.phone||'').replace(/[^\d+]/g,'');if(!q('#referenceFullCustomer')){const b=document.createElement('button');b.id='referenceFullCustomer';b.className='btn-action btn-primary';b.textContent='Hồ sơ / Ghi chú / Lịch chăm sóc';q('#drawerCallBtn').parentElement.appendChild(b);}q('#referenceFullCustomer').onclick=()=>workflow('customer',id);};
   markAllNotificationsRead=()=>run(()=>api.readNotifications());
-  toggleAutoDist=enabled=>run(()=>api.distribution(enabled));
+  // Khi bat tu dong, mac dinh dung che do ty trong cho data moi.
+  toggleAutoDist=enabled=>run(()=>api.distribution(enabled,enabled?'BALANCED':data.settings.assignmentMode));
   updateAssignmentMode=mode=>run(()=>api.distribution(data.leaderDistribution.enabled,mode));
   switchTab=function(id){if(data){const view=id.replace('tab-',''),alias={data:data.user.role==='LEADER'?'pool':data.user.role==='SALE'?'accept':'distribution'};if(!data.navigation.includes(alias[view]||view))return;}renders.switchTab(id);if(data){paintTab(id);wireParity();}};
   filterTeamPeriod=(period,button)=>{q('#teamStartDate').value=fromDay(parseInt(period)||30);q('#teamEndDate').value=data.today;if(button){qa('.team-period-btn').forEach(b=>b.className='btn-secondary team-period-btn');button.className='btn-primary team-period-btn';}updateTeamDateLabel();};
@@ -1479,7 +1480,7 @@
     if(!tab)return;
     if(!q('#referenceScopedDataStyles')){const style=document.createElement('style');style.id='referenceScopedDataStyles';style.textContent=`
       /* Gi? b?ng data v? b? l?c, ch? ?n nh?n h?ng ??i c? ?? giao di?n g?n h?n. */
-      #tab-data #dataTabQueueBtn,#tab-data #dataSubViewQueue>.table-container>.table-head-bar{display:none!important}
+      #tab-data.data-scope-limited #dataTabQueueBtn,#tab-data.data-scope-limited #dataSubViewQueue>.table-container>.table-head-bar{display:none!important}
       #tab-data.data-scope-limited #dataSubViewQueue{display:block!important}
       #tab-data.data-scope-limited #dataSubViewQueue>.table-container{width:100%;border-radius:10px}
       #tab-data.data-scope-limited #dataSubViewQueue>.table-container>.table-head-bar{padding:13px 16px}
@@ -1498,14 +1499,15 @@
     filterBar?.classList.add('data-queue-filterbar');
     // Admin cần giữ lại bộ điều khiển và thống kê phân phối cũ.
     const hideAdminViews=role!=='ADMIN';
-    ['dataTabAutoBtn','dataTabLeadersBtn','dataTabSalesBtn'].forEach(id=>{const node=q('#'+id);if(node){node.hidden=hideAdminViews;node.style.setProperty('display',hideAdminViews?'none':'','important');}});
+    ['dataTabQueueBtn','dataTabAutoBtn','dataTabSalesBtn'].forEach(id=>{const node=q('#'+id);if(node){node.hidden=hideAdminViews;node.style.setProperty('display',hideAdminViews?'none':'','important');}});
     [['dataSubViewQueue','queue'],['dataSubViewAuto','auto'],['dataSubViewSales','sales']].forEach(([id,key])=>{const node=q('#'+id);if(node){const active=tab.querySelector('.sub-tab-btn.active')?.id==='dataTabAutoBtn'?'auto':tab.querySelector('.sub-tab-btn.active')?.id==='dataTabSalesBtn'?'sales':'queue',visible=hideAdminViews?key==='queue':key===active;node.hidden=!visible;node.style.setProperty('display',visible?(key==='queue'?'grid':'block'):'none','important');}});
     const legacyLeaders=q('#dataSubViewLeaders');if(legacyLeaders){legacyLeaders.hidden=true;legacyLeaders.style.setProperty('display','none','important');}
     const salesLabel=q('#dataTabSalesBtn');if(salesLabel)salesLabel.textContent='Chỉnh sửa tỷ trọng';
     const legacyButton=q('#dataTabLeadersBtn');if(legacyButton){legacyButton.hidden=true;legacyButton.style.setProperty('display','none','important');}
+    const autoLabel=q('#dataTabAutoBtn');if(autoLabel)autoLabel.textContent='Chia Data';
     if(role==='ADMIN')renderDistributionWeights();
-    const title=tab.querySelector('.headline-row h1');if(title)title.textContent=role==='SALE'?'Data m\u1edbi h\u00f4m nay':'Data';
-    const queueTitle=tab.querySelector('#dataSubViewQueue .table-head-bar b');if(queueTitle)queueTitle.textContent=role==='SALE'?'Data m\u1edbi h\u00f4m nay':'Data ch\u01b0a x\u1eed l\u00fd';
+    const title=tab.querySelector('.headline-row h1');if(title)title.textContent=role==='SALE'?'Data m\u1edbi h\u00f4m nay':role==='ADMIN'?'Data M\u1edbi':'Data';
+    const queueTitle=tab.querySelector('#dataSubViewQueue .table-head-bar b');if(queueTitle)queueTitle.textContent=role==='SALE'?'Data m\u1edbi h\u00f4m nay':role==='ADMIN'?'Data M\u1edbi':'Data ch\u01b0a x\u1eed l\u00fd';
     const queueSubtitle=tab.querySelector('#dataSubViewQueue .table-head-bar b + div');if(queueSubtitle){queueSubtitle.textContent='';queueSubtitle.hidden=true;}
     const statsSubtitle=tab.querySelector('#dataSubViewQueue > div:nth-child(2) .widget-box:first-child b + div');if(statsSubtitle){statsSubtitle.textContent='';statsSubtitle.hidden=true;}
     const selectAll=tab.querySelector('#dataSubViewQueue .table-head-bar button');if(selectAll){selectAll.hidden=role!=='ADMIN';selectAll.style.setProperty('display',role==='ADMIN'?'':'none','important');}
@@ -1557,14 +1559,20 @@
   function installAdminWaitingSaleButton(){
     if((data?.user?.actualRole||data?.user?.role)!=='ADMIN')return;
     const bar=q('#dataSubViewQueue .table-head-bar'),selectAll=bar?.querySelector('button');
-    if(!bar||!selectAll||bar.querySelector('[data-admin-waiting-sale]'))return;
+    if(!bar||!selectAll)return;
+    selectAll.textContent='Chọn data chưa có Sale';
     const waiting=(data.customers||[]).filter(customer=>!customer.saleId).length;
-    const button=document.createElement('button');
-    button.type='button';button.className='btn-action btn-primary';button.dataset.adminWaitingSale='1';
-    button.textContent='Chia data chưa có Sale';button.title='Chia data chưa có Sale cho các Sale sắp tới lượt';
-    button.disabled=waiting===0;
-    button.onclick=()=>{if(button.disabled||working)return;if(!window.confirm('Chia toàn bộ data chưa có Sale cho các Sale sắp tới lượt?'))return;button.disabled=true;run(()=>api.bulkAssignWaitingSales());};
-    selectAll.parentElement?.insertBefore(button,selectAll.nextSibling);
+    const createButton=(mode,label,confirmText,attr)=>{
+      let button=bar.querySelector('['+attr+']');
+      if(!button){
+        button=document.createElement('button');button.type='button';button.className='btn-action btn-primary';button.setAttribute(attr,'1');
+        selectAll.parentElement?.insertBefore(button,selectAll.nextSibling);
+      }
+      button.textContent=label;button.title=confirmText;button.disabled=waiting===0;
+      button.onclick=()=>{if(button.disabled||working)return;if(!window.confirm(confirmText+'?'))return;button.disabled=true;run(()=>api.bulkAssignWaitingSales(mode));};
+    };
+    createButton('SALE_EMPTY','Chia đều cho Sale chưa có khách','Chia data chưa có Sale cho các Sale hiện đang chưa có khách','data-admin-waiting-sale');
+    createButton('LEADER_EQUAL','Chia đều cho Leader','Chia data chưa có Sale đều cho các Leader đang bật nhận data','data-admin-leader-distribution');
   }
 
   function configuredCustomerSourceUrl(customer){
@@ -1578,37 +1586,35 @@
     if(!body||!table)return;
     const head=table.querySelector('thead tr');
     if(head&&!head.querySelector('[data-admin-sale-head]')){
-      const th=document.createElement('th');th.dataset.adminSaleHead='1';th.textContent='SALE PHỤ TRÁCH';
+      const th=document.createElement('th');th.dataset.adminSaleHead='1';th.textContent='SALE PH\u1ee4 TR\u00c1CH';
       const action=head.lastElementChild;action?head.insertBefore(th,action):head.appendChild(th);
     }
-    const activeSales=(data.members||[]).filter(m=>m.active!==false&&m.role==='SALE');
+    const recipients=(data.members||[]).filter(m=>m.active!==false&&['SALE','LEADER','MANAGER'].includes(m.role)).sort((a,b)=>String(a.role).localeCompare(String(b.role))||String(a.name||'').localeCompare(String(b.name||''),'vi'));
+    const roleLabel={SALE:'SALE',LEADER:'LEADER',MANAGER:'MANAGER'};
     body.querySelectorAll('tr').forEach(row=>{
       if(row.querySelector('[data-admin-sale-select]')||row.cells.length<3)return;
       const phone=String(row.cells[2]?.querySelector('div')?.textContent||'').replace(/\s+/g,'').trim();
       const customer=(data.customers||[]).find(c=>String(c.phone||'').replace(/\s+/g,'')===phone);
       const cell=document.createElement('td');
-      if(!customer){cell.textContent='—';row.lastElementChild?row.insertBefore(cell,row.lastElementChild):row.appendChild(cell);return;}
-      const sourceCell=row.cells[4];
-      const sourceUrl=configuredCustomerSourceUrl(customer);
-      if(sourceCell){
-        sourceCell.innerHTML=sourceUrl
-          ? '<a href="'+esc(sourceUrl)+'" target="_blank" rel="noopener noreferrer" style="color:#2563eb;font-weight:700;overflow-wrap:anywhere">'+esc(sourceUrl)+'</a>'
-          : '<span style="color:var(--text-muted)">Chưa cấu hình URL</span>';
-      }
-      const current=activeSales.find(m=>m.id===customer.saleId);
-      const eligible=customer.leaderId
-        ? activeSales.filter(m=>m.leaderId===customer.leaderId&&m.teamId===customer.teamId&&((data.saleDistributionByLeader?.[customer.leaderId]?.enabledSaleIds||activeSales.map(x=>x.id)).includes(m.id)))
-        : activeSales;
-      const options=['<option value="">— Chưa chọn Sale —</option>'].concat(eligible.map(m=>'<option value="'+esc(m.id)+'" '+(m.id===customer.saleId?'selected':'')+'>'+esc(m.name)+'</option>'));
-      if(current&&!eligible.some(m=>m.id===current.id))options.push('<option value="'+esc(current.id)+'" selected disabled>'+esc(current.name)+'</option>');
-      cell.innerHTML='<select data-admin-sale-select="'+esc(customer.id)+'" aria-label="Chọn Sale phụ trách cho '+esc(customer.name)+'" style="min-width:150px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-surface);color:var(--text-main);font:inherit;font-size:12px">'+options.join('')+'</select>';
+      if(!customer){cell.textContent='\u2014';row.lastElementChild?row.insertBefore(cell,row.lastElementChild):row.appendChild(cell);return;}
+      const sourceCell=row.cells[4],sourceUrl=configuredCustomerSourceUrl(customer);
+      if(sourceCell)sourceCell.innerHTML=sourceUrl?'<a href="'+esc(sourceUrl)+'" target="_blank" rel="noopener noreferrer" style="color:#2563eb;font-weight:700;overflow-wrap:anywhere">'+esc(sourceUrl)+'</a>':'<span style="color:var(--text-muted)">Ch\u01b0a c\u1ea5u h\u00ecnh URL</span>';
+      const selectedId=customer.saleId||customer.leaderId||'';
+      const options=['<option value="">\u2014 Ch\u01b0a ch\u1ecdn ng\u01b0\u1eddi ph\u1ee5 tr\u00e1ch \u2014</option>'].concat(recipients.map(m=>'<option value="'+esc(m.id)+'" data-role="'+m.role+'" '+(m.id===selectedId?'selected':'')+'>'+esc(m.name||'Ch\u01b0a \u0111\u1eb7t t\u00ean')+' \u00b7 '+roleLabel[m.role]+'</option>'));
+      cell.innerHTML='<select data-admin-sale-select="'+esc(customer.id)+'" aria-label="Ch\u1ecdn ng\u01b0\u1eddi ph\u1ee5 tr\u00e1ch cho '+esc(customer.name)+'" style="min-width:190px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-surface);color:var(--text-main);font:inherit;font-size:12px">'+options.join('')+'</select>';
+      const select=cell.querySelector('[data-admin-sale-select]');
+      if(select)select.dataset.previous=selectedId;
       row.lastElementChild?row.insertBefore(cell,row.lastElementChild):row.appendChild(cell);
     });
     body.querySelectorAll('[data-admin-sale-select]').forEach(select=>select.onchange=()=>{
-      const previous=select.value;select.disabled=true;
-      run(()=>api.assign(select.dataset.adminSaleSelect,select.value)).catch(()=>{select.value=previous;});
+      const value=select.value,option=select.selectedOptions[0],role=option?.dataset.role,previous=select.dataset.previous||'';
+      if(!value){select.value=previous;return;}
+      select.dataset.previous=value;select.disabled=true;
+      const save=role==='LEADER'?()=>api.assignLeader(select.dataset.adminSaleSelect,value):role==='MANAGER'?()=>{throw Error('Manager kh\u00f4ng nh\u1eadn data tr\u1ef1c ti\u1ebfp; h\u00e3y ch\u1ecdn Leader ho\u1eb7c Sale.');}:()=>api.assign(select.dataset.adminSaleSelect,value);
+      run(save).catch(()=>{select.value=previous;select.disabled=false;});
     });
   }
+
   const ordinaryQueue=renderDataQueue;renderDataQueue=function(){
     ordinaryQueue();
     installAdminWaitingSaleButton();

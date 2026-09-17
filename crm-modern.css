@@ -1434,6 +1434,7 @@
 .topbar-right { margin-left: auto; flex: 0 0 auto; }
 .topbar-right .button-quiet { white-space: nowrap; }
 .content-body { box-sizing: border-box; }
+.content-body { max-width: none; }
 .headline-row .head-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
 /* Reference bento layout rendered from the real CRM/MySQL state. */
