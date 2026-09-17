@@ -1,0 +1,320 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1820 250" width="100%" height="100%">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@800;900&amp;family=Plus+Jakarta+Sans:wght@500;600;700;800;900&amp;family=JetBrains+Mono:wght@700;800&amp;display=swap');
+
+      /* Typography */
+      .brand-text { font-family: 'Cinzel', serif; font-weight: 900; font-size: 15px; letter-spacing: 2.5px; fill: #0f172a; }
+      .brand-orange { fill: #ea580c; }
+      .main-title { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 900; font-size: 17px; letter-spacing: 3px; fill: #0f172a; text-transform: uppercase; }
+      .main-slogan { font-family: 'JetBrains Mono', monospace; font-weight: 800; font-size: 10px; letter-spacing: 2px; fill: #d97706; text-transform: uppercase; }
+      .sub-quote { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 9.5px; letter-spacing: 2px; fill: #94a3b8; text-transform: uppercase; }
+
+      /* Cards */
+      .card-rect { fill: #ffffff; stroke: #e2e8f0; stroke-width: 1.2; rx: 11; filter: url(#cardGlow); }
+      .card-rect-special { fill: #ffffff; stroke: #ea580c; stroke-width: 1.8; rx: 11; filter: url(#cardGlowOrange); }
+
+      /* Number badges */
+      .badge-circle { fill: #0f172a; }
+      .badge-circle-orange { fill: #ea580c; }
+      .badge-num { font-family: 'JetBrains Mono', monospace; font-weight: 800; font-size: 11px; fill: #ffffff; text-anchor: middle; dominant-baseline: central; }
+
+      /* Card Text */
+      .step-name { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 10.5px; letter-spacing: 0.2px; text-transform: uppercase; fill: #0f172a; text-anchor: middle; }
+      .step-name-orange { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 800; font-size: 10.5px; letter-spacing: 0.2px; text-transform: uppercase; fill: #ea580c; text-anchor: middle; }
+      .step-detail { font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 500; font-size: 8.2px; fill: #64748b; text-anchor: middle; line-height: 1.35; }
+      .step-detail-bold { font-weight: 700; fill: #475569; }
+
+      /* Connectors */
+      .arrow-sep { fill: #d97706; }
+      .gold-guide-line { fill: none; stroke: url(#goldGrad); stroke-width: 2.2; stroke-linecap: round; }
+    </style>
+
+    <!-- Gradients -->
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ea580c"/>
+      <stop offset="30%" stop-color="#f59e0b"/>
+      <stop offset="70%" stop-color="#d97706"/>
+      <stop offset="100%" stop-color="#ea580c"/>
+    </linearGradient>
+
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="60%" stop-color="#fafaf9"/>
+      <stop offset="100%" stop-color="#fff7ed"/>
+    </linearGradient>
+
+    <!-- Shadows -->
+    <filter id="cardGlow" x="-12%" y="-12%" width="124%" height="128%">
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#0f172a" flood-opacity="0.06"/>
+    </filter>
+    <filter id="cardGlowOrange" x="-12%" y="-12%" width="124%" height="128%">
+      <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#ea580c" flood-opacity="0.16"/>
+    </filter>
+  </defs>
+
+  <!-- NỀN CARD CHÍNH 1820 x 250 (GỌN GÀNG, BO GÓC 16PX) -->
+  <rect x="0" y="0" width="1820" height="250" rx="16" fill="url(#bgGrad)" stroke="#e2e8f0" stroke-width="1.2"/>
+
+  <!-- ══════════════ THANH HEADER: LOGO, TIÊU ĐỀ VÀ SLOGAN ĐÚNG CHUẨN ══════════════ -->
+  <g transform="translate(24, 15)">
+    <!-- Bên trái: Logo NVT AGENCY -->
+    <g transform="translate(0, 3) scale(0.85)">
+      <polygon points="12 2 2 7 12 12 22 7 12 2" fill="none" stroke="#ea580c" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <polyline points="2 17 12 22 22 17" fill="none" stroke="#0f172a" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <polyline points="2 12 12 17 22 12" fill="none" stroke="#ea580c" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <text x="28" y="19" class="brand-text">NVT <tspan class="brand-orange">AGENCY</tspan></text>
+
+    <!-- Ở giữa: HÀNH TRÌNH KHÁCH HÀNG + SLOGAN VÀNG KIM -->
+    <g transform="translate(860, 0)" text-anchor="middle">
+      <text x="0" y="17" class="main-title">HÀNH TRÌNH KHÁCH HÀNG</text>
+      <text x="0" y="32" class="main-slogan">ĐÚNG QUY TRÌNH &#160;–&#160; ĐÚNG TƯ VẤN &#160;–&#160; TĂNG TỶ LỆ CHỐT</text>
+    </g>
+
+    <!-- Bên phải: THÔNG ĐIỆP ĐỒNG HÀNH -->
+    <text x="1770" y="24" text-anchor="end" class="sub-quote">★ ĐỒNG HÀNH ĐỂ KHÁCH HÀNG THÀNH CÔNG ★</text>
+  </g>
+
+  <!-- ĐƯỜNG LINE VÀNG KIM KẾT NỐI XUYÊN SUỐT CẢ 12 BƯỚC -->
+  <path class="gold-guide-line" d="M 45 130 L 1775 130"/>
+
+  <!-- ══════════════ 12 THẺ BƯỚC CHUẨN FORM NGUYÊN BẢN (1 HÀNG NGANG) ══════════════ -->
+  <!-- Mỗi ô rộng 130px, cao 172px. Bước nhảy giữa các ô = 148px (khoảng cách = 18px) -->
+
+  <!-- ────────── BƯỚC 1: NHẬN DATA (X = 22) ────────── -->
+  <g transform="translate(22, 58)">
+    <rect width="130" height="172" class="card-rect"/>
+    <!-- Huy hiệu tròn nửa nổi trên mép thẻ -->
+    <circle cx="65" cy="0" r="13" class="badge-circle"/>
+    <text x="65" y="0" class="badge-num">1</text>
+    <!-- Icon 1: Nhận data (clipboard có mũi tên download) -->
+    <g transform="translate(53, 24) scale(1.05)" stroke="#0f172a" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+      <polyline points="14 2 14 8 20 8"/>
+      <line x1="12" y1="18" x2="12" y2="12"/>
+      <polyline points="9 15 12 18 15 15"/>
+    </g>
+    <text x="65" y="66" class="step-name">NHẬN DATA</text>
+    <text x="65" y="85" class="step-detail">Nhận data từ</text>
+    <text x="65" y="99" class="step-detail">hệ thống phân bổ</text>
+  </g>
+  <!-- Mũi tên 1 -> 2 -->
+  <polygon points="159 126, 166 130, 159 134" class="arrow-sep"/>
+
+  <!-- ────────── BƯỚC 2: GỌI XÁC NHẬN (X = 170) ────────── -->
+  <g transform="translate(170, 58)">
+    <rect width="130" height="172" class="card-rect"/>
+    <circle cx="65" cy="0" r="13" class="badge-circle"/>
+    <text x="65" y="0" class="badge-num">2</text>
+    <!-- Icon 2: Phone sóng -->
+    <g transform="translate(53, 24) scale(1.05)" stroke="#0f172a" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+    </g>
+    <text x="65" y="66" class="step-name">GỌI XÁC NHẬN</text>
+    <text x="65" y="85" class="step-detail">Gọi điện xác nhận</text>
+    <text x="65" y="99" class="step-detail">thông tin, giới thiệu</text>
+    <text x="65" y="113" class="step-detail">ngắn về chương trình</text>
+  </g>
+  <!-- Mũi tên 2 -> 3 -->
+  <polygon points="307 126, 314 130, 307 134" class="arrow-sep"/>
+
+  <!-- ────────── BƯỚC 3: KẾT NỐI ZALO (X = 318) ────────── -->
+  <g transform="translate(318, 58)">
+    <rect width="130" height="172" class="card-rect"/>
+    <circle cx="65" cy="0" r="13" class="badge-circle"/>
+    <text x="65" y="0" class="badge-num">3</text>
+    <!-- Icon 3: Zalo Badge -->
+    <g transform="translate(48, 20)">
+      <rect x="0" y="0" width="34" height="25" rx="5" fill="#0284c7"/>
+      <text x="17" y="16" font-family="'Plus Jakarta Sans', sans-serif" font-weight="900" font-size="10" fill="#fff" text-anchor="middle">Zalo</text>
+      <!-- Dấu cộng nhỏ góc phải -->
+      <circle cx="28" cy="22" r="6.5" fill="#ea580c"/>
+      <line x1="28" y1="18.5" x2="28" y2="25.5" stroke="#fff" stroke-width="1.8"/>
+      <line x1="24.5" y1="22" x2="31.5" y2="22" stroke="#fff" stroke-width="1.8"/>
+    </g>
+    <text x="65" y="66" class="step-name">KẾT NỐI ZALO</text>
+    <text x="65" y="85" class="step-detail">Kết bạn Zalo,</text>
+    <text x="65" y="99" class="step-detail">gửi tài liệu, lịch học</text>
+    <text x="65" y="113" class="step-detail">&amp; chăm sóc thường xuyên</text>
+  </g>
+  <!-- Mũi tên 3 -> 4 -->
+  <polygon points="455 126, 462 130, 455 134" class="arrow-sep"/>
+
+  <!-- ────────── BƯỚC 4: XÁC NHẬN HỌC (X = 466) ────────── -->
+  <g transform="translate(466, 58)">
+    <rect width="130" height="172" class="card-rect"/>
+    <circle cx="65" cy="0" r="13" class="badge-circle"/>
+    <text x="65" y="0" class="badge-num">4</text>
+    <!-- Icon 4: Lịch + tích kiểm -->
+    <g transform="translate(53, 23) scale(1.05)" stroke="#0f172a" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="4" width="18" height="18" rx="2"/>
+      <line x1="16" y1="2" x2="16" y2="6"/>
+      <line x1="8" y1="2" x2="8" y2="6"/>
+      <polyline points="8 14 11 17 17 11" stroke="#d97706" stroke-width="2.2"/>
+    </g>
+    <text x="65" y="66" class="step-name">XÁC NHẬN HỌC</text>
+    <text x="65" y="85" class="step-detail">Xác nhận đăng ký</text>
+    <text x="65" y="99" class="step-detail">tham gia buổi học</text>
+    <text x="65" y="113" class="step-detail">(Zoom / Offline)</text>
+  </g>
+  <!-- Mũi tên 4 -> 5 -->
+  <polygon points="603 126, 610 130, 603 134" class="arrow-sep"/>
+
+  <!-- ────────── BƯỚC 5: LỌC DATA (X = 614) ────────── -->
+  <g transform="translate(614, 58)">
+    <rect width="130" height="172" class="card-rect"/>
+    <circle cx="65" cy="0" r="13" class="badge-circle"/>
+    <text x="65" y="0" class="badge-num">5</text>
+    <!-- Icon 5: Phễu lọc -->
+    <g transform="translate(53, 23) scale(1.05)" stroke="#0f172a" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+      <line x1="17" y1="9" x2="22" y2="9" stroke="#d97706" stroke-width="1.8"/>
+      <line x1="16" y1="13" x2="20" y2="13" stroke="#d97706" stroke-width="1.8"/>
+    </g>
+    <text x="65" y="66" class="step-name">LỌC DATA</text>
+    <text x="65" y="85" class="step-detail">Phân loại chất lượng:</text>
+    <text x="65" y="99" class="step-detail">- Có nhu cầu</text>
+    <text x="65" y="111" class="step-detail">- Chưa có nhu cầu</text>
+    <text x="65" y="123" class="step-detail">- Chăm sóc lại</text>
+  </g>
+  <!-- Mũi tên 5 -> 6 -->
+  <polygon points="751 126, 758 130, 751 134" class="arrow-sep"/>
+
+  <!-- ────────── BƯỚC 6: KHÁCH CŨ / MỚI (X = 762) ────────── -->
+  <g transform="translate(762, 58)">
+    <rect width="130" height="172" class="card-rect"/>
+    <circle cx="65" cy="0" r="13" class="badge-circle"/>
+    <text x="65" y="0" class="badge-num">6</text>
+    <!-- Icon 6: Nhóm khách cũ/mới -->
+    <g transform="translate(50, 24)" fill="#0f172a">
+      <circle cx="15" cy="6" r="4.5"/>
+      <path d="M7 21v-2a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v2"/>
+      <circle cx="5" cy="9" r="3.5" fill="#d97706"/>
+      <circle cx="25" cy="9" r="3.5" fill="#d97706"/>
+    </g>
+    <text x="65" y="66" class="step-name">KHÁCH CŨ / MỚI</text>
+    <text x="65" y="85" class="step-detail">Xác định khách cũ</text>
+    <text x="65" y="99" class="step-detail">(hỗ trợ tiếp) hoặc</text>
+    <text x="65" y="113" class="step-detail">khách mới (tư vấn)</text>
+  </g>
+  <!-- Mũi tên 6 -> 7 -->
+  <polygon points="899 126, 906 130, 899 134" class="arrow-sep"/>
+
+  <!-- ────────── BƯỚC 7: BÁN KHÓA HỌC / NHÓM VIP (X = 910) ────────── -->
+  <g transform="translate(910, 58)">
+    <rect width="130" height="172" class="card-rect"/>
+    <circle cx="65" cy="0" r="13" class="badge-circle"/>
+    <text x="65" y="0" class="badge-num">7</text>
+    <!-- Icon 7: Mũ tốt nghiệp / Academy -->
+    <g transform="translate(52, 24) scale(1.05)" stroke="#0f172a" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+      <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+    </g>
+    <text x="65" y="66" class="step-name">BÁN KHÓA HỌC</text>
+    <text x="65" y="77" class="step-name">/ NHÓM VIP</text>
+    <text x="65" y="93" class="step-detail">Tư vấn giải pháp</text>
+    <text x="65" y="107" class="step-detail">phù hợp: Khóa học /</text>
+    <text x="65" y="121" class="step-detail">Nhóm VIP</text>
+  </g>
+  <!-- Mũi tên 7 -> 8 -->
+  <polygon points="1047 126, 1054 130, 1047 134" class="arrow-sep"/>
+
+  <!-- ────────── BƯỚC 8: GỌI ĐIỆN SAU ZOOM (X = 1058) ────────── -->
+  <g transform="translate(1058, 58)">
+    <rect width="130" height="172" class="card-rect"/>
+    <circle cx="65" cy="0" r="13" class="badge-circle"/>
+    <text x="65" y="0" class="badge-num">8</text>
+    <!-- Icon 8: Phone Zoom -->
+    <g transform="translate(52, 24) scale(1.05)" stroke="#0f172a" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+      <!-- Bong bóng Zoom nhỏ -->
+      <circle cx="19" cy="5" r="3.5" fill="#d97706" stroke="none"/>
+    </g>
+    <text x="65" y="66" class="step-name">GỌI SAU ZOOM</text>
+    <text x="65" y="85" class="step-detail">Liên hệ lại sau buổi học,</text>
+    <text x="65" y="99" class="step-detail">trả lời thắc mắc,</text>
+    <text x="65" y="113" class="step-detail">tăng tin tưởng &amp; chốt</text>
+  </g>
+  <!-- Mũi tên 8 -> 9 -->
+  <polygon points="1195 126, 1202 130, 1195 134" class="arrow-sep"/>
+
+  <!-- ────────── BƯỚC 9: MỞ TÀI KHOẢN (X = 1206) ────────── -->
+  <g transform="translate(1206, 58)">
+    <rect width="130" height="172" class="card-rect"/>
+    <circle cx="65" cy="0" r="13" class="badge-circle"/>
+    <text x="65" y="0" class="badge-num">9</text>
+    <!-- Icon 9: User + dấu cộng -->
+    <g transform="translate(53, 24) scale(1.05)" stroke="#0f172a" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+      <circle cx="8.5" cy="7" r="4"/>
+      <line x1="20" y1="8" x2="20" y2="14" stroke="#d97706" stroke-width="2.2"/>
+      <line x1="23" y1="11" x2="17" y2="11" stroke="#d97706" stroke-width="2.2"/>
+    </g>
+    <text x="65" y="66" class="step-name">MỞ TÀI KHOẢN</text>
+    <text x="65" y="85" class="step-detail">Hướng dẫn mở tài khoản</text>
+    <text x="65" y="99" class="step-detail">trading, hỗ trợ KYC,</text>
+    <text x="65" y="113" class="step-detail">nạp tiền và cài đặt</text>
+  </g>
+  <!-- Mũi tên 9 -> 10 -->
+  <polygon points="1343 126, 1350 130, 1343 134" class="arrow-sep"/>
+
+  <!-- ────────── BƯỚC 10: NHÓM VIP (X = 1354) ────────── -->
+  <g transform="translate(1354, 58)">
+    <rect width="130" height="172" class="card-rect"/>
+    <circle cx="65" cy="0" r="13" class="badge-circle"/>
+    <text x="65" y="0" class="badge-num">10</text>
+    <!-- Icon 10: Vương miện VIP + Nhóm -->
+    <g transform="translate(51, 23)">
+      <!-- Vương miện -->
+      <polygon points="14 3 18 10 24 6 22 15 6 15 4 6 10 10" fill="#d97706" stroke="#b45309" stroke-width="1"/>
+      <circle cx="7" cy="19" r="3.5" fill="#0f172a"/>
+      <circle cx="14" cy="18" r="4" fill="#0f172a"/>
+      <circle cx="21" cy="19" r="3.5" fill="#0f172a"/>
+    </g>
+    <text x="65" y="66" class="step-name">NHÓM VIP</text>
+    <text x="65" y="85" class="step-detail">Thêm vào nhóm VIP,</text>
+    <text x="65" y="99" class="step-detail">cập nhật tín hiệu</text>
+    <text x="65" y="113" class="step-detail">&amp; hỗ trợ hàng ngày</text>
+  </g>
+  <!-- Mũi tên 10 -> 11 -->
+  <polygon points="1491 126, 1498 130, 1491 134" class="arrow-sep"/>
+
+  <!-- ────────── BƯỚC 11: COACHING 1:1 (X = 1502) ────────── -->
+  <g transform="translate(1502, 58)">
+    <rect width="130" height="172" class="card-rect"/>
+    <circle cx="65" cy="0" r="13" class="badge-circle"/>
+    <text x="65" y="0" class="badge-num">11</text>
+    <!-- Icon 11: 1:1 kèm cặp -->
+    <g transform="translate(53, 23) scale(1.05)" stroke="#0f172a" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      <circle cx="9" cy="10" r="1.5" fill="#d97706" stroke="none"/>
+      <circle cx="13" cy="10" r="1.5" fill="#d97706" stroke="none"/>
+      <circle cx="17" cy="10" r="1.5" fill="#d97706" stroke="none"/>
+    </g>
+    <text x="65" y="66" class="step-name">COACHING 1:1</text>
+    <text x="65" y="85" class="step-detail">Đồng hành 1:1,</text>
+    <text x="65" y="99" class="step-detail">hướng dẫn dùng tool,</text>
+    <text x="65" y="113" class="step-detail">quản lý vốn &amp; tâm lý</text>
+  </g>
+  <!-- Mũi tên 11 -> 12 -->
+  <polygon points="1639 126, 1646 130, 1639 134" class="arrow-sep"/>
+
+  <!-- ────────── BƯỚC 12: UP VỐN 1000 LOT (X = 1650) - CARD ĐẶC BIỆT ────────── -->
+  <g transform="translate(1650, 58)">
+    <rect width="144" height="172" class="card-rect-special"/>
+    <!-- Huy hiệu màu Cam NVT nổi bật -->
+    <circle cx="72" cy="0" r="13" class="badge-circle-orange"/>
+    <text x="72" y="0" class="badge-num">12</text>
+    <!-- Icon 12: Biểu đồ tăng trưởng bứt phá -->
+    <g transform="translate(60, 23) scale(1.15)" stroke="#ea580c" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+      <polyline points="17 6 23 6 23 12"/>
+    </g>
+    <text x="72" y="66" class="step-name-orange">UP VỐN</text>
+    <text x="72" y="77" class="step-name-orange">1000 LOT</text>
+    <text x="72" y="93" class="step-detail">Khách giao dịch hiệu quả,</text>
+    <text x="72" y="106" class="step-detail">tăng vốn – tăng khối lượng.</text>
+    <text x="72" y="119" class="step-detail step-detail-bold" fill="#ea580c">Mục tiêu 1000 lot!</text>
+  </g>
+</svg>

@@ -2,11 +2,12 @@
 -- Chạy trong cPanel phpMyAdmin sau khi tạo database.
 CREATE TABLE IF NOT EXISTS users (
   id VARCHAR(96) PRIMARY KEY,
+  account_code VARCHAR(64) NULL UNIQUE,
   phone VARCHAR(20) NULL UNIQUE,
   email VARCHAR(254) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
   name VARCHAR(160) NOT NULL,
-  role ENUM('ADMIN','LEADER','SALE','UNASSIGNED','MARKETING','ACCOUNTING') NOT NULL DEFAULT 'UNASSIGNED',
+  role ENUM('ADMIN','LEADER','SALE','UNASSIGNED','MARKETING','ACCOUNTING','MANAGER') NOT NULL DEFAULT 'UNASSIGNED',
   team_id VARCHAR(96) NULL,
   leader_id VARCHAR(96) NULL,
   active TINYINT(1) NOT NULL DEFAULT 1,
@@ -79,6 +80,8 @@ CREATE TABLE IF NOT EXISTS crm_sessions (
   expires_at DATETIME NOT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_sessions_expiry (expires_at), INDEX idx_sessions_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Danh mục sản phẩm mặc định NVT Agency CRM.
 -- An toàn khi chạy lại: chỉ thêm khi cả ID và SKU đều chưa tồn tại.
 -- Dữ liệu phụ và lịch sử thay đổi bền vững của CRM.
@@ -110,8 +113,6 @@ CREATE TABLE IF NOT EXISTS webhook_events (
   dedupe_key CHAR(64) NOT NULL UNIQUE,
   payload_json JSON NOT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Cài sẵn danh mục sản phẩm; câu lệnh an toàn khi chạy lại.

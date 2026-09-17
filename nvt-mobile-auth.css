@@ -1,0 +1,395 @@
+/**
+ * ==============================================================================
+ * NVT AGENCY - MOBILE AUTH STYLESHEET (MẪU 1 CHUẨN)
+ * File: nvt-mobile-auth.css
+ * 
+ * ⚠️ QUY TẮC BẮT BUỘC: 
+ * - CHỈ ÁP DỤNG TRÊN MOBILE (MÀN HÌNH <= 768PX)
+ * - TUYỆT ĐỐI KHÔNG LÀM THAY ĐỔI GIAO DIỆN TRÊN MÁY TÍNH (DESKTOP > 768PX)
+ * ==============================================================================
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=Cinzel:wght@700;800;900&family=JetBrains+Mono:wght@600;700;800&display=swap');
+
+/* ═════════════════════════════════════════════════════════════════════
+   TOÀN BỘ GIAO DIỆN CHỈ ÁP DỤNG KHI MÀN HÌNH <= 768PX (MOBILE)
+   ═════════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+
+  :root {
+    --nvt-orange: #ea580c;
+    --nvt-orange-light: #f97316;
+    --nvt-orange-glow: rgba(234, 88, 12, 0.18);
+    --nvt-bg-card: #ffffff;
+    --nvt-bg-input: #f8fafc;
+    --nvt-border: #e2e8f0;
+    --nvt-text-dark: #0f172a;
+    --nvt-text-muted: #64748b;
+    --nvt-radius-card: 28px;
+    --nvt-radius-input: 12px;
+    --nvt-radius-btn: 13px;
+    --nvt-font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    --nvt-font-brand: 'Cinzel', serif;
+    --nvt-font-mono: 'JetBrains Mono', monospace;
+  }
+
+  /* 1. Reset khung đăng nhập hệ thống trên Mobile */
+  .login-screen, 
+  #loginScreen {
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 100vh !important;
+    background: #ffffff !important;
+    padding: 0 !important;
+    position: relative !important;
+    overflow-x: hidden !important;
+  }
+
+  /* 2. Ẩn 100% ảnh banner tảng băng cồng kềnh trên Mobile */
+  .login-intro, 
+  .login-intro-img,
+  #loginScreen .login-intro {
+    display: none !important;
+  }
+
+  /* 3. Aura nền Trắng - Cam NVT trên Mobile */
+  .login-screen::before,
+  .nvt-auth-aura {
+    content: "" !important;
+    position: absolute !important;
+    inset: 0 !important;
+    background: 
+      radial-gradient(circle at 85% 10%, rgba(249, 115, 22, 0.12) 0%, transparent 55%),
+      radial-gradient(circle at 10% 90%, rgba(234, 88, 12, 0.08) 0%, transparent 60%),
+      linear-gradient(180deg, #fafaf9 0%, #ffffff 40%, #fff7ed 100%) !important;
+    pointer-events: none !important;
+    z-index: 1 !important;
+  }
+
+  /* 4. Khối Panel và Card Form căn giữa */
+  .login-panel,
+  .nvt-auth-wrapper {
+    width: 100% !important;
+    padding: 16px 14px 32px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: transparent !important;
+    position: relative !important;
+    z-index: 10 !important;
+    box-sizing: border-box !important;
+  }
+
+  .login-card,
+  .nvt-auth-card {
+    width: 100% !important;
+    max-width: 390px !important;
+    background: var(--nvt-bg-card) !important;
+    border-radius: var(--nvt-radius-card) !important;
+    padding: 24px 20px 28px !important;
+    box-shadow: 0 16px 36px -10px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.04) !important;
+    box-sizing: border-box !important;
+  }
+
+  /* 5. Switch Tab Đăng nhập ⟷ Đăng ký */
+  .nvt-auth-tabs {
+    display: flex !important;
+    background: rgba(0, 0, 0, 0.05) !important;
+    border-radius: 10px !important;
+    padding: 3px !important;
+    margin-bottom: 18px !important;
+  }
+  .nvt-auth-tab-btn {
+    flex: 1 !important;
+    padding: 7px !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.06em !important;
+    border-radius: 8px !important;
+    border: none !important;
+    background: transparent !important;
+    color: var(--nvt-text-muted) !important;
+    cursor: pointer !important;
+    font-family: inherit !important;
+    transition: all 0.2s ease !important;
+  }
+  .nvt-auth-tab-btn.active {
+    background: #ffffff !important;
+    color: var(--nvt-orange) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+  }
+
+  /* 6. Brand Hero (Logo, NVT AGENCY, Slogan) */
+  .nvt-auth-hero {
+    text-align: center !important;
+    margin-bottom: 18px !important;
+  }
+  .nvt-auth-logo-box {
+    width: 52px !important;
+    height: 52px !important;
+    border-radius: 16px !important;
+    margin: 0 auto 10px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: #ffffff !important;
+    border: 1px solid rgba(234, 88, 12, 0.2) !important;
+    box-shadow: 0 6px 18px rgba(234, 88, 12, 0.16) !important;
+    color: var(--nvt-orange) !important;
+  }
+  .nvt-auth-logo-box svg {
+    width: 26px !important;
+    height: 26px !important;
+  }
+  .auth-logo-image {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+    border-radius: inherit !important;
+    object-fit: cover !important;
+    object-position: center !important;
+  }
+  .nvt-auth-brand-name {
+    font-size: 18px !important;
+    font-weight: 900 !important;
+    letter-spacing: 0.16em !important;
+    text-transform: uppercase !important;
+    font-family: var(--nvt-font-brand) !important;
+    color: var(--nvt-text-dark) !important;
+    margin-bottom: 3px !important;
+  }
+  .nvt-auth-slogan {
+    font-size: 9px !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.22em !important;
+    text-transform: uppercase !important;
+    color: var(--nvt-orange) !important;
+    font-family: var(--nvt-font-mono) !important;
+  }
+  .nvt-auth-view-title {
+    font-size: 16px !important;
+    font-weight: 800 !important;
+    margin-top: 10px !important;
+    letter-spacing: -0.01em !important;
+    color: var(--nvt-text-dark) !important;
+    text-transform: uppercase !important;
+  }
+  .form-hero-title {
+    color: var(--nvt-text-dark) !important;
+    font: 800 19px/1.25 var(--nvt-font-sans) !important;
+    letter-spacing: 0 !important;
+    text-transform: uppercase !important;
+  }
+  .nvt-auth-view-desc {
+    font-size: 11px !important;
+    color: var(--nvt-text-muted) !important;
+    margin-top: 2px !important;
+    text-transform: uppercase !important;
+  }
+  .form-hero-desc {
+    color: var(--nvt-text-muted) !important;
+    font: 500 11px/1.4 var(--nvt-font-sans) !important;
+    letter-spacing: .01em !important;
+    text-transform: uppercase !important;
+  }
+
+  /* 7. Các trường nhập liệu (Ô Input 100% full-width từng dòng) */
+  .nvt-form-group {
+    margin-bottom: 10px !important;
+    text-align: left !important;
+    width: 100% !important;
+  }
+  .nvt-input-label {
+    display: block !important;
+    font-size: 9.5px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.08em !important;
+    text-transform: uppercase !important;
+    margin-bottom: 4px !important;
+    color: #475569 !important;
+    font-family: var(--nvt-font-mono) !important;
+  }
+  .nvt-input-box {
+    height: 44px !important;
+    border-radius: var(--nvt-radius-input) !important;
+    background: var(--nvt-bg-input) !important;
+    border: 1px solid var(--nvt-border) !important;
+    display: flex !important;
+    align-items: center !important;
+    padding: 0 12px !important;
+    gap: 10px !important;
+    transition: all 0.2s ease !important;
+    box-sizing: border-box !important;
+  }
+  .nvt-input-box:focus-within {
+    background: #ffffff !important;
+    border-color: var(--nvt-orange) !important;
+    box-shadow: 0 0 0 3px var(--nvt-orange-glow) !important;
+  }
+  .nvt-input-icon {
+    width: 16px !important;
+    height: 16px !important;
+    stroke: #94a3b8 !important;
+    fill: none !important;
+    stroke-width: 2 !important;
+    stroke-linecap: round !important;
+    stroke-linejoin: round !important;
+    flex-shrink: 0 !important;
+  }
+  .nvt-input-box:focus-within .nvt-input-icon {
+    stroke: var(--nvt-orange) !important;
+  }
+  .nvt-input-native {
+    flex: 1 !important;
+    height: 100% !important;
+    border: none !important;
+    background: transparent !important;
+    outline: none !important;
+    font-size: 12.5px !important;
+    font-weight: 500 !important;
+    color: var(--nvt-text-dark) !important;
+    font-family: var(--nvt-font-sans) !important;
+  }
+  .nvt-input-native::placeholder {
+    color: #94a3b8 !important;
+    font-weight: 400 !important;
+  }
+
+  /* Nút con mắt ẩn/hiện mật khẩu */
+  .nvt-eye-toggle {
+    background: transparent !important;
+    border: none !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 4px !important;
+    color: #94a3b8 !important;
+  }
+  .nvt-eye-toggle:hover {
+    color: var(--nvt-orange) !important;
+  }
+  .nvt-eye-toggle svg {
+    width: 16px !important;
+    height: 16px !important;
+    stroke: currentColor !important;
+    fill: none !important;
+    stroke-width: 2 !important;
+    stroke-linecap: round !important;
+    stroke-linejoin: round !important;
+  }
+
+  /* 8. Hàng Ghi nhớ & Quên mật khẩu */
+  .nvt-auth-row-meta {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    font-size: 11px !important;
+    margin-top: 6px !important;
+    margin-bottom: 6px !important;
+  }
+  .nvt-remember-wrap {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    color: var(--nvt-text-muted) !important;
+    cursor: pointer !important;
+    user-select: none !important;
+    white-space: nowrap !important;
+    text-transform: none !important;
+  }
+  .nvt-remember-wrap input[type="checkbox"] {
+    accent-color: var(--nvt-orange) !important;
+    width: 15px !important;
+    height: 15px !important;
+  }
+  .nvt-forgot-link {
+    color: var(--nvt-orange) !important;
+    font-weight: 700 !important;
+    text-decoration: none !important;
+  }
+
+  /* 9. NÚT BẤM CHUẨN XỊN HÌNH 3 */
+  .nvt-btn-submit {
+    width: 100% !important;
+    height: 44px !important;
+    border-radius: var(--nvt-radius-btn) !important;
+    border: none !important;
+    background: linear-gradient(135deg, var(--nvt-orange) 0%, var(--nvt-orange-light) 100%) !important;
+    color: #ffffff !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.09em !important;
+    text-transform: uppercase !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    cursor: pointer !important;
+    margin-top: 14px !important;
+    box-shadow: 0 4px 16px rgba(234, 88, 12, 0.35) !important;
+    transition: all 0.2s ease !important;
+    font-family: var(--nvt-font-sans) !important;
+    box-sizing: border-box !important;
+  }
+  .nvt-btn-submit:hover {
+    background: linear-gradient(135deg, #c2410c 0%, var(--nvt-orange) 100%) !important;
+  }
+  .nvt-btn-submit:active {
+    transform: scale(0.985) !important;
+  }
+  .nvt-btn-arrow {
+    width: 14px !important;
+    height: 14px !important;
+    stroke: currentColor !important;
+    fill: none !important;
+    stroke-width: 2.2 !important;
+    stroke-linecap: round !important;
+    stroke-linejoin: round !important;
+    transition: transform 0.2s ease !important;
+  }
+  .nvt-btn-submit:hover .nvt-btn-arrow {
+    transform: translateX(2px) !important;
+  }
+
+  /* 10. Chân trang */
+  .nvt-auth-footer {
+    text-align: center !important;
+    margin-top: 14px !important;
+    font-size: 11.5px !important;
+    color: var(--nvt-text-muted) !important;
+  }
+  .nvt-auth-switch-link {
+    color: var(--nvt-orange) !important;
+    font-weight: 800 !important;
+    text-decoration: none !important;
+    margin-left: 4px !important;
+  }
+
+  /* 11. Thông báo lỗi / thành công */
+  .nvt-auth-error-msg {
+    background: #fef2f2 !important;
+    border: 1px solid #fecaca !important;
+    color: #dc2626 !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    padding: 7px 10px !important;
+    border-radius: 8px !important;
+    margin-top: 8px !important;
+    display: none;
+    text-align: center !important;
+  }
+  .nvt-auth-success-msg {
+    background: #f0fdf4 !important;
+    border: 1px solid #bbf7d0 !important;
+    color: #16a34a !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    padding: 7px 10px !important;
+    border-radius: 8px !important;
+    margin-top: 8px !important;
+    display: none;
+    text-align: center !important;
+  }
+}

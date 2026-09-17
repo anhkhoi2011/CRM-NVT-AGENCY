@@ -1,0 +1,316 @@
+/* ==========================================================================
+   NVT AGENCY CRM - TEAM HIERARCHY TREE STYLESHEET
+   File: team-tree-hierarchy.css
+   Mô tả: CSS tạo giao diện cây phân nhánh lồng nhau (Tree Hierarchy)
+          chuẩn Manager -> Leader -> Sale -> Khách hàng
+   ========================================================================== */
+
+:root {
+  --tree-border: #e2e8f0;
+  --tree-line-color: #cbd5e1;
+  --tree-bg-sub: #fafafa;
+  --tree-hover-bg: #f8fafc;
+  --tree-manager-color: #1d4ed8;
+  --tree-manager-bg: #dbeafe;
+  --tree-leader-color: #4338ca;
+  --tree-leader-bg: #e0e7ff;
+  --tree-sale-color: #15803d;
+  --tree-sale-bg: #dcfce7;
+}
+
+/* 1. KHUNG CHỨA TOÀN BỘ CÂY (ROOT CONTAINER) */
+.tree-root-container {
+  background: #ffffff;
+  border: 1px solid var(--tree-border);
+  border-radius: 14px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+/* 2. CẤP 0: HEADER QUẢN LÝ TỔNG (ROOT HEADER) */
+.tree-root-header {
+  background: #fafafa;
+  border-bottom: 1px solid var(--tree-border);
+  padding: 16px 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s ease;
+}
+.tree-root-header:hover {
+  background: #f1f5f9;
+}
+
+/* THÔNG TIN NODE (AVATAR + TIÊU ĐỀ + ROLE) */
+.tree-node-info {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* AVATAR BADGE THEO ROLE */
+.avatar-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.avatar-manager {
+  background: var(--tree-manager-bg);
+  color: var(--tree-manager-color);
+  border: 1.5px solid #93c5fd;
+}
+.avatar-leader {
+  background: var(--tree-leader-bg);
+  color: var(--tree-leader-color);
+  border: 1.5px solid #a5b4fc;
+}
+.avatar-sale {
+  background: var(--tree-sale-bg);
+  color: var(--tree-sale-color);
+  border: 1.5px solid #86efac;
+}
+
+.node-title-group {
+  display: flex;
+  flex-direction: column;
+}
+.node-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.node-main-name {
+  font-size: 15px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+/* HUY HIỆU ROLE (MANAGER / LEADER / SALE) */
+.node-role-pill {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.pill-manager {
+  background: #eff6ff;
+  color: var(--tree-manager-color);
+  border: 1px solid #bfdbfe;
+}
+.pill-leader {
+  background: #eef2ff;
+  color: var(--tree-leader-color);
+  border: 1px solid #c7d2fe;
+}
+.pill-sale {
+  background: #f0fdf4;
+  color: var(--tree-sale-color);
+  border: 1px solid #bbf7d0;
+}
+
+.node-meta-desc {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 3px;
+  font-weight: 500;
+}
+
+/* NÚT THU GỌN / MỞ RỘNG TRÒN (+ / −) */
+.btn-toggle-round {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  background: #ffffff;
+  border: 1px solid var(--tree-line-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #475569;
+  font-weight: 800;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+.tree-root-header:hover .btn-toggle-round,
+.branch-card-header:hover .btn-toggle-round {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+/* 3. THÂN CÂY PHÂN CẤP VỚI CÁC ĐƯỜNG TRỤC DỌC */
+.tree-body-branches {
+  padding: 16px 20px 24px 34px;
+  position: relative;
+}
+
+/* Đường dọc trục chính từ Root xuống các Leader */
+.tree-body-branches::before {
+  content: '';
+  position: absolute;
+  left: 48px;
+  top: 0;
+  bottom: 40px;
+  width: 2px;
+  background: var(--tree-line-color);
+}
+
+/* MỖI NHÁNH CẤP 1 (BRANCH NODE) */
+.tree-branch-node {
+  position: relative;
+  margin-top: 14px;
+  padding-left: 36px;
+}
+.tree-branch-node:first-child {
+  margin-top: 6px;
+}
+
+/* Đường nhánh ngang ├── nối từ trục chính sang thẻ */
+.tree-branch-node::before {
+  content: '';
+  position: absolute;
+  left: 14px;
+  top: 26px;
+  width: 22px;
+  height: 2px;
+  background: var(--tree-line-color);
+}
+
+/* KHUNG CARD CHỨA TỪNG NHÁNH */
+.branch-card-box {
+  background: #ffffff;
+  border: 1px solid var(--tree-border);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+  transition: border-color 0.2s;
+}
+.branch-card-box:hover {
+  border-color: #cbd5e1;
+}
+
+.branch-card-header {
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  background: #ffffff;
+  transition: background 0.15s;
+}
+.branch-card-header:hover {
+  background: var(--tree-hover-bg);
+}
+
+/* 4. CÂY CON TRỰC THUỘC LEADER (SUB-TREE FOR SALES) */
+.leader-sub-tree {
+  background: var(--tree-bg-sub);
+  border-top: 1px solid var(--tree-border);
+  padding: 14px 16px 14px 34px;
+  position: relative;
+}
+
+/* Đường dọc nối từ Leader xuống các Sale con */
+.leader-sub-tree::before {
+  content: '';
+  position: absolute;
+  left: 48px;
+  top: 0;
+  bottom: 24px;
+  width: 2px;
+  background: var(--tree-line-color);
+}
+
+.sub-branch-item {
+  position: relative;
+  margin-top: 10px;
+  padding-left: 32px;
+}
+.sub-branch-item:first-child {
+  margin-top: 0;
+}
+
+/* Đường nhánh con ngang nối vào Sale */
+.sub-branch-item::before {
+  content: '';
+  position: absolute;
+  left: 14px;
+  top: 22px;
+  width: 18px;
+  height: 2px;
+  background: var(--tree-line-color);
+}
+
+/* 5. BẢNG HIỂN THỊ KHÁCH HÀNG (CUSTOMER PANEL CỦA TỪNG NGƯỜI) */
+.customer-sub-panel {
+  background: #fafafa;
+  border-top: 1px solid var(--tree-border);
+  padding: 12px 16px;
+}
+.customer-panel-title {
+  font-size: 11.5px;
+  font-weight: 800;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.customer-item-row {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+  padding: 9px 14px;
+  margin-bottom: 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12.5px;
+  transition: all 0.2s ease;
+}
+.customer-item-row:hover {
+  border-color: #ea580c;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+.cust-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.cust-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #2563eb;
+}
+.cust-name {
+  font-weight: 700;
+  color: #0f172a;
+}
+.cust-phone {
+  color: #64748b;
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 11.5px;
+}
+.cust-meta-badge {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: #f1f5f9;
+  color: #475569;
+  font-weight: 600;
+}

@@ -71,12 +71,14 @@ async function passwordMatches(value, stored) {
 // Chế độ demo chỉ được bật chủ động bằng DEMO_MODE=1. npm start/cPanel không bật cờ này.
 const DEMO_MODE = typeof process !== 'undefined' && process.env?.DEMO_MODE === '1';
 const demoUsers = [
-  { id: 'demo-admin', phone: '0900000001', email: 'admin.demo@local.test', name: 'Admin Demo', role: 'ADMIN', teamId: '', leaderId: null, active: true },
-  { id: 'demo-leader', phone: '0900000002', email: 'leader.demo@local.test', name: 'Leader Demo', role: 'LEADER', teamId: 'DEMO', leaderId: null, active: true },
-  { id: 'demo-sale', phone: '0900000003', email: 'sale.demo@local.test', name: 'Sale Demo', role: 'SALE', teamId: 'DEMO', leaderId: 'demo-leader', active: true }
+  { id: 'demo-admin', accountId: 'ADMIN-DEMO', phone: '0900000001', email: 'admin.demo@local.test', name: 'Admin Demo', role: 'ADMIN', teamId: '', leaderId: null, active: true },
+  { id: 'demo-manager', accountId: 'MANAGER-DEMO', phone: '0900000004', email: 'manager.demo@local.test', name: 'Manager Demo', role: 'MANAGER', teamId: '', leaderId: null, active: true },
+  { id: 'demo-leader', accountId: 'LEADER-DEMO', phone: '0900000002', email: 'leader.demo@local.test', name: 'Leader Demo', role: 'LEADER', teamId: 'DEMO', leaderId: null, managerId: 'demo-manager', active: true },
+  { id: 'demo-sale', accountId: 'SALE-DEMO', phone: '0900000003', email: 'sale.demo@local.test', name: 'Sale Demo', role: 'SALE', teamId: 'DEMO', leaderId: 'demo-leader', active: true }
 ];
 const demoPasswords = {
   'admin.demo@local.test': 'AdminDemo2026!',
+  'manager.demo@local.test': 'ManagerDemo2026!',
   'leader.demo@local.test': 'LeaderDemo2026!',
   'sale.demo@local.test': 'SaleDemo2026!'
 };
@@ -93,36 +95,127 @@ const demoState = {
     { id: 'DEMO-CUS-1', name: 'Khách demo Premium', phone: '0900000011', email: 'premium@local.test', source: 'Demo', campaign: 'DEMO', status: 'NEW', saleId: 'demo-sale', leaderId: 'demo-leader', teamId: 'DEMO', note: 'Dữ liệu demo', customFields: { customerClass: 'Premium' }, createdAt: '2026-09-15 09:00', updatedAt: '2026-09-15 09:00' },
     { id: 'DEMO-CUS-2', name: 'Khách demo Whale', phone: '0900000012', email: 'whale@local.test', source: 'Demo', campaign: 'DEMO', status: 'CONTACTED', saleId: null, leaderId: 'demo-leader', teamId: 'DEMO', note: 'Dữ liệu demo', customFields: { customerClass: 'Whale' }, createdAt: '2026-09-15 10:00', updatedAt: '2026-09-15 10:00' }
   ],
-  orders: [], products: [], productCategories: ['Demo'], registrations: [],
-  customFieldDefinitions: [], customerFieldHistory: [], assignmentHistory: [],
+  orders: [], products: DEMO_MODE ? structuredClone(require('./product-catalog.json')) : [], productCategories: DEMO_MODE ? [...new Set(require('./product-catalog.json').map(item => item.category))] : [], registrations: [],
+  customFieldDefinitions: DEMO_MODE ? structuredClone(require('./crm-defaults.json').customFieldDefinitions) : [], customerFieldHistory: [], assignmentHistory: [],
   resubmissions: [], notes: [], imports: [], attendance: [], dataOffers: [],
-  traffic: [], tasks: [], notifications: [], audit: [], websites: [],
-  integrations: [], webhookPending: [], careGroups: [],
+  traffic: [], tasks: [], notifications: [], audit: [], websites: [{ id: 'WEB-DEMO', name: 'Nguồn local', domain: 'localhost:4173', sourceUrl: 'http://localhost:4173/', status: 'ACTIVE' }],
+  integrations: [], webhookPending: [], brokerageMetrics: [], careGroups: [],
   settings: { assignmentMode: 'BALANCED', leaderCanUpdate: true, leaderAttendanceRequired: true },
   leaderDistribution: { enabled: true, enabledLeaderIds: ['demo-leader'], weights: { 'demo-leader': 1 }, sourceRules: [] },
   saleDistributionByLeader: { 'demo-leader': { leaderEnabled: true, enabledSaleIds: ['demo-sale'], weights: { 'demo-leader': 1, 'demo-sale': 1 } } }
 };
 
+// Chỉ phục hồi RAM demo từ tệp local được chỉ định khi khởi động; production không đọc tệp này.
+if(DEMO_MODE&&process.env.DEMO_STATE_FILE){Object.assign(demoState,JSON.parse(fs.readFileSync(process.env.DEMO_STATE_FILE,'utf8').replace(/^\uFEFF/,'')));}
+// Ensure all demo roles remain available when restoring an older RAM snapshot.
+if (DEMO_MODE) {
+  for (const account of demoUsers) {
+    const existing = demoState.members.find(member => member.id === account.id);
+    if (existing) Object.assign(existing, account, { loginEnabled: true });
+    else demoState.members.push({
+      ...account,
+      initials: account.name.split(/\s+/).map(part => part[0]).join('').toUpperCase(),
+      loginEnabled: true
+    });
+  }
+}
+
+// Bo du lieu mau day du cho viec kiem tra giao dien va phan quyen tren demo server.
+// Chi them ban ghi thieu, khong ghi de thao tac ma nguoi dung da tao trong phien demo.
+function seedDemoWorkspace() {
+  if (!DEMO_MODE) return;
+  const addOnce = (list, row) => { if (!list.some(item => item.id === row.id)) list.push(row); };
+  const addMember = (row, password) => {
+    addOnce(demoState.members, { ...row, initials: row.name.split(/\\s+/).map(part => part[0]).join('').toUpperCase(), loginEnabled: true });
+    demoPasswords[row.email] = password;
+  };
+  addMember({ id: 'demo-leader-2', accountId: 'LEADER-DEMO-2', phone: '0900000014', email: 'leader2.demo@local.test', name: 'Leader Demo 2', role: 'LEADER', teamId: 'DEMO-2', leaderId: null, managerId: 'demo-manager', active: true }, 'LeaderDemo2026!');
+  addMember({ id: 'demo-sale-2', accountId: 'SALE-DEMO-2', phone: '0900000015', email: 'sale2.demo@local.test', name: 'Sale Demo 2', role: 'SALE', teamId: 'DEMO-2', leaderId: 'demo-leader-2', active: true }, 'SaleDemo2026!');
+  addMember({ id: 'demo-sale-3', accountId: 'SALE-DEMO-3', phone: '0900000016', email: 'sale3.demo@local.test', name: 'Sale Demo 3', role: 'SALE', teamId: 'DEMO', leaderId: 'demo-leader', active: true }, 'SaleDemo2026!');
+
+  const customer = (id, name, phone, owner, status, customerClass, level, createdAt) => ({
+    id, name, phone, email: `${id.toLowerCase()}@local.test`, source: 'Landing Page', campaign: 'DEMO-2026', status,
+    saleId: owner?.saleId || null, leaderId: owner?.leaderId || null, teamId: owner?.teamId || null,
+    note: 'Du lieu mau de kiem tra quy trinh CRM', customFields: { customerClass, customerLevel: level, callStatus: status === 'CONTACTED' ? 'CONTACTED' : 'NEW' }, createdAt, updatedAt: createdAt
+  });
+  const owners = {
+    leader1: { leaderId: 'demo-leader', teamId: 'DEMO' },
+    leader2: { leaderId: 'demo-leader-2', teamId: 'DEMO-2' },
+    sale1: { saleId: 'demo-sale', leaderId: 'demo-leader', teamId: 'DEMO' },
+    sale2: { saleId: 'demo-sale-2', leaderId: 'demo-leader-2', teamId: 'DEMO-2' },
+    sale3: { saleId: 'demo-sale-3', leaderId: 'demo-leader', teamId: 'DEMO' }
+  };
+  [
+    customer('DEMO-CUS-3', 'Nguyen Minh Anh', '0900000021', owners.sale1, 'CONTACTED', 'Premium', 'L3', '2026-09-16 08:30'),
+    customer('DEMO-CUS-4', 'Tran Hoang Nam', '0900000022', owners.sale3, 'NEW', 'Whale', 'L1', '2026-09-16 09:15'),
+    customer('DEMO-CUS-5', 'Le Thu Ha', '0900000023', owners.sale2, 'CONTACTED', 'Premium', 'L4.1', '2026-09-15 10:00'),
+    customer('DEMO-CUS-6', 'Pham Gia Bao', '0900000024', owners.leader1, 'NEW', 'Lanh', 'L0', '2026-09-17 08:00'),
+    customer('DEMO-CUS-7', 'Vo Thanh Tung', '0900000025', owners.leader2, 'NEW', 'Am', 'L1', '2026-09-17 08:10'),
+    customer('DEMO-CUS-8', 'Do Ngoc Linh', '0900000026', owners.sale1, 'CONTACTED', 'Nong', 'L5', '2026-09-14 14:20'),
+    customer('DEMO-CUS-9', 'Bui Quoc Viet', '0900000027', owners.sale3, 'NEW', 'Pending', 'L0', '2026-09-13 16:45'),
+    customer('DEMO-CUS-10', 'Hoang Mai Phuong', '0900000028', owners.leader2, 'CONTACTED', 'Whale', 'L4.1', '2026-09-12 11:30')
+  ].forEach(row => addOnce(demoState.customers, row));
+
+  const order = (id, code, customerId, saleId, leaderId, teamId, productId, status, total, createdAt, paidAt = '') => ({
+    id, code, customerId, saleId, leaderId, teamId, productId, status, total, subtotal: total, qty: 1,
+    unitPrice: total, discount: 0, vatRate: 0.1, vatAmount: Math.round(total * 0.1), amountPaid: status === 'PAID' ? total : 0,
+    balanceDue: status === 'PAID' ? 0 : total, paymentMode: 'FULL', paymentMethod: 'VietQR', note: 'Don hang mau', createdAt, updatedAt: createdAt, paidAt
+  });
+  [
+    order('DEMO-ORD-1', 'NVT-DEMO-0001', 'DEMO-CUS-3', 'demo-sale', 'demo-leader', 'DEMO', 'p-kh-hhcb', 'PAID', 5000000, '2026-09-15 09:20', '2026-09-15 10:05'),
+    order('DEMO-ORD-2', 'NVT-DEMO-0002', 'DEMO-CUS-5', 'demo-sale-2', 'demo-leader-2', 'DEMO-2', 'p-ind-3m', 'PAID', 3042000, '2026-09-15 13:10', '2026-09-15 14:00'),
+    order('DEMO-ORD-3', 'NVT-DEMO-0003', 'DEMO-CUS-8', 'demo-sale', 'demo-leader', 'DEMO', 'p-ind-1m', 'PENDING', 1014000, '2026-09-17 08:40'),
+    order('DEMO-ORD-4', 'NVT-DEMO-0004', 'DEMO-CUS-10', 'demo-sale-2', 'demo-leader-2', 'DEMO-2', 'p-kh-klcs', 'REFUNDED', 10000000, '2026-09-12 12:00', '2026-09-12 12:30')
+  ].forEach(row => addOnce(demoState.orders, row));
+
+  addOnce(demoState.dataOffers, { id: 'DEMO-OFFER-1', customerId: 'DEMO-CUS-6', saleId: 'demo-sale', leaderId: 'demo-leader', teamId: 'DEMO', status: 'PENDING', offeredAt: '2026-09-17 08:00' });
+  addOnce(demoState.dataOffers, { id: 'DEMO-OFFER-2', customerId: 'DEMO-CUS-7', saleId: 'demo-sale-2', leaderId: 'demo-leader-2', teamId: 'DEMO-2', status: 'PENDING', offeredAt: '2026-09-17 08:10' });
+  addOnce(demoState.careGroups, { id: 'DEMO-CARE-PREMIUM', name: 'Khach Premium', fieldId: 'customerClass', values: ['Premium'], color: '#ca8a04' });
+  addOnce(demoState.careGroups, { id: 'DEMO-CARE-WHALE', name: 'Khach Whale', fieldId: 'customerClass', values: ['Whale'], color: '#0f766e' });
+  addOnce(demoState.notifications, { id: 'DEMO-NOTICE-1', title: 'Co data moi can xu ly', text: 'Hai khach demo dang cho nhan va phan cong.', role: 'ALL', at: '2026-09-17 08:15', readBy: [] });
+  addOnce(demoState.notifications, { id: 'DEMO-NOTICE-2', title: 'Don hang da thanh toan', text: 'Don NVT-DEMO-0001 da ghi nhan thanh cong.', role: 'ALL', at: '2026-09-15 10:05', readBy: [] });
+  addOnce(demoState.attendance, { id: 'DEMO-ATT-1', accountId: 'demo-sale', date: '2026-09-17', checkInAt: '2026-09-17 08:02', status: 'PRESENT', ip: '127.0.0.1' });
+  addOnce(demoState.attendance, { id: 'DEMO-ATT-2', accountId: 'demo-leader', date: '2026-09-17', checkInAt: '2026-09-17 08:05', status: 'PRESENT', ip: '127.0.0.1' });
+  addOnce(demoState.tasks, { id: 'DEMO-TASK-1', customerId: 'DEMO-CUS-4', saleId: 'demo-sale-3', leaderId: 'demo-leader', teamId: 'DEMO', title: 'Goi lai khach Whale', status: 'OPEN', dueAt: '2026-09-18 09:00', createdAt: '2026-09-17 08:30' });
+  addOnce(demoState.tasks, { id: 'DEMO-TASK-2', customerId: 'DEMO-CUS-5', saleId: 'demo-sale-2', leaderId: 'demo-leader-2', teamId: 'DEMO-2', title: 'Gui thong tin khoa hoc', status: 'DONE', dueAt: '2026-09-16 15:00', createdAt: '2026-09-15 10:30' });
+  addOnce(demoState.brokerageMetrics, { id: 'BRK-2026-09-demo-sale', memberId: 'demo-sale', leaderId: 'demo-leader', teamId: 'DEMO', period: '2026-09', basicLots: 8, microLots: 5, nanoLots: 10, lotCommissionRate: 120000, indicatorCommissionRate: 0.05, courseCommissionRate: 0.1, vatRate: 0.1, updatedAt: '2026-09-17 08:00' });
+  addOnce(demoState.brokerageMetrics, { id: 'BRK-2026-09-demo-sale-2', memberId: 'demo-sale-2', leaderId: 'demo-leader-2', teamId: 'DEMO-2', period: '2026-09', basicLots: 5, microLots: 3, nanoLots: 0, lotCommissionRate: 120000, indicatorCommissionRate: 0.05, courseCommissionRate: 0.1, vatRate: 0.1, updatedAt: '2026-09-17 08:00' });
+  demoState.leaderDistribution = { ...demoState.leaderDistribution, enabled: true, enabledLeaderIds: ['demo-leader', 'demo-leader-2'], weights: { 'demo-leader': 1, 'demo-leader-2': 1 }, sourceRules: [] };
+  demoState.saleDistributionByLeader = {
+    ...demoState.saleDistributionByLeader,
+    'demo-leader': { leaderEnabled: true, enabledSaleIds: ['demo-leader', 'demo-sale', 'demo-sale-3'], weights: { 'demo-leader': 1, 'demo-sale': 1, 'demo-sale-3': 1 } },
+    'demo-leader-2': { leaderEnabled: true, enabledSaleIds: ['demo-leader-2', 'demo-sale-2'], weights: { 'demo-leader-2': 1, 'demo-sale-2': 1 } }
+  };
+}
+seedDemoWorkspace();
+function demoData(state=demoState){return Object.fromEntries([...crmData.LISTS,...crmData.OBJECTS].map(key=>[key,new Map(crmData.LISTS.includes(key)?(state[key]||[]).map(r=>[r.id,r]):state[key]===undefined?[]:[['$',state[key]]])]));}
 function demoToken(request) {
   return String(request.headers.authorization || '').replace(/^Bearer\s+/i, '').trim();
 }
 function demoUserFromToken(request) {
-  return demoUsers.find(user => user.id === demoSessions.get(demoToken(request))) || null;
+  return demoState.members.find(user => user.id === demoSessions.get(demoToken(request))&&user.active!==false) || null;
 }
 function demoPayload(user) {
-  const members = demoState.members.filter(member => member.role !== 'ADMIN' || user.role === 'ADMIN');
-  const automation = user.role === 'ADMIN' ? { engine: 'server-v1', enabled: demoState.leaderDistribution.enabled === true, mode: demoState.settings.assignmentMode || 'MANUAL', eligibleLeaderCount: demoState.leaderDistribution.enabledLeaderIds.length } : undefined;
-  return { state: { ...demoState, members }, versions: {}, automation, user };
+  return {...crmData.snapshot(user,demoData()),user};
 }
 async function handleDemoApi(request, response, pathname) {
   if (pathname === '/api/db/health') return dbJson(request, response, 200, { configured: false, demo: true });
+  if (pathname === '/api/auth/register' && request.method === 'POST') {
+    const body=await readDbBody(request),phone=String(body.phone||'').replace(/\D/g,''),email=String(body.email||'').trim().toLowerCase(),name=String(body.name||'').trim(),accountId=String(body.accountId||'').trim().toUpperCase(),password=String(body.password||'');
+    if(!name||!/^\d{9,15}$/.test(phone)||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!/^[A-Z0-9][A-Z0-9._-]{2,63}$/.test(accountId)||password.length<8)return dbJson(request,response,400,{error:'Thông tin đăng ký không hợp lệ'});
+    if(demoState.members.some(user=>user.phone===phone||user.email===email||user.accountId===accountId))return dbJson(request,response,400,{error:'ID tài khoản, số điện thoại hoặc email đã tồn tại'});
+    const id=`u-reg-${crypto.randomUUID()}`,user={id,accountId,phone,email,name,role:'UNASSIGNED',teamId:'',leaderId:null,active:true,initials:name.split(/\s+/).map(part=>part[0]).join('').slice(0,2).toUpperCase(),loginEnabled:true};
+    demoState.members.push(user);demoState.registeredAccounts.push(user);demoPasswords[email]=password;
+    return dbJson(request,response,201,{success:true,message:'Đăng ký thành công',id});
+  }
   if (pathname === '/api/auth/login' && request.method === 'POST') {
     const body = await readDbBody(request);
     const identifier = String(body.identifier || '').trim().toLowerCase();
-    const user = demoUsers.find(item => item.email === identifier || item.phone === identifier);
+    const user = demoState.members.find(item => item.phone === identifier&&item.active!==false);
     if (!user || demoPasswords[user.email] !== String(body.password || '')) {
       return dbJson(request, response, 401, { error: 'Thông tin đăng nhập demo không đúng' });
     }
+    if(user.role==='UNASSIGNED')return dbJson(request,response,403,{error:'Tài khoản đã đăng ký, đang chờ Admin phân chức vụ.'});
     const token = `demo-${crypto.randomBytes(12).toString('hex')}`;
     demoSessions.set(token, user.id);
     return dbJson(request, response, 200, { token, user });
@@ -140,14 +233,16 @@ async function handleDemoApi(request, response, pathname) {
   if (pathname === '/api/state' && request.method === 'GET') return dbJson(request, response, 200, demoPayload(user));
   if (pathname === '/api/state' && request.method === 'POST') {
     const body = await readDbBody(request);
-    for (const change of body.changes || []) {
-      if (['settings', 'leaderDistribution', 'saleDistributionByLeader', 'careGroups'].includes(change.key)) {
-        demoState[change.key] = change.value;
-      } else if (Array.isArray(demoState[change.key])) {
-        demoState[change.key] = demoState[change.key].filter(item => item.id !== change.id);
-        if (change.value) demoState[change.key].push(change.value);
+    try{
+      const next=structuredClone(demoState),original=demoData(),changes=body.changes||[];
+      for(const change of changes.slice().sort((a,b)=>(a.key==='customers'?0:1)-(b.key==='customers'?0:1))){
+        const {key,id,value}=change;if(!original[key])throw Object.assign(Error('Collection không hợp lệ'),{status:400});
+        const old=original[key].get(id);crmData.validate(key,value,id);crmData.authorize(user,key,old,value,demoData(next));
+        if(crmData.OBJECTS.includes(key)){next[key]=user.role==='MANAGER'&&['settings','saleDistributionByLeader'].includes(key)?{...next[key],...value}:value;}
+        else{next[key]=(next[key]||[]).filter(r=>r.id!==id);if(value)next[key].push(value);}
       }
-    }
+      Object.assign(demoState,next);
+    }catch(e){return dbJson(request,response,e.status||400,{error:e.message});}
     return dbJson(request, response, 200, { ...demoPayload(user), ok: true });
   }
   return dbJson(request, response, 404, { error: 'Demo API không hỗ trợ endpoint này' });
@@ -163,17 +258,17 @@ async function handleDbApi(request, response, pathname) {
     if (pathname === '/api/auth/register' && request.method === 'POST') {
       const body = await readDbBody(request);
       const phone = String(body.phone || '').replace(/\D/g,''), email = String(body.email || '').trim().toLowerCase();
-      const name = String(body.name || '').trim(), password = String(body.password || '');
-      if (!/^\d{9,15}$/.test(phone) || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length>254 || !name || name.length>160 || password.length<8 || Buffer.byteLength(password)>72) return dbJson(request,response,400,{error:'Tên, SĐT, email hoặc mật khẩu không hợp lệ (8 ký tự, tối đa 72 byte).'});
+      const name = String(body.name || '').trim(), accountId = String(body.accountId || '').trim().toUpperCase(), password = String(body.password || '');
+      if (!/^\d{9,15}$/.test(phone) || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length>254 || !name || name.length>160 || !/^[A-Z0-9][A-Z0-9._-]{2,63}$/.test(accountId) || password.length<8 || Buffer.byteLength(password)>72) return dbJson(request,response,400,{error:'Họ tên, ID tài khoản, SĐT, email hoặc mật khẩu không hợp lệ.'});
       const id = `u-reg-${crypto.randomUUID()}`;
-      try { await dbQuery("INSERT INTO users(id,phone,email,password_hash,name,role,active) VALUES (?,?,?,?,?,'UNASSIGNED',1)",[id,phone,email,await bcrypt.hash(password,12),name]); }
-      catch(e) { if(e.code==='ER_DUP_ENTRY')return dbJson(request,response,400,{error:'Số điện thoại hoặc email đã tồn tại'});throw e; }
+      try { await dbQuery("INSERT INTO users(id,account_code,phone,email,password_hash,name,role,active) VALUES (?,?,?,?,?,?,'UNASSIGNED',1)",[id,accountId||null,phone,email,await bcrypt.hash(password,12),name]); }
+      catch(e) { if(e.code==='ER_DUP_ENTRY')return dbJson(request,response,400,{error:'ID tài khoản, số điện thoại hoặc email đã tồn tại'});throw e; }
       notifyInboxListeners({id,kind:'users',receivedAt:stamp()});
       return dbJson(request,response,201,{success:true,message:'Đăng ký thành công',id});
     }
     if (pathname === '/api/auth/login' && request.method === 'POST') {
       const body = await readDbBody(request), identifier=String(body.identifier||'').trim().toLowerCase();
-      const rows=await dbQuery('SELECT * FROM users WHERE (phone=? OR email=?) AND active=1 LIMIT 1',[identifier,identifier]);
+      const rows=await dbQuery('SELECT * FROM users WHERE (phone=? OR LOWER(email)=?) AND active=1 LIMIT 1',[identifier,identifier]);
       const row=rows[0], password=String(body.password||'');
       if(!row||!await passwordMatches(password,row.password_hash))return dbJson(request,response,401,{error:'Thông tin đăng nhập không đúng'});
       if(row.role==='UNASSIGNED')return dbJson(request,response,403,{error:'Tài khoản đã đăng ký, đang chờ Admin phân chức vụ.'});
@@ -223,7 +318,7 @@ async function handleDbApi(request, response, pathname) {
     const id=encodedId?decodeURIComponent(encodedId):null;
     const key=resource==='users'?'members':resource;
     if(['customers','orders','products','users','settings'].includes(resource)){
-      if(resource==='users'&&!['ADMIN','LEADER'].includes(user.role))return dbJson(request,response,403,{error:'Không có quyền xem users'});
+      if(resource==='users'&&!['ADMIN','LEADER','MANAGER'].includes(user.role))return dbJson(request,response,403,{error:'Không có quyền xem users'});
       const snapshot=await crmData.read(user);
       if(request.method==='GET')return dbJson(request,response,200,{items:resource==='users'?snapshot.state.accounts:snapshot.state[key],versions:snapshot.versions});
       const body=await readDbBody(request), recordId=key==='settings'?'$':id||body.id;
@@ -235,7 +330,7 @@ async function handleDbApi(request, response, pathname) {
       return dbJson(request,response,request.method==='POST'?201:200,result);
     }
     return dbJson(request,response,404,{error:'API không tồn tại'});
-  }catch(e){console.error('[mysql-api]',e.message);return dbJson(request,response,e.status|| (e instanceof SyntaxError?400:500),{error:e.status?e.message:e instanceof SyntaxError?'JSON không hợp lệ':'Không lưu được MySQL. Giữ trang mở và thử lại.'});}
+  }catch(e){console.error('[mysql-api]',e.message);const duplicate=e.code==='ER_DUP_ENTRY';return dbJson(request,response,e.status||(duplicate||e instanceof SyntaxError?400:500),{error:e.status?e.message:duplicate?'ID tài khoản, số điện thoại hoặc email đã tồn tại':e instanceof SyntaxError?'JSON không hợp lệ':'Không lưu được MySQL. Giữ trang mở và thử lại.'});}
 }
 
 /**
@@ -804,7 +899,20 @@ function handleSessionContext(request, response) {
 
 async function serveStatic(request, response, urlPathname) {
   const decoded = decodeURIComponent(urlPathname);
-  if (!['/','/index.html','/crm.js','/crm.css','/logo.jpg','/login-background.jpg','/care-ui.js'].includes(decoded)) return sendJson(response,404,{error:'Không tìm thấy tài nguyên'});
+  if (['/customer-journey.svg', '/team-hierarchy-tree.svg'].includes(decoded)) {
+    const absolute = path.resolve(REPO_ROOT, `.${decoded}`);
+    try {
+      const body = await fsp.readFile(absolute);
+      response.writeHead(200, {'Content-Type':'image/svg+xml; charset=utf-8','Content-Length':body.length,'Cache-Control':'no-cache'});
+      response.end(body);
+    } catch {
+      response.writeHead(404, {'Content-Type':'text/plain; charset=utf-8'});
+      response.end('404 Khong tim thay file');
+    }
+    return;
+  }
+  if (!['/','/index.html','/crm.js','/crm.css','/crm-modern.css','/crm-boot.css','/logo.jpg','/login-background.jpg','/customer-journey.svg','/care-ui.js','/crm-runtime.html','/crm-runtime-api.js','/reference-view.js','/reference-crm.js','/nvt-mobile-auth.css','/team-tree-hierarchy.css','/team-hierarchy-tree.svg'].includes(decoded)) return sendJson(response,404,{error:'Không tìm thấy tài nguyên'});
+
   let relative = decoded === '/' ? '/index.html' : decoded;
   const absolute = path.resolve(REPO_ROOT, `.${path.posix.normalize(relative)}`);
 

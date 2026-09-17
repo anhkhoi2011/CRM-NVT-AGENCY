@@ -71,7 +71,7 @@ test('Sale không thấy khách đội khác, không tự PAID hay tự thăng A
 });
 test('Toàn bộ collection phụ đọc lại được; xóa giữ before-image',async()=>{
  const f=fixture();const keys=f.api.LISTS.filter(k=>!['customers','orders','products','members'].includes(k));
- const changes=keys.map(key=>change(key,{id:'row-'+key,value:'giữ lâu dài'}));
+ const changes=keys.map(key=>change(key,key==='brokerageMetrics'?{id:'row-'+key,memberId:'sale',leaderId:'lead',teamId:'T',period:'2026-09',basicLots:0,microLots:0,nanoLots:0,lotCommissionRate:0,indicatorCommissionRate:0,courseCommissionRate:0,vatRate:.1}:{id:'row-'+key,value:'giữ lâu dài'}));
  for(const key of f.api.OBJECTS)changes.push({key,id:'$',base:null,value:key==='productCategories'?['Dịch vụ']:{test:'giữ'}});
  await f.api.write(admin,'all',changes);let result=await f.api.read(admin);
  for(const key of keys)assert.equal(result.state[key].length,1,key);
@@ -119,20 +119,36 @@ test('Các view chính dựng được sau khi tải snapshot rỗng',()=>{
  for(const view of ['dashboard','customers','orders','products','team','settings','audit','notifications'])vm.runInContext(`currentView=${JSON.stringify(view)};render()`,c);
 });
 
+test('Dashboard điều hành lấy KPI, doanh thu và cảnh báo thuê từ dữ liệu đã đồng bộ',()=>{
+ const c=frontend();
+ vm.runInContext(`
+  const today=dayIso(0), future=new Date(Date.now()+2*86400000).toISOString();
+  currentAccount=hydrateSessionAccount({id:'admin',name:'Admin',role:'ADMIN'});
+  applyServerSnapshot({state:{...initialState(),members:[
+    {id:'lead',name:'Leader',role:'LEADER',teamId:'T',active:true},
+    {id:'sale',name:'Sale',role:'SALE',teamId:'T',leaderId:'lead',target:10000000,active:true}
+  ],customers:[{id:'c1',name:'Khách thật',phone:'0912345678',source:'Landing Page',status:'CONTACTED',saleId:'sale',leaderId:'lead',teamId:'T',createdAt:today+' 09:00',updatedAt:today+' 09:00',customFields:{}}],products:[{id:'p1',name:'Chỉ báo thật',sku:'IND-REAL',category:'Chỉ báo',price:1000000,type:'RENTAL',rentalMonths:1,active:true}],orders:[{id:'o1',code:'NVT-REAL',customerId:'c1',customerName:'Khách thật',saleId:'sale',leaderId:'lead',teamId:'T',source:'Landing Page',campaign:'LIVE',productId:'p1',productName:'Chỉ báo thật',sku:'IND-REAL',qty:1,unitPrice:1000000,subtotal:1000000,vatRate:.1,vatAmount:100000,discount:0,total:1100000,paymentMode:'FULL',depositAmount:0,amountPaid:1100000,balanceDue:0,paymentMethod:'VietQR',rentalMonths:1,rentalEndsAt:future,status:'PAID',createdAt:today+' 09:00',paidAt:today+' 10:00'}]},versions:{}});
+ `,c);
+ const html=vm.runInContext('executiveDashboardView()',c);
+ assert.match(html,/Tổng khách hàng/);assert.match(html,/Khách thật/);assert.match(html,/Chỉ báo thật/);
+ assert.match(html,/Gói thuê cần gia hạn/);assert.match(html,/Còn 2 ngày/);assert.match(html,/Tạo đơn hàng mới/);
+ assert.doesNotMatch(html,/26\.000\.000/);
+});
+
 function authFixture(rows=[],duplicate=false){
  const calls=[],signals=[],c={dbConfigured:true,systemAccountsReady:Promise.resolve(true),crypto:require('node:crypto'),bcrypt:{hash:async p=>'hashed:'+p,compare:async(p,h)=>h==='hashed:'+p},crmData:{userRow:r=>({id:r.id,role:r.role})},dbQuery:async(sql,args)=>{calls.push({sql,args});if(sql.startsWith('SELECT'))return rows;if(duplicate&&sql.startsWith('INSERT INTO users'))throw Object.assign(new Error('duplicate'),{code:'ER_DUP_ENTRY'});return [];},readBody:async r=>Buffer.from(JSON.stringify(r.body||{})),sendJson:(response,status,payload)=>{response.status=status;response.payload=payload;},notifyInboxListeners:e=>signals.push(e),stamp:()=> '2026-09-14 10:00',Buffer,console};
  const text=fs.readFileSync('webhook-server.cjs','utf8');vm.createContext(c);vm.runInContext(text.slice(text.indexOf('function dbJson('),text.indexOf('\n/**',text.indexOf('function dbJson('))),c);
  return {calls,signals,async request(path,body){const response={};await c.handleDbApi({method:'POST',headers:{},body},response,path);return response;}};
 }
 test('Đăng ký công khai lưu hash và báo Admin ngay sau insert',async()=>{
- const f=authFixture();const result=await f.request('/api/auth/register',{phone:'0912345678',email:'sale@example.vn',name:'Sale',password:'password123'});
- assert.equal(result.status,201);assert.equal(f.signals.length,1);assert.equal(f.signals[0].kind,'users');const insert=f.calls.find(x=>x.sql.startsWith('INSERT'));assert.equal(insert.args[3],'hashed:password123');assert.ok(insert.sql.includes("'UNASSIGNED'"));
+ const f=authFixture();const result=await f.request('/api/auth/register',{phone:'0912345678',email:'sale@example.vn',name:'Sale',accountId:'SALE001',password:'password123'});
+ assert.equal(result.status,201);assert.equal(f.signals.length,1);assert.equal(f.signals[0].kind,'users');const insert=f.calls.find(x=>x.sql.startsWith('INSERT'));assert.equal(insert.args[1],'SALE001');assert.equal(insert.args[4],'hashed:password123');assert.ok(insert.sql.includes("'UNASSIGNED'"));
 });
 test('Đăng ký trùng trả 400 không phát tín hiệu thành công',async()=>{
- const f=authFixture([],true);const result=await f.request('/api/auth/register',{phone:'0912345678',email:'sale@example.vn',name:'Sale',password:'password123'});assert.equal(result.status,400);assert.equal(f.signals.length,0);
+ const f=authFixture([],true);const result=await f.request('/api/auth/register',{phone:'0912345678',email:'sale@example.vn',name:'Sale',accountId:'SALE001',password:'password123'});assert.equal(result.status,400);assert.equal(f.signals.length,0);
 });
 test('Tài khoản chưa phân quyền không được cấp phiên đăng nhập',async()=>{
- const f=authFixture([{id:'u1',role:'UNASSIGNED',password_hash:'password123'}]);const result=await f.request('/api/auth/login',{identifier:'sale@example.vn',password:'password123'});assert.equal(result.status,403);assert.equal(f.calls.some(x=>x.sql.startsWith('INSERT INTO crm_sessions')),false);
+ const f=authFixture([{id:'u1',phone:'0912345678',role:'UNASSIGNED',password_hash:'password123'}]);const result=await f.request('/api/auth/login',{identifier:'0912345678',password:'password123'});assert.equal(result.status,403);assert.equal(f.calls.some(x=>x.sql.startsWith('INSERT INTO crm_sessions')),false);
 });
 
 test('Đồng bộ giữ tham chiếu của form đang mở để lần sửa tiếp theo được lưu',()=>{
@@ -188,7 +204,7 @@ test('Lỗi tạo một tài khoản rollback toàn bộ và không đánh dấu
 });
 test('Đăng nhập hiển thị đúng lỗi server thay vì luôn báo sai mật khẩu',async()=>{
  const c=frontend();await c.initialize();c.fetch=async()=>({ok:false,status:503,json:async()=>({error:'MySQL chưa được cấu hình'})});
- vm.runInContext("document.querySelector('#loginPhone').value='admin@nvtagency.top';document.querySelector('#loginPassword').value='dummy';document.querySelector('#loginForm button[type=\"submit\"]').innerHTML='Đăng nhập';",c);
+ vm.runInContext("document.querySelector('#loginPhone').value='0900000001';document.querySelector('#loginPassword').value='dummy';document.querySelector('#loginForm button[type=\"submit\"]').innerHTML='Đăng nhập';",c);
  await vm.runInContext("document.querySelector('#loginForm').onsubmit({preventDefault(){}})",c);
  assert.equal(vm.runInContext("document.querySelector('#loginError').textContent",c),'MySQL chưa được cấu hình');
  assert.equal(vm.runInContext("document.querySelector('#loginForm button[type=\"submit\"]').disabled",c),false);
@@ -452,4 +468,259 @@ test('UI mode and toggle save to server and allocate queue without client distri
  assert.equal(vm.runInContext("state.customers.find(c=>c.id==='CUS-WHE-2').leaderId",c),null);
  await c.setAssignmentMode('BALANCED');
  assert.equal(vm.runInContext("state.customers.find(c=>c.id==='CUS-WHE-2').leaderId",c),'lead');
+});
+
+test('Care renderer uses server field options, escapes labels, and recalculates membership',()=>{
+ const c=frontend();vm.runInContext(fs.readFileSync('care-ui.js','utf8'),c);
+ vm.runInContext(`currentAccount={id:'admin',role:'ADMIN',scope:'ALL'};state=initialState();state.careGroups=[{id:'care',name:'<script>unsafe</script>',fieldId:'customerClass',values:['Premium'],color:'#2563eb'}];state.customers=[{id:'c1',name:'Care customer',phone:'0900000000',status:'NEW',customFields:{customerClass:'Premium'}}];`,c);
+ assert.equal(vm.runInContext('careMembers(state.careGroups[0]).length',c),1);
+ const html=c.careView();assert.match(html,/data-edit-care="care"/);assert.match(html,/data-quick-custom-field="c1"/);assert.match(html,/&lt;script&gt;/);assert.doesNotMatch(html,/<script>unsafe/);
+ vm.runInContext(`state.customers[0].customFields.customerClass='Whale'`,c);
+ assert.equal(vm.runInContext('careMembers(state.careGroups[0]).length',c),0);
+});
+test('Care configuration persists through store and rejects Sale modifications',async()=>{
+ const f=fixture();const groups=[{id:'cg',name:'Ưu tiên',fieldId:'customerClass',values:['Premium'],color:'#2563eb'}];
+ await f.api.write(admin,'care-create',[{key:'careGroups',id:'$',base:null,value:groups}]);
+ const result=await f.api.read(admin);assert.deepEqual(result.state.careGroups,groups);
+ await assert.rejects(()=>f.api.write({id:'sale',role:'SALE',teamId:'T'},'care-denied',[{key:'careGroups',id:'$',base:result.versions['careGroups/$'],value:[]}]),/./);
+ assert.deepEqual((await f.api.read(admin)).state.careGroups,groups);
+});
+test('Main shell loads functional CRM and shared care module, without a static business app',()=>{
+ const html=fs.readFileSync('index.html','utf8')+fs.readFileSync('crm-runtime.html','utf8');
+ for(const token of ['reference-view.js?v=','reference-crm.js?v=','crm-runtime-api.js?v=','crm.js?v=','id="loginForm"']) assert.ok(html.includes(token),token);
+ assert.doesNotMatch(html,/INITIAL_CUSTOMERS|let appState|function saveState/);
+});
+
+test('Đăng nhập thành công mở lại nút để có thể đăng nhập tài khoản khác',async()=>{
+ const c=frontend();await c.initialize();
+ c.fetch=async()=>({ok:true,status:200,json:async()=>({token:'session',user:{id:'admin',role:'ADMIN',name:'Admin'}})});
+ vm.runInContext(`startSession=async user=>{currentAccount=user;};document.querySelector('#loginPhone').value='0900000001';document.querySelector('#loginPassword').value='password';document.querySelector('#loginForm button[type="submit"]').innerHTML='Đăng nhập';`,c);
+ await vm.runInContext("document.querySelector('#loginForm').onsubmit({preventDefault(){}})",c);
+ assert.equal(vm.runInContext("document.querySelector('#loginForm button[type=\"submit\"]').disabled",c),false);
+});
+
+test('Reference layout retains every original ID and the exact stylesheet',()=>{
+ const h=fs.readFileSync('index.html','utf8'),layout=JSON.parse(fs.readFileSync('reference-layout.json','utf8'));
+ const css=[...h.matchAll(/<style>([\s\S]*?)<\/style>/g)].map(m=>m[1]).join('\n');
+ assert.equal(require('node:crypto').createHash('sha256').update(css).digest('hex'),layout.styleHash);
+ for(const id of layout.ids)assert.ok(h.includes(`id="${id}"`),id);
+ assert.doesNotMatch(h,/<link[^>]+href=".*crm(?:-modern)?\.css/);
+});
+test('Reference care save retries the same group and denies a different operation while pending',async()=>{
+ const c=frontend();vm.runInContext(fs.readFileSync('crm-runtime-api.js','utf8'),c);
+ vm.runInContext(`currentAccount={id:'admin',role:'ADMIN'};serverStateLoaded=true;state=initialState();let attempts=0;flushServerPersistence=async()=>++attempts!==2;`,c);
+ const input={name:'Ưu tiên',fieldId:'customerClass',values:['Premium']};
+ await assert.rejects(()=>c.window.crmApi.createCare(input),/Chưa lưu/);
+ assert.equal(vm.runInContext('state.careGroups.length',c),1);
+ await assert.rejects(()=>c.window.crmApi.settings({customAccent:'#2563eb'}),/thao tác trước/);
+ const result=await c.window.crmApi.createCare(input);assert.ok(result.id);
+ assert.equal(vm.runInContext('state.careGroups.length',c),1);
+ vm.runInContext(`currentAccount={id:'sale',role:'SALE'}`,c);
+ await assert.rejects(()=>c.window.crmApi.createCare(input),/không có quyền/);
+});
+test('Reference customer form rejects an invalid assignee before mutating customer state',async()=>{
+ const c=frontend();vm.runInContext(fs.readFileSync('crm-runtime-api.js','utf8'),c);
+ vm.runInContext(`currentAccount={id:'admin',role:'ADMIN'};serverStateLoaded=true;state=initialState();flushServerPersistence=async()=>true;`,c);
+ await assert.rejects(()=>c.window.crmApi.createCustomer({name:'Customer',phone:'0900000999',saleId:'missing'}),/phạm vi/);
+ assert.equal(vm.runInContext('state.customers.length',c),0);
+});
+
+test('Reference product validates before editing, preserves order history and denies Sale',async()=>{
+ const c=frontend();vm.runInContext(fs.readFileSync('crm-runtime-api.js','utf8'),c);
+ vm.runInContext(`currentAccount={id:'admin',role:'ADMIN'};serverStateLoaded=true;state=initialState();flushServerPersistence=async()=>true;state.orders=[{id:'old',productName:'Old',total:100}];`,c);
+ const input={name:'Product',sku:'QA',category:'Tools',price:1000,type:'SALE',active:true};
+ const result=await c.window.crmApi.saveProduct(null,input);
+ await assert.rejects(()=>c.window.crmApi.saveProduct(null,{...input,sku:'qa'}),/SKU/);
+ await assert.rejects(()=>c.window.crmApi.saveProduct(result.id,{...input,type:'RENTAL',rentalMonths:2}),/gói/);
+ assert.equal(vm.runInContext('state.products[0].type',c),'SALE');
+ await c.window.crmApi.saveProduct(result.id,{...input,type:'RENTAL',rentalMonths:3,price:2000,active:false});
+ assert.equal(vm.runInContext('state.products.length',c),1);
+ assert.equal(vm.runInContext('state.products[0].rentalMonths',c),3);
+ assert.equal(vm.runInContext('state.orders[0].total',c),100);
+ vm.runInContext(`currentAccount={id:'sale',role:'SALE'}`,c);
+ await assert.rejects(()=>c.window.crmApi.saveProduct(null,input),/không có quyền/);
+});
+test('Reference product retry returns original ID without duplicate products',async()=>{
+ const c=frontend();vm.runInContext(fs.readFileSync('crm-runtime-api.js','utf8'),c);
+ vm.runInContext(`currentAccount={id:'admin',role:'ADMIN'};serverStateLoaded=true;state=initialState();let attempts=0;flushServerPersistence=async()=>++attempts!==2;`,c);
+ const input={name:'Retry',sku:'RETRY',category:'Tools',price:1000,type:'RENTAL',rentalMonths:1};
+ await assert.rejects(()=>c.window.crmApi.saveProduct(null,input),/Chưa lưu/);
+ const id=vm.runInContext('state.products[0].id',c);
+ assert.equal((await c.window.crmApi.saveProduct(null,input)).id,id);
+ assert.equal(vm.runInContext('state.products.length',c),1);
+});
+
+function referenceBridge(){const c=frontend();vm.runInContext(fs.readFileSync('crm-runtime-api.js','utf8'),c);vm.runInContext(`currentAccount={id:'admin',name:'Admin',role:'ADMIN',scope:'ALL'};serverStateLoaded=true;state=initialState();state.websites=[];flushServerPersistence=async()=>true;`,c);return c;}
+test('Reference fields preserve option keys, record edits, protect Level and care references',async()=>{
+ const c=referenceBridge(),api=c.window.crmApi;
+ vm.runInContext(`state.customers=[{id:'c',name:'Customer',phone:'0900000011',customFields:{},status:'NEW'}]`,c);
+ const field=await api.saveField(null,{label:'QA select',type:'SELECT',options:[{label:'Alpha',value:'A',color:'#123456'}]});
+ await api.updateField('c',field.id,'A');
+ assert.equal(vm.runInContext(`state.customers[0].customFields[${JSON.stringify(field.id)}]`,c),'A');
+ const history=vm.runInContext('state.customerFieldHistory.length',c);assert.ok(history>0);
+ await api.saveField(field.id,{label:'Renamed',type:'SELECT',options:[{label:'New label',value:'A',color:'#abcdef'}]});
+ assert.equal(vm.runInContext(`state.customers[0].customFields[${JSON.stringify(field.id)}]`,c),'A');
+ await assert.rejects(()=>api.updateField('c',field.id,'unknown'),/không hợp lệ/);
+ const care=await api.saveCare(null,{name:'QA Care',fieldId:field.id,values:['A'],color:'#123456'});
+ await assert.rejects(()=>api.removeField(field.id),/đang dùng/);
+ await assert.rejects(()=>api.removeField('customerLevel'),/Level/);
+ await api.removeCare(care.id);await api.removeField(field.id);
+ assert.equal(vm.runInContext('state.customers.length',c),1);
+ assert.equal(vm.runInContext('state.customerFieldHistory.length',c),history);
+});
+test('Reference website CRUD keeps webhook identity and rejects deletion of a customer source',async()=>{
+ const c=referenceBridge(),api=c.window.crmApi;
+ const input={name:'QA site',sourceUrl:'https://example.test/landing',provider:'LANDING_API'};
+ const w=await api.saveWebsite(null,input),slug=vm.runInContext('state.websites[0].webhookSlug',c);
+ assert.ok(slug);assert.equal(vm.runInContext('state.websites[0].connectionStatus',c),'UNCONFIGURED');
+ await assert.rejects(()=>api.saveWebsite(null,input),/tồn tại/);
+ await api.saveWebsite(w.id,{...input,name:'Changed',sourceUrl:'https://example.test/updated'});
+ assert.equal(vm.runInContext('state.websites[0].webhookSlug',c),slug);
+ vm.runInContext(`state.customers=[{id:'c',websiteId:${JSON.stringify(w.id)}}]`,c);
+ await assert.rejects(()=>api.removeWebsite(w.id),/đã có dữ liệu/);
+ assert.equal(vm.runInContext('state.customers.length',c),1);
+ vm.runInContext('state.customers=[]',c);await api.removeWebsite(w.id);
+ assert.equal(vm.runInContext('state.websites.length',c),0);
+});
+test('Reference configuration mutations deny Sale and website retry does not duplicate',async()=>{
+ const c=referenceBridge(),api=c.window.crmApi;
+ vm.runInContext(`let attempts=0;flushServerPersistence=async()=>++attempts!==2`,c);
+ const input={name:'Retry',sourceUrl:'https://retry.test/',provider:'CUSTOM_WEBHOOK'};
+ await assert.rejects(()=>api.saveWebsite(null,input),/Chưa lưu/);
+ const result=await api.saveWebsite(null,input);assert.ok(result.id);assert.equal(vm.runInContext('state.websites.length',c),1);
+ vm.runInContext(`currentAccount={id:'sale',role:'SALE'}`,c);
+ for(const fn of [()=>api.saveWebsite(null,input),()=>api.removeWebsite(result.id),()=>api.saveField(null,{}),()=>api.removeField('x'),()=>api.saveCare(null,{}),()=>api.removeCare('x')])await assert.rejects(fn,/không có quyền/);
+});
+
+test('Reference source resolution retains invalid intake and removes valid intake only after creating customer',async()=>{
+ const c=referenceBridge(),api=c.window.crmApi;
+ const w=await api.saveWebsite(null,{name:'Landing',sourceUrl:'https://landing.test/',provider:'LANDING_API'});
+ vm.runInContext(`webhookPending=[{id:'pending',customer:{name:'Pending customer',phone:''}}];state.webhookPending=webhookPending;`,c);
+ await assert.rejects(()=>api.resolveSource('pending',w.id),/./);
+ assert.equal(vm.runInContext('webhookPending.length',c),1);
+ vm.runInContext(`webhookPending[0].customer.phone='0900000011'`,c);
+ const result=await api.resolveSource('pending',w.id);assert.ok(result.id);
+ assert.equal(vm.runInContext('webhookPending.length',c),0);
+ assert.equal(vm.runInContext('state.customers.length',c),1);
+ assert.equal(vm.runInContext('state.customers[0].websiteId',c),w.id);
+});
+
+test('Reference member form reuses team rules and protects privileged accounts',async()=>{
+ const c=referenceBridge(),api=c.window.crmApi;
+ vm.runInContext(`state.members=[{id:'admin',name:'Admin',role:'ADMIN',active:true},{id:'leader',name:'Leader',role:'LEADER',teamId:'T1',active:true}];STAFF=state.members;render=()=>{};`,c);
+ await assert.rejects(()=>api.saveMember('admin',{name:'Admin',role:'SALE',teamId:'T1',leaderId:'leader'}),/quyền/);
+ await assert.rejects(()=>api.saveMember(null,{name:'New',role:'SALE',teamId:'T2',leaderId:'leader'}),/đúng Team/);
+ const saved=await api.saveMember(null,{name:'New',email:'new@example.test',phone:'0901234567',role:'SALE',teamId:'T1',leaderId:'leader'});assert.ok(saved.id);
+ assert.equal(vm.runInContext(`state.members.find(m=>m.id===${JSON.stringify(saved.id)}).leaderId`,c),'leader');
+ await assert.rejects(()=>api.removeMember('leader'),/Sale trực thuộc/);
+ await assert.rejects(()=>api.removeMember('admin'),/quản trị/);
+ await api.removeMember(saved.id);assert.equal(vm.runInContext(`state.members.find(m=>m.id===${JSON.stringify(saved.id)}).active`,c),false);
+});
+test('Reference approval preserves account ID and notifications persist read state',async()=>{
+ const c=referenceBridge(),api=c.window.crmApi;
+ vm.runInContext(`state.members=[{id:'leader',name:'Leader',role:'LEADER',teamId:'T1',active:true}];state.registeredAccounts=[{id:'pending',name:'Pending',role:'UNASSIGNED',phone:'0901234567'}];`,c);
+ await api.saveMember('pending',{name:'Pending',phone:'0901234567',role:'SALE',teamId:'T1',leaderId:'leader'});
+ assert.equal(vm.runInContext('state.registeredAccounts.length',c),0);assert.equal(vm.runInContext('state.members[1].id',c),'pending');
+ const n=await api.announce({title:'Thông báo QA',text:'Nội dung QA'});await api.readNotice(n.id);
+ assert.equal(vm.runInContext(`state.notifications.find(n=>n.id===${JSON.stringify(n.id)}).readBy[0]`,c),'admin');
+ vm.runInContext(`currentAccount={id:'sale',role:'SALE'}`,c);
+ await assert.rejects(()=>api.announce({title:'x',text:'x'}),/không có quyền/);
+ await assert.rejects(()=>api.saveMember(null,{}),/không có quyền/);
+ await assert.rejects(()=>api.resetPassword('pending','password','password'),/không có quyền/);
+});
+test('Reference webhook configuration rejects duplicate slug and unsafe override',async()=>{
+ const c=referenceBridge(),api=c.window.crmApi;
+ const first=await api.saveWebsite(null,{name:'One',sourceUrl:'https://one.test/',provider:'LANDING_API'}),second=await api.saveWebsite(null,{name:'Two',sourceUrl:'https://two.test/',provider:'LANDING_API'});
+ const slug=vm.runInContext(`state.websites.find(w=>w.id===${JSON.stringify(first.id)}).webhookSlug`,c);
+ await assert.rejects(()=>api.saveWebhook(second.id,{slug,override:'',base:''}),/thuộc website/);
+ await assert.rejects(()=>api.saveWebhook(first.id,{slug,override:'http://unsafe.test/',base:''}),/HTTPS/);
+ await api.saveWebhook(first.id,{slug,override:'https://hooks.test/endpoint',base:'https://crm.test'});
+ assert.equal(vm.runInContext(`state.websites.find(w=>w.id===${JSON.stringify(first.id)}).webhookUrlOverride`,c),'https://hooks.test/endpoint/');
+});
+
+test('Reference password form validates confirmation and uses authenticated password API',async()=>{
+ const c=referenceBridge(),api=c.window.crmApi;
+ vm.runInContext(`state.members=[{id:'member',role:'SALE',loginEnabled:true}];let passwordTarget='';saveAccountPassword=async body=>{passwordTarget=body.userId;return true;};`,c);
+ await assert.rejects(()=>api.resetPassword('member','short','short'),/8 ký tự/);
+ await assert.rejects(()=>api.resetPassword('member','Example2026!','Different2026!'),/xác nhận/);
+ await assert.rejects(()=>api.resetPassword('missing','Example2026!','Example2026!'),/chưa có tài khoản/);
+ await api.resetPassword('member','Example2026!','Example2026!');assert.equal(vm.runInContext('passwordTarget',c),'member');
+ assert.equal(vm.runInContext('state.members[0].password',c),undefined);
+});
+
+test('Reference font catalog exactly matches all 51 legacy font keys',()=>{
+ const source=fs.readFileSync('crm.js','utf8'),bridge=fs.readFileSync('crm-runtime-api.js','utf8');
+ const legacy=vm.runInNewContext(source.match(/const settingsFontOptions = (\[.*?\]);/)[1]);
+ const restored=JSON.parse(bridge.match(/const referenceFonts=(\[.*?\]);/)[1]);
+ assert.equal(restored.length,51);assert.deepEqual(restored,JSON.parse(JSON.stringify(legacy)));
+});
+test('Reference workflows reject unknown actions, unaccepted Sale customer details and Admin configuration access',async()=>{
+ const c=referenceBridge(),api=c.window.crmApi;
+ await assert.rejects(()=>api.openWorkflow('eval'),/không hợp lệ/);
+ vm.runInContext(`currentAccount={id:'sale',role:'SALE',saleId:'sale',scope:'OWN',teamId:'T',leaderId:'leader'};state.customers=[{id:'pending',saleId:'sale',teamId:'T',leaderId:'leader',saleAcceptedAt:null}];`,c);
+ await assert.rejects(()=>api.openWorkflow('customer','pending'),/nhận data/);
+ for(const kind of ['import','categories','fields','settings','createTeam','distribution','emailTest'])await assert.rejects(()=>api.openWorkflow(kind),/Admin/);
+});
+test('Reference workflow retries a closed form save without invoking the action twice',async()=>{
+ const c=referenceBridge(),api=c.window.crmApi;
+ vm.runInContext(`let workflowCalls=0,workflowRootAvailable=true,workflowFlush=0;const originalWorkflowQuery=document.querySelector;const fakeWorkflowNode={dataset:{},onclick:()=>{workflowCalls++;workflowRootAvailable=false;}};const fakeWorkflowRoot={contains:n=>n===fakeWorkflowNode};document.querySelector=selector=>selector==='#modalRoot .modal-body'?(workflowRootAvailable?fakeWorkflowRoot:null):selector==='#drawerRoot .drawer-body'?null:originalWorkflowQuery(selector);newCustomerModal=()=>{};hasServerChanges=()=>true;flushServerPersistence=async()=>++workflowFlush>1;`,c);
+ await api.openWorkflow('newCustomer');
+ await assert.rejects(()=>api.workflowEvent(vm.runInContext('fakeWorkflowNode',c),'click'),/chưa xác nhận/);
+ await api.workflowEvent(vm.runInContext('fakeWorkflowNode',c),'click');
+ assert.equal(vm.runInContext('workflowCalls',c),1);
+});
+
+// Manager: quyền được suy ra từ Leader.managerId trên server ở mỗi giao dịch.
+async function managerFixture(){
+ const f=fixture();
+ const members=[{id:'mgr',name:'Manager',role:'MANAGER',active:true},{id:'mgr2',name:'Manager 2',role:'MANAGER',active:true},{id:'lead',name:'Leader A',role:'LEADER',teamId:'T',managerId:'mgr',active:true},{id:'lead2',name:'Leader B',role:'LEADER',teamId:'B',managerId:'mgr',active:true},{id:'outside',name:'Leader khác',role:'LEADER',teamId:'T',managerId:'mgr2',active:true},{id:'sale',name:'Sale A',role:'SALE',teamId:'T',leaderId:'lead',active:true},{id:'sale2',name:'Sale B',role:'SALE',teamId:'B',leaderId:'lead2',active:true},{id:'s-out',name:'Sale khác',role:'SALE',teamId:'T',leaderId:'outside',active:true}];
+ await f.api.write(admin,'manager-seed',[
+  ...members.map(m=>change('members',m)),change('customers',customer),change('customers',{...customer,id:'c2',leaderId:'lead2',teamId:'B',saleId:'sale2'}),change('customers',{...customer,id:'c-out',leaderId:'outside',saleId:'s-out'}),
+  {key:'saleDistributionByLeader',id:'$',base:null,value:{lead:{weights:{sale:1}},lead2:{weights:{sale2:1}},outside:{weights:{'s-out':1}}}}
+ ]);return f;
+}
+test('Manager chỉ đọc hai Leader được Admin giao, không đọc đội khác dù cùng mã Team',async()=>{
+ const f=await managerFixture(),m={id:'mgr',role:'MANAGER',teamId:'T',leaderId:'outside'};
+ const r=await f.api.read(m);assert.deepEqual([...r.state.customers.map(x=>x.id)].sort(),['c1','c2']);assert.deepEqual([...r.state.members.map(x=>x.id)].sort(),['lead','lead2','mgr','sale','sale2']);assert.deepEqual(Object.keys(r.state.saleDistributionByLeader).sort(),['lead','lead2']);
+ const empty=await f.api.read({id:'not-assigned',role:'MANAGER'});assert.equal(empty.state.customers.length,0);assert.equal(empty.state.members.length,0);
+});
+test('Manager ghi khách được giao nhưng không thể sửa khách ngoài hệ thống, tự cấp quyền hoặc xác nhận tiền',async()=>{
+ const f=await managerFixture(),m={id:'mgr',role:'MANAGER'},a=await f.api.read(admin),r=await f.api.read(m);
+ await f.api.write(m,'manager-edit',[change('customers',{...r.state.customers.find(c=>c.id==='c1'),note:'Manager chăm sóc'},r.versions['customers/c1'])]);
+ await assert.rejects(f.api.write(m,'manager-out',[change('customers',{...a.state.customers.find(c=>c.id==='c-out'),note:'Không được'},a.versions['customers/c-out'])]),e=>e.status===403);
+ const lead=a.state.members.find(x=>x.id==='outside');await assert.rejects(f.api.write(m,'manager-grant',[change('members',{...lead,managerId:'mgr'},a.versions['members/outside'])]),e=>e.status===403);
+ await assert.rejects(f.api.write(m,'manager-paid',[change('orders',{...order,status:'PAID'})]),e=>e.status===403);
+});
+test('Manager cài tỷ trọng đúng Leader, từ chối khóa ngoài phạm vi và giữ nguyên cấu hình đội khác',async()=>{
+ const f=await managerFixture(),m={id:'mgr',role:'MANAGER'},r=await f.api.read(m);
+ await f.api.write(m,'manager-weight',[{key:'saleDistributionByLeader',id:'$',base:r.versions['saleDistributionByLeader/$'],value:{...r.state.saleDistributionByLeader,lead:{weights:{sale:2}}}}]);
+ const a=await f.api.read(admin);assert.equal(a.state.saleDistributionByLeader.outside.weights['s-out'],1);assert.equal(a.state.saleDistributionByLeader.lead.weights.sale,2);
+ const now=await f.api.read(m);await assert.rejects(f.api.write(m,'manager-other-weight',[{key:'saleDistributionByLeader',id:'$',base:now.versions['saleDistributionByLeader/$'],value:{...now.state.saleDistributionByLeader,outside:{weights:{'s-out':9}}}}]),e=>e.status===403);
+});
+test('Bỏ phân công Manager thu hồi quyền ngay ở lần đọc/ghi tiếp theo, kể cả đang giữ phiên cũ',async()=>{
+ const f=await managerFixture(),m={id:'mgr',role:'MANAGER'},r=await f.api.read(m),a=await f.api.read(admin);
+ await f.api.write(admin,'manager-revoke',[change('members',{...a.state.members.find(x=>x.id==='lead'),managerId:null},a.versions['members/lead'])]);
+ assert.equal((await f.api.read(m)).state.customers.some(c=>c.id==='c1'),false);
+ await assert.rejects(f.api.write(m,'manager-stale-write',[change('customers',{...r.state.customers.find(c=>c.id==='c1'),note:'Phiên cũ'},r.versions['customers/c1'])]),e=>e.status===403);
+});
+test('Admin không thể gán Leader vào tài khoản không phải Manager',async()=>{
+ const f=await managerFixture(),a=await f.api.read(admin);
+ await assert.rejects(f.api.write(admin,'bad-manager',[change('members',{...a.state.members.find(x=>x.id==='lead'),managerId:'sale'},a.versions['members/lead'])]),e=>e.status===400);
+});
+test('Manager runtime dùng giao diện Leader và chỉ chọn được Team đã giao',async()=>{
+ const c=referenceBridge();vm.runInContext(`state.members=[{id:'m',name:'Manager',role:'MANAGER',active:true},{id:'l',name:'Leader',role:'LEADER',teamId:'T',managerId:'m',active:true}];currentAccount=hydrateSessionAccount({id:'m',name:'Manager',role:'MANAGER'});`,c);
+ assert.equal(vm.runInContext('currentAccount.actualRole',c),'MANAGER');assert.equal(vm.runInContext('currentAccount.role',c),'LEADER');assert.equal(vm.runInContext('currentAccount.leaderId',c),'l');
+ await assert.rejects(c.window.crmApi.selectManagerTeam('outside'),/chưa được/);
+ vm.runInContext(`state.members[1].managerId=null;currentAccount=hydrateSessionAccount(currentAccount)`,c);assert.equal(vm.runInContext('currentAccount.leaderId',c),null);
+});
+
+ test('Manager giữ đúng ID bản thân cho hồ sơ và điểm danh khi chọn một Leader',()=>{
+ const c=referenceBridge();vm.runInContext(`state.members=[{id:'m',name:'Manager',initials:'M',role:'MANAGER',active:true},{id:'l',name:'Leader khác',role:'LEADER',teamId:'T',managerId:'m',active:true}];currentAccount=hydrateSessionAccount({id:'m',name:'Manager',role:'MANAGER'});`,c);
+ vm.runInContext('STAFF=state.members',c);assert.equal(vm.runInContext('attendanceAccountId()',c),'m');const html=vm.runInContext('profileView()',c);assert.ok(html.includes('value="Manager"'));assert.ok(!html.includes('value="Leader khác"'));
+ });
+
+test('Manager không chuyển ghi chú đội khác vào khách của mình để vượt quyền',async()=>{
+ const f=await managerFixture(),m={id:'mgr',role:'MANAGER'};
+ await f.api.write(admin,'outside-note',[change('notes',{id:'n-out',customerId:'c-out',text:'Ngoài phạm vi'})]);const a=await f.api.read(admin);
+ await assert.rejects(f.api.write(m,'steal-note',[change('notes',{id:'n-out',customerId:'c1',text:'Chuyển về đội mình'},a.versions['notes/n-out'])]),e=>e.status===403);
 });

@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="NVT AGENCY - há»‡ thá»‘ng váº­n hÃ nh ná»™i bá»™ cho Admin, Leader vÃ  Sale.">
+  <title>NVT AGENCY - Há»‡ thá»‘ng váº­n hÃ nh ná»™i bá»™</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&family=Fira+Code:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=Merriweather:wght@400;700&family=Playfair+Display:wght@400;500;600;700&family=Work+Sans:wght@400;500;600;700&family=Fira+Sans:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Libre+Baskerville:wght@400;700&family=Lato:wght@400;700&family=Manrope:wght@400;500;600;700&family=Montserrat:wght@400;500;600;700&family=Nunito:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&family=Noto+Serif:wght@400;700&family=Open+Sans:wght@400;500;600;700&family=Oswald:wght@400;500;600&family=Outfit:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&family=Quicksand:wght@400;500;600;700&family=Raleway:wght@400;500;600;700&family=Roboto:wght@400;500;700&family=Rubik:wght@400;500;600;700&family=Sora:wght@400;500;600;700&family=Source+Sans+3:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=Ubuntu:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./crm.css?v=20260917-dashboard-business-1">
+  <link rel="stylesheet" href="./crm-modern.css?v=20260916-runtime-hide-restricted-7">
+  <link rel="stylesheet" href="./nvt-mobile-auth.css">
+</head>
+<body>
+  <section id="loginScreen" class="login-screen desktop-login-layout">
+    <!-- Banner tảng băng bên trái theo mẫu desktop. -->
+    <div class="banner-side login-intro">
+      <img class="banner-img-bg login-intro-img" src="./login-background.jpg" alt="NVT AGENCY">
+      <div class="banner-overlay" aria-hidden="true"></div>
+      <div class="banner-top-badge"><span class="status-pulse-dot"></span><span>ENTERPRISE PORTAL · NVT AGENCY</span></div>
+      <div class="banner-footer-info"><span>© 2026 NVT AGENCY. All Rights Reserved.</span><span>Bảo mật chuẩn SSL 256-bit</span></div>
+    </div>
+
+    <!-- Form xác thực bên phải: giữ class cũ để mobile và JS hiện tại tiếp tục hoạt động. -->
+    <div class="form-side login-panel nvt-auth-wrapper">
+      <div class="form-side-aura nvt-auth-aura" aria-hidden="true"></div>
+      <div class="auth-center-card login-card nvt-auth-card">
+        <div class="auth-segmented-tabs nvt-auth-tabs" role="tablist" aria-label="Xác thực tài khoản">
+          <button type="button" id="loginTab" class="auth-tab-item nvt-auth-tab-btn active" role="tab" aria-selected="true" data-switch-auth="login">ĐĂNG NHẬP</button>
+          <button type="button" id="registerTab" class="auth-tab-item nvt-auth-tab-btn" role="tab" aria-selected="false" data-switch-auth="register">ĐĂNG KÝ</button>
+        </div>
+
+        <div class="brand-block nvt-auth-hero">
+          <h1 class="brand-heading nvt-auth-brand-name">NVT AGENCY</h1>
+          <div class="brand-sub-slogan nvt-auth-slogan">ACADEMY · AFFILIATE · EDUCATION</div>
+          <h2 id="authViewTitle" class="form-hero-title">ĐĂNG NHẬP NVT AGENCY</h2>
+          <p id="authDescription" class="form-hero-desc nvt-auth-view-desc">ĐĂNG NHẬP ĐỂ TRUY CẬP HỆ THỐNG NỘI BỘ.</p>
+        </div>
+
+        <form id="loginForm" novalidate>
+          <div class="form-field-group nvt-form-group">
+            <label for="loginPhone" class="field-label nvt-input-label">SỐ ĐIỆN THOẠI HOẶC EMAIL</label>
+            <div class="field-input-box nvt-input-box"><svg class="field-icon nvt-input-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg><input type="text" id="loginPhone" name="loginPhone" class="field-native-input nvt-input-native" placeholder="Nhập số điện thoại hoặc email..." required autocomplete="username"></div>
+          </div>
+          <div class="form-field-group nvt-form-group">
+            <label for="loginPassword" class="field-label nvt-input-label">MẬT KHẨU</label>
+            <div class="field-input-box nvt-input-box"><svg class="field-icon nvt-input-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg><input type="password" id="loginPassword" name="loginPassword" class="field-native-input nvt-input-native" placeholder="Nhập mật khẩu" required autocomplete="current-password"><button type="button" class="eye-toggle-button nvt-eye-toggle" data-toggle-password="loginPassword" aria-label="Hiện mật khẩu" title="Hiện mật khẩu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></button></div>
+          </div>
+          <label id="loginOtpField" class="form-field full is-hidden">MÃ XÁC THỰC 2FA<input id="loginOtp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="Nhập mã 6 chữ số"></label>
+          <div class="row-remember-forgot nvt-auth-row-meta">
+            <label class="remember-label nvt-remember-wrap"><input id="rememberMe" name="rememberMe" type="checkbox"> <span>Ghi nhớ</span></label>
+            <button id="forgotPasswordButton" class="forgot-link nvt-forgot-link" type="button">Quên mật khẩu?</button>
+          </div>
+          <div id="loginError" class="form-error nvt-auth-error-msg" role="alert"></div>
+          <button type="submit" id="loginSubmitBtn" class="btn-auth-submit nvt-btn-submit"><span>ĐĂNG NHẬP</span><svg class="btn-arrow-icon nvt-btn-arrow" viewBox="0 0 24 24" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></button>
+          <div class="form-footer-switch nvt-auth-footer"><span>Chưa có tài khoản?</span> <button type="button" class="switch-auth-link nvt-auth-switch-link" data-switch-auth="register">Đăng ký</button></div>
+        </form>
+
+        <form id="registerForm" class="is-hidden" novalidate>
+          <div class="form-field-group nvt-form-group"><label for="registerName" class="field-label nvt-input-label">HỌ VÀ TÊN</label><div class="field-input-box nvt-input-box"><svg class="field-icon nvt-input-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg><input type="text" id="registerName" name="registerName" class="field-native-input nvt-input-native" placeholder="Nhập họ và tên" required autocomplete="name"></div></div>
+          <div class="form-field-group nvt-form-group"><label for="registerAccountId" class="field-label nvt-input-label">ID TÀI KHOẢN SALE</label><div class="field-input-box nvt-input-box"><svg class="field-icon nvt-input-icon" viewBox="0 0 24 24" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg><input type="text" id="registerAccountId" name="registerAccountId" class="field-native-input nvt-input-native" placeholder="Nhập ID tài khoản SALE" required autocomplete="off"></div></div>
+          <div class="form-field-group nvt-form-group"><label for="registerPhone" class="field-label nvt-input-label">SỐ ĐIỆN THOẠI</label><div class="field-input-box nvt-input-box"><svg class="field-icon nvt-input-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg><input type="tel" id="registerPhone" name="registerPhone" class="field-native-input nvt-input-native" placeholder="Nhập số điện thoại" required autocomplete="tel"></div></div>
+          <div class="form-field-group nvt-form-group"><label for="registerEmail" class="field-label nvt-input-label">EMAIL</label><div class="field-input-box nvt-input-box"><svg class="field-icon nvt-input-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg><input type="email" id="registerEmail" name="registerEmail" class="field-native-input nvt-input-native" placeholder="Nhập Gmail" required autocomplete="email"></div></div>
+          <div class="form-field-group nvt-form-group"><label for="registerPassword" class="field-label nvt-input-label">MẬT KHẨU</label><div class="field-input-box nvt-input-box"><svg class="field-icon nvt-input-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg><input type="password" id="registerPassword" name="registerPassword" class="field-native-input nvt-input-native" placeholder="Tối thiểu 8 ký tự" required autocomplete="new-password"><button type="button" class="eye-toggle-button nvt-eye-toggle" data-toggle-password="registerPassword" aria-label="Hiện mật khẩu" title="Hiện mật khẩu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></button></div></div>
+          <div class="form-field-group nvt-form-group"><label for="registerPasswordConfirm" class="field-label nvt-input-label">NHẬP LẠI MẬT KHẨU</label><div class="field-input-box nvt-input-box"><svg class="field-icon nvt-input-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg><input type="password" id="registerPasswordConfirm" name="registerPasswordConfirm" class="field-native-input nvt-input-native" placeholder="Xác nhận lại mật khẩu" required autocomplete="new-password"><button type="button" class="eye-toggle-button nvt-eye-toggle" data-toggle-password="registerPasswordConfirm" aria-label="Hiện mật khẩu" title="Hiện mật khẩu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></button></div></div>
+          <div id="registerMessage" class="form-message nvt-auth-error-msg" role="status"></div>
+          <button type="submit" id="registerSubmitBtn" class="btn-auth-submit nvt-btn-submit"><span>ĐĂNG KÝ TÀI KHOẢN</span><svg class="btn-arrow-icon nvt-btn-arrow" viewBox="0 0 24 24" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></button>
+          <div class="form-footer-switch nvt-auth-footer"><span>Đã có tài khoản?</span> <button type="button" class="switch-auth-link nvt-auth-switch-link" data-switch-auth="login">Đăng nhập</button></div>
+        </form>
+      </div>
+    </div>
+  </section>  <div id="appShell" class="app-shell is-hidden">
+    <aside id="sidebar" class="sidebar">
+      <a class="brand brand-light brand-area sidebar-brand" href="#" data-view-link="dashboard">
+        <div class="brand-logo brand-logo-sq nvt-avatar-fallback" role="img" aria-label="NVT AGENCY">NVT</div>
+        <span class="brand-copy"><strong>NVT AGENCY</strong><small>AGENCY OPERATING SYSTEM</small></span>
+      </a>
+      <nav id="sideNav" class="side-nav nav-menu sidebar-nav" aria-label="Äiá»u hÆ°á»›ng chÃ­nh"></nav>
+      <div class="sidebar-foot sidebar-footer user-meta-footer">
+        <span id="sidebarScope" class="scope-chip">ALL</span>
+        <div><b id="sidebarRole">ADMIN</b><small>PhiÃªn riÃªng biá»‡t</small></div>
+      </div>
+    </aside>
+
+    <main class="main main-wrapper main-area">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button id="menuButton" class="icon-button mobile-only mobile-nav-btn" type="button" aria-label="Má»Ÿ menu">â˜°</button>
+          <div class="breadcrumb"><span>NVT AGENCY</span><b id="breadcrumb">Tá»•ng quan</b></div>
+          <label class="global-search top-search-wrap search-wrap"><span class="search-icon">âŒ•</span><input id="globalSearch" type="search" placeholder="TÃ¬m khÃ¡ch hÃ ng, Ä‘Æ¡n hÃ ng, sáº£n pháº©m..."></label>
+        </div>
+        <div class="topbar-actions topbar-right">
+          <button id="themeButton" class="icon-button" type="button" aria-label="Äá»•i giao diá»‡n">â—</button>
+          <button id="notificationButton" class="icon-button notification-button" type="button" aria-label="ThÃ´ng bÃ¡o">â—<i id="notificationCount">0</i></button>
+          <div class="profile user-pill"><span id="profileAvatar" class="avatar user-avatar-initials nvt-avatar-fallback" role="img" aria-label="Avatar NVT">NVT</span><span class="user-details"><b id="profileName">Start</b><small id="profileRole">ADMIN Â· ALL</small></span></div>
+          <button id="logoutButton" class="button button-quiet" type="button">ÄÄƒng xuáº¥t</button>
+        </div>
+      </header>
+      <div id="mobileNavWrap" class="mobile-nav-wrap"><select id="mobileNav" aria-label="Chá»n mÃ n hÃ¬nh"></select></div>
+      <section id="content" class="content content-body" aria-live="polite"></section>
+    </main>
+  </div>
+
+  <div id="drawerRoot"></div>
+  <div id="modalRoot"></div>
+  <div id="toastRoot" class="toast-root" aria-live="polite"></div>
+  <script src="./crm.js?v=20260918-encoding-fix-3" defer></script><script src="./care-ui.js?v=20260915-care-7" defer></script>
+
+<script src="crm-runtime-api.js?v=20260917-delete-sync-1" defer></script></body>
+</html>
+
+

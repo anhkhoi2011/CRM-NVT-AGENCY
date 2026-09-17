@@ -1,0 +1,56 @@
+/* Startup state for the outer CRM shell. Kept separate from the protected reference stylesheet. */
+body:not(.reference-ready) > .app-shell,
+body:not(.reference-ready) > .bg-aura {
+  visibility: hidden;
+}
+/* Khong cho shell cu hien trong luc dang khoi phuc phien dang nhap. */
+body:not(.reference-ready) > .app-shell {
+  display: none !important;
+}
+body.reference-ready > .app-shell,
+body.reference-ready > .bg-aura {
+  visibility: visible;
+}
+body.reference-ready > .app-shell {
+  display: flex !important;
+}
+#crmRuntimeFrame {
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity .12s ease;
+}
+#crmRuntimeFrame.is-login-visible {
+  visibility: visible;
+  opacity: 1;
+}
+#crmBootScreen {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483646;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+  transition: opacity .12s ease, visibility .12s ease;
+}
+#crmBootScreen[hidden] {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.crm-boot-mark {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #0f172a;
+  font: 700 13px/1.2 var(--font-sans, system-ui, sans-serif);
+}
+.crm-boot-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #dbeafe;
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  animation: crmBootSpin .7s linear infinite;
+}
+@keyframes crmBootSpin { to { transform: rotate(360deg); } }

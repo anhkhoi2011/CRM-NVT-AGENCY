@@ -1,3 +1,4 @@
+let orderTypeFilter = 'ALL';
 'use strict';
 
 const STORAGE_KEY = 'nvt-crm-production-v1';
@@ -27,8 +28,9 @@ const STATUS_META = {
 };
 
 const ORDER_STATUS = {
-  PAID: ['Đã thanh toán', 'paid'], PENDING: ['Chờ thanh toán', 'pending'],
-  DEPOSIT: ['Cọc 50%', 'deposit'],
+  PAID: ['Thanh toán đủ', 'paid'], PENDING: ['Thanh toán 50%', 'pending'],
+  DEPOSIT: ['Thanh toán 50%', 'deposit'],
+  COURSE_GRANTED: ['Thanh toán đủ', 'done'],
   CANCELLED: ['Đã huỷ', 'cancelled'], REFUNDED: ['Đã hoàn tiền', 'refunded']
 };
 
@@ -63,32 +65,49 @@ const NAVIGATION = {
   ADMIN: [
     ['Vận hành', [['dashboard', 'Tổng quan', '◫'], ['customers', 'Khách hàng tổng', '♙'], ['distribution', 'Data', '⇄'], ['websites', 'Websites', '◇']]],
     ['Kinh doanh', [['orders', 'Đơn hàng', '▤'], ['products', 'Sản phẩm', '□'], ['revenue', 'Doanh thu', '₫'], ['marketing', 'Dữ liệu', '⌁']]],
-    ['Tổ chức', [['team', 'Đội ngũ', '♧']]],
+    ['T\u1ed5 ch\u1ee9c', [['team', '\u0110\u1ed9i ng\u0169', '\u2667'], ['businessReport', 'B\u00e1o c\u00e1o kinh doanh', '\u25eb']]],
+    ['K\u1ebf to\u00e1n', [['accounting', 'K\u1ebf to\u00e1n', '\u20ab']]],
     ['Hệ thống', [['attendance', 'Điểm danh', '✓'], ['notifications', 'Thông báo', '●'], ['audit', 'User log', '◉'], ['settings', 'Cài đặt', '⚙']]]
   ],
   MARKETING: [
     ['Phân tích', [['dashboard', 'Tổng quan', '◫'], ['marketing', 'Dữ liệu marketing', '⌁'], ['websites', 'Websites', '◇']]],
     ['Tra cứu', [['customers', 'Khách hàng', '♙'], ['orders', 'Đơn hàng', '▤'], ['products', 'Sản phẩm', '□']]],
+    ['Ch\u0103m s\u00f3c', [['care', 'Ch\u0103m s\u00f3c kh\u00e1ch', 'care']]],
     ['Cá nhân', [['notifications', 'Thông báo', '●']]]
   ],
   ACCOUNTING: [
     ['Kế toán', [['dashboard', 'Tổng quan', '◫'], ['orders', 'Đơn hàng', '▤'], ['revenue', 'Doanh thu', '₫'], ['products', 'Sản phẩm', '□']]],
     ['Tra cứu', [['customers', 'Khách hàng', '♙']]],
+    ['Ch\u0103m s\u00f3c', [['care', 'Ch\u0103m s\u00f3c kh\u00e1ch', 'care']]],
     ['Cá nhân', [['notifications', 'Thông báo', '●']]]
   ],
   LEADER: [
     ['Vận hành', [['dashboard', 'Tổng quan đội', '◫'], ['customers', 'Khách hàng Team', '♙'], ['pool', 'Chia data cho Sale', '↔']] ],
     ['Kinh doanh', [['orders', 'Đơn hàng', '▤'], ['revenue', 'Doanh thu', '₫']]],
-    ['Đội nhóm', [['team', 'Hiệu suất Sale', '♧'], ['care', 'Chăm sóc khách', '❦'], ['attendance', 'Điểm danh', '✓'], ['notifications', 'Thông báo', '●']]],
+    ['Đội nhóm', [['team', 'Hiệu suất Sale', '♧'], ['businessReport', 'Báo cáo kinh doanh', '◫'], ['care', 'Chăm sóc khách', '❦'], ['notifications', 'Thông báo', '●']]],
     ['Cá nhân', [['profile', 'Hồ sơ của tôi', '●']]]
   ],
   UNASSIGNED: [['Cá nhân', [['dashboard', 'Tổng quan', '◫'], ['profile', 'Hồ sơ của tôi', '●'], ['notifications', 'Thông báo', '●']]]],
   SALE: [
-    ['Khách hàng của tôi', [['dashboard', 'Tổng quan', '◫'], ['customers', 'Khách của tôi', '♙'], ['accept', 'Data chờ nhận', '⤓']]],
-    ['Kinh doanh', [['orders', 'Tạo đơn cho khách', '▤'], ['revenue', 'Doanh thu của tôi', '₫']]],
-    ['Cá nhân', [['attendance', 'Điểm danh', '✓'], ['notifications', 'Thông báo', '●'], ['profile', 'Hồ sơ của tôi', '●']]]
+    ['Kh\u00e1ch h\u00e0ng c\u1ee7a t\u00f4i', [['dashboard', 'T\u1ed5ng quan', '◫'], ['customers', 'Kh\u00e1ch c\u1ee7a t\u00f4i', '♙'], ['accept', 'Data ch\u1edd nh\u1eadn', '⤓'], ['care', 'Ch\u0103m s\u00f3c kh\u00e1ch', '♡']]],
+    ['Kinh doanh', [['orders', 'T\u1ea1o \u0111\u01a1n cho kh\u00e1ch', '▤'], ['revenue', 'Doanh thu c\u1ee7a t\u00f4i', '₫']]],
+    ['\u0110\u1ed9i nh\u00f3m', [['team', '\u0110\u1ed9i ng\u0169', '\u2667'], ['businessReport', 'B\u00e1o c\u00e1o kinh doanh', '\u25eb']]],
+    ['C\u00e1 nh\u00e2n', [['attendance', '\u0110i\u1ec3m danh', '✓'], ['notifications', 'Th\u00f4ng b\u00e1o', '●'], ['profile', 'H\u1ed3 s\u01a1 c\u1ee7a t\u00f4i', '●']]]
   ]
 };
+
+// Đồng bộ vị trí và tên menu kế toán cho cả các màn hình dùng runtime cũ.
+(() => {
+  const groups = NAVIGATION.ADMIN || [];
+  const organization = groups.find(group => group[0] === 'Tổ chức');
+  const accounting = groups.find(group => group[0] === 'Kế toán');
+  if (organization && accounting) {
+    const report = organization[1].find(item => item[0] === 'businessReport');
+    if (report) organization[1] = organization[1].filter(item => item[0] !== 'businessReport');
+    accounting[1] = accounting[1].map(item => item[0] === 'accounting' ? [item[0], 'Hoa Hồng nhân viên', item[2]] : item);
+    if (report) accounting[1].push(report);
+  }
+})();
 
 function dayIso(daysAgo) {
   const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
@@ -126,6 +145,7 @@ function initialState() {
     productCategories: ['Chỉ báo', 'Khóa học', 'Quảng cáo', 'Website', 'CRM', 'Automation', 'Nội dung', 'Dịch vụ khác'],
     careGroups: [],
     attendance: [],
+    brokerageMetrics: [],
     dataOffers: [],
     orders: [],
     traffic: [],
@@ -133,8 +153,8 @@ function initialState() {
     notifications: [],
     audit: [],
     websites: [
-      { id: 'WEB-NVT', name: 'NVT Agency', domain: 'nvtagency.top', sourceUrl: 'https://nvtagency.top/', status: 'ACTIVE', provider: 'CUSTOM_WEBHOOK', endpoint: '', externalAccountId: '', campaignId: '', formId: '', webhookSlug: 'ds-1789180581447-IIM6U3AAD1R', webhookUrlOverride: '', connectionStatus: 'PENDING_BACKEND', domainVerificationStatus: 'UNVERIFIED', credentialConfigured: false, credentialLast4: '', lastVerifiedAt: '', lastError: '', lastSync: 'Chưa đồng bộ' },
-      { id: 'WEB-NVT-2', name: 'NVT Agency - Nguồn 2', domain: 'nvtagency.top', sourceUrl: 'https://nvtagency.top/', status: 'ACTIVE', provider: 'CUSTOM_WEBHOOK', endpoint: '', externalAccountId: '', campaignId: '', formId: '', webhookSlug: 'ds-1789902464947-TN30ESRUIJM', webhookUrlOverride: '', connectionStatus: 'PENDING_BACKEND', domainVerificationStatus: 'UNVERIFIED', credentialConfigured: false, credentialLast4: '', lastVerifiedAt: '', lastError: '', lastSync: 'Chưa đồng bộ' }
+      { id: 'WEB-NVT', name: 'NVT Agency', domain: 'hoangphucacademy.vn', sourceUrl: 'https://www.hoangphucacademy.vn/', status: 'ACTIVE', provider: 'CUSTOM_WEBHOOK', endpoint: '', externalAccountId: '', campaignId: '', formId: '', webhookSlug: 'ds-1789180581447-IIM6U3AAD1R', webhookUrlOverride: '', connectionStatus: 'PENDING_BACKEND', domainVerificationStatus: 'UNVERIFIED', credentialConfigured: false, credentialLast4: '', lastVerifiedAt: '', lastError: '', lastSync: 'Chưa đồng bộ' },
+      { id: 'WEB-NVT-2', name: 'web 2 - 3 buổi Vùng Phản Ứng', domain: 'dautuhanghoa.tech', sourceUrl: 'https://dautuhanghoa.tech/', status: 'ACTIVE', provider: 'CUSTOM_WEBHOOK', endpoint: '', externalAccountId: '', campaignId: '', formId: '', webhookSlug: 'ds-1789611803019-I7Q0GRUTNAS', webhookUrlOverride: '', connectionStatus: 'PENDING_BACKEND', domainVerificationStatus: 'UNVERIFIED', credentialConfigured: false, credentialLast4: '', lastVerifiedAt: '', lastError: '', lastSync: 'Chưa đồng bộ' },
     ],
     integrations: [],
     leaderDistribution: {
@@ -146,7 +166,7 @@ function initialState() {
     saleDistributionByLeader: {
 
     },
-    settings: { leaderCanUpdate: true, notifyMilestones: true, leaderAttendanceRequired: true, assignmentMode: 'MANUAL', saleAssignmentModes: {}, assignmentCursor: { leaders: 0, salesByTeam: {} }, slaMinutes: 30, customAccent: '#e8572a', fontFamily: 'aptos', navigationFontSize: 12, contentFontSize: 14, dataBotToken: '', dataBotChatId: '', memberBotToken: '', memberBotChatId: '', webhookPublicBase: 'https://nvtagency.top', attendanceIp: '', attendanceDeadline: '09:00', acceptTimeoutHours: 24, notifyAccountCreated: true, notifyDataReceived: true, emailNotificationsEnabled: true },
+    settings: { leaderCanUpdate: true, notifyMilestones: true, leaderAttendanceRequired: true, assignmentMode: 'MANUAL', saleAssignmentModes: {}, assignmentCursor: { leaders: 0, salesByTeam: {} }, slaMinutes: 30, customAccent: '#e8572a', fontFamily: 'aptos', navigationFontSize: 12, contentFontSize: 14, dataBotToken: '', dataBotChatId: '', memberBotToken: '', memberBotChatId: '', webhookPublicBase: 'https://nvtagency.top', attendanceIp: '', attendanceDeadline: '09:00', acceptTimeoutHours: 24, notifyAccountCreated: true, notifyDataReceived: true, emailNotificationsEnabled: true, brokeragePublishedPeriods: [] },
     security: {
       twoFactorEnabled: false,
       loginHistory: []
@@ -444,16 +464,18 @@ function normalizeDataOfferRecord(item, customerIds, members = STAFF) {
 
 function normalizeMemberRecord(member) {
   const id = cleanId(member.id);
-  const role = ['LEADER', 'SALE'].includes(member.role) ? member.role : null;
+  const role = ['LEADER', 'SALE', 'MANAGER'].includes(member.role) ? member.role : null;
   const teamId = cleanId(member.teamId);
-  if (!id || !role || !teamId) return null;
+  if (!id || !role || (!teamId && role!=='MANAGER')) return null;
   return {
     id,
+    accountId: cleanText(member.accountId, '', 64).trim().toUpperCase(),
     name: cleanText(member.name, 'Nhân sự', 160),
     email: cleanText(member.email, '', 254).trim().toLowerCase(),
     role,
     teamId,
     leaderId: role === 'SALE' ? cleanId(member.leaderId) : null,
+    managerId: role === 'LEADER' ? cleanId(member.managerId) : null,
     initials: cleanText(member.initials, 'NV', 4).toUpperCase(),
     avatar: /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(String(member.avatar || '')) ? String(member.avatar) : '',
     createdBy: cleanText(member.createdBy, 'Hệ thống', 160),
@@ -1253,7 +1275,7 @@ function orderSource(source) {
 }
 
 // Chỉ giữ dữ liệu làm việc trong RAM. Server là nguồn dữ liệu duy nhất.
-const SERVER_LISTS = ['customers','orders','products','members','registrations','customFieldDefinitions','customerFieldHistory','assignmentHistory','resubmissions','notes','imports','attendance','dataOffers','traffic','tasks','notifications','audit','websites','integrations','webhookPending'];
+const SERVER_LISTS = ['customers','orders','products','members','registrations','customFieldDefinitions','customerFieldHistory','assignmentHistory','resubmissions','notes','imports','attendance','dataOffers','traffic','tasks','notifications','audit','websites','integrations','webhookPending','brokerageMetrics'];
 const SERVER_OBJECTS = ['settings','leaderDistribution','saleDistributionByLeader','productCategories','careGroups'];
 let serverSyncToken = '', serverSyncTimer = null, serverSaveTimer = null;
 let serverAutomationStatus = null;
@@ -1324,7 +1346,7 @@ function applyServerSnapshot(payload, keepEdits=null) {
       Object.assign(old,value);return old;
     });
   }
-  state=remote; STAFF=state.members.filter(r=>r.active!==false);PRODUCTS=state.products;
+  state=remote; applyAppearanceSettings(); STAFF=state.members.filter(r=>r.active!==false);PRODUCTS=state.products;
   webhookPending=state.webhookPending||[];
   serverBaseline=remoteRecords;serverVersions=payload.versions||{};serverStateLoaded=true;
   if(payload.user)currentAccount=hydrateSessionAccount(payload.user);
@@ -1500,6 +1522,10 @@ function refreshTaskStatuses() {
 
 function scopeSaleIds() {
   if (!currentAccount) return [];
+  if (currentAccount.actualRole === 'MANAGER') {
+    const leaderIds = new Set(activeStaff().filter(person => person.role === 'LEADER' && person.managerId === currentAccount.id).map(person => person.id));
+    return activeStaff().filter(person => person.role === 'SALE' && leaderIds.has(person.leaderId)).map(person => person.id);
+  }
   if (currentAccount.scope === 'ALL') return activeStaff().filter(person => person.role === 'SALE').map(person => person.id);
   if (currentAccount.scope === 'TEAM') return activeStaff().filter(person => person.role === 'SALE' && person.teamId === currentAccount.teamId && person.leaderId === currentAccount.leaderId).map(person => person.id);
   return [currentAccount.saleId];
@@ -1507,6 +1533,10 @@ function scopeSaleIds() {
 
 function scopedCustomers() {
   const saleIds = scopeSaleIds();
+  if (currentAccount?.actualRole === 'MANAGER') {
+    const leaderIds = new Set(activeStaff().filter(person => person.role === 'LEADER' && person.managerId === currentAccount.id).map(person => person.id));
+    return state.customers.filter(customer => leaderIds.has(customer.leaderId));
+  }
   if (currentAccount.scope === 'ALL') return state.customers;
   if (currentAccount.scope === 'TEAM') return state.customers.filter(customer => customer.teamId === currentAccount.teamId && customer.leaderId === currentAccount.leaderId);
   return state.customers.filter(customer => {
@@ -1532,18 +1562,30 @@ function acceptCustomerData(id) {
 
 function scopedOrders() {
   const ids = scopeSaleIds();
+  if (currentAccount?.actualRole === 'MANAGER') {
+    const leaderIds = new Set(activeStaff().filter(person => person.role === 'LEADER' && person.managerId === currentAccount.id).map(person => person.id));
+    return state.orders.filter(order => leaderIds.has(order.leaderId));
+  }
   if (currentAccount.scope === 'ALL') return state.orders;
   if (currentAccount.scope === 'TEAM') return state.orders.filter(order => order.teamId === currentAccount.teamId && order.leaderId === currentAccount.leaderId);
   return state.orders.filter(order => ids.includes(order.saleId) && order.teamId === currentAccount.teamId && order.leaderId === currentAccount.leaderId);
 }
 function scopedTasks() {
   const ids = scopeSaleIds();
+  if (currentAccount?.actualRole === 'MANAGER') {
+    const leaderIds = new Set(activeStaff().filter(person => person.role === 'LEADER' && person.managerId === currentAccount.id).map(person => person.id));
+    return state.tasks.filter(task => leaderIds.has(task.leaderId));
+  }
   if (currentAccount.scope === 'ALL') return state.tasks;
   if (currentAccount.scope === 'TEAM') return state.tasks.filter(task => task.teamId === currentAccount.teamId && task.leaderId === currentAccount.leaderId);
   return state.tasks.filter(task => ids.includes(task.ownerId) && task.teamId === currentAccount.teamId && task.leaderId === currentAccount.leaderId);
 }
 function scopedTraffic() {
   const ids = scopeSaleIds();
+  if (currentAccount?.actualRole === 'MANAGER') {
+    const leaderIds = new Set(activeStaff().filter(person => person.role === 'LEADER' && person.managerId === currentAccount.id).map(person => person.id));
+    return state.traffic.filter(event => leaderIds.has(event.leaderId));
+  }
   if (currentAccount.scope === 'ALL') return state.traffic;
   if (currentAccount.scope === 'TEAM') return state.traffic.filter(event => event.teamId === currentAccount.teamId && event.leaderId === currentAccount.leaderId);
   return [];
@@ -1601,6 +1643,27 @@ function inPreviousPeriod(value) {
 
 function isPaymentInPeriod(order, periodCheck) { return !!order.paidAt && (!periodCheck || periodCheck(order.paidAt)); }
 function isRefundInPeriod(order, periodCheck) { return !!order.refundedAt && (!periodCheck || periodCheck(order.refundedAt)); }
+// Thực thu đã bao gồm VAT trong `total`; không cộng VAT lần nữa cho đơn mới.
+// Với dữ liệu cũ chỉ lưu amountPaid trước VAT, total là giới hạn an toàn.
+function orderGrossCollected(order) {
+  const total = Math.max(0, Number(order?.total || 0));
+  const paid = Number(order?.amountPaid);
+  if (order?.status === 'DEPOSIT') return Math.min(total, Math.max(0, Number(order.depositAmount || 0)));
+  if (Number.isFinite(paid) && paid > 0) {
+    const subtotal = Math.max(0, Number(order?.subtotal || 0));
+    const vat = Math.max(0, Number(order?.vatAmount || 0));
+    const legacyNetPayment = ['PAID', 'COURSE_GRANTED', 'REFUNDED'].includes(order?.status) && !order?.depositAt && subtotal > 0 && paid < subtotal;
+    return Math.min(total, paid + (legacyNetPayment ? vat : 0));
+  }
+  if (['PAID', 'COURSE_GRANTED', 'REFUNDED'].includes(order?.status)) {
+    const refund = Math.max(0, Number(order?.refund || 0));
+    return Math.min(total, refund || total);
+  }
+  return 0;
+}
+function orderNetCollected(order) {
+  return Math.max(0, orderGrossCollected(order) - Math.max(0, Number(order?.refund || 0)));
+}
 function orderFinancialEvents(order) {
   const events = [];
   const depositAmount = Math.min(Number(order.depositAmount || 0), Number(order.total || 0));
@@ -1636,7 +1699,7 @@ function statusBadge(status, type = 'customer') {
 }
 
 function audit(action, entity, detail) {
-  state.audit.unshift({ id: makeRecordId('AUD'), actorId: currentAccount.id, actor: currentAccount.name, role: currentAccount.role, action, entity, detail, ip: currentAccount.ip || sessionIp('127.0.0.1'), at: stamp() });
+  state.audit.unshift({ id: makeRecordId('AUD'), actorId: currentAccount.id, actor: currentAccount.name, role: currentAccount.actualRole||currentAccount.role, action, entity, detail, ip: currentAccount.ip || sessionIp('127.0.0.1'), at: stamp() });
 }
 
 function toast(message) {
@@ -1648,12 +1711,12 @@ function toast(message) {
 }
 
 function pageHead(title, description, actions = '') {
-  return `<div class="page-head"><div><h1>${escapeHtml(title)}</h1></div><div class="head-actions">${actions}</div></div>`;
+  return `<div class="page-head headline-row"><div><h1>${escapeHtml(title)}</h1></div><div class="head-actions">${actions}</div></div>`;
 }
 
 function dateFilter() {
   const presets = [[1, 'Hôm nay'], [7, '7 ngày'], [15, '15 ngày'], [30, '30 ngày']];
-  return `<div class="filter-bar"><span class="filter-label">Thời gian</span><div class="segmented">${presets.map(([days, label]) => `<button class="segment ${datePreset !== 'CUSTOM' && dateRange === days ? 'active' : ''}" data-range="${days}" type="button">${label}</button>`).join('')}</div><div class="custom-date-range ${datePreset === 'CUSTOM' ? 'active' : ''}"><label>Từ ngày<input id="customDateStart" type="date" value="${escapeHtml(customDateStart)}" max="${escapeHtml(dayIso(0))}"></label><span>→</span><label>Đến ngày<input id="customDateEnd" type="date" value="${escapeHtml(customDateEnd)}" max="${escapeHtml(dayIso(0))}"></label><button class="button button-small" id="applyCustomDate" type="button">Áp dụng</button></div><span class="scope-chip period-chip" style="color:var(--ink);background:var(--panel-2)">${escapeHtml(periodLabel())}</span></div>`;
+  return `<div class="filter-bar"><span class="filter-label">Thời gian</span><div class="segmented">${presets.map(([days, label]) => `<button class="segment ${datePreset !== 'CUSTOM' && dateRange === days ? 'active' : ''}" data-range="${days}" type="button">${label}</button>`).join('')}</div><div class="custom-date-range ${datePreset === 'CUSTOM' ? 'active' : ''}"><label style="cursor:pointer;" onclick="this.querySelector('input')?.showPicker && this.querySelector('input')?.showPicker()">Từ ngày <input id="customDateStart" class="native-date-picker" type="date" value="${escapeHtml(customDateStart)}" max="${escapeHtml(dayIso(0))}" onclick="event.stopPropagation(); this.showPicker && this.showPicker();"> 📅</label><span>→</span><label style="cursor:pointer;" onclick="this.querySelector('input')?.showPicker && this.querySelector('input')?.showPicker()">Đến ngày <input id="customDateEnd" class="native-date-picker" type="date" value="${escapeHtml(customDateEnd)}" max="${escapeHtml(dayIso(0))}" onclick="event.stopPropagation(); this.showPicker && this.showPicker();"> 📅</label><button class="button button-small" id="applyCustomDate" type="button">Áp dụng</button></div><span class="scope-chip period-chip" style="color:var(--ink);background:var(--panel-2)">${escapeHtml(periodLabel())}</span></div>`;
 }
 
 function applyCustomDateRange() {
@@ -1850,6 +1913,126 @@ function leaderDashboardView(current, previous) {
     </div>`;
 }
 
+function executiveDateLabel(value) {
+  const parts = String(value || '').slice(0, 10).split('-');
+  return parts.length === 3 ? `${parts[2]}/${parts[1]}` : '—';
+}
+
+function executiveCustomerSeries(days = 7) {
+  const customers = scopedCustomers();
+  return Array.from({ length: days }, (_, index) => {
+    const date = shiftDate(dayIso(0), -(days - index - 1));
+    return { date, value: customers.filter(customer => dateOnly(customer.createdAt) === date).length };
+  });
+}
+
+function executiveRevenueSeries(weeks = 8) {
+  const orders = scopedOrders();
+  const today = dayIso(0);
+  return Array.from({ length: weeks }, (_, index) => {
+    const start = shiftDate(today, -((weeks - index) * 7 - 1));
+    const end = shiftDate(today, -((weeks - index - 1) * 7));
+    const inWeek = value => dateOnly(value) >= start && dateOnly(value) <= end;
+    return { label: index === weeks - 1 ? 'Tuần này' : `T${index + 1}`, value: netRevenue(orders, inWeek) };
+  });
+}
+
+function executiveLineChart(series) {
+  const width = 680, height = 245, left = 24, right = 22, top = 18, bottom = 34;
+  const innerWidth = width - left - right, innerHeight = height - top - bottom;
+  const max = Math.max(...series.map(item => item.value), 1);
+  const points = series.map((item, index) => ({
+    ...item,
+    x: left + (series.length === 1 ? innerWidth / 2 : index / (series.length - 1) * innerWidth),
+    y: top + (1 - item.value / max) * innerHeight
+  }));
+  const line = points.map((point, index) => `${index ? 'L' : 'M'}${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(' ');
+  const area = `${line} L${points.at(-1).x.toFixed(1)},${height - bottom} L${points[0].x.toFixed(1)},${height - bottom} Z`;
+  return `<div class="exec-chart-wrap"><svg class="exec-line-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Tăng trưởng khách hàng mới theo ngày">
+    ${[.2, .5, .8].map(step => `<line x1="${left}" x2="${width - right}" y1="${top + innerHeight * step}" y2="${top + innerHeight * step}" class="exec-chart-grid"></line>`).join('')}
+    <path d="${area}" class="exec-line-area"></path><path d="${line}" class="exec-line-path"></path>
+    ${points.map((point, index) => `<g><circle cx="${point.x}" cy="${point.y}" r="${point.value ? 4 : 3}" class="exec-line-point"><title>${escapeHtml(executiveDateLabel(point.date))}: ${number(point.value)} khách</title></circle>${index === 0 || index === points.length - 1 || point.value ? `<text x="${point.x}" y="${height - 11}" text-anchor="middle" class="exec-chart-label">${escapeHtml(executiveDateLabel(point.date))}</text>` : ''}</g>`).join('')}
+  </svg></div>`;
+}
+
+function executiveBarChart(series) {
+  const max = Math.max(...series.map(item => item.value), 1);
+  return `<div class="exec-bar-chart">${series.map(item => {
+    const height = Math.max(4, Math.round(item.value / max * 100));
+    return `<div class="exec-bar-item"><span class="exec-bar-value">${item.value ? escapeHtml(money(item.value, true)) : ''}</span><i style="height:${height}%"></i><small>${escapeHtml(item.label)}</small></div>`;
+  }).join('')}</div>`;
+}
+
+function executiveSparkline(values, tone = 'blue') {
+  const width = 100, height = 38, max = Math.max(...values, 1);
+  const points = values.map((value, index) => `${index / Math.max(values.length - 1, 1) * width},${height - 4 - value / max * (height - 10)}`).join(' ');
+  return `<svg class="exec-sparkline ${tone}" viewBox="0 0 ${width} ${height}" aria-hidden="true"><polyline points="${points}"></polyline><circle cx="${width}" cy="${height - 4 - values.at(-1) / max * (height - 10)}" r="3"></circle></svg>`;
+}
+
+function executiveDashboardView() {
+  if (currentAccount.role === 'SALE' || currentAccount.role === 'LEADER') return dashboardView();
+  const current = periodSnapshot(false), previous = periodSnapshot(true);
+  const allCustomers = scopedCustomers();
+  const today = dayIso(0);
+  const monthKey = today.slice(0, 7);
+  const monthCheck = value => dateOnly(value).startsWith(monthKey);
+  const monthlyRevenue = netRevenue(scopedOrders(), monthCheck);
+  const monthPaidOrders = paidOrders(scopedOrders(), monthCheck);
+  const monthTarget = activeStaff().filter(member => member.role === 'SALE').reduce((sum, member) => sum + Number(member.target || 0), 0);
+  const targetPercent = monthTarget ? Math.min(100, monthlyRevenue / monthTarget * 100) : 0;
+  const remainingTarget = Math.max(0, monthTarget - monthlyRevenue);
+  const monthEnd = new Date(Date.UTC(Number(today.slice(0, 4)), Number(today.slice(5, 7)), 0));
+  const daysRemaining = Math.max(0, Math.round((monthEnd.getTime() - Date.parse(`${today}T00:00:00Z`)) / 86400000) + 1);
+  const newToday = allCustomers.filter(customer => dateOnly(customer.createdAt) === today).length;
+  const connected = allCustomers.filter(customer => customer.status !== 'NEW').length;
+  const activeRentals = scopedOrders().filter(order => order.status === 'PAID' && order.rentalMonths && order.rentalEndsAt && Date.parse(order.rentalEndsAt) >= Date.now());
+  const rentalAlerts = activeRentals.map(order => ({ ...order, daysLeft: Math.ceil((Date.parse(order.rentalEndsAt) - Date.now()) / 86400000) })).filter(order => order.daysLeft <= 7).sort((a, b) => a.daysLeft - b.daysLeft);
+  const products = productPerformance(scopedOrders()).filter(product => product.paidOrders || product.refunds).slice(0, 4);
+  const customerSeries = executiveCustomerSeries(7);
+  const revenueSeries = executiveRevenueSeries(8);
+  const targetMessage = monthTarget ? `${money(monthlyRevenue, true)} / ${money(monthTarget, true)}` : 'Chưa đặt chỉ tiêu cho Sale';
+  const newWeek = customerSeries.reduce((sum, item) => sum + item.value, 0);
+  const rentalCount = activeRentals.length;
+  const taxThisMonth = monthPaidOrders.reduce((sum, order) => sum + Number(order.vatAmount || 0), 0);
+  const actions = '<button class="button button-primary btn-primary" id="newOrderButton" type="button">+ Tạo đơn hàng mới</button>';
+  const currentRangeOrders = scopedOrders();
+  const execPaidOrders = currentRangeOrders.filter(o => o.status === 'PAID');
+  const execSellOrders = execPaidOrders.filter(o => !/thuê|rent|thue|chỉ báo|indicator|bot|tool|vip/i.test(o.productName || o.product || ''));
+  const execRentOrders = execPaidOrders.filter(o => /thuê|rent|thue|chỉ báo|indicator|bot|tool|vip/i.test(o.productName || o.product || ''));
+  const execSellRev = execSellOrders.reduce((sum, o) => sum + Number(o.paidAmount || o.total || 0), 0);
+  const execRentRev = execRentOrders.reduce((sum, o) => sum + Number(o.paidAmount || o.total || 0), 0);
+  const execTotRev = execSellRev + execRentRev || (monthlyRevenue || 0);
+  const execSellPct = execTotRev > 0 ? Math.round((execSellRev / execTotRev) * 100) : 50;
+  const execRentPct = 100 - execSellPct;
+  const execCircum = 2 * Math.PI * 40;
+  const execSellDash = (execSellPct / 100) * execCircum;
+  const execRentDash = execCircum - execSellDash;
+
+  const percent = value => Math.max(0, Math.min(100, Number(value) || 0));
+  const metricCard = (theme, icon, title, sub, value, unit, trend, sparkline, firstLabel, firstValue, secondLabel, secondValue) => `<article class="kpi-bento-card ${theme}">
+    <div class="kpi-bento-head"><div class="kpi-head-left"><span class="kpi-icon-badge">${icon}</span><div class="kpi-head-text"><span class="kpi-label-title">${title}</span><span class="kpi-label-sub">${sub}</span></div></div><span class="kpi-trend-pill">${trend}</span></div>
+    <div class="kpi-bento-mid"><div class="kpi-num-wrap"><strong class="kpi-hero-num">${value}</strong><span class="kpi-hero-unit">${unit}</span></div><div class="kpi-sparkline-wrap">${sparkline}</div></div>
+    <div class="kpi-bento-meter"><i class="kpi-meter-fill" style="width:${percent(allCustomers.length ? connected / allCustomers.length * 100 : 0)}%"></i></div>
+    <div class="kpi-bento-foot two-cols"><span class="kpi-foot-stat"><span class="label">${firstLabel}</span><span class="value">${firstValue}</span></span><span class="kpi-foot-stat"><span class="label">${secondLabel}</span><span class="value">${secondValue}</span></span></div>
+  </article>`;
+  const revenueAnalysis = `<section class="revenue-analysis-card">
+    <div class="revenue-analysis-head"><div><h2>Phân Tích Doanh Thu</h2><p>Cơ cấu doanh thu Bên Bán và Bên Thuê theo kỳ đang chọn.</p></div><div class="segmented">${[[1, '1 ngày'], [7, '7 ngày'], [15, '15 ngày'], [30, '30 ngày']].map(([days, label]) => `<button class="segment ${dateRange === days ? 'active' : ''}" data-range="${days}" type="button">${label}</button>`).join('')}</div></div>
+    <div class="revenue-analysis-body"><div class="revenue-donut"><svg viewBox="0 0 100 100" aria-label="Tỷ trọng doanh thu"><circle cx="50" cy="50" r="40"></circle><circle class="sell" cx="50" cy="50" r="40" stroke-dasharray="${execSellDash} ${execCircum}"></circle><circle class="rent" cx="50" cy="50" r="40" stroke-dasharray="${execRentDash} ${execCircum}" stroke-dashoffset="-${execSellDash}"></circle></svg><div><small>Tổng</small><b>${money(execTotRev, true)}</b></div></div><div class="revenue-analysis-legend"><div class="sale"><b>Bên Bán</b><strong>${execSellPct}%</strong><span>${money(execSellRev, true)} · ${number(execSellOrders.length)} đơn</span></div><div class="rental"><b>Bên Thuê</b><strong>${execRentPct}%</strong><span>${money(execRentRev, true)} · ${number(execRentOrders.length)} gói</span></div></div></div>
+  </section>`;
+
+  return `<div class="executive-dashboard modern-dashboard">${pageHead('Tổng quan · Toàn hệ thống', '', actions)}${dateFilter()}
+    <section class="kpi-bento-grid">
+      ${metricCard('theme-purple', '◎', 'Tổng khách hàng', 'Toàn bộ Agency', number(allCustomers.length), 'khách', `+${number(newWeek)} tuần này`, executiveSparkline(customerSeries.map(item => item.value)), 'Đã kết nối', number(connected), 'Chưa kết nối', number(allCustomers.length - connected))}
+      ${metricCard('theme-cyan', '↗', 'Khách mới hôm nay', 'Landing page & webhook', number(newToday), 'khách', `+${number(newToday)} hôm nay`, executiveSparkline(customerSeries.map(item => item.value)), 'Tuần này', number(newWeek), 'Chờ xử lý', number(allCustomers.filter(isPoolCustomer).length))}
+      ${metricCard('theme-blue', '₫', 'Doanh thu Agency', 'Đã thu thực tế', money(monthlyRevenue, true), '', `${number(monthPaidOrders.length)} đơn`, executiveSparkline(revenueSeries.map(item => item.value)), 'Đơn đã chốt', number(monthPaidOrders.length), 'VAT', money(taxThisMonth, true))}
+      ${metricCard('theme-orange', '◈', 'Gói thuê hoạt động', 'Đơn đã thanh toán còn hạn', number(rentalCount), 'gói', `${number(rentalAlerts.length)} sắp hết hạn`, executiveSparkline(rentalAlerts.map(order => Math.max(0, order.daysLeft)).slice(-7).concat([0]), 'warm'), 'Đang thuê', number(rentalCount), 'Hạn ≤ 7 ngày', number(rentalAlerts.length))}
+    </section>
+    <section class="goal-progress-box"><div class="goal-head"><span>Mục tiêu doanh số Agency tháng này</span><strong>${monthTarget ? `${targetPercent.toFixed(1).replace('.', ',')}%` : 'Chưa đặt chỉ tiêu'}</strong></div><div class="progress-track"><i class="progress-fill-orange" style="width:${targetPercent}%">${monthTarget ? `${targetPercent.toFixed(1).replace('.', ',')}%` : ''}</i></div><div class="goal-foot"><span>Thực hiện: <b>${money(monthlyRevenue, true)}</b></span><span>${monthTarget ? `Còn thiếu: ${money(remainingTarget, true)}` : targetMessage}</span></div><div class="goal-stat-pills"><span class="goal-stat-pill"><span class="p-lbl">Thực hiện tháng</span><span class="p-val">${money(monthlyRevenue, true)}</span></span><span class="goal-stat-pill"><span class="p-lbl">Còn thiếu</span><span class="p-val">${money(remainingTarget, true)}</span></span><span class="goal-stat-pill"><span class="p-lbl">Thời gian</span><span class="p-val">${daysRemaining} ngày</span></span><span class="goal-stat-pill"><span class="p-lbl">Cần mỗi ngày</span><span class="p-val">${money(daysRemaining ? Math.ceil(remainingTarget / daysRemaining) : 0, true)}</span></span></div></section>
+    ${revenueAnalysis}
+    <section class="analytics-grid"><article class="chart-panel"><div class="chart-panel-header"><div><div class="chart-metric-title">Tăng trưởng khách hàng mới</div><div class="chart-metric-num">${number(newWeek)} ${deltaBadge(delta(newWeek, previous.leads))}</div></div><button class="button button-small" data-view-jump="customers">Chi tiết</button></div><div class="chart-svg-container">${executiveLineChart(customerSeries)}</div></article><article class="chart-panel"><div class="chart-panel-header"><div><div class="chart-metric-title">Doanh thu theo tuần</div><div class="chart-metric-num">${money(monthlyRevenue, true)} ${deltaBadge(delta(monthlyRevenue, netRevenue(scopedOrders(), inPreviousPeriod)))}</div></div><button class="button button-small" data-view-jump="revenue">Chi tiết</button></div><div class="chart-svg-container">${executiveBarChart(revenueSeries)}</div></article><aside class="side-widgets-column"><section class="widget-box"><div class="widget-box-head"><span>Sản phẩm bán chạy</span><button class="button button-small" data-view-jump="products">Xem</button></div><div class="product-list">${products.map(product => `<div class="product-item"><span class="product-thumb">${product.type === 'RENTAL' ? '↯' : '▤'}</span><div class="product-meta"><span class="product-name">${escapeHtml(product.name)}</span><span class="product-sku">${money(product.revenue, true)} · ${number(product.paidOrders)} đơn</span></div></div>`).join('') || '<div class="empty"><b>Chưa có sản phẩm bán ra</b></div>'}</div></section><section class="widget-box rental-widget"><div class="widget-box-head"><span>Gói thuê cần gia hạn</span><button class="button button-small" data-view-jump="orders">Xem</button></div>${rentalAlerts.slice(0, 3).map(order => `<div class="rental-item"><div><b>${escapeHtml(order.customerName)}</b><small>${escapeHtml(order.productName)}</small></div><span class="status ${order.daysLeft <= 2 ? 'status-cancelled' : 'status-pending'}">${order.daysLeft <= 0 ? 'Đã hết hạn' : `Còn ${order.daysLeft} ngày`}</span></div>`).join('') || '<div class="empty"><b>Không có gói cần gia hạn</b></div>'}</section></aside></section>
+  </div>`;
+}
+
 function dashboardView() {
   const current = periodSnapshot(false), previous = periodSnapshot(true);
   if (currentAccount.role === 'SALE') return saleDashboardView(current, previous);
@@ -1891,7 +2074,12 @@ function dashboardView() {
 function ordersTable(orders, showActions = false) {
   if (!orders.length) return `<div class="empty"><b>Không có đơn hàng</b><span>Thử đổi bộ lọc hoặc khoảng thời gian.</span></div>`;
   const showLeader = currentAccount.role === 'ADMIN';
-  return `<div class="table-wrap"><table class="orders-data-table"><thead><tr><th class="col-order">Mã đơn</th><th class="col-customer">Khách hàng</th><th class="col-product">Sản phẩm</th><th class="col-staff">Sale</th>${showLeader ? '<th class="col-staff">Leader</th>' : ''}<th class="col-money">Giá trị</th><th class="col-pay">Thanh toán</th>${showActions ? '<th class="col-act"></th>' : ''}</tr></thead><tbody>${orders.map(order => `<tr><td class="col-order"><div class="cell-main mono">${escapeHtml(order.code)}</div><div class="cell-sub">${escapeHtml(order.createdAt)}</div></td><td class="col-customer"><div class="cell-main">${escapeHtml(order.customerName)}</div><div class="cell-sub">${currentAccount.role === 'ADMIN' ? escapeHtml(order.source) : 'Khách thuộc phạm vi phân công'}</div></td><td class="col-product"><div class="cell-main">${escapeHtml(order.productName)}</div><div class="cell-sub">${escapeHtml(order.sku)} · SL ${escapeHtml(order.qty)}</div></td><td class="col-staff"><div class="cell-main">${escapeHtml(staffName(order.saleId))}</div></td>${showLeader ? `<td class="col-staff"><div class="cell-main">${escapeHtml(staffName(order.leaderId))}</div></td>` : ''}<td class="col-money num"><b>${money(order.total)}</b>${order.discount ? `<div class="cell-sub">CK ${money(order.discount)}</div>` : ''}</td><td class="col-pay">${statusBadge(order.status, 'order')}</td>${showActions ? `<td class="col-act"><span class="order-lock-chip">${orderEditState(order).label}</span> <button class="button button-small" data-open-order="${escapeHtml(order.id)}">Mở</button>${orderEditState(order).allowed ? `<button class="button button-small" data-edit-order="${escapeHtml(order.id)}">Sửa</button><button class="button button-small button-danger" data-delete-order="${escapeHtml(order.id)}">Xóa</button>` : ''}</td>` : ''}</tr>`).join('')}</tbody></table></div>`;
+  return `<div class="table-wrap"><table class="orders-data-table"><thead><tr><th class="col-order">Mã đơn</th><th class="col-type">Phân loại</th><th class="col-customer">Khách hàng</th><th class="col-product">Sản phẩm</th><th class="col-staff">Sale</th>${showLeader ? '<th class="col-staff">Leader</th>' : ''}<th class="col-money">Giá trị</th><th class="col-pay">Thanh toán</th>${showActions ? '<th class="col-act"></th>' : ''}</tr></thead><tbody>${orders.map(order => `<tr><td class="col-order"><div class="cell-main mono">${escapeHtml(order.code)}</div><div class="cell-sub">${escapeHtml(order.createdAt)}</div></td>
+      <td class="col-type">
+        ${/thuê|rent|thue|chỉ báo|indicator|bot|tool|vip/i.test((order.productName || order.product || ''))
+          ? '<span class="status-badge" style="background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;font-size:11px;padding:2px 6px;border-radius:4px;font-weight:600;">⚡ Bên Thuê</span>'
+          : '<span class="status-badge" style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;font-size:11px;padding:2px 6px;border-radius:4px;font-weight:600;">🛒 Bên Bán</span>'}
+      </td><td class="col-customer"><div class="cell-main">${escapeHtml(order.customerName)}</div><div class="cell-sub">${currentAccount.role === 'ADMIN' ? escapeHtml(order.source) : 'Khách thuộc phạm vi phân công'}</div></td><td class="col-product"><div class="cell-main">${escapeHtml(order.productName)}</div><div class="cell-sub">${escapeHtml(order.sku)} · SL ${escapeHtml(order.qty)}</div></td><td class="col-staff"><div class="cell-main">${escapeHtml(staffName(order.saleId))}</div></td>${showLeader ? `<td class="col-staff"><div class="cell-main">${escapeHtml(staffName(order.leaderId))}</div></td>` : ''}<td class="col-money num"><b>${money(order.total)}</b>${order.discount ? `<div class="cell-sub">CK ${money(order.discount)}</div>` : ''}</td><td class="col-pay">${statusBadge(order.status, 'order')}</td>${showActions ? `<td class="col-act"><span class="order-lock-chip">${orderEditState(order).label}</span> <button class="button button-small" data-open-order="${escapeHtml(order.id)}">Mở</button>${orderEditState(order).allowed ? `<button class="button button-small" data-edit-order="${escapeHtml(order.id)}">Sửa</button><button class="button button-small button-danger" data-delete-order="${escapeHtml(order.id)}">Xóa</button>` : ''}</td>` : ''}</tr>`).join('')}</tbody></table></div>`;
 }
 
 function transactionsTable(events, showReconciliation = false) {
@@ -1900,7 +2088,7 @@ function transactionsTable(events, showReconciliation = false) {
 }
 
 function canUpdateCustomer(customer) {
-  return !!customer && (currentAccount.role === 'ADMIN' || (currentAccount.role === 'LEADER' && state.settings.leaderCanUpdate && customer.teamId === currentAccount.teamId && customer.leaderId === currentAccount.leaderId) || (currentAccount.role === 'SALE' && customer.saleId === currentAccount.saleId));
+  return !!customer && (currentAccount.role === 'ADMIN' || (currentAccount.role === 'MANAGER' && scopedCustomers().includes(customer)) || (currentAccount.role === 'LEADER' && state.settings.leaderCanUpdate && customer.teamId === currentAccount.teamId && customer.leaderId === currentAccount.leaderId) || (currentAccount.role === 'SALE' && customer.saleId === currentAccount.saleId));
 }
 
 function activeCustomFields(tableOnly = false) {
@@ -1958,18 +2146,37 @@ function quickStatusControl(customer) {
 function quickSaleControl(customer) {
   const pending = state.dataOffers.find(o => o.customerId === customer.id && o.status === 'PENDING');
   const selectedId = customer.saleId || pending?.saleId || '';
-  const canAssign = currentAccount.role === 'ADMIN' || (currentAccount.role === 'LEADER' && customer.leaderId === currentAccount.leaderId && customer.teamId === currentAccount.teamId);
+  const managerLeaders = currentAccount.role === 'MANAGER'
+    ? activeStaff().filter(person => person.role === 'LEADER' && person.active !== false && person.managerId === currentAccount.id)
+    : [];
+  const managerCanAssign = currentAccount.role === 'MANAGER'
+    && managerLeaders.some(leader => leader.id === customer.leaderId && leader.teamId === customer.teamId);
+  const canAssign = currentAccount.role === 'ADMIN'
+    || (currentAccount.role === 'LEADER' && customer.leaderId === currentAccount.leaderId && customer.teamId === currentAccount.teamId)
+    || managerCanAssign;
   if (!canAssign) return customer.saleId ? `<b>${escapeHtml(staffName(customer.saleId))}</b>` : '<span class="status status-pending">Chưa phân Sale</span>';
-  const sales = customer.leaderId ? teamRecipients(customer.leaderId, customer.teamId) : activeStaff().filter(p=>p.role==='SALE');
+  const sales = customer.leaderId
+    ? teamRecipients(customer.leaderId, customer.teamId)
+    : activeStaff().filter(p=>p.role==='SALE');
   return `<select class="quick-sale-select" data-quick-sale="${escapeHtml(customer.id)}" aria-label="Sale phụ trách của ${escapeHtml(customer.name)}" ${sales.length ? '' : 'disabled'}><option value="" ${selectedId ? '' : 'selected'}>${sales.length ? '— Chưa chọn Sale —' : 'Chưa có Sale trong Team'}</option>${selectedId && !sales.some(sale => sale.id === selectedId) ? `<option value="${escapeHtml(selectedId)}" selected disabled>${escapeHtml(staffName(selectedId))}</option>` : ''}${sales.map(sale => `<option value="${escapeHtml(sale.id)}" ${selectedId === sale.id ? 'selected' : ''}>${escapeHtml(sale.name)}${sale.teamLeaderRecipient ? ' (Leader)' : ''}</option>`).join('')}</select>${pending && !customer.saleId ? '<div class="cell-sub">Chờ Sale nhận data</div>' : ''}`;
 }
 
 async function quickAssignSale(customerId, saleId) {
-  if (!['ADMIN', 'LEADER'].includes(currentAccount.role)) return false;
+  if (!['ADMIN', 'MANAGER', 'LEADER'].includes(currentAccount.role)) return false;
   const customer = customerById(customerId);
   if (!saleId) return clearManualRecipient(customer);
-  const sale = customer?.leaderId ? teamRecipients(customer.leaderId, customer.teamId).find(p=>p.id===saleId) : activeStaff().find(p=>p.id===saleId&&p.role==='SALE');
-  if (!customer || !sale || (currentAccount.role === 'LEADER' && (customer.leaderId !== currentAccount.leaderId || customer.teamId !== currentAccount.teamId || sale.leaderId !== currentAccount.leaderId || sale.teamId !== currentAccount.teamId))) { toast('Sale hoặc khách hàng nằm ngoài phạm vi Team'); render(); return false; }
+  const sale = customer?.leaderId
+    ? teamRecipients(customer.leaderId, customer.teamId).find(p=>p.id===saleId)
+    : activeStaff().find(p=>p.id===saleId&&p.role==='SALE');
+  const managerLeaders = currentAccount.role === 'MANAGER'
+    ? activeStaff().filter(person => person.role === 'LEADER' && person.active !== false && person.managerId === currentAccount.id)
+    : [];
+  const inManagerScope = currentAccount.role === 'MANAGER'
+    && managerLeaders.some(leader => leader.id === customer?.leaderId && leader.teamId === customer?.teamId);
+  const outsideScope = currentAccount.role === 'LEADER'
+    ? (customer?.leaderId !== currentAccount.leaderId || customer?.teamId !== currentAccount.teamId || sale?.leaderId !== currentAccount.leaderId || sale?.teamId !== currentAccount.teamId)
+    : currentAccount.role === 'MANAGER' && !inManagerScope;
+  if (!customer || !sale || outsideScope) { toast('Sale hoac khach hang nam ngoai pham vi duoc giao'); render(); return false; }
   const pending = state.dataOffers.find(o => o.customerId === customer.id && o.status === 'PENDING');
   if (customer.saleId === sale.id || pending?.saleId === sale.id) return true;
   applyCustomerAssignment(customer, sale, `Giao thủ công cho ${sale.name}`);
@@ -1980,7 +2187,9 @@ async function quickAssignSale(customerId, saleId) {
 }
 
 async function clearManualRecipient(customer) {
-  if (!customer || !['ADMIN','LEADER'].includes(currentAccount.role) || (currentAccount.role==='LEADER' && (customer.leaderId!==currentAccount.leaderId || customer.teamId!==currentAccount.teamId))) return false;
+  const managerCanClear = currentAccount.role === 'MANAGER'
+    && activeStaff().some(person => person.role === 'LEADER' && person.active !== false && person.id === customer?.leaderId && person.managerId === currentAccount.id && person.teamId === customer?.teamId);
+  if (!customer || !['ADMIN','LEADER','MANAGER'].includes(currentAccount.role) || (currentAccount.role==='LEADER' && (customer.leaderId!==currentAccount.leaderId || customer.teamId!==currentAccount.teamId)) || (currentAccount.role==='MANAGER' && !managerCanClear)) return false;
   const before=assignmentSnapshot(customer);
   closeOpenCustomerTasks(customer,'UNASSIGNED');
   state.dataOffers.forEach(o=>{if(o.customerId===customer.id&&o.status==='PENDING'){o.status='EXPIRED';o.resolvedAt=stamp();}});
@@ -2109,9 +2318,16 @@ function updateTeamRecipient(id, field, value) {
   else {const ids=new Set(config.enabledSaleIds||people.filter(p=>!p.teamLeaderRecipient).map(p=>p.id));value?ids.add(id):ids.delete(id);config.enabledSaleIds=[...ids];}
   saveState();render();
 }
+function scopedRoleDataView() {
+  const role=currentAccount.actualRole||currentAccount.role;
+  const rows=scopedCustomers().filter(customer=>!['ARCHIVED','LOST','PAID'].includes(customer.status)).sort((a,b)=>String(b.updatedAt||b.createdAt).localeCompare(String(a.updatedAt||a.createdAt)));
+  const visibleRows=rows.map((customer,index)=>{const offer=state.dataOffers.filter(item=>item.customerId===customer.id).sort((a,b)=>String(b.offeredAt||'').localeCompare(String(a.offeredAt||'')))[0];const type=offer?.status==='EXPIRED'&&!customer.saleId?'DATA TR\u1ea2 V\u1ec0':customer.updatedAt!==customer.createdAt?'DATA \u0110I\u1ec0N L\u1ea0I FORM':'DATA M\u1edaI';const status=offer?.status==='PENDING'?'Ch\u1edd Sale nh\u1eadn':offer?.status==='EXPIRED'&&!customer.saleId?'Data Sale kh\u00f4ng nh\u1eadn':customer.saleId?'Sale \u0111\u00e3 nh\u1eadn':'Ch\u01b0a ch\u1ecdn Sale';const typeClass=type==='DATA TR\u1ea2 V\u1ec0'?'status-cancelled':type==='DATA \u0110I\u1ec0N L\u1ea0I FORM'?'status-info':'status-pending';return '<tr><td><b>#'+(index+1)+'</b></td><td><b>'+escapeHtml(dataDateParts(customer.createdAt).date)+'</b><small>'+escapeHtml(dataDateParts(customer.createdAt).time)+'</small></td><td><b>'+escapeHtml(customer.name)+'</b><small>'+escapeHtml(customer.phone||'')+'</small></td><td><span class="status '+typeClass+'">'+type+'</span></td><td>'+quickSaleControl(customer)+'</td><td><span class="status '+(status==='Sale \u0111\u00e3 nh\u1eadn'?'status-paid':status==='Data Sale kh\u00f4ng nh\u1eadn'?'status-cancelled':'status-pending')+'">'+escapeHtml(status)+'</span></td></tr>';}).join('')||'<tr><td colspan="6"><div class="empty"><b>Kh\u00f4ng c\u00f3 data ch\u01b0a x\u1eed l\u00fd</b></div></td></tr>';
+  return pageHead('Data','Data trong ph\u1ea1m vi '+(role==='MANAGER'?'tuy\u1ebfn Manager':'Team Leader'),'')+'<section class="panel customer-table-panel"><div class="panel-head"><div><div class="panel-title">Data ch\u01b0a x\u1eed l\u00fd</div></div></div><div class="table-wrap"><table class="intake-order-table"><thead><tr><th>TH\u1ee8 T\u1ef0</th><th>NG\u00c0Y DATA</th><th>KH\u00c1CH H\u00c0NG</th><th>LO\u1ea0I DATA</th><th>SALE NH\u1eacN</th><th>TR\u1ea0NG TH\u00c1I</th></tr></thead><tbody>${visibleRows}</tbody></table></div></section>';
+}
+
 function poolView() {
   if (currentAccount.role === 'SALE') return accessDeniedView('Khách mới chỉ dành cho Admin và Leader.');
-  if(currentAccount.role==='LEADER') return leaderRecipientSettings();
+  if(['MANAGER','LEADER'].includes(currentAccount.actualRole||currentAccount.role)) return scopedRoleDataView();
   const pool = scopedCustomers().filter(isPoolCustomer).sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
   const targets = currentAccount.role === 'ADMIN'
     ? assignmentCandidates({ leaderId: null })
@@ -2226,9 +2442,27 @@ function deleteDistributionSourceRule(id) {
 
 function ordersView() {
   const query = normalize(globalQuery);
-  const orders = scopedOrders().filter(order => orderStatusFilter === 'ALL' || order.status === orderStatusFilter).filter(order => !query || normalize(`${order.code}${order.customerName}${order.productName}${currentAccount.role === 'ADMIN' ? order.source : ''}`).includes(query)).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const allOrders = scopedOrders().filter(order => orderStatusFilter === 'ALL' || order.status === orderStatusFilter).filter(order => !query || normalize(`${order.code}${order.customerName}${order.productName}${currentAccount.role === 'ADMIN' ? order.source : ''}`).includes(query)).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const orders = allOrders.filter(order => {
+    if (orderTypeFilter === 'ALL') return true;
+    const isRent = /thuê|rent|thue|chỉ báo|indicator|bot|tool|vip/i.test(order.productName || order.product || '');
+    return orderTypeFilter === 'RENT' ? isRent : !isRent;
+  });
+  const orderTypeTabs = `<div class="subnav-tabs" style="display:flex;gap:8px;margin-bottom:14px;border-bottom:1px solid var(--line,#e2e8f0);padding-bottom:10px;">
+    <button type="button" class="tab-item ${orderTypeFilter === 'ALL' ? 'active' : ''}" onclick="orderTypeFilter='ALL';render();" style="border:none;background:${orderTypeFilter==='ALL'?'var(--primary,#2563eb)':'var(--bg-subtle,#f1f5f9)'};font-weight:${orderTypeFilter==='ALL'?'700':'500'};color:${orderTypeFilter==='ALL'?'#fff':'var(--text-muted,#64748b)'};padding:6px 14px;border-radius:6px;cursor:pointer;">
+      📦 Tất cả đơn (${allOrders.length})
+    </button>
+    <button type="button" class="tab-item ${orderTypeFilter === 'SELL' ? 'active' : ''}" onclick="orderTypeFilter='SELL';render();" style="border:none;background:${orderTypeFilter==='SELL'?'#16a34a':'var(--bg-subtle,#f1f5f9)'};font-weight:${orderTypeFilter==='SELL'?'700':'500'};color:${orderTypeFilter==='SELL'?'#fff':'var(--text-muted,#64748b)'};padding:6px 14px;border-radius:6px;cursor:pointer;">
+      Bên Bán (Khóa học & SP)
+    </button>
+    <button type="button" class="tab-item ${orderTypeFilter === 'RENT' ? 'active' : ''}" onclick="orderTypeFilter='RENT';render();" style="border:none;background:${orderTypeFilter==='RENT'?'#0284c7':'var(--bg-subtle,#f1f5f9)'};font-weight:${orderTypeFilter==='RENT'?'700':'500'};color:${orderTypeFilter==='RENT'?'#fff':'var(--text-muted,#64748b)'};padding:6px 14px;border-radius:6px;cursor:pointer;">
+      Cho thuê chỉ báo
+    </button>
+  </div>`;
+
   return pageHead(currentAccount.role === 'SALE' ? 'Tạo đơn cho khách' : 'Quản lý đơn hàng', 'Đơn hàng, sản phẩm và trạng thái thanh toán trên cùng một bản ghi.', `${currentAccount.role !== 'SALE' ? '<button class="button" id="exportOrdersButton" type="button">Xuất CSV</button>' : ''}<button class="button button-primary" id="newOrderButton" type="button">+ Tạo đơn cho khách</button>`) +
-    `<section class="panel"><div class="toolbar"><input id="orderSearch" type="search" placeholder="Mã đơn, khách, sản phẩm..." value="${escapeHtml(globalQuery)}"><select id="orderStatusFilter"><option value="ALL">Tất cả thanh toán</option>${Object.entries(ORDER_STATUS).map(([key, meta]) => `<option value="${key}" ${orderStatusFilter === key ? 'selected' : ''}>${meta[0]}</option>`).join('')}</select><span class="spacer"></span><span class="data-note">${orders.length} đơn trong scope</span></div>${ordersTable(orders, true)}</section>`;
+    orderTypeTabs +
+    `<section class="panel"><div class="toolbar"><input id="orderSearch" type="search" placeholder="Mã đơn, khách, sản phẩm..." value="${escapeHtml(globalQuery)}"><select id="orderStatusFilter"><option value="ALL">Tất cả thanh toán</option>${Object.entries(ORDER_STATUS).map(([key, meta]) => `<option value="${key}" ${orderStatusFilter === key ? 'selected' : ''}>${meta[0]}</option>`).join('')}</select><span class="spacer"></span><span class="data-note">${orders.length} đơn hiển thị</span></div>${ordersTable(orders, true)}</section>`;
 }
 
 function productAvailabilityMeta(product) {
@@ -2253,18 +2487,18 @@ function productsView() {
 function productModal(id = null) {
   if (currentAccount.role !== 'ADMIN') return;
   const existing = id ? productById(id) : null;
-  const item = existing || { name: '', sku: '', category: '', price: 0, type: 'SALE', rentalMonths: null };
+  const item = existing || { name: '', sku: '', category: '', price: 0, type: 'SALE', rentalMonths: null, vatRate: 0.1 };
   const categories = [...state.productCategories];
   if (item.category && !categories.includes(item.category)) categories.push(item.category);
-  openModal(existing ? 'Sửa sản phẩm' : 'Thêm sản phẩm', `<form id="productForm"><div class="form-grid"><label class="form-field">Tên sản phẩm *<input id="productName" required maxlength="200" value="${escapeHtml(item.name)}"></label><label class="form-field">Mã SKU<input id="productSku" maxlength="60" value="${escapeHtml(item.sku)}"></label><label class="form-field">Loại sản phẩm *<select id="productType"><option value="SALE" ${item.type !== 'RENTAL' ? 'selected' : ''}>Bán</option><option value="RENTAL" ${item.type === 'RENTAL' ? 'selected' : ''}>Thuê</option></select></label><label class="form-field">Gói thuê<select id="productRentalMonths"><option value="">Không áp dụng</option><option value="1" ${item.rentalMonths === 1 ? 'selected' : ''}>1 tháng</option><option value="3" ${item.rentalMonths === 3 ? 'selected' : ''}>3 tháng</option><option value="6" ${item.rentalMonths === 6 ? 'selected' : ''}>6 tháng</option><option value="12" ${item.rentalMonths === 12 ? 'selected' : ''}>12 tháng</option></select></label><label class="form-field">Danh mục *<select id="productCategory" required><option value="">Chọn danh mục</option>${categories.map(category => `<option value="${escapeHtml(category)}" ${category === item.category ? 'selected' : ''}>${escapeHtml(category)}</option>`).join('')}</select></label><label class="form-field">Đơn giá *<input id="productPrice" type="number" required min="0" step="1000" value="${item.price}"></label></div><div class="modal-actions"><button class="button" type="button" data-close-modal>Hủy</button><button class="button button-primary" type="submit">Lưu sản phẩm</button></div></form>`);
+  openModal(existing ? 'Sửa sản phẩm' : 'Thêm sản phẩm', `<form id="productForm"><div class="form-grid"><label class="form-field">Tên sản phẩm *<input id="productName" required maxlength="200" value="${escapeHtml(item.name)}"></label><label class="form-field">Mã SKU<input id="productSku" maxlength="60" value="${escapeHtml(item.sku)}"></label><label class="form-field">Loại sản phẩm *<select id="productType"><option value="SALE" ${item.type !== 'RENTAL' ? 'selected' : ''}>Bán</option><option value="RENTAL" ${item.type === 'RENTAL' ? 'selected' : ''}>Thuê</option></select></label><label class="form-field">Gói thuê<select id="productRentalMonths"><option value="">Không áp dụng</option><option value="1" ${item.rentalMonths === 1 ? 'selected' : ''}>1 tháng</option><option value="3" ${item.rentalMonths === 3 ? 'selected' : ''}>3 tháng</option><option value="6" ${item.rentalMonths === 6 ? 'selected' : ''}>6 tháng</option><option value="12" ${item.rentalMonths === 12 ? 'selected' : ''}>12 tháng</option></select></label><label class="form-field">Danh mục *<select id="productCategory" required><option value="">Chọn danh mục</option>${categories.map(category => `<option value="${escapeHtml(category)}" ${category === item.category ? 'selected' : ''}>${escapeHtml(category)}</option>`).join('')}</select></label><label class="form-field">Đơn giá *<input id="productPrice" type="number" required min="0" step="1000" value="${item.price}"></label><label class="form-field">VAT (%)<input id="productVat" type="number" required min="0" max="100" step="0.01" value="${Number(item.vatRate ?? 0.1) * 100}"></label></div><div class="modal-actions"><button class="button" type="button" data-close-modal>Hủy</button><button class="button button-primary" type="submit">Lưu sản phẩm</button></div></form>`);
   const syncRental = () => { $('#productRentalMonths').disabled = $('#productType').value !== 'RENTAL'; if ($('#productType').value !== 'RENTAL') $('#productRentalMonths').value = ''; };
   $('#productType').addEventListener('change', syncRental); syncRental();
   $('#productForm').onsubmit = async event => {
     event.preventDefault();
     const type = $('#productType').value === 'RENTAL' ? 'RENTAL' : 'SALE';
     const rentalMonths = type === 'RENTAL' ? Number($('#productRentalMonths').value) : null;
-    const values = { name: $('#productName').value.trim(), sku: $('#productSku').value.trim(), category: $('#productCategory').value.trim(), price: Number($('#productPrice').value), type, rentalMonths: [1,3,6,12].includes(rentalMonths) ? rentalMonths : null };
-    if (!values.name || !values.category || !Number.isFinite(values.price) || values.price < 0) return;
+    const vatPercent = Number($('#productVat').value); const values = { name: $('#productName').value.trim(), sku: $('#productSku').value.trim(), category: $('#productCategory').value.trim(), price: Number($('#productPrice').value), type, rentalMonths: [1,3,6,12].includes(rentalMonths) ? rentalMonths : null, vatRate: vatPercent / 100 };
+    if (!values.name || !values.category || !Number.isFinite(values.price) || values.price < 0 || !Number.isFinite(vatPercent) || vatPercent < 0 || vatPercent > 100) { toast('Kiểm tra tên, danh mục, đơn giá và VAT từ 0 đến 100%.'); return; }
     if (values.type === 'RENTAL' && !values.rentalMonths) { toast('Sản phẩm thuê phải chọn gói 1, 3, 6 hoặc 12 tháng'); return; }
     if (values.sku && PRODUCTS.some(product => product.id !== id && product.sku && normalize(product.sku) === normalize(values.sku))) { toast('Mã SKU đã tồn tại'); return; }
     const product = existing || { id: `PRD-${Date.now()}`, ...values, active: true };
@@ -2304,6 +2538,68 @@ function productCategoriesModal() {
 
 function revenueView() {
   const current = periodSnapshot(), series = dailySeries(), products = productPerformance(scopedOrders()).filter(product => product.paidOrders || product.refunds), sources = sourcePerformance();
+
+  // Tính toán cơ cấu doanh thu Bên Bán / Bên Thuê thật
+  const paidOrders = (current.paid || []);
+  const sellOrders = paidOrders.filter(order => !/thuê|rent|thue|chỉ báo|indicator|bot|tool|vip/i.test(order.productName || order.product || ''));
+  const rentOrders = paidOrders.filter(order => /thuê|rent|thue|chỉ báo|indicator|bot|tool|vip/i.test(order.productName || order.product || ''));
+  const sellRev = sellOrders.reduce((sum, order) => sum + Number(order.paidAmount || order.total || 0), 0);
+  const rentRev = rentOrders.reduce((sum, order) => sum + Number(order.paidAmount || order.total || 0), 0);
+  const totRev = sellRev + rentRev || (current.revenue || 0);
+  const sellPct = totRev > 0 ? Math.round((sellRev / totRev) * 100) : 50;
+  const rentPct = 100 - sellPct;
+  const circum = 2 * Math.PI * 40;
+  const sellDash = (sellPct / 100) * circum;
+  const rentDash = circum - sellDash;
+
+  const revenueAnalysisCard = `<section class="panel" style="margin-bottom:20px;border-radius:12px;border:1px solid var(--line,#e2e8f0);box-shadow:0 1px 3px rgba(0,0,0,0.03);background:var(--panel,#ffffff);padding:18px 22px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+      <div>
+        <h3 style="margin:0;font-size:15px;font-weight:700;color:var(--text-main,#0f172a);display:flex;align-items:center;gap:8px;">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#2563eb;"></span>
+          Phân Tích Doanh Thu
+        </h3>
+        <p style="margin:2px 0 0;font-size:12px;color:var(--text-muted,#64748b);">Thống kê cơ cấu doanh thu Bên Bán và Bên Thuê theo kỳ lọc</p>
+      </div>
+      <div class="segmented" style="display:inline-flex;">
+        <button class="segment ${dateRange === 1 ? 'active' : ''}" data-range="1" type="button" style="font-size:11.5px;padding:4px 10px;">1 ngày</button>
+        <button class="segment ${dateRange === 7 ? 'active' : ''}" data-range="7" type="button" style="font-size:11.5px;padding:4px 10px;">7 ngày</button>
+        <button class="segment ${dateRange === 15 ? 'active' : ''}" data-range="15" type="button" style="font-size:11.5px;padding:4px 10px;">15 ngày</button>
+        <button class="segment ${dateRange === 30 ? 'active' : ''}" data-range="30" type="button" style="font-size:11.5px;padding:4px 10px;">30 ngày</button>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:24px;align-items:center;">
+      <div style="position:relative;width:110px;height:110px;display:flex;align-items:center;justify-content:center;">
+        <svg viewBox="0 0 100 100" width="110" height="110" style="transform:rotate(-90deg);">
+          <circle cx="50" cy="50" r="40" fill="transparent" stroke="#f1f5f9" stroke-width="14" />
+          <circle cx="50" cy="50" r="40" fill="transparent" stroke="#16a34a" stroke-width="14"
+            stroke-dasharray="${sellDash} ${circum}" stroke-dashoffset="0" stroke-linecap="round" />
+          <circle cx="50" cy="50" r="40" fill="transparent" stroke="#0284c7" stroke-width="14"
+            stroke-dasharray="${rentDash} ${circum}" stroke-dashoffset="-${sellDash}" stroke-linecap="round" />
+        </svg>
+        <div style="position:absolute;text-align:center;">
+          <div style="font-size:10px;color:var(--text-muted,#64748b);text-transform:uppercase;font-weight:700;">TỔNG</div>
+          <div style="font-size:11px;font-weight:800;color:var(--text-main,#0f172a);font-family:var(--font-mono, monospace);">${money(totRev)}</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div style="background:var(--bg-subtle,#f8fafc);padding:10px 14px;border-radius:8px;border-left:4px solid #16a34a;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <b style="font-size:12.5px;color:var(--text-main,#0f172a);">🛒 Bên Bán (Sản phẩm & Khóa học)</b>
+            <span style="font-family:var(--font-mono, monospace);font-weight:800;color:#16a34a;font-size:13px;">${sellPct}%</span>
+          </div>
+          <div style="font-size:11px;color:var(--text-muted,#64748b);margin-top:2px;">${money(sellRev)} · ${sellOrders.length} đơn hoàn tất</div>
+        </div>
+        <div style="background:var(--bg-subtle,#f8fafc);padding:10px 14px;border-radius:8px;border-left:4px solid #0284c7;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <b style="font-size:12.5px;color:var(--text-main,#0f172a);">⚡ Bên Thuê (Chỉ báo & Tool)</b>
+            <span style="font-family:var(--font-mono, monospace);font-weight:800;color:#0284c7;font-size:13px;">${rentPct}%</span>
+          </div>
+          <div style="font-size:11px;color:var(--text-muted,#64748b);margin-top:2px;">${money(rentRev)} · ${rentOrders.length} gói thuê đang chạy</div>
+        </div>
+      </div>
+    </div>
+  </section>`;
   const websites = websiteRevenuePerformance();
   const activeSources = sources.filter(source => source.paidOrders || source.revenue !== 0);
   const gross = current.paid.reduce((sum, order) => sum + order.subtotal, 0);
@@ -2311,7 +2607,9 @@ function revenueView() {
   const refunds = current.refunds.reduce((sum, order) => sum + order.refund, 0);
   const sourceRevenueHtml = currentAccount.role === 'ADMIN' ? `<section class="panel"><div class="panel-head"><div><div class="panel-title">Doanh thu theo nguồn</div><div class="panel-sub">Attribution last-touch của đơn hàng</div></div></div><div class="panel-body">${activeSources.map((source, index) => { const share = current.revenue > 0 ? source.revenue / current.revenue * 100 : 0; return `<div class="rank-row"><span class="rank">${index + 1}</span><div><b>${escapeHtml(source.source)}</b><small>${source.paidOrders} đơn · ${share.toFixed(1).replace('.', ',')}% doanh thu</small><div class="progress"><i style="width:${Math.max(share, 0)}%;background:${source.color}"></i></div></div><div class="rank-value"><b>${money(source.revenue, true)}</b><small>${source.roas ? `${source.roas.toFixed(1)}x ROAS` : 'Organic'}</small></div></div>`; }).join('') || '<div class="empty"><b>Chưa có doanh thu theo nguồn</b><span>Không phát sinh thanh toán hoặc hoàn tiền trong kỳ.</span></div>'}</div></section>` : '';
   const websiteRevenueHtml = currentAccount.role === 'ADMIN' ? `<section class="panel" style="margin-top:14px"><div class="panel-head"><div><div class="panel-title">Doanh thu theo website / landing page</div><div class="panel-sub">Quy nguồn bằng snapshot website trên đơn; dòng thiếu dữ liệu được tách riêng</div></div></div><div class="table-wrap"><table><thead><tr><th>Website / Landing</th><th>Data mới</th><th>Lượt thanh toán</th><th>Thu tiền</th><th>Hoàn tiền</th><th>Doanh thu thuần</th><th>Tỷ trọng</th></tr></thead><tbody>${websites.map(row => { const share = current.revenue > 0 ? row.net / current.revenue * 100 : 0; return `<tr><td><div class="cell-main">${escapeHtml(row.name)}</div><div class="cell-sub">${escapeHtml(row.domain)}</div></td><td>${number(row.data)}</td><td>${number(row.paidOrders)}</td><td>${money(row.gross)}</td><td>${money(row.refunds)}</td><td><b>${money(row.net)}</b></td><td>${share.toFixed(1).replace('.', ',')}%</td></tr>`; }).join('') || '<tr><td colspan="7"><div class="empty"><b>Chưa có doanh thu theo website</b><span>Chưa phát sinh data hoặc giao dịch trong kỳ.</span></div></td></tr>'}</tbody></table></div></section>` : '';
-  return pageHead(currentAccount.role === 'SALE' ? 'Doanh thu của tôi' : 'Doanh thu & thanh toán', 'Đối chiếu doanh thu thuần theo ngày thanh toán, ngày hoàn tiền, sản phẩm và nguồn.', currentAccount.role !== 'SALE' ? '<button class="button" id="exportRevenueButton" type="button">Xuất CSV</button>' : '') + dateFilter() +
+  const actualRole=currentAccount.actualRole||currentAccount.role;
+  const revenueScopeDescription=actualRole==='MANAGER'?`Chỉ hiển thị doanh thu Team ${currentAccount.teamId||'được chọn'} thuộc tuyến Manager`:actualRole==='LEADER'?`Chỉ hiển thị doanh thu Team ${currentAccount.teamId||''} do bạn quản lý`:actualRole==='SALE'?'Chỉ hiển thị doanh thu từ khách hàng bạn phụ trách':'Đối chiếu doanh thu toàn hệ thống theo ngày thanh toán và hoàn tiền.';
+  return pageHead(currentAccount.role === 'SALE' ? 'Doanh thu của tôi' : 'Doanh thu & thanh toán', revenueScopeDescription, currentAccount.role !== 'SALE' ? '<button class="button" id="exportRevenueButton" type="button">Xuất CSV</button>' : '') + dateFilter() + revenueAnalysisCard +
     `<div class="kpi-grid" style="grid-template-columns:repeat(4,minmax(150px,1fr))">${kpiCard('Σ', 'Doanh số gộp', money(gross, true), `${current.units} sản phẩm`)}${kpiCard('-', 'Chiết khấu', money(discounts, true), 'Đã trừ khỏi đơn')}${kpiCard('↩', 'Hoàn tiền', money(refunds, true), `${current.refunds.length} giao dịch`)}${kpiCard('₫', 'Doanh thu thuần', money(current.revenue, true), `${current.paid.length} lượt thanh toán`)}</div>
     <section class="panel"><div class="panel-head"><div><div class="panel-title">Dòng doanh thu theo ngày</div><div class="panel-sub">Ghi theo paidAt và trừ hoàn tiền đúng ngày refundedAt</div></div></div><div class="panel-body">${revenueChart(series, 300)}</div></section>
     <div class="grid ${currentAccount.role === 'ADMIN' ? 'grid-2' : ''}" style="margin-top:14px"><section class="panel"><div class="panel-head"><div><div class="panel-title">Chi tiết theo sản phẩm</div><div class="panel-sub">Đơn, số lượng, doanh thu và tỷ lệ hoàn</div></div></div><div class="table-wrap"><table><thead><tr><th>Sản phẩm / SKU</th><th>SL bán</th><th>Đơn</th><th>Doanh thu</th><th>Hoàn</th><th>So kỳ trước</th></tr></thead><tbody>${products.map(product => `<tr><td><div class="cell-main">${escapeHtml(product.name)}</div><div class="cell-sub">${escapeHtml(product.sku)} · ${escapeHtml(product.category)}</div></td><td>${product.units}</td><td>${product.paidOrders}</td><td><b>${money(product.revenue)}</b></td><td>${product.refunds}</td><td>${deltaBadge(delta(product.revenue, product.previousRevenue))}</td></tr>`).join('') || '<tr><td colspan="6"><div class="empty"><b>Chưa có sản phẩm bán ra</b><span>Không có thanh toán hoặc hoàn tiền trong kỳ.</span></div></td></tr>'}</tbody></table></div></section>${sourceRevenueHtml}</div>
@@ -2367,11 +2665,12 @@ function teamView() {
   const teamRevenue = netRevenue(scopedOrders(), inCurrentPeriod);
   const members = currentAccount.role === 'ADMIN' ? activeStaff() : activeStaff().filter(person => person.teamId === currentAccount.teamId && (person.id === currentAccount.leaderId || person.leaderId === currentAccount.leaderId));
   members.sort((a, b) => (a.role === 'LEADER' ? 0 : 1) - (b.role === 'LEADER' ? 0 : 1) || a.name.localeCompare(b.name, 'vi'));
-  const actions = currentAccount.role === 'ADMIN' ? '<button class="button button-primary" id="newTeamButton">+ Tạo đội</button>' : '<button class="button" id="exportTeamButton">Xuất CSV</button>';
+  // Team được tạo và phân công từ dữ liệu thành viên; không hiển thị nút tạo đội riêng.
+  const actions = currentAccount.role === 'ADMIN' ? '' : '<button class="button" id="exportTeamButton">Xuất CSV</button>';
   const unassignedAccounts = currentAccount.role === 'ADMIN' ? (state.registeredAccounts || []).filter(account => account.role === 'UNASSIGNED' && account.active !== false) : [];
   const teamCards = Array.from(new Set(members.map(member => member.teamId))).sort().map(teamId => { const leaders = members.filter(member => member.teamId === teamId && member.role === 'LEADER'); return `<section class="panel team-overview-card"><div class="panel-head"><div><div class="panel-title">Team ${escapeHtml(teamId)}</div><div class="panel-sub">${leaders.length} Leader · ${members.filter(member => member.teamId === teamId && member.role === 'SALE').length} Sale</div></div></div><div class="panel-body">${leaders.map(leader => { const sales = members.filter(member => member.role === 'SALE' && member.leaderId === leader.id); return `<details class="team-leader"><summary><span class="avatar">${escapeHtml(leader.initials)}</span><span><b>${escapeHtml(leader.name)}</b><small>Leader · ${sales.length} Sale · ${state.customers.filter(customer => customer.leaderId === leader.id).length} khách</small></span></summary><div class="team-sales">${sales.map(sale => `<button class="team-sale-row" type="button" data-team-member="${escapeHtml(sale.id)}"><span><b>${escapeHtml(sale.name)}</b><small>${number(state.customers.filter(customer => customer.saleId === sale.id).length)} khách phụ trách</small></span><strong>${money(netRevenue(state.orders.filter(order => order.saleId === sale.id), inCurrentPeriod), true)}</strong></button>`).join('') || '<div class="cell-sub">Chưa có Sale trực thuộc.</div>'}</div></details>`; }).join('') || '<div class="empty compact"><b>Chưa có Leader</b></div>'}</div></section>`; }).join('');
   const unassignedHtml = unassignedAccounts.length ? `<section class="panel" style="margin-top:14px"><div class="panel-head"><div><div class="panel-title">Tài khoản chưa phân chức vụ</div><div class="panel-sub">Đăng ký thành công được dùng ngay; Admin có thể đưa vào đội sau.</div></div></div><div class="table-wrap"><table><thead><tr><th>Tài khoản</th><th>Số điện thoại</th><th>Email</th><th>Trạng thái</th><th></th></tr></thead><tbody>${unassignedAccounts.map(account => `<tr><td><b>${escapeHtml(account.name)}</b></td><td>${escapeHtml(account.phone)}</td><td>${escapeHtml(account.email)}</td><td><span class="status status-pending">Chưa phân chức vụ</span></td><td><button class="button button-small button-primary" data-assign-account="${escapeHtml(account.id)}">Phân chức vụ</button></td></tr>`).join('')}</tbody></table></div></section>` : '';
-  return pageHead(currentAccount.role === 'ADMIN' ? 'Đội ngũ' : `Nhân sự Team ${currentAccount.teamId}`, 'Tạo đội, chọn Leader và các Sale trực thuộc; quản lý thành viên từ danh sách đội.', actions) + dateFilter() + `<div class="team-overview-grid">${teamCards}</div>` + unassignedHtml +
+  return pageHead(currentAccount.role === 'ADMIN' ? 'Đội ngũ' : `Nhân sự Team ${currentAccount.teamId}`, 'Quản lý thành viên, tuyến quản lý và hiệu suất hiện tại.', actions) + dateFilter() + `<div class="team-overview-grid">${teamCards}</div>` + unassignedHtml +
     `<div class="kpi-grid" style="grid-template-columns:repeat(4,minmax(150px,1fr))">${kpiCard('♧', 'Thành viên', number(members.length), currentAccount.role === 'ADMIN' ? 'Toàn hệ thống' : `Team ${currentAccount.teamId}`)}${kpiCard('₫', 'Doanh thu đội', money(teamRevenue, true), periodLabel())}${kpiCard('♙', 'Khách đang phụ trách', number(rows.reduce((sum, row) => sum + row.customers, 0)), 'Tổng theo Sale')}${kpiCard('!', 'Lịch quá hạn', number(rows.reduce((sum, row) => sum + row.overdue, 0)), 'Trong hồ sơ khách')}</div>
     <section class="panel"><div class="panel-head"><div><div class="panel-title">Danh sách nhân sự</div><div class="panel-sub">Chức vụ, tuyến quản lý và hiệu suất hiện tại</div></div>${currentAccount.role === 'ADMIN' ? '<button class="button button-small" id="exportTeamButton">Xuất CSV</button>' : ''}</div><div class="table-wrap"><table><thead><tr><th>Nhân sự</th><th>Chức vụ</th><th>Team</th><th>Quản lý trực tiếp</th><th>Khách hàng</th><th>Doanh thu kỳ</th>${currentAccount.role === 'ADMIN' ? '<th>Thao tác</th>' : ''}</tr></thead><tbody>${members.map(member => { const performance = rows.find(row => row.id === member.id); const directSales = member.role === 'LEADER' ? STAFF.filter(person => person.role === 'SALE' && person.leaderId === member.id).length : 0; return `<tr><td><div class="cell-main">${escapeHtml(member.name)}${['l1', 's1'].includes(member.id) ? ' <span class="account-link">Tài khoản hệ thống</span>' : ''}</div><div class="cell-sub">${escapeHtml(member.phone || member.email || member.id)}</div></td><td><span class="status ${member.role === 'LEADER' ? 'status-info' : 'status-paid'}">${member.role}</span></td><td>${escapeHtml(member.teamId)}</td><td>${member.role === 'SALE' ? escapeHtml(staffName(member.leaderId)) : `${directSales} Sale trực thuộc`}</td><td>${member.role === 'SALE' ? number(performance?.customers || 0) : number(state.customers.filter(customer => customer.leaderId === member.id).length)}</td><td>${member.role === 'SALE' ? money(performance?.revenue || 0) : money(netRevenue(state.orders.filter(order => order.leaderId === member.id), inCurrentPeriod))}</td>${currentAccount.role === 'ADMIN' ? `<td><div class="panel-actions"><button class="button button-small" data-edit-member="${escapeHtml(member.id)}">Chỉnh sửa</button><button class="button button-small" data-reset-member-password="${escapeHtml(member.id)}">Mật khẩu</button><button class="button button-small button-danger" data-delete-member="${escapeHtml(member.id)}">Xoá</button></div></td>` : ''}</tr>`; }).join('')}</tbody></table></div></section>`;
 }
@@ -2608,6 +2907,7 @@ function applyAppearanceSettings() {
   document.documentElement.style.setProperty('--accent-soft', palette[2]);
   const fonts = Object.fromEntries([['aptos','Aptos'],['arial','Arial'],['arialBlack','Arial Black'],['bahnschrift','Bahnschrift'],['calibri','Calibri'],['cambria','Cambria'],['candara','Candara'],['century','Century Gothic'],['comic','Comic Sans MS'],['consolas','Consolas'],['constantia','Constantia'],['corbel','Corbel'],['courier','Courier New'],['franklin','Franklin Gothic Medium'],['georgia','Georgia'],['impact','Impact'],['segoe','Segoe UI'],['tahoma','Tahoma'],['times','Times New Roman'],['trebuchet','Trebuchet MS'],['verdana','Verdana'],['beVietnam','Be Vietnam Pro'],['inter','Inter'],['roboto','Roboto'],['openSans','Open Sans'],['montserrat','Montserrat'],['poppins','Poppins'],['lato','Lato'],['nunito','Nunito'],['raleway','Raleway'],['oswald','Oswald'],['ubuntu','Ubuntu'],['rubik','Rubik'],['manrope','Manrope'],['dmSans','DM Sans'],['workSans','Work Sans'],['quicksand','Quicksand'],['notoSans','Noto Sans'],['notoSerif','Noto Serif'],['plex','IBM Plex Sans'],['merriweather','Merriweather'],['playfair','Playfair Display'],['sourceSans','Source Sans 3'],['fira','Fira Sans'],['firaCode','Fira Code'],['barlow','Barlow'],['outfit','Outfit'],['spaceGrotesk','Space Grotesk'],['sora','Sora'],['plusJakarta','Plus Jakarta Sans'],['libreBaskerville','Libre Baskerville']].map(([k,v]) => [k, `${v}, sans-serif`]));
   document.documentElement.style.setProperty('--sans', fonts[state.settings.fontFamily || 'aptos'] || 'Aptos, sans-serif');
+  document.documentElement.style.setProperty('--font-sans', fonts[state.settings.fontFamily || 'aptos'] || 'Aptos, sans-serif');
   document.documentElement.style.setProperty('--base-font-size', `${state.settings.fontSize || 14}px`);
   document.documentElement.style.setProperty('--base-font-weight', state.settings.fontBold ? '700' : '400');
   document.documentElement.style.setProperty('--base-font-style', state.settings.fontItalic ? 'italic' : 'normal');
@@ -2724,9 +3024,10 @@ function attendanceCalendarHtml(accountId) {
 }
 
 function attendanceView() {
+  if (['LEADER', 'MANAGER'].includes(currentAccount.actualRole || currentAccount.role)) return accessDeniedView('Vai trò này không sử dụng điểm danh.');
   if (currentAccount.role === 'LEADER' && state.settings.leaderAttendanceRequired === false) return accessDeniedView('Admin đã tắt điểm danh bắt buộc cho Leader.');
   const today = dayIso(0);
-  const rows = state.attendance.filter(item => item.date === today && (currentAccount.role === 'ADMIN' || item.teamId === currentAccount.teamId)).sort((a, b) => a.at.localeCompare(b.at));
+  const rows = state.attendance.filter(item => item.date === today && activeStaff().some(person => person.id === item.accountId && person.role === 'SALE') && (currentAccount.role === 'ADMIN' || item.teamId === currentAccount.teamId)).sort((a, b) => a.at.localeCompare(b.at));
   if (currentAccount.role !== 'ADMIN') {
     const myAccountId = attendanceAccountId();
     const mine = rows.find(item => item.accountId === myAccountId);
@@ -2736,7 +3037,7 @@ function attendanceView() {
   }
   const config = currentAccount.role === 'ADMIN' ? `<section class="panel" style="margin-bottom:14px"><div class="panel-body"><div class="form-grid"><label class="form-field">IP Wi-Fi cho phép · phân cách dấu phẩy<input id="attendanceIp" value="${escapeHtml(state.settings.attendanceIp || '')}" placeholder="Ví dụ 192.168.1.10, 113.161.2.3"></label><label class="form-field">Giờ vào làm · quá giờ báo trễ<input id="attendanceDeadline" type="time" value="${escapeHtml(state.settings.attendanceDeadline || '09:00')}"></label><label class="form-field">Số giờ chờ Sale nhận data<input id="acceptTimeoutHours" type="number" value="24" readonly></label></div><button class="button button-primary" id="saveAttendanceSettings" style="margin-top:12px">Lưu quy định</button></div></section>` : '';
   const checkedIds = new Set(rows.map(item => item.accountId));
-  const missing = activeStaff().filter(person => ['SALE', 'LEADER'].includes(person.role) && (currentAccount.role === 'ADMIN' || (person.teamId === currentAccount.teamId && (person.leaderId === currentAccount.leaderId || person.id === currentAccount.leaderId))) && !checkedIds.has(person.id));
+  const missing = activeStaff().filter(person => person.role === 'SALE' && (currentAccount.role === 'ADMIN' || (person.teamId === currentAccount.teamId && (person.leaderId === currentAccount.leaderId || person.id === currentAccount.leaderId))) && !checkedIds.has(person.id));
   const actionCell = person => currentAccount.role === 'ADMIN' ? `<td><button class="button button-small" type="button" data-attendance-detail="${escapeHtml(person.id)}">Chi ti&#7871;t</button></td>` : '';
   const body = rows.map(item => `<tr><td><b>${escapeHtml(item.name)}</b></td><td>${escapeHtml(item.teamId)}</td><td class="mono">${escapeHtml(item.at)}</td><td class="mono">${escapeHtml(item.ip)}</td><td>${item.ipValid ? '<span class="status status-paid">&#272;&#250;ng wifi</span>' : '<span class="status status-cancelled">Ngo&#224;i wifi</span>'}</td><td>${item.late ? `<span class="status status-cancelled">&#272;i mu&#7897;n ${item.lateMinutes || 0}p</span>` : '<span class="status status-paid">&#272;&#250;ng gi&#7901;</span>'}</td>${currentAccount.role === 'ADMIN' ? `<td><button class="button button-small" type="button" data-attendance-detail="${escapeHtml(item.accountId)}">Chi ti&#7871;t</button> <button class="button button-small" type="button" data-edit-attendance="${escapeHtml(item.id)}">S&#7917;a</button> <button class="button button-small button-danger" type="button" data-delete-attendance="${escapeHtml(item.id)}">X&#243;a</button></td>` : ''}</tr>`).join('') +
     missing.map(person => `<tr><td><b>${escapeHtml(person.name)}</b></td><td>${escapeHtml(person.teamId)}</td><td colspan="3"><span class="status status-pending">Chưa điểm danh</span></td><td></td>${actionCell(person)}</tr>`).join('');
@@ -2747,7 +3048,7 @@ function attendanceView() {
 function attendanceHistoryHtml() {
   const today = dayIso(0);
   const threeMonthsAgo = dayIso(90);
-  const staff = activeStaff().filter(person => ['SALE', 'LEADER'].includes(person.role));
+  const staff = activeStaff().filter(person => person.role === 'SALE');
   const history = state.attendance.filter(item => item.date >= threeMonthsAgo && item.date <= today && staff.some(person => person.id === item.accountId)).sort((a, b) => b.date.localeCompare(a.date) || b.at.localeCompare(a.at));
   const rows = history.map(item => {
     const person = staff.find(member => member.id === item.accountId);
@@ -2761,7 +3062,7 @@ function attendanceHistoryHtml() {
    so đúng người đã chấm, và nút Ghi bù của Admin dùng chung một loại id. */
 function attendanceAccountId() {
   if (!currentAccount) return '';
-  return currentAccount.saleId || currentAccount.leaderId || currentAccount.id;
+  return currentAccount.actualRole==='MANAGER'?currentAccount.id:(currentAccount.saleId || currentAccount.leaderId || currentAccount.id);
 }
 
 function checkInToday() {
@@ -2859,13 +3160,20 @@ function deleteAttendanceRecord(id) {
   saveState(); render(); toast('Đã xóa bản ghi điểm danh');
 }
 function profileView() {
-  if (!['SALE', 'LEADER', 'UNASSIGNED'].includes(currentAccount.role)) return accessDeniedView('Trang hồ sơ này dành cho Sale và Leader.');
-  const member = activeStaff().find(person => person.id === (currentAccount.saleId || currentAccount.leaderId));
-  if (!member && currentAccount.role !== 'UNASSIGNED') return accessDeniedView('Không tìm thấy hồ sơ nhân sự.');
-  const profileName = member?.name || currentAccount.name;
-  const profileInitials = member?.initials || currentAccount.initials;
-  const avatar = member?.avatar ? `<img class="profile-avatar-large" src="${escapeHtml(member.avatar)}" alt="Avatar của ${escapeHtml(member.name)}">` : `<span class="profile-avatar-large profile-avatar-placeholder">${escapeHtml(profileInitials)}</span>`;
-  return pageHead('Hồ sơ của tôi', 'Cập nhật thông tin cá nhân và ảnh đại diện.', '') + `<section class="panel"><div class="panel-body"><form id="profileForm"><div class="profile-editor">${avatar}<div><label class="button button-small" for="profileAvatarInput">Đổi avatar</label><input id="profileAvatarInput" type="file" accept="image/png,image/jpeg,image/webp" class="is-hidden"><p class="cell-sub">Ảnh tối đa 1 MB, định dạng PNG/JPG/WebP.</p></div></div><div class="form-grid"><label class="form-field">Tên hiển thị<input id="profileDisplayName" maxlength="160" value="${escapeHtml(profileName)}"></label><label class="form-field">Vai trò<input disabled value="${escapeHtml(currentAccount.role)}"></label><label class="form-field">Đội<input disabled value="${escapeHtml(member?.teamId || 'Chưa phân')}"></label></div><div class="modal-actions"><button class="button button-primary" type="submit">Lưu hồ sơ</button></div></form></div></section>`;
+  const role=currentAccount.actualRole||currentAccount.role;
+  if (!['ADMIN','MARKETING','ACCOUNTING','SALE','LEADER','MANAGER','UNASSIGNED'].includes(role)) return accessDeniedView('Trang hồ sơ dành cho tài khoản hiện tại.');
+  const memberId=role==='MANAGER'||role==='ADMIN'||role==='MARKETING'||role==='ACCOUNTING'
+    ? currentAccount.id
+    : (currentAccount.saleId||currentAccount.leaderId||currentAccount.id);
+  const member=activeStaff().find(person=>person.id===memberId);
+  if(!member&&role!=='UNASSIGNED')return accessDeniedView('Không tìm thấy hồ sơ nhân sự.');
+  const profileName=member?.name||currentAccount.name;
+  const profileInitials=member?.initials||currentAccount.initials||'NVT';
+  const profileRole=member?.role||role;
+  const avatar=member?.avatar
+    ? '<img class="profile-avatar-large profile-avatar-image" src="'+escapeHtml(member.avatar)+'" alt="Avatar của '+escapeHtml(member.name||profileName)+'">'
+    : '<span class="profile-avatar-large profile-avatar-placeholder">'+escapeHtml(profileInitials)+'</span>';
+  return pageHead('Hồ sơ cá nhân','Cập nhật thông tin hiển thị trong toàn bộ hệ thống.','')+'<section class="panel profile-panel"><div class="panel-body profile-panel-body"><form id="profileForm"><div class="profile-hero"><div class="profile-avatar-wrap"><div class="profile-avatar-stage">'+avatar+'</div></div><div class="profile-hero-actions"><label class="button button-small profile-upload-button" for="profileAvatarInput">&#272;&#7893;i avatar</label><input id="profileAvatarInput" type="file" accept="image/png,image/jpeg,image/webp" class="is-hidden"></div></div><div class="profile-fields"><label class="form-field"><span>👤 Họ và tên <em>*</em></span><div class="profile-input-wrap"><span aria-hidden="true">👤</span><input id="profileDisplayName" maxlength="160" value="'+escapeHtml(profileName)+'" autocomplete="name" required></div></label><label class="form-field"><span>🔗 ID tài khoản <em>*</em></span><div class="profile-input-wrap"><span aria-hidden="true">🔗</span><input id="profileAccountId" maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9._-]{2,63}" value="'+escapeHtml(currentAccount.accountId||member?.accountId||'')+'" placeholder="Nhập ID tài khoản" autocomplete="off" required></div></label><label class="form-field"><span>✉ Email</span><div class="profile-input-wrap"><span aria-hidden="true">✉</span><input id="profileEmail" type="email" maxlength="254" value="'+escapeHtml(member?.email||currentAccount.email||'')+'" placeholder="Nhập email" autocomplete="email"></div></label><label class="form-field"><span>☎ Số điện thoại</span><div class="profile-input-wrap"><span aria-hidden="true">☎</span><input id="profilePhone" type="tel" inputmode="numeric" maxlength="15" value="'+escapeHtml(member?.phone||currentAccount.phone||'')+'" placeholder="Nhập số điện thoại" autocomplete="tel"></div></label></div><div class="profile-security-note"><span aria-hidden="true">🔒</span><div><strong>Bảo mật tài khoản</strong><small>Đổi mật khẩu được thực hiện ở mục riêng trong hồ sơ.</small></div></div><div class="modal-actions profile-actions"><button class="button button-primary" type="submit">Lưu hồ sơ</button></div></form></div></section>';
 }
 
 function accessDeniedView(message) {
@@ -2873,17 +3181,23 @@ function accessDeniedView(message) {
 }
 
 const VIEW_RENDERERS = {
-  dashboard: dashboardView, customers: customersView, pool: poolView, distribution: distributionView,
-  orders: ordersView, products: productsView, revenue: revenueView, marketing: marketingView, team: teamView,
+  dashboard: executiveDashboardView, customers: customersView, pool: poolView, distribution: distributionView,
+  orders: ordersView, products: productsView, revenue: revenueView, businessReport: reportsView, accounting: accountingView, marketing: marketingView, team: teamView,
   websites: websitesView, integrations: integrationsView,
   attendance: attendanceView, accept: acceptQueueView, notifications: notificationsView, audit: auditView, settings: settingsView, profile: profileView
 };
 
 function visibleNavigation() {
-  const groups = NAVIGATION[currentAccount.role] || [];
-  return groups.map(([name, items]) => [name, items.filter(item => !(currentAccount.role === 'LEADER' && item[0] === 'attendance' && state.settings.leaderAttendanceRequired === false))]).filter(([, items]) => items.length);
+  const role = currentAccount?.actualRole || currentAccount?.role;
+  const groups = NAVIGATION[role === 'MANAGER' ? 'LEADER' : role] || [];
+  const allowed = role === 'SALE'
+    ? new Set(['dashboard','customers','accept','orders','revenue','businessReport','care','team','attendance','notifications','profile'])
+    : role === 'LEADER' || role === 'MANAGER'
+      ? new Set(['dashboard','customers','pool','orders','revenue','businessReport','team','care','notifications','profile'])
+      : null;
+  return groups.map(([name, items]) => [name, items.filter(item => (!allowed || allowed.has(item[0])) && !(role === 'LEADER' && item[0] === 'attendance' && state.settings.leaderAttendanceRequired === false))]).filter(([, items]) => items.length);
 }
-function allowedViews() { return visibleNavigation().flatMap(([, items]) => items.map(item => item[0])); }
+function allowedViews() { return Array.from(new Set([...visibleNavigation().flatMap(([, items]) => items.map(item => item[0])), 'profile'])); }
 function viewLabel(view) { return visibleNavigation().flatMap(([, items]) => items).find(item => item[0] === view)?.[1] || view; }
 
 function newCustomerCount() {
@@ -2906,7 +3220,7 @@ function navigationBadgeCount(view) {
 
 function renderNavigation() {
   const groups = visibleNavigation();
-  $('#sideNav').innerHTML = groups.map(([group, items]) => `<div class="nav-group"><div class="nav-title">${escapeHtml(group)}</div>${items.map(([view, label, icon]) => { const badge = navigationBadgeCount(view); const showBadge = ['pool', 'accept'].includes(view) || badge > 0; return `<button type="button" class="nav-link ${currentView === view ? 'active' : ''}" data-view-link="${view}" ${currentView === view ? 'aria-current="page"' : ''}><span class="nav-icon">${icon}</span><span>${escapeHtml(label)}</span>${showBadge ? `<span class="nav-badge">${number(badge)}</span>` : ''}</button>`; }).join('')}</div>`).join('');
+  $('#sideNav').innerHTML = groups.map(([group, items]) => `<div class="nav-group"><div class="nav-title nav-group-title">${escapeHtml(group)}</div><div class="nav-list">${items.map(([view, label, icon]) => { const badge = navigationBadgeCount(view); const showBadge = ['pool', 'accept'].includes(view) || badge > 0; return `<button type="button" class="nav-link ${currentView === view ? 'active' : ''}" data-view-link="${view}" ${currentView === view ? 'aria-current="page"' : ''}><span class="nav-icon">${icon}</span><span>${escapeHtml(label)}</span>${showBadge ? `<span class="nav-badge">${number(badge)}</span>` : ''}</button>`; }).join('')}</div></div>`).join('');
   $('#mobileNav').innerHTML = groups.flatMap(([, items]) => items).map(([view, label]) => { const badge = navigationBadgeCount(view); return `<option value="${view}" ${currentView === view ? 'selected' : ''}>${escapeHtml(label)}${badge > 0 ? ` (${number(badge)})` : ''}</option>`; }).join('');
   $$('[data-view-link]').forEach(button => button.onclick = event => { event.preventDefault(); navigate(button.dataset.viewLink); });
   $('#mobileNav').onchange = event => navigate(event.target.value);
@@ -2915,7 +3229,7 @@ function renderNavigation() {
 function unreadCount() { return currentAccount ? visibleNotifications().filter(item => !item.readBy.includes(currentAccount.id)).length : 0; }
 
 function updateSessionChrome() {
-  const sessionMember = activeStaff().find(person => person.id === (currentAccount.saleId || currentAccount.leaderId));
+  const sessionMember = activeStaff().find(person => person.id === (currentAccount.actualRole==='MANAGER'?currentAccount.id:(currentAccount.saleId || currentAccount.leaderId)));
   $('#profileName').textContent = currentAccount.name;
   const avatar = $('#profileAvatar');
   avatar.textContent = sessionMember?.avatar ? '' : currentAccount.initials;
@@ -2982,6 +3296,7 @@ function renderPreservingCustomerScroll() {
 function openDrawer(content) {
   drawerReturnFocus = document.activeElement;
   $('#drawerRoot').innerHTML = `<div class="drawer-backdrop" data-close-drawer></div><aside class="drawer" role="dialog" aria-modal="true"><div class="drawer-head"><div>${content.head}</div><button class="close-button" type="button" data-close-drawer aria-label="Đóng">×</button></div><div class="drawer-body">${content.body}</div></aside>`;
+  if (content.body.includes('customerUpdateForm')) $('.drawer')?.classList.add('customer-detail-drawer');
   $$('[data-close-drawer]').forEach(item => item.onclick = closeDrawer);
   $('.drawer .close-button')?.focus();
 }
@@ -3030,7 +3345,7 @@ function customFieldEditorModal(id = null) {
   const existing = id ? state.customFieldDefinitions.find(field => field.id === id) : null;
   if (id && !existing) return;
   const field = existing || { label: '', type: 'TEXT', showInTable: false, required: false, options: [] };
-  const optionRows = (field.options || []).map(option => `<div class="field-option-row"><input data-option-label value="${escapeHtml(option.label)}" placeholder="Nội dung lựa chọn"><input data-option-color type="color" value="${escapeHtml(/^#[0-9a-f]{6}$/i.test(option.color) ? option.color : '#64748b')}" title="Màu lựa chọn"><button class="button button-small button-danger" type="button" data-remove-option>Xóa</button></div>`).join('');
+  const optionRows = (field.options || []).map(option => `<div class="field-option-row"><input data-option-label data-option-value="${escapeHtml(option.value)}" value="${escapeHtml(option.label)}" placeholder="Nội dung lựa chọn"><input data-option-color type="color" value="${escapeHtml(/^#[0-9a-f]{6}$/i.test(option.color) ? option.color : '#64748b')}" title="Màu lựa chọn"><button class="button button-small button-danger" type="button" data-remove-option>Xóa</button></div>`).join('');
   openModal(existing ? `Sửa cột · ${existing.label}` : 'Thêm cột khách hàng', `<form id="customFieldForm"><div class="form-grid"><label class="form-field">Tên cột<input id="customFieldLabel" maxlength="160" required value="${escapeHtml(field.label)}" placeholder="Ví dụ: Gọi kết nối"></label><label class="form-field">Kiểu dữ liệu<select id="customFieldType"><option value="TEXT" ${field.type === 'TEXT' ? 'selected' : ''}>Nhập nội dung</option><option value="SELECT" ${field.type === 'SELECT' ? 'selected' : ''}>Chọn một</option><option value="MULTI_SELECT" ${field.type === 'MULTI_SELECT' ? 'selected' : ''}>Chọn nhiều</option><option value="CHECKBOX" ${field.type === 'CHECKBOX' ? 'selected' : ''}>Tích chọn</option><option value="NOTE" ${field.type === 'NOTE' ? 'selected' : ''}>Ghi chú</option></select></label><div class="form-field full option-editor"><span>Nội dung lựa chọn <small>(chỉ dùng cho Chọn một / Chọn nhiều)</small></span><div id="customFieldOptions">${optionRows}</div><textarea id="customFieldOptionsLegacy" class="is-hidden">${escapeHtml((field.options || []).map(option => `${option.value}|${option.label}|${option.color}`).join('\n'))}</textarea><input id="customFieldShowTable" class="is-hidden" type="checkbox" checked><input id="customFieldRequired" class="is-hidden" type="checkbox"><button class="button button-small" type="button" id="addCustomFieldOption">+ Thêm nội dung</button></div></div><div class="modal-actions"><button class="button" type="button" id="backToFieldManager">Quay lại</button><button class="button button-primary" type="submit">Tạo cột</button></div></form>`);
   $('#backToFieldManager').onclick = customFieldsModal;
   $('#addCustomFieldOption').onclick = () => { $('#customFieldOptions').insertAdjacentHTML('beforeend', '<div class="field-option-row"><input data-option-label placeholder="Nội dung lựa chọn"><input data-option-color type="color" value="#64748b"><button class="button button-small button-danger" type="button" data-remove-option>Xóa</button></div>'); bindFieldOptionRows(); };
@@ -3058,7 +3373,7 @@ function saveCustomFieldDefinition(id = null) {
   const label = $('#customFieldLabel')?.value.trim(), requestedType = $('#customFieldType')?.value;
   const type = id === 'customerLevel' ? 'SELECT' : requestedType;
   const rowInputs = $$('[data-option-label]');
-  const optionRaw = rowInputs.length ? rowInputs.map((input, index) => `${input.value.trim()}|${input.value.trim()}|${$$('[data-option-color]')[index]?.value || '#64748b'}`).join('\n') : ($('#customFieldOptions')?.value || $('#customFieldOptionsLegacy')?.value || '');
+  const optionRaw = rowInputs.length ? rowInputs.map((input, index) => `${input.dataset.optionValue || input.value.trim()}|${input.value.trim()}|${$$('[data-option-color]')[index]?.value || '#64748b'}`).join('\n') : ($('#customFieldOptions')?.value || $('#customFieldOptionsLegacy')?.value || '');
   const options = parseCustomFieldOptions(optionRaw, type);
   if (!label || !['TEXT', 'NOTE', 'SELECT', 'MULTI_SELECT', 'CHECKBOX'].includes(type)) { toast('Tên hoặc kiểu cột không hợp lệ'); return; }
   if (['SELECT', 'MULTI_SELECT'].includes(type) && !options.length) { toast('Cột lựa chọn cần ít nhất một phương án'); return; }
@@ -3129,6 +3444,12 @@ function openCustomerDrawer(id) {
       ${otherFieldHistory.length ? `<div class="section-label">Các thay đổi nghiệp vụ gần đây</div><div class="timeline">${otherFieldHistory.map(item => `<div class="timeline-item"><b>${escapeHtml(item.fieldLabel)}</b><p>${escapeHtml(String(customFieldValueLabel(state.customFieldDefinitions.find(field => field.id === item.fieldId), item.from) || 'Trống'))} → ${escapeHtml(String(customFieldValueLabel(state.customFieldDefinitions.find(field => field.id === item.fieldId), item.to) || 'Trống'))}</p><small>${escapeHtml(item.at)} · ${escapeHtml(item.actor)}</small></div>`).join('')}</div>` : ''}
       <div class="section-label">Audit</div><div class="timeline">${logs.map(log => `<div class="timeline-item"><b>${escapeHtml(log.action)}</b><p>${escapeHtml(log.detail)}</p><small>${escapeHtml(log.at)} · ${escapeHtml(log.actor)}</small></div>`).join('') || '<div class="timeline-item"><b>Khởi tạo data</b><p>Bản ghi được tạo từ nguồn acquisition.</p><small>System</small></div>'}</div>`
   });
+  if (currentAccount.role !== 'ADMIN') {
+    const drawerDetails = $('#drawerRoot .detail-grid');
+    drawerDetails?.querySelectorAll('dt').forEach(dt => {
+      if (dt.textContent.trim() === 'IP truy cập') { dt.hidden = true; dt.nextElementSibling?.setAttribute('hidden', ''); }
+    });
+  }
   const form = $('#customerUpdateForm');
   if (form) form.onsubmit = event => { event.preventDefault(); updateCustomer(id); };
   const noteForm = $('#customerNoteForm');
@@ -3250,25 +3571,61 @@ function openOrderDrawer(id) {
   const order = scopedOrders().find(item => item.id === id);
   if (!order) { toast('NOT_FOUND \u00b7 \u0111\u01a1n h\u00e0ng n\u1eb1m ngo\u00e0i ph\u1ea1m vi'); return; }
   const product = productById(order.productId), website = websiteById(order.websiteId), billing = order.billing || {};
-  const subtotal = Number.isFinite(Number(order.subtotal)) ? Number(order.subtotal) : Number(order.total || 0), vatAmount = Number(order.vatAmount || 0), amountPaid = Number(order.amountPaid || 0), balanceDue = Number.isFinite(Number(order.balanceDue)) ? Number(order.balanceDue) : Math.max(0, Number(order.total || 0) - amountPaid);
+  const subtotal = Number.isFinite(Number(order.subtotal)) ? Number(order.subtotal) : Number(order.total || 0), vatAmount = Number(order.vatAmount || 0), amountPaid = orderGrossCollected(order), netCollected = orderNetCollected(order), balanceDue = Number.isFinite(Number(order.balanceDue)) ? Number(order.balanceDue) : Math.max(0, Number(order.total || 0) - amountPaid);
   const attribution = currentAccount.role === 'ADMIN' ? `<dt>Ngu\u1ed3n / Campaign</dt><dd>${escapeHtml(order.source)} \u00b7 ${escapeHtml(order.campaign || 'UNATTRIBUTED')}</dd><dt>Website / Landing</dt><dd>${escapeHtml(website ? `${website.name} \u00b7 ${website.domain}` : 'Ch\u01b0a quy ngu\u1ed3n')}</dd>` : '';
   const payment = `<div class="section-label">Thanh to\u00e1n & h\u00f3a \u0111\u01a1n</div><dl class="detail-grid"><dt>H\u00ecnh th\u1ee9c</dt><dd>${order.paymentMode === 'DEPOSIT' ? `\u0110\u1eb7t c\u1ecdc ${money(order.depositAmount || 0)}` : 'Thanh to\u00e1n \u0111\u1ee7'}</dd><dt>K\u00eanh thanh to\u00e1n</dt><dd>${escapeHtml(order.paymentMethod || 'Ch\u01b0a ch\u1ecdn')}</dd><dt>T\u1ea1m t\u00ednh</dt><dd>${money(subtotal)}</dd><dt>VAT ${Math.round(Number(order.vatRate || 0) * 100)}%</dt><dd>${money(vatAmount)}</dd><dt>T\u1ed5ng thanh to\u00e1n</dt><dd><b>${money(order.total)}</b></dd><dt>\u0110\u00e3 thu / C\u00f2n l\u1ea1i</dt><dd>${money(amountPaid)} / ${money(balanceDue)}</dd>${order.rentalMonths ? `<dt>K\u1ef3 thu\u00ea</dt><dd>${order.rentalMonths} th\u00e1ng \u00b7 h\u1ebft h\u1ea1n ${orderDate(order.rentalEndsAt)}</dd>` : ''}<dt>Ng\u01b0\u1eddi mua</dt><dd>${escapeHtml(billing.name || order.customerName || '')}</dd><dt>CCCD</dt><dd class="mono">${escapeHtml(billing.cccd || '\u2014')}</dd><dt>S\u0110T / Email</dt><dd>${escapeHtml(billing.phone || '\u2014')} \u00b7 ${escapeHtml(billing.email || '\u2014')}</dd><dt>\u0110\u1ecba ch\u1ec9</dt><dd>${escapeHtml(billing.address || '\u2014')}</dd><dt>MST</dt><dd class="mono">${escapeHtml(billing.taxId || 'Kh\u00e1ch c\u00e1 nh\u00e2n')}</dd></dl>`;
   let paymentActions = '';
   if (currentAccount.role === 'ADMIN') {
     if (order.status === 'PENDING' && order.paymentMode === 'DEPOSIT') paymentActions += `<button class="button" data-mark-deposit="${escapeHtml(order.id)}">X\u00e1c nh\u1eadn \u0111\u00e3 nh\u1eadn c\u1ecdc</button>`;
     if (['PENDING', 'DEPOSIT'].includes(order.status)) paymentActions += `<button class="button button-primary" data-mark-paid="${escapeHtml(order.id)}">X\u00e1c nh\u1eadn thanh to\u00e1n \u0111\u1ee7</button>`;
-    if (['DEPOSIT', 'PAID'].includes(order.status) && amountPaid > 0) paymentActions += `<button class="button button-danger" data-refund-order="${escapeHtml(order.id)}">Ghi nh\u1eadn ho\u00e0n ti\u1ec1n</button>`;
+    if (['DEPOSIT', 'PAID', 'COURSE_GRANTED'].includes(order.status) && amountPaid > Number(order.refund || 0)) paymentActions += `<button class="button button-danger" data-refund-order="${escapeHtml(order.id)}">T\u1ea1o phi\u1ebfu ho\u00e0n ti\u1ec1n</button>`;
+    if (order.status === 'PAID' && !order.rentalMonths) paymentActions += `<button class="button" data-grant-course="${escapeHtml(order.id)}">Đã cấp khóa học</button>`;
     if (paymentActions) paymentActions = `<div class="modal-actions">${paymentActions}</div>`;
   }
   openDrawer({ head: `<h2>${escapeHtml(order.code)}</h2><p>${escapeHtml(order.createdAt)}${currentAccount.role === 'ADMIN' ? ` \u00b7 ${escapeHtml(order.source)} \u00b7 ${escapeHtml(order.campaign || 'UNATTRIBUTED')}` : ''}</p>`, body: `<div class="section-label">Chi ti\u1ebft \u0111\u01a1n h\u00e0ng</div><dl class="detail-grid"><dt>Kh\u00e1ch h\u00e0ng</dt><dd>${escapeHtml(order.customerName)}</dd>${attribution}<dt>S\u1ea3n ph\u1ea9m</dt><dd>${escapeHtml(order.productName)}</dd><dt>SKU / S\u1ed1 l\u01b0\u1ee3ng</dt><dd>${escapeHtml(product?.sku || order.sku)} \u00b7 ${escapeHtml(order.qty)}</dd><dt>\u0110\u01a1n gi\u00e1</dt><dd>${money(order.unitPrice)}</dd><dt>Chi\u1ebft kh\u1ea5u</dt><dd>${money(order.discount)}</dd><dt>Tr\u1ea1ng th\u00e1i</dt><dd>${statusBadge(order.status, 'order')}</dd><dt>Sale</dt><dd>${escapeHtml(staffName(order.saleId))}</dd></dl>${payment}${paymentActions}<div class="section-label">D\u00f2ng th\u1eddi gian</div><div class="timeline"><div class="timeline-item"><b>\u0110\u01a1n \u0111\u01b0\u1ee3c t\u1ea1o</b><p>${escapeHtml(order.productName)} \u00b7 SL ${escapeHtml(order.qty)}</p><small>${escapeHtml(order.createdAt)}</small></div>${order.depositAt ? `<div class="timeline-item"><b>\u0110\u00e3 nh\u1eadn c\u1ecdc</b><p>${money(order.depositAmount)}</p><small>${escapeHtml(order.depositAt)}</small></div>` : ''}${order.paidAt ? `<div class="timeline-item"><b>Thanh to\u00e1n \u0111\u1ee7</b><p>${money(order.total)}</p><small>${escapeHtml(order.paidAt)}</small></div>` : ''}${order.refundedAt ? `<div class="timeline-item"><b>\u0110\u00e3 ho\u00e0n ti\u1ec1n</b><p>${money(order.refund)}</p><small>${escapeHtml(order.refundedAt)}</small></div>` : ''}</div>` });
   $('[data-mark-deposit]')?.addEventListener('click', () => changeOrderStatus(id, 'DEPOSIT'));
   $('[data-mark-paid]')?.addEventListener('click', () => changeOrderStatus(id, 'PAID'));
-  $('[data-refund-order]')?.addEventListener('click', () => changeOrderStatus(id, 'REFUNDED'));
+  $('[data-refund-order]')?.addEventListener('click', () => refundOrderModal(id));
+  $('[data-grant-course]')?.addEventListener('click', () => changeOrderStatus(id, 'COURSE_GRANTED'));
+}
+
+function refundOrderModal(id) {
+  if (currentAccount?.role !== 'ADMIN') { toast('FORBIDDEN · chỉ Admin được tạo phiếu hoàn tiền'); return; }
+  const order = state.orders.find(item => item.id === id);
+  if (!order) { toast('Không tìm thấy đơn hàng'); return; }
+  const collected = orderGrossCollected(order);
+  const alreadyRefunded = Math.max(0, Number(order.refund || 0));
+  const remaining = Math.max(0, collected - alreadyRefunded);
+  if (!remaining) { toast('Đơn hàng không còn số tiền có thể hoàn'); return; }
+  openModal('Tạo phiếu hoàn tiền', `<form id="refundOrderForm"><div class="form-hint"><b>${escapeHtml(order.code)}</b> · ${escapeHtml(order.customerName)} · Thực thu ${money(orderNetCollected(order))}</div><label class="form-field">Số tiền hoàn<input id="refundAmount" type="number" min="1" max="${remaining}" step="1000" required value="${remaining}"></label><label class="form-field">Lý do hoàn tiền<textarea id="refundReason" rows="4" maxlength="500" required placeholder="Nhập lý do hoàn tiền"></textarea></label><div class="form-hint">Có thể hoàn tối đa ${money(remaining)}. Phiếu được lưu cùng lịch sử đơn hàng.</div><div class="modal-actions"><button class="button" type="button" data-close-modal>Hủy</button><button class="button button-danger" type="submit">Lưu phiếu hoàn tiền</button></div></form>`);
+  $('[data-close-modal]')?.addEventListener('click', closeModal);
+  $('#refundOrderForm').onsubmit = async event => {
+    event.preventDefault();
+    const amount = Math.round(Number($('#refundAmount').value));
+    const reason = $('#refundReason').value.trim();
+    if (!Number.isFinite(amount) || amount <= 0 || amount > remaining) { toast(`Số tiền hoàn phải từ 1 đến ${money(remaining)}`); return; }
+    if (reason.length < 3) { toast('Vui lòng nhập lý do hoàn tiền'); return; }
+    const now = stamp();
+    const voucher = { id: `RF-${Date.now()}-${order.id}`, amount, reason, createdAt: now, createdBy: currentAccount.id, createdByName: currentAccount.name };
+    order.refundVouchers = [...(Array.isArray(order.refundVouchers) ? order.refundVouchers : []), voucher];
+    order.refund = alreadyRefunded + amount;
+    order.refundReason = reason;
+    order.refundedAt = now;
+    order.refundReconciled = false;
+    if (order.refund >= collected) {
+      order.status = 'REFUNDED';
+      order.amountPaid = 0;
+      order.balanceDue = 0;
+    }
+    audit('ORDER_REFUNDED', order.id, `${order.code} · ${money(amount)} · ${reason}`);
+    if (!await persistOrder(order)) { toast('Không thể lưu phiếu hoàn tiền lên MySQL'); return; }
+    saveState(); closeModal(); closeDrawer(); render(); toast(`Đã lưu phiếu hoàn tiền ${money(amount)}`);
+  };
 }
 
 async function changeOrderStatus(id, status) {
-  const order = state.orders.find(item => item.id === id); if (!order) return; const edit = orderEditState(order); if (!edit.allowed) { toast('\u0110\u01a1n \u0111\u00e3 kh\u00f3a ch\u1ec9nh s\u1eeda sau 7 ng\u00e0y'); return; } if (currentAccount.role !== 'ADMIN') { toast('FORBIDDEN \u00b7 ch\u1ec9 Admin \u0111\u01b0\u1ee3c x\u00e1c nh\u1eadn thanh to\u00e1n'); return; }
-  const validTransition = (status === 'DEPOSIT' && order.status === 'PENDING' && order.paymentMode === 'DEPOSIT') || (status === 'PAID' && ['PENDING', 'DEPOSIT'].includes(order.status)) || (status === 'REFUNDED' && ['DEPOSIT', 'PAID'].includes(order.status));
+  const order = state.orders.find(item => item.id === id); if (!order) return; const edit = orderEditState(order); if (!edit.allowed) { toast('\u0110\u01a1n \u0111\u00e3 kh\u00f3a ch\u1ec9nh s\u1eeda sau 3 ng\u00e0y'); return; } if (currentAccount.role !== 'ADMIN') { toast('FORBIDDEN \u00b7 ch\u1ec9 Admin \u0111\u01b0\u1ee3c x\u00e1c nh\u1eadn thanh to\u00e1n'); return; }
+  const validTransition = (status === 'DEPOSIT' && order.status === 'PENDING' && order.paymentMode === 'DEPOSIT') || (status === 'PAID' && ['PENDING', 'DEPOSIT'].includes(order.status)) || (status === 'REFUNDED' && ['DEPOSIT', 'PAID'].includes(order.status)) || (status === 'COURSE_GRANTED' && order.status === 'PAID' && !order.rentalMonths);
   if (!validTransition) { toast('Tr\u1ea1ng th\u00e1i \u0111\u01a1n h\u00e0ng kh\u00f4ng th\u1ec3 chuy\u1ec3n theo thao t\u00e1c n\u00e0y'); return; }
   order.status = status;
   if (status === 'DEPOSIT') { order.depositAt = stamp(); order.amountPaid = Number(order.depositAmount); order.balanceDue = Math.max(0, Number(order.total) - order.amountPaid); order.paymentReconciled = false; }
@@ -3520,9 +3877,28 @@ function editOrderModal(id) {
   const order = state.orders.find(item => item.id === id); const access = order && orderEditState(order);
   if (!order || !access?.allowed || !canViewCustomer(customerById(order.customerId))) { toast('\u0110\u01a1n h\u00e0ng \u0111\u00e3 kh\u00f3a ho\u1eb7c n\u1eb1m ngo\u00e0i ph\u1ea1m vi'); return; }
   const availableProducts = state.products.filter(product => product.active !== false || product.id === order.productId);
-  openModal('S\u1eeda \u0111\u01a1n h\u00e0ng', `<form id="editOrderForm"><label class="form-field">S\u1ea3n ph\u1ea9m<select id="editOrderProduct">${availableProducts.map(product => `<option value="${escapeHtml(product.id)}" ${product.id === order.productId ? 'selected' : ''}>${escapeHtml(product.name)} \u00b7 ${money(product.price)}</option>`).join('')}</select></label><label class="form-field" style="margin-top:12px">S\u1ed1 l\u01b0\u1ee3ng<input id="editOrderQty" type="number" min="1" max="10" value="${order.qty}"></label><div class="modal-actions"><button class="button" type="button" data-close-modal>H\u1ee7y</button><button class="button button-primary" type="submit">L\u01b0u thay \u0111\u1ed5i</button></div></form>`);
+  openModal('S\u1eeda \u0111\u01a1n h\u00e0ng', `<form id="editOrderForm"><label class="form-field">S\u1ea3n ph\u1ea9m<select id="editOrderProduct">${availableProducts.map(product => `<option value="${escapeHtml(product.id)}" ${product.id === order.productId ? 'selected' : ''}>${escapeHtml(product.name)} \u00b7 ${money(product.price)}</option>`).join('')}</select></label><label class="form-field">VAT (%)<select id="editOrderVatRate"><option value="0.08" ${Number(order.vatRate)===0.08?'selected':''}>8%</option><option value="0.10" ${Number(order.vatRate||0.1)===0.10?'selected':''}>10%</option><option value="0.12" ${Number(order.vatRate)===0.12?'selected':''}>12%</option><option value="0.15" ${Number(order.vatRate)===0.15?'selected':''}>15%</option></select></label><label class="form-field" style="margin-top:12px">S\u1ed1 l\u01b0\u1ee3ng<input id="editOrderQty" type="number" min="1" max="10" value="${order.qty}"></label><div class="modal-actions"><button class="button" type="button" data-close-modal>H\u1ee7y</button><button class="button button-primary" type="submit">L\u01b0u thay \u0111\u1ed5i</button></div></form>`);
   $('[data-close-modal]')?.addEventListener('click', closeModal);
-  $('#editOrderForm').onsubmit = async event => { event.preventDefault(); const product = productById($('#editOrderProduct').value), qty = Number($('#editOrderQty').value); if (!product || !Number.isInteger(qty) || qty < 1 || qty > 10) { toast('S\u1ea3n ph\u1ea9m ho\u1eb7c s\u1ed1 l\u01b0\u1ee3ng kh\u00f4ng h\u1ee3p l\u1ec7'); return; } const previous = { productId: order.productId, qty: order.qty, total: order.total }; order.productId = product.id; order.productName = product.name; order.sku = product.sku; order.qty = qty; order.unitPrice = Number(product.price); order.subtotal = order.unitPrice * qty; order.vatRate = Number.isFinite(Number(order.vatRate)) ? Number(order.vatRate) : 0.1; order.vatAmount = Math.round(order.subtotal * order.vatRate); order.total = Math.max(0, order.subtotal - Number(order.discount || 0) + order.vatAmount); order.depositAmount = order.paymentMode === 'DEPOSIT' ? Math.min(Number(order.depositAmount || 0), Math.max(0, order.total - 1)) : 0; order.balanceDue = Math.max(0, order.total - Number(order.amountPaid || 0)); order.rentalMonths = product.type === 'RENTAL' ? Number(product.rentalMonths) || null : null; order.rentalEndsAt = orderRentalEndsAt(order.createdAt, order.rentalMonths); audit('EDIT_ORDER', order.id, `${previous.productId} \u00b7 ${previous.qty} \u2192 ${product.id} \u00b7 ${qty}`); if (!await persistOrder(order)) { toast('Kh\u00f4ng th\u1ec3 l\u01b0u \u0111\u01a1n h\u00e0ng l\u00ean MySQL'); return; } saveState(); closeModal(); render(); };
+  $('#editOrderForm').onsubmit = async event => { event.preventDefault(); const product = productById($('#editOrderProduct').value), qty = Number($('#editOrderQty').value); if (!product || !Number.isInteger(qty) || qty < 1 || qty > 10) { toast('S\u1ea3n ph\u1ea9m ho\u1eb7c s\u1ed1 l\u01b0\u1ee3ng kh\u00f4ng h\u1ee3p l\u1ec7'); return; } const previous = { productId: order.productId, qty: order.qty, total: order.total }; order.productId = product.id; order.productName = product.name; order.sku = product.sku; order.qty = qty; order.unitPrice = Number(product.price); order.subtotal = order.unitPrice * qty; order.vatRate = Math.min(1, Math.max(0, Number($('#editOrderVatRate')?.value ?? order.vatRate ?? product.vatRate ?? 0.1))); order.vatAmount = Math.round(order.subtotal * order.vatRate); order.total = Math.max(0, order.subtotal - Number(order.discount || 0) + order.vatAmount); order.depositAmount = order.paymentMode === 'DEPOSIT' ? Math.min(Number(order.depositAmount || 0), Math.max(0, order.total - 1)) : 0; order.balanceDue = Math.max(0, order.total - Number(order.amountPaid || 0)); order.rentalMonths = product.type === 'RENTAL' ? Number(product.rentalMonths) || null : null; order.rentalEndsAt = orderRentalEndsAt(order.createdAt, order.rentalMonths); audit('EDIT_ORDER', order.id, `${previous.productId} \u00b7 ${previous.qty} \u2192 ${product.id} \u00b7 ${qty}`); if (!await persistOrder(order)) { toast('Kh\u00f4ng th\u1ec3 l\u01b0u \u0111\u01a1n h\u00e0ng l\u00ean MySQL'); return; } saveState(); closeModal(); render(); };
+}
+
+async function deleteCustomer(id) {
+  if (currentAccount?.role !== 'ADMIN') { toast('FORBIDDEN · chỉ Admin được xóa data'); return; }
+  const customer = state.customers.find(item => item.id === id);
+  if (!customer) { toast('Data không còn tồn tại trên máy chủ'); await syncServerState(); return; }
+  if (!window.confirm(`Xóa data của ${customer.name}? Dữ liệu sẽ được lưu lịch sử và không hiển thị lại.`)) return;
+  if (!await pushServerRecord('customers', 'DELETE', id, customer)) {
+    toast('Không thể xóa data trên MySQL');
+    return;
+  }
+  state.customers = state.customers.filter(item => item.id !== id);
+  state.dataOffers = state.dataOffers.filter(item => item.customerId !== id);
+  state.tasks = state.tasks.filter(item => item.customerId !== id);
+  state.resubmissions = state.resubmissions.filter(item => item.customerId !== id);
+  audit('DELETE_CUSTOMER', id, customer.name);
+  saveState();
+  render();
+  toast('Đã xóa data và đồng bộ MySQL');
 }
 
 async function deleteOrder(id) {
@@ -3539,12 +3915,12 @@ function newOrderModal(customerId = '') {
   if (!customers.length) { toast('Ch\u01b0a c\u00f3 kh\u00e1ch \u0111\u01b0\u1ee3c ph\u00e2n Sale \u0111\u1ec3 t\u1ea1o \u0111\u01a1n h\u00e0ng'); return; }
   if (!availableProducts.length) { toast('Ch\u01b0a c\u00f3 s\u1ea3n ph\u1ea9m \u0111ang b\u00e1n. Admin h\u00e3y ki\u1ec3m tra seed MySQL.'); return; }
   const selectedCustomer = customerById(customerId) || customers[0];
-  openModal('T\u1ea1o \u0111\u01a1n thanh to\u00e1n', `<form id="newOrderForm"><div class="form-grid"><label class="form-field">Kh\u00e1ch h\u00e0ng<select id="newOrderCustomer">${customers.map(customer => `<option value="${escapeHtml(customer.id)}" ${customer.id === selectedCustomer?.id ? 'selected' : ''}>${escapeHtml(customer.name)} \u00b7 ${escapeHtml(customer.phone)}</option>`).join('')}</select></label><label class="form-field">S\u1ea3n ph\u1ea9m<select id="newOrderProduct">${availableProducts.map(product => `<option value="${escapeHtml(product.id)}">${escapeHtml(product.name)} \u00b7 ${money(product.price)}</option>`).join('')}</select></label><label class="form-field">S\u1ed1 l\u01b0\u1ee3ng<input id="newOrderQty" type="number" min="1" max="10" value="1"></label><label class="form-field">K\u00eanh thanh to\u00e1n<select id="newOrderPaymentMethod"><option value="VietQR">VietQR</option><option value="BANK_TRANSFER">Chuy\u1ec3n kho\u1ea3n</option><option value="CASH">Ti\u1ec1n m\u1eb7t</option></select></label><label class="form-field">H\u00ecnh th\u1ee9c<select id="newOrderPaymentMode"><option value="FULL">Thanh to\u00e1n \u0111\u1ee7</option><option value="DEPOSIT">\u0110\u1eb7t c\u1ecdc</option></select></label><label class="form-field" id="newOrderDepositWrap" style="display:none">Ti\u1ec1n c\u1ecdc d\u1ef1 ki\u1ebfn<input id="newOrderDeposit" type="number" min="0" step="10000" value="0"></label></div><div class="section-label">Th\u00f4ng tin xu\u1ea5t h\u00f3a \u0111\u01a1n</div><div class="form-grid"><label class="form-field">H\u1ecd t\u00ean *<input id="newOrderBillingName" maxlength="160" required value="${escapeHtml(selectedCustomer?.name || '')}"></label><label class="form-field">CCCD<input id="newOrderBillingCccd" inputmode="numeric" maxlength="12"></label><label class="form-field">S\u0110T *<input id="newOrderBillingPhone" inputmode="numeric" maxlength="15" required value="${escapeHtml(selectedCustomer?.phone || '')}"></label><label class="form-field">Email<input id="newOrderBillingEmail" type="email" maxlength="254" value="${escapeHtml(selectedCustomer?.email || '')}"></label><label class="form-field">\u0110\u1ecba ch\u1ec9<input id="newOrderBillingAddress" maxlength="240"></label><label class="form-field">MST doanh nghi\u1ec7p<input id="newOrderBillingTaxId" inputmode="numeric" maxlength="13"></label></div><div class="form-hint" id="newOrderSummary"></div><div class="modal-actions"><button class="button" type="button" data-close-modal>Hu\u1ef7</button><button class="button button-primary" type="submit">T\u1ea1o \u0111\u01a1n ch\u1edd thanh to\u00e1n</button></div></form>`);
+  openModal('T\u1ea1o \u0111\u01a1n thanh to\u00e1n', `<form id="newOrderForm"><div class="form-grid"><label class="form-field">Kh\u00e1ch h\u00e0ng<select id="newOrderCustomer">${customers.map(customer => `<option value="${escapeHtml(customer.id)}" ${customer.id === selectedCustomer?.id ? 'selected' : ''}>${escapeHtml(customer.name)} \u00b7 ${escapeHtml(customer.phone)}</option>`).join('')}</select></label><label class="form-field">S\u1ea3n ph\u1ea9m<select id="newOrderProduct">${availableProducts.map(product => `<option value="${escapeHtml(product.id)}">${escapeHtml(product.name)} \u00b7 ${money(product.price)}</option>`).join('')}</select></label><label class="form-field">VAT (%)<select id="newOrderVatRate"><option value="0.08">8%</option><option value="0.10" selected>10%</option><option value="0.12">12%</option><option value="0.15">15%</option></select></label><label class="form-field">S\u1ed1 l\u01b0\u1ee3ng<input id="newOrderQty" type="number" min="1" max="10" value="1"></label><label class="form-field">K\u00eanh thanh to\u00e1n<select id="newOrderPaymentMethod"><option value="VietQR">VietQR</option><option value="BANK_TRANSFER">Chuy\u1ec3n kho\u1ea3n</option><option value="CASH">Ti\u1ec1n m\u1eb7t</option></select></label><label class="form-field">H\u00ecnh th\u1ee9c<select id="newOrderPaymentMode"><option value="FULL">Thanh to\u00e1n \u0111\u1ee7</option><option value="DEPOSIT">\u0110\u1eb7t c\u1ecdc</option></select></label><label class="form-field" id="newOrderDepositWrap" style="display:none">Ti\u1ec1n c\u1ecdc d\u1ef1 ki\u1ebfn<input id="newOrderDeposit" type="number" min="0" step="10000" value="0"></label></div><div class="section-label">Th\u00f4ng tin xu\u1ea5t h\u00f3a \u0111\u01a1n</div><div class="form-grid"><label class="form-field">H\u1ecd t\u00ean *<input id="newOrderBillingName" maxlength="160" required value="${escapeHtml(selectedCustomer?.name || '')}"></label><label class="form-field">CCCD<input id="newOrderBillingCccd" inputmode="numeric" maxlength="12"></label><label class="form-field">S\u0110T *<input id="newOrderBillingPhone" inputmode="numeric" maxlength="15" required value="${escapeHtml(selectedCustomer?.phone || '')}"></label><label class="form-field">Email<input id="newOrderBillingEmail" type="email" maxlength="254" value="${escapeHtml(selectedCustomer?.email || '')}"></label><label class="form-field">\u0110\u1ecba ch\u1ec9<input id="newOrderBillingAddress" maxlength="240"></label><label class="form-field">MST doanh nghi\u1ec7p<input id="newOrderBillingTaxId" inputmode="numeric" maxlength="13"></label></div><div class="form-hint" id="newOrderSummary"></div><div class="modal-actions"><button class="button" type="button" data-close-modal>Hu\u1ef7</button><button class="button button-primary" type="submit">T\u1ea1o \u0111\u01a1n ch\u1edd thanh to\u00e1n</button></div></form>`);
   $('[data-close-modal]')?.addEventListener('click', closeModal);
-  const readAmounts = () => { const product = productById($('#newOrderProduct').value); const qty = Math.floor(Number($('#newOrderQty').value) || 0); const subtotal = Number(product?.price || 0) * qty; const vatRate = 0.1; const vatAmount = Math.round(subtotal * vatRate); const total = subtotal + vatAmount; const paymentMode = $('#newOrderPaymentMode').value === 'DEPOSIT' ? 'DEPOSIT' : 'FULL'; const depositAmount = paymentMode === 'DEPOSIT' ? Math.floor(Number($('#newOrderDeposit').value) || 0) : 0; return { product, qty, subtotal, vatRate, vatAmount, total, paymentMode, depositAmount }; };
-  const refreshSummary = () => { const amounts = readAmounts(); $('#newOrderDepositWrap').style.display = amounts.paymentMode === 'DEPOSIT' ? '' : 'none'; $('#newOrderSummary').innerHTML = `T\u1ea1m t\u00ednh ${money(amounts.subtotal)} \u00b7 VAT 10% ${money(amounts.vatAmount)} \u00b7 <b>T\u1ed5ng ${money(amounts.total)}</b>${amounts.paymentMode === 'DEPOSIT' ? ` \u00b7 c\u1ecdc d\u1ef1 ki\u1ebfn ${money(amounts.depositAmount)}` : ''}. \u0110\u01a1n ch\u1ec9 ghi nh\u1eadn doanh thu sau khi Admin x\u00e1c nh\u1eadn.`; };
+  const readAmounts = () => { const product = productById($('#newOrderProduct').value); const qty = Math.floor(Number($('#newOrderQty').value) || 0); const subtotal = Number(product?.price || 0) * qty; const vatRate = Math.min(1, Math.max(0, Number($('#newOrderVatRate')?.value || product?.vatRate || 0.1))); const vatAmount = Math.round(subtotal * vatRate); const total = subtotal + vatAmount; const paymentMode = $('#newOrderPaymentMode').value === 'DEPOSIT' ? 'DEPOSIT' : 'FULL'; const depositAmount = paymentMode === 'DEPOSIT' ? Math.floor(Number($('#newOrderDeposit').value) || 0) : 0; return { product, qty, subtotal, vatRate, vatAmount, total, paymentMode, depositAmount }; };
+  const refreshSummary = () => { const amounts = readAmounts(); $('#newOrderDepositWrap').style.display = amounts.paymentMode === 'DEPOSIT' ? '' : 'none'; $('#newOrderSummary').innerHTML = `T\u1ea1m t\u00ednh ${money(amounts.subtotal)} \u00b7 VAT ${Math.round(amounts.vatRate*100)}% ${money(amounts.vatAmount)} \u00b7 <b>T\u1ed5ng ${money(amounts.total)}</b>${amounts.paymentMode === 'DEPOSIT' ? ` \u00b7 c\u1ecdc d\u1ef1 ki\u1ebfn ${money(amounts.depositAmount)}` : ''}. \u0110\u01a1n ch\u1ec9 ghi nh\u1eadn doanh thu sau khi Admin x\u00e1c nh\u1eadn.`; };
   const fillCustomer = () => { const customer = customerById($('#newOrderCustomer').value); if (!customer) return; $('#newOrderBillingName').value = customer.name || ''; $('#newOrderBillingPhone').value = customer.phone || ''; $('#newOrderBillingEmail').value = customer.email || ''; };
-  ['newOrderProduct', 'newOrderQty', 'newOrderPaymentMode', 'newOrderDeposit'].forEach(id => { $(`#${id}`).addEventListener('input', refreshSummary); $(`#${id}`).addEventListener('change', refreshSummary); });
+  ['newOrderProduct', 'newOrderVatRate', 'newOrderQty', 'newOrderPaymentMode', 'newOrderDeposit'].forEach(id => { $(`#${id}`).addEventListener('input', refreshSummary); $(`#${id}`).addEventListener('change', refreshSummary); });
   $('#newOrderCustomer').addEventListener('change', fillCustomer); refreshSummary();
   $('#newOrderForm').onsubmit = async event => {
     event.preventDefault(); const customer = customerById($('#newOrderCustomer').value), amounts = readAmounts();
@@ -3768,6 +4144,29 @@ async function setAssignmentMode(mode) {
   // Server luu cau hinh va chia hang cho trong cung giao dich.
   saveState();
   if (await flushServerPersistence()) { render(); toast('Đã lưu chế độ chia data trên máy chủ'); }
+}
+
+function bulkAssignWaitingSales(mode = 'BALANCED') {
+  if (currentAccount?.role !== 'ADMIN') { toast('Khong co quyen chia data cho Sale'); return 0; }
+  const selectedMode = ['EQUAL', 'ROUND_ROBIN', 'BALANCED'].includes(mode) ? mode : 'BALANCED';
+  const waiting = scopedCustomers().filter(customer => !customer.saleId).sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)) || a.id.localeCompare(b.id));
+  let distributed = 0;
+  waiting.forEach(customer => {
+    const target = chooseAssignmentTarget(customer, selectedMode);
+    if (!target) return;
+    const assigned = applyCustomerAssignment(customer, target, selectedMode === 'BALANCED' ? 'Phan theo ty trong cho Sale' : 'Phan deu cho Sale', 'AUTO');
+    if (!assigned) return;
+    if (target.role === 'LEADER') {
+      const recipient = chooseAssignmentTarget(customer, selectedMode);
+      if (recipient) applyCustomerAssignment(customer, recipient, 'Chia tiep cho Sale theo ty trong', 'AUTO');
+    }
+    audit('AUTO_ASSIGN_WAITING_SALE', customer.id, `${target.name} · ${selectedMode}`);
+    distributed += 1;
+  });
+  saveState();
+  render();
+  toast(distributed ? `Da chia ${distributed} data chua co Sale theo thu tu phan phoi` : 'Khong co Sale hoac data phu hop de chia');
+  return distributed;
 }
 
 function bulkDistributePool(mode, fromAuto = false) {
@@ -4214,6 +4613,7 @@ function bindViewActions() {
   $$('[data-open-order]').forEach(button => button.onclick = () => openOrderDrawer(button.dataset.openOrder));
   $$('[data-edit-order]').forEach(button => button.onclick = () => editOrderModal(button.dataset.editOrder));
   $$('[data-delete-order]').forEach(button => button.onclick = () => deleteOrder(button.dataset.deleteOrder));
+  $$('[data-delete-customer]').forEach(button => button.onclick = () => deleteCustomer(button.dataset.deleteCustomer));
   $$('[data-new-customer-product]').forEach(button => button.onclick = () => newOrderModal(button.dataset.newCustomerProduct));
   $$('[data-edit-note]').forEach(button => button.onclick = () => editCustomerNote(button.dataset.editNote));
   $$('[data-delete-note]').forEach(button => button.onclick = () => deleteCustomerNote(button.dataset.deleteNote));
@@ -4235,9 +4635,31 @@ function bindViewActions() {
   $('#importCustomersButton')?.addEventListener('click', customerImportModal);
   $('#importCustomersSecondaryButton')?.addEventListener('click', customerImportModal);
   $('#newOrderButton')?.addEventListener('click', newOrderModal);
-  $('#profileAvatar')?.addEventListener('click', () => { if (['SALE', 'LEADER'].includes(currentAccount.role)) navigate('profile'); });
-  $('#profileForm')?.addEventListener('submit', event => { event.preventDefault(); const member = activeStaff().find(person => person.id === (currentAccount.saleId || currentAccount.leaderId)); if (!member) return; const name = $('#profileDisplayName').value.trim(); if (!name) return; member.name = name; currentAccount.name = name; currentAccount.initials = name.split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase(); member.initials = currentAccount.initials; saveState(); render(); toast('Đã lưu hồ sơ'); });
-  $('#profileAvatarInput')?.addEventListener('change', event => { const file = event.target.files?.[0]; const member = activeStaff().find(person => person.id === (currentAccount.saleId || currentAccount.leaderId)); if (!file || !member) return; if (file.size > 1024 * 1024) { toast('Ảnh avatar không được vượt quá 1 MB'); return; } const reader = new FileReader(); reader.onload = () => { member.avatar = String(reader.result || ''); saveState(); render(); toast('Đã cập nhật avatar'); }; reader.readAsDataURL(file); });
+  $('#profileAvatar')?.addEventListener('click', () => { if (currentAccount) navigate('profile'); });
+  $('#profileForm')?.addEventListener('submit', event => { event.preventDefault(); const role=currentAccount.actualRole||currentAccount.role; const memberId=['ADMIN','MANAGER','MARKETING','ACCOUNTING'].includes(role)?currentAccount.id:(currentAccount.saleId||currentAccount.leaderId||currentAccount.id); const member = activeStaff().find(person => person.id === memberId); if (!member) { toast('Không tìm thấy hồ sơ để cập nhật'); return; } const name = $('#profileDisplayName').value.trim(), accountId = $('#profileAccountId')?.value.trim().toUpperCase() || '', email = $('#profileEmail')?.value.trim().toLowerCase() || '', phone = $('#profilePhone')?.value.replace(/\D/g, '') || ''; if (!name || !/^[A-Z0-9][A-Z0-9._-]{2,63}$/.test(accountId) || (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) || (phone && !/^\d{9,15}$/.test(phone))) { toast('Họ tên, ID, email hoặc số điện thoại không hợp lệ'); return; } member.name = name; member.accountId = accountId; member.email = email; member.phone = phone; currentAccount.name = name; currentAccount.accountId = accountId; currentAccount.email = email; currentAccount.phone = phone; currentAccount.initials = name.split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase(); member.initials = currentAccount.initials; saveState(); render(); toast('Đã lưu hồ sơ'); });
+  $('#profileAvatarInput')?.addEventListener('change', event => {
+    const file = event.target.files?.[0];
+    const member = activeStaff().find(person => person.id === (currentAccount.actualRole === 'MANAGER' ? currentAccount.id : (currentAccount.saleId || currentAccount.leaderId)));
+    if (!file || !member) return;
+    if (!/^image\/(png|jpe?g|webp)$/i.test(file.type)) { toast('Chỉ nhận ảnh PNG, JPG hoặc WebP'); event.target.value = ''; return; }
+    if (file.size > 30 * 1024 * 1024) { toast('Ảnh avatar không được vượt quá 30 MB'); event.target.value = ''; return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const image = new Image();
+      image.onload = () => {
+        const maxSide = 640, scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+        canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+        canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+        member.avatar = canvas.toDataURL('image/jpeg', 0.86);
+        saveState(); render(); toast('Đã cập nhật avatar');
+      };
+      image.onerror = () => toast('Không đọc được ảnh avatar');
+      image.src = String(reader.result || '');
+    };
+    reader.readAsDataURL(file);
+  });
   $('#restoreLegacyProductsButton')?.addEventListener('click', restoreLegacyProducts);
   $('#newProductButton')?.addEventListener('click', () => productModal());
   $('#manageProductCategoriesButton')?.addEventListener('click', productCategoriesModal);
@@ -4267,11 +4689,10 @@ function bindViewActions() {
   $$('[data-attendance-detail]').forEach(button => button.onclick = () => attendanceMemberDetailModal(button.dataset.attendanceDetail));
   $$('[data-edit-attendance]').forEach(button => button.onclick = () => attendanceEditModal(button.dataset.editAttendance));
   $$('[data-delete-attendance]').forEach(button => button.onclick = () => deleteAttendanceRecord(button.dataset.deleteAttendance));
-  $('#saveAppearanceButton')?.addEventListener('click', () => { state.settings.leaderAttendanceRequired = $('#leaderAttendanceRequired')?.checked !== false; state.settings.emailNotificationsEnabled = $('#emailNotificationsEnabled')?.checked !== false; state.settings.customAccent = $('#customAccentColor').value; state.settings.fontFamily = $('#fontFamilySelect').value; state.settings.dataBotToken = $('#dataBotToken').value.trim(); state.settings.dataBotChatId = $('#dataBotChatId').value.trim(); state.settings.memberBotToken = $('#memberBotToken').value.trim(); state.settings.memberBotChatId = $('#memberBotChatId').value.trim(); applyAppearanceSettings(); saveState(); render(); });
+  $('#saveAppearanceButton')?.addEventListener('click', async () => { state.settings.leaderAttendanceRequired = $('#leaderAttendanceRequired')?.checked !== false; state.settings.emailNotificationsEnabled = $('#emailNotificationsEnabled')?.checked !== false; state.settings.customAccent = $('#customAccentColor').value; state.settings.fontFamily = $('#fontFamilySelect').value; state.settings.dataBotToken = $('#dataBotToken').value.trim(); state.settings.dataBotChatId = $('#dataBotChatId').value.trim(); state.settings.memberBotToken = $('#memberBotToken').value.trim(); state.settings.memberBotChatId = $('#memberBotChatId').value.trim(); applyAppearanceSettings(); saveState(); if (await flushServerPersistence()) { render(); toast('Đã lưu cấu hình'); } else toast('Chưa xác nhận lưu cấu hình. Giữ trang mở để thử lại.'); });
   $('#emailTestButton')?.addEventListener('click', sendTestEmail);
   $('#toggleTwoFactorButton')?.addEventListener('click', toggleTwoFactor);
   $('#changePasswordButton')?.addEventListener('click', changePasswordModal);
-  $('#newTeamButton')?.addEventListener('click', createTeamModal);
   $$('[data-edit-member]').forEach(button => button.onclick = () => teamMemberModal(button.dataset.editMember));
   $$('[data-reset-member-password]').forEach(button => button.onclick = () => resetMemberPasswordModal(button.dataset.resetMemberPassword));
   $$('[data-delete-member]').forEach(button => button.onclick = () => deleteTeamMember(button.dataset.deleteMember));
@@ -4316,30 +4737,29 @@ function switchAuthMode(mode) {
   const registering = mode === 'register';
   $('#loginForm')?.classList.toggle('is-hidden', registering);
   $('#registerForm')?.classList.toggle('is-hidden', !registering);
-  $('.register-divider')?.classList.toggle('is-hidden', !registering);
-  $('.register-heading')?.classList.toggle('is-hidden', !registering);
   $('#loginTab')?.classList.toggle('active', !registering);
   $('#registerTab')?.classList.toggle('active', registering);
   $('#loginTab')?.setAttribute('aria-selected', String(!registering));
   $('#registerTab')?.setAttribute('aria-selected', String(registering));
   const heading = $('.login-card h2');
   const description = $('#authDescription');
-  if (heading) heading.textContent = registering ? 'Đăng ký tài khoản' : 'Đăng nhập NVT AGENCY';
-  if (description) description.textContent = registering ? 'Tạo tài khoản NVT AGENCY để truy cập hệ thống nội bộ.' : 'Đăng nhập để truy cập hệ thống nội bộ.';
+  if (heading) heading.textContent = registering ? 'ĐĂNG KÝ TÀI KHOẢN' : 'ĐĂNG NHẬP NVT AGENCY';
+  if (description) description.textContent = registering ? 'TẠO TÀI KHOẢN NVT AGENCY ĐỂ TRUY CẬP HỆ THỐNG NỘI BỘ.' : 'ĐĂNG NHẬP ĐỂ TRUY CẬP HỆ THỐNG NỘI BỘ.';
   if (registering) $('#registerPhone')?.focus(); else $('#loginPhone')?.focus();
 }
 
 async function submitRegistration() {
+  const name = ($('#registerName')?.value || '').trim();
+  const accountId = ($('#registerAccountId')?.value || '').trim().toUpperCase();
   const phone = $('#registerPhone')?.value.replace(/\D/g, '') || '';
   const email = ($('#registerEmail')?.value || '').trim().toLowerCase();
   const password = $('#registerPassword')?.value || '';
   const confirm = $('#registerPasswordConfirm')?.value || '';
   const message = $('#registerMessage');
-  if (!/^\d{9,15}$/.test(phone) || !/^[^\s@]+@gmail\.com$/i.test(email) || password.length < 8 || password !== confirm) {
-    if (message) { message.className = 'form-message error full'; message.textContent = 'Vui lòng kiểm tra số điện thoại, Gmail và mật khẩu (tối thiểu 8 ký tự).'; }
+  if (!name || !/^[A-Z0-9][A-Z0-9._-]{2,63}$/.test(accountId) || !/^\d{9,15}$/.test(phone) || !/^[^\s@]+@gmail\.com$/i.test(email) || password.length < 8 || password !== confirm) {
+    if (message) { message.className = 'nvt-auth-error-msg form-message error full'; message.textContent = 'Vui lòng nhập họ tên, ID tài khoản hợp lệ, số điện thoại, Gmail và mật khẩu tối thiểu 8 ký tự.'; }
     return;
   }
-  const name = email.split('@')[0];
   let id = `u-reg-${Date.now()}`;
   const base = webhookApiBase();
   if (!base) {
@@ -4350,7 +4770,7 @@ async function submitRegistration() {
     const response = await fetch(`${base}/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ phone, email, password, name })
+      body: JSON.stringify({ phone, email, password, name, accountId })
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
@@ -4390,13 +4810,23 @@ async function startSession(account, restored = false, token = serverSyncToken) 
   selectedPoolIds.clear();
   customerOwnerFilter = 'ALL';
   try { sessionStorage.setItem(SESSION_KEY, JSON.stringify({ token: serverSyncToken })); } catch (error) {}
-  if(!await syncServerState()){ $('#appShell').classList.add('is-hidden');$('#loginScreen').classList.remove('is-hidden');$('#loginError').textContent='Không tải được dữ liệu MySQL. Hãy đăng nhập lại.';serverSyncToken='';currentAccount=null;sessionStorage.removeItem(SESSION_KEY);return; }
+  if(!await syncServerState()){
+    // Không xóa token khi MySQL hoặc mạng lỗi tạm thời; initialize() sẽ thử khôi phục lại.
+    $('#appShell').classList.add('is-hidden');
+    $('#loginScreen').classList.remove('is-hidden');
+    $('#loginError').textContent='Chưa tải được dữ liệu máy chủ. Đang giữ phiên để thử lại.';
+    currentAccount=null;
+    return false;
+  }
+  // Tài khoản cũ chưa có ID hiển thị được đưa thẳng đến Hồ sơ để bổ sung, không đổi users.id nội bộ.
+  if((['SALE','LEADER'].includes(currentAccount.role)||currentAccount.actualRole==='MANAGER')&&!currentAccount.accountId)currentView='profile';
   $('#loginScreen').classList.add('is-hidden');$('#appShell').classList.remove('is-hidden');
   if (!restored && !['MARKETING','ACCOUNTING'].includes(account.role)) { audit('LOGIN', 'SESSION', `Đăng nhập tài khoản ${account.role}`); saveState(); }
   render();
   startWebhookConsumer();
   startServerSyncPolling();
   refreshNavigationCounts();
+  return true;
 }
 
 async function endSession(skipFlush=false) {
@@ -4442,8 +4872,9 @@ function bindGlobalActions() {
     if (!input) return;
     const visible = input.type === 'text';
     input.type = visible ? 'password' : 'text';
-    button.textContent = visible ? 'Hiện' : 'Ẩn';
+    button.innerHTML = visible ? '<svg class="password-eye" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-5 9.5-5 9.5 5 9.5 5-3.5 5-9.5 5-9.5-5-9.5-5Z"></path><circle cx="12" cy="12" r="2.5"></circle></svg>' : '<svg class="password-eye password-eye-off" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 3 18 18"></path><path d="M10.6 6.9A10.8 10.8 0 0 1 12 6.8c6 0 9.5 5.2 9.5 5.2a17 17 0 0 1-3.2 3.5M6.2 6.5C3.8 8.1 2.5 12 2.5 12s3.5 5.2 9.5 5.2c1.2 0 2.3-.2 3.3-.6"></path><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"></path></svg>';
     button.setAttribute('aria-label', visible ? 'Hiện mật khẩu' : 'Ẩn mật khẩu');
+    button.setAttribute('title', visible ? 'Hiện mật khẩu' : 'Ẩn mật khẩu');
   }));
   $('#forgotPasswordButton')?.addEventListener('click', () => { $('#loginError').textContent = 'Vui lòng liên hệ Admin để cấp lại mật khẩu.'; });
   $('#loginForm').onsubmit = async event => {
@@ -4456,7 +4887,7 @@ function bindGlobalActions() {
     const setLoginError = (text, success = false) => {
       const node = $('#loginError');
       if (!node) return;
-      node.className = `form-error${success ? ' form-message success' : ''}`;
+      node.className = success ? 'nvt-auth-success-msg form-error form-message success' : 'nvt-auth-error-msg form-error';
       node.textContent = text;
     };
     const restoreSubmitButton = () => {
@@ -4465,8 +4896,8 @@ function bindGlobalActions() {
       submitButton.setAttribute('aria-busy', 'false');
       submitButton.innerHTML = originalButtonText;
     };
-    if (!identifier || !password) {
-      setLoginError('Vui lòng nhập tài khoản và mật khẩu.');
+    if (!( /^\d{9,15}$/.test(phone) || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ) || !password) {
+      setLoginError('Vui lòng nhập số điện thoại hợp lệ và mật khẩu.');
       (!identifier ? $('#loginPhone') : $('#loginPassword'))?.focus();
       return;
     }
@@ -4474,11 +4905,11 @@ function bindGlobalActions() {
     if (submitButton) { submitButton.disabled = true; submitButton.setAttribute('aria-busy', 'true'); submitButton.innerHTML = '<span class="login-spinner" aria-hidden="true"></span>Đang đăng nhập...'; }
     if (base) {
       try {
-        const response = await fetch(`${base}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ identifier: identifier.includes('@') ? email : phone, password }) });
+        const response = await fetch(`${base}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ identifier: /^\d{9,15}$/.test(phone) ? phone : email, password }) });
         const payload = await response.json().catch(() => ({}));
         if (response.ok && payload.user) {
           await startSession(payload.user, false, payload.token);
-          if (!currentAccount) restoreSubmitButton();
+          restoreSubmitButton();
           return;
         }
         setLoginError(payload.error || `Đăng nhập thất bại (HTTP ${response.status}). Kiểm tra ứng dụng Node và MySQL.`);
@@ -4529,7 +4960,9 @@ function synchronizeAccountIdentity(member) {
   const account = linkedAccountForMember(member);
   if (!account) return;
   account.name = member.name;
-  account.email = member.email || account.email || '';
+  account.accountId = member.accountId || account.accountId || '';
+    account.email = member.email || account.email || '';
+    account.phone = member.phone || account.phone || '';
   account.initials = member.initials;
   account.teamId = member.teamId;
   account.memberId = member.id;
@@ -4547,11 +4980,22 @@ function synchronizeAccountIdentity(member) {
   if (currentAccount?.id === account.id) Object.assign(currentAccount, account);
 }
 
+let managerTeamSelection=null;
 function hydrateSessionAccount(account) {
+  // Manager dùng bộ thao tác Leader, nhưng giữ nguyên ID/role thật cho API và nhật ký.
+  if(account.role==='MANAGER'||account.actualRole==='MANAGER'){
+    const leaders=state.members.filter(m=>m.role==='LEADER'&&m.active!==false&&m.managerId===account.id);
+    const leader=leaders.find(m=>m.id===managerTeamSelection)||leaders[0];managerTeamSelection=leader?.id||null;
+    const manager=state.members.find(m=>m.id===account.id);
+    return {...account,role:'LEADER',actualRole:'MANAGER',scope:'TEAM',saleId:null,leaderId:leader?.id||null,teamId:leader?.teamId||'',name:manager?.name||account.name,accountId:manager?.accountId||account.accountId||'',email:manager?.email||account.email||'',phone:manager?.phone||account.phone||'',initials:memberInitials(manager?.name||account.name)};
+  }
   const session = { ...account, initials: memberInitials(account.name), scope: ['ADMIN', 'MARKETING', 'ACCOUNTING'].includes(account.role) ? 'ALL' : account.role === 'LEADER' ? 'TEAM' : account.role === 'SALE' ? 'OWN' : 'NONE', saleId: account.role === 'SALE' ? account.id : null, leaderId: account.role === 'LEADER' ? account.id : account.leaderId };
   const member = state.members.find(r=>r.id===account.id);
   if (member) {
     session.name = member.name;
+    session.accountId = member.accountId || account.accountId || '';
+    session.email = member.email || account.email || '';
+    session.phone = member.phone || account.phone || '';
     session.initials = member.initials;
     session.teamId = member.teamId;
     session.memberId = member.id;
@@ -4572,10 +5016,50 @@ function hydrateSessionAccount(account) {
       session.leaderId = null;
     }
   }
+  $$('#drawerRoot .section-label').forEach(label => {
+    if (label.textContent.trim() === 'Audit') { label.hidden = true; label.nextElementSibling?.setAttribute('hidden', ''); }
+  });
   return session;
 }
 
 const baseSettingsView = settingsView;
+const baseProfileView = profileView;
+VIEW_RENDERERS.profile = function profileViewWithAccountId() {
+  return baseProfileView().replace('<label class="form-field">Vai trò', `<label class="form-field">ID tài khoản<input id="profileAccountId" required maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9._-]{2,63}" value="${escapeHtml(currentAccount.accountId || '')}" placeholder="Nhập ID tài khoản"></label><label class="form-field">Vai trò`);
+};
+// Giao diện hồ sơ dùng chung cho mọi vai trò.
+VIEW_RENDERERS.profile = function profileViewModern() {
+  const role = currentAccount.actualRole || currentAccount.role;
+  const memberId = ['ADMIN', 'MANAGER', 'MARKETING', 'ACCOUNTING'].includes(role)
+    ? currentAccount.id
+    : (currentAccount.saleId || currentAccount.leaderId || currentAccount.id);
+  const member = activeStaff().find(person => person.id === memberId);
+  const name = member?.name || currentAccount.name || '';
+  const initials = member?.initials || currentAccount.initials || 'NVT';
+  const avatar = member?.avatar
+    ? `<img class="profile-avatar-large profile-avatar-image" src="${escapeHtml(member.avatar)}" alt="Avatar của ${escapeHtml(name)}">`
+    : `<span class="profile-avatar-large profile-avatar-placeholder">${escapeHtml(initials)}</span>`;
+  const roleLabel = role || 'UNASSIGNED';
+  return pageHead('Hồ sơ cá nhân', 'Cập nhật thông tin hiển thị trong toàn bộ hệ thống CRM.', '') + `
+    <section class="panel profile-panel">
+      <div class="panel-body profile-panel-body">
+        <form id="profileForm">
+          <div class="profile-hero">
+            <div class="profile-avatar-wrap"><div class="profile-avatar-stage">${avatar}</div></div>
+            <div class="profile-hero-actions"><label class="button button-primary button-small profile-upload-button" for="profileAvatarInput">&#272;&#7893;i avatar</label><input id="profileAvatarInput" type="file" accept="image/png,image/jpeg,image/webp" class="is-hidden"></div>
+          </div>
+          <div class="profile-fields">
+            <label class="form-field"><span>👤 Họ và tên <em>*</em></span><div class="profile-input-wrap"><span aria-hidden="true">👤</span><input id="profileDisplayName" maxlength="160" value="${escapeHtml(name)}" autocomplete="name" required></div></label>
+            <label class="form-field"><span>🔗 ID tài khoản <em>*</em></span><div class="profile-input-wrap"><span aria-hidden="true">🔗</span><input id="profileAccountId" maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9._-]{2,63}" value="${escapeHtml(currentAccount.accountId || member?.accountId || '')}" placeholder="Nhập ID tài khoản" autocomplete="off" required></div></label>
+            <label class="form-field"><span>✉ Email</span><div class="profile-input-wrap"><span aria-hidden="true">✉</span><input id="profileEmail" type="email" maxlength="254" value="${escapeHtml(member?.email || currentAccount.email || '')}" placeholder="Nhập email" autocomplete="email"></div></label>
+            <label class="form-field"><span>☎ Số điện thoại</span><div class="profile-input-wrap"><span aria-hidden="true">☎</span><input id="profilePhone" type="tel" inputmode="numeric" maxlength="15" value="${escapeHtml(member?.phone || currentAccount.phone || '')}" placeholder="Nhập số điện thoại" autocomplete="tel"></div></label>
+          </div>
+          <div class="profile-security-note"><span aria-hidden="true">🔒</span><div><strong>Bảo mật tài khoản</strong><small>Đổi mật khẩu được thực hiện ở mục riêng trong hồ sơ.</small></div></div>
+          <div class="modal-actions profile-actions"><button class="button button-primary" type="submit">Lưu hồ sơ</button></div>
+        </form>
+      </div>
+    </section>`;
+};
 VIEW_RENDERERS.settings = function settingsViewWithTypographyControls() {
   return baseSettingsView();
 };
@@ -4586,8 +5070,25 @@ VIEW_RENDERERS.team = function teamViewWithRegisteredAccounts() {
 };
 
 const baseBindViewActions = bindViewActions;
+function bindCustomerDeleteButtons() {
+  if (currentAccount?.role !== 'ADMIN') return;
+  $$('#content tr').forEach(row => {
+    if (row.querySelector('[data-delete-customer]')) return;
+    const source = row.querySelector('[data-open-customer], [data-quick-sale], [data-pool-id]');
+    const id = source?.dataset.openCustomer || source?.dataset.quickSale || source?.dataset.poolId;
+    if (!id) return;
+    const cell = row.lastElementChild;
+    if (!cell) return;
+    const button = document.createElement('button');
+    button.type = 'button'; button.className = 'button button-small button-danger';
+    button.dataset.deleteCustomer = id; button.textContent = 'Xóa data';
+    button.onclick = () => deleteCustomer(id);
+    cell.append(' ', button);
+  });
+}
 bindViewActions = function bindViewActionsWithProfileAndTypography() {
   baseBindViewActions();
+  bindCustomerDeleteButtons();
   const bindFontSize = (inputId, outputId, settingKey) => {
     const input = $(`#${inputId}`);
     const output = $(`#${outputId}`);
@@ -4601,10 +5102,16 @@ bindViewActions = function bindViewActionsWithProfileAndTypography() {
     input.addEventListener('input', () => update(false));
     input.addEventListener('change', () => update(true));
   };
+  // Đồng bộ ô màu và xem trước ngay; nút Lưu cấu hình gửi lên server.
+  const accentPicker = $('#customAccentColor');
+  const accentSelect = $('#themeColorSelect');
+  if (accentSelect) accentSelect.onchange = () => { accentPicker.value = accentSelect.value; state.settings.customAccent = accentSelect.value; applyAppearanceSettings(); };
+  if (accentPicker) accentPicker.oninput = () => { state.settings.customAccent = accentPicker.value; if (accentSelect) accentSelect.value = accentPicker.value; applyAppearanceSettings(); };
+  $('#fontFamilySelect')?.addEventListener('change', event => { state.settings.fontFamily = event.target.value; applyAppearanceSettings(); });
   bindFontSize('navigationFontSize', 'navigationFontSizeValue', 'navigationFontSize');
   bindFontSize('contentFontSize', 'contentFontSizeValue', 'contentFontSize');
   $('#profileForm')?.addEventListener('submit', () => {
-    const member = activeStaff().find(person => person.id === (currentAccount.saleId || currentAccount.leaderId));
+    const member = activeStaff().find(person => person.id === (currentAccount.actualRole==='MANAGER'?currentAccount.id:(currentAccount.saleId || currentAccount.leaderId)));
     if (member) { synchronizeAccountIdentity(member); saveState(); }
   });
 };
@@ -4618,8 +5125,11 @@ saveTeamMember = function saveTeamMemberWithIdentitySync(id = null, registration
 };
 
 let offerSweepTimer = null;
+// The outer index page waits for this before choosing login or the CRM shell.
+window.crmRuntimeBooted = false;
 
 async function initialize() {
+  try {
   let theme = 'light';
   try { theme = localStorage.getItem(THEME_KEY) || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); } catch (error) {}
   document.documentElement.dataset.theme = theme;
@@ -4633,18 +5143,34 @@ async function initialize() {
   // nên không thể chờ tới startWebhookConsumer (chỉ Admin mới bật consumer).
   refreshSessionContext();
   try {
-    const session = JSON.parse(sessionStorage.getItem(SESSION_KEY));
+    let session = null;
+    try { session = JSON.parse(sessionStorage.getItem(SESSION_KEY)); } catch (error) {}
     if (session?.token) serverSyncToken = session.token;
-    const response = session?.token ? await fetch(`${webhookApiBase()}/api/auth/me`, { headers: { Authorization: `Bearer ${session.token}` } }) : null;
+    const response = session?.token ? await fetch(`${webhookApiBase()}/api/auth/me`, { headers: { Authorization: `Bearer ${session.token}` }, cache: 'no-store' }) : null;
     const account = response?.ok ? (await response.json()).user : null;
     if (account) {
-      await startSession(account, true);
-      if (serverSyncToken) syncServerState();
+      // Một lần lỗi mạng không được biến thành logout. Cho MySQL tối đa 3 lần để hồi đáp.
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        if (await startSession(account, true)) {
+          if (serverSyncToken) syncServerState();
+          return;
+        }
+        await new Promise(resolve => setTimeout(resolve, 350 * (attempt + 1)));
+      }
+      $('#loginError').textContent='Máy chủ đang chậm hoặc tạm gián đoạn. Phiên đăng nhập vẫn được giữ, hãy thử lại.';
       return;
+    }
+    if (response && response.status === 401) {
+      serverSyncToken='';
+      try { sessionStorage.removeItem(SESSION_KEY); } catch (error) {}
     }
   } catch (error) {}
   $('#loginScreen').classList.remove('is-hidden');
   $('#appShell').classList.add('is-hidden');
+  } finally {
+    // This runs only after session restoration and the MySQL state check finish.
+    window.crmRuntimeBooted = true;
+  }
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initialize);

@@ -6,6 +6,8 @@ Desktop.ini
 
 # Logs & temp
 *.log
+.chrome-layout-check/
+*.bak
 node_modules/
 .env
 .env.*

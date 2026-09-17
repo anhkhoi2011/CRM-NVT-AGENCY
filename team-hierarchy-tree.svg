@@ -1,0 +1,251 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 960" width="100%" height="100%">
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800;900&amp;family=JetBrains+Mono:wght@700;800&amp;display=swap');
+      
+      text { font-family: 'Plus Jakarta Sans', sans-serif; }
+      .mono { font-family: 'JetBrains Mono', monospace; }
+      
+      .tree-guide-line { stroke: #cbd5e1; stroke-width: 2; stroke-dasharray: 4,4; fill: none; }
+      .tree-solid-line { stroke: #94a3b8; stroke-width: 2; fill: none; }
+      
+      /* Badges */
+      .avatar-m { fill: #dbeafe; stroke: #93c5fd; stroke-width: 1.5; }
+      .avatar-m-text { fill: #1d4ed8; font-weight: 800; font-size: 13px; text-anchor: middle; dominant-baseline: central; }
+      
+      .avatar-l { fill: #e0e7ff; stroke: #a5b4fc; stroke-width: 1.5; }
+      .avatar-l-text { fill: #4338ca; font-weight: 800; font-size: 12px; text-anchor: middle; dominant-baseline: central; }
+      
+      .avatar-s { fill: #dcfce7; stroke: #86efac; stroke-width: 1.5; }
+      .avatar-s-text { fill: #15803d; font-weight: 800; font-size: 12px; text-anchor: middle; dominant-baseline: central; }
+      
+      .btn-toggle-box { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.2; rx: 6; }
+      .btn-toggle-sign { fill: #475569; font-weight: 800; font-size: 14px; text-anchor: middle; dominant-baseline: central; }
+      
+      .pill-role-manager { fill: #eff6ff; stroke: #bfdbfe; stroke-width: 1; rx: 4; }
+      .pill-role-leader { fill: #eef2ff; stroke: #c7d2fe; stroke-width: 1; rx: 4; }
+      .pill-role-sale { fill: #f0fdf4; stroke: #bbf7d0; stroke-width: 1; rx: 4; }
+    </style>
+
+    <filter id="boxShadow" x="-5%" y="-5%" width="110%" height="115%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#0f172a" flood-opacity="0.06"/>
+    </filter>
+    <filter id="panelShadow" x="-5%" y="-5%" width="110%" height="115%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#0f172a" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+
+  <!-- NỀN CANVAS TỔNG THỂ -->
+  <rect width="1200" height="960" fill="#f8fafc" rx="16"/>
+
+  <!-- TIÊU ĐỀ MÀN HÌNH QUẢN LÝ ĐỘI NGŨ -->
+  <g transform="translate(40, 40)">
+    <text x="0" y="0" font-size="18" font-weight="900" fill="#0f172a">SƠ ĐỒ PHÂN CẤP ĐỘI NGŨ &amp; KHÁCH HÀNG (HIERARCHY TREE)</text>
+    <text x="0" y="24" font-size="12.5" font-weight="600" fill="#64748b">Cấu trúc phân quyền chuẩn: Manager ➔ Quản lý Leader &amp; Khách của mình ➔ Leader quản lý Sale &amp; Khách của Leader ➔ Sale phụ trách khách riêng</text>
+  </g>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       CẤU TRÚC CÂY PHÂN CẤP (START AT Y=100)
+       ══════════════════════════════════════════════════════════════ -->
+
+  <!-- KHUNG CARD TOÀN BỘ: TEAM HOÀNG KHÁNH (ROOT CARD) -->
+  <g transform="translate(40, 95)" filter="url(#panelShadow)">
+    <rect width="1120" height="825" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5" rx="14"/>
+    
+    <!-- HEADER ROOT: TEAM HOÀNG KHÁNH (MANAGER) -->
+    <rect width="1120" height="68" fill="#fafafa" rx="14 14 0 0" stroke="#f1f5f9" stroke-width="1"/>
+    <!-- Avatar Manager M -->
+    <circle cx="48" cy="34" r="18" class="avatar-m"/>
+    <text x="48" y="34" class="avatar-m-text">M</text>
+    <!-- Tên & Thống kê -->
+    <text x="80" y="28" font-size="15" font-weight="800" fill="#0f172a">Team Hoàng Khánh (manager)</text>
+    <text x="80" y="48" font-size="12" font-weight="600" fill="#64748b">2 Leader trực thuộc · 2 Sale · 5 khách tổng toàn team</text>
+    <!-- Nút thu gọn / mở rộng bên phải -->
+    <g transform="translate(1060, 22)">
+      <rect width="26" height="26" class="btn-toggle-box"/>
+      <text x="13" y="13" class="btn-toggle-sign">−</text>
+    </g>
+  </g>
+
+  <!-- ĐƯỜNG NHÁNH TRỤC CHÍNH (CỘT SỐNG CỦA CÂY PHÂN CẤP) -->
+  <!-- Nối từ mép trái Root (X=90) xuống Nhánh 1 (Y=200), Nhánh 2 (Y=325), Nhánh 3 (Y=625) -->
+  <path class="tree-solid-line" d="M 90 163 L 90 660"/>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       NHÁNH 1: BẢN THÂN HOÀNG KHÁNH (MANAGER) & KHÁCH CỦA MÌNH
+       ══════════════════════════════════════════════════════════════ -->
+  <!-- Nhánh ngang nối từ trục chính -->
+  <path class="tree-solid-line" d="M 90 200 L 130 200"/>
+
+  <g transform="translate(130, 172)" filter="url(#boxShadow)">
+    <rect width="980" height="100" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.2" rx="10"/>
+    
+    <!-- Header Thẻ Hoàng Khánh -->
+    <circle cx="36" cy="28" r="15" class="avatar-m"/>
+    <text x="36" y="28" class="avatar-m-text" font-size="11">HK</text>
+    
+    <text x="64" y="24" font-size="13.5" font-weight="800" fill="#0f172a">Hoàng Khánh (manager)</text>
+    <rect x="235" y="13" width="70" height="18" class="pill-role-manager"/>
+    <text x="270" y="24" font-size="10" font-weight="800" fill="#1d4ed8" text-anchor="middle">MANAGER</text>
+    
+    <text x="64" y="42" font-size="11.5" font-weight="600" fill="#64748b">MANAGER · 1 khách của mình phụ trách trực tiếp</text>
+    
+    <!-- Nút mở rộng khách -->
+    <g transform="translate(935, 15)">
+      <rect width="24" height="24" class="btn-toggle-box"/>
+      <text x="12" y="12" class="btn-toggle-sign">−</text>
+    </g>
+
+    <!-- Đường dẫn & Panel Khách của Hoàng Khánh -->
+    <g transform="translate(45, 56)">
+      <!-- Nhánh con ├── khách -->
+      <path class="tree-guide-line" d="M 10 0 L 10 20 L 30 20"/>
+      <!-- Khách của Manager -->
+      <rect x="35" y="4" width="875" height="32" fill="#f8fafc" stroke="#e2e8f0" rx="6"/>
+      <circle cx="52" cy="20" r="4" fill="#2563eb"/>
+      <text x="65" y="22" font-size="12" font-weight="700" fill="#0f172a">Vũ Đức Thịnh</text>
+      <text x="170" y="22" font-size="11.5" fill="#64748b" class="mono">0903.888.999</text>
+      <text x="310" y="22" font-size="11" fill="#475569">Landing Page Forex VIP</text>
+      <rect x="470" y="11" width="75" height="18" fill="#dbeafe" rx="4"/>
+      <text x="507" y="22" font-size="10" font-weight="700" fill="#1d4ed8" text-anchor="middle">VIP Nạp Lớn</text>
+      <text x="820" y="22" font-size="11" fill="#94a3b8">Khách riêng Manager</text>
+    </g>
+  </g>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       NHÁNH 2: LEADER DEMO (LEADER) -> KHÁCH & SALE DEMO 1 (SALE)
+       ══════════════════════════════════════════════════════════════ -->
+  <path class="tree-solid-line" d="M 90 355 L 130 355"/>
+
+  <g transform="translate(130, 290)" filter="url(#boxShadow)">
+    <rect width="980" height="265" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.2" rx="10"/>
+    
+    <!-- HEADER CỤM LEADER DEMO -->
+    <rect width="980" height="56" fill="#f8fafc" stroke="#f1f5f9" rx="10 10 0 0"/>
+    <circle cx="36" cy="28" r="15" class="avatar-l"/>
+    <text x="36" y="28" class="avatar-l-text">LD</text>
+    
+    <text x="64" y="24" font-size="13.5" font-weight="800" fill="#0f172a">Nhóm Leader Demo (leader)</text>
+    <rect x="260" y="13" width="60" height="18" class="pill-role-leader"/>
+    <text x="290" y="24" font-size="10" font-weight="800" fill="#4338ca" text-anchor="middle">LEADER</text>
+    
+    <text x="64" y="42" font-size="11.5" font-weight="600" fill="#64748b">1 Sale trực thuộc · 2 khách của Leader · 1 khách của Sale</text>
+    
+    <g transform="translate(935, 15)">
+      <rect width="24" height="24" class="btn-toggle-box"/>
+      <text x="12" y="12" class="btn-toggle-sign">−</text>
+    </g>
+
+    <!-- TRỤC CON BÊN TRONG CỤM LEADER 1 -->
+    <path class="tree-solid-line" d="M 50 60 L 50 200"/>
+
+    <!-- ── MỤC 1 TRONG CỤM: BẢN THÂN LEADER DEMO ── -->
+    <path class="tree-solid-line" d="M 50 105 L 85 105"/>
+    <g transform="translate(85, 70)">
+      <rect width="860" height="72" fill="#ffffff" stroke="#e2e8f0" rx="8"/>
+      <circle cx="26" cy="20" r="11" class="avatar-l"/>
+      <text x="26" y="20" class="avatar-l-text" font-size="9">LD</text>
+      <text x="46" y="23" font-size="12.5" font-weight="800" fill="#0f172a">Leader Demo (leader)</text>
+      <text x="210" y="23" font-size="11" fill="#64748b">LEADER · 2 khách của mình</text>
+      
+      <!-- Khách của Leader Demo -->
+      <g transform="translate(30, 36)">
+        <path class="tree-guide-line" d="M 8 0 L 8 16 L 20 16"/>
+        <rect x="25" y="2" width="790" height="26" fill="#f8fafc" stroke="#f1f5f9" rx="4"/>
+        <text x="40" y="17" font-size="11" font-weight="700" fill="#0f172a">Nguyễn Văn Bình (0912.111.222)</text>
+        <text x="280" y="17" font-size="10.5" fill="#64748b">Khóa học Pro Master · Bước 04: Xác nhận học</text>
+        <text x="660" y="17" font-size="10.5" fill="#4338ca" font-weight="700">Khách riêng Leader</text>
+      </g>
+    </g>
+
+    <!-- ── MỤC 2 TRONG CỤM: SALE DEMO 1 TRỰC THUỘC ── -->
+    <path class="tree-solid-line" d="M 50 195 L 85 195"/>
+    <g transform="translate(85, 160)">
+      <rect width="860" height="72" fill="#ffffff" stroke="#e2e8f0" rx="8"/>
+      <circle cx="26" cy="20" r="11" class="avatar-s"/>
+      <text x="26" y="20" class="avatar-s-text" font-size="9">S1</text>
+      <text x="46" y="23" font-size="12.5" font-weight="800" fill="#0f172a">Sale Demo 1 (sale)</text>
+      <rect x="180" y="13" width="46" height="16" class="pill-role-sale"/>
+      <text x="203" y="23" font-size="9.5" font-weight="800" fill="#15803d" text-anchor="middle">SALE</text>
+      <text x="238" y="23" font-size="11" fill="#64748b">Trực thuộc Leader Demo · 1 khách của mình</text>
+      
+      <!-- Khách của Sale Demo 1 -->
+      <g transform="translate(30, 36)">
+        <path class="tree-guide-line" d="M 8 0 L 8 16 L 20 16"/>
+        <rect x="25" y="2" width="790" height="26" fill="#f8fafc" stroke="#f1f5f9" rx="4"/>
+        <text x="40" y="17" font-size="11" font-weight="700" fill="#0f172a">Trần Thị Mai Lan (0988.765.432)</text>
+        <text x="280" y="17" font-size="10.5" fill="#64748b">Facebook Ads Camp 03 · Bước 03: Kết nối Zalo</text>
+        <text x="660" y="17" font-size="10.5" fill="#15803d" font-weight="700">Khách Sale Demo 1</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       NHÁNH 3: LEADER DEMO 2 (LEADER) -> KHÁCH & SALE DEMO 2 (SALE)
+       ══════════════════════════════════════════════════════════════ -->
+  <path class="tree-solid-line" d="M 90 640 L 130 640"/>
+
+  <g transform="translate(130, 575)" filter="url(#boxShadow)">
+    <rect width="980" height="265" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.2" rx="10"/>
+    
+    <!-- HEADER CỤM LEADER DEMO 2 -->
+    <rect width="980" height="56" fill="#f8fafc" stroke="#f1f5f9" rx="10 10 0 0"/>
+    <circle cx="36" cy="28" r="15" class="avatar-l"/>
+    <text x="36" y="28" class="avatar-l-text">D2</text>
+    
+    <text x="64" y="24" font-size="13.5" font-weight="800" fill="#0f172a">Nhóm Leader Demo 2 (leader)</text>
+    <rect x="275" y="13" width="60" height="18" class="pill-role-leader"/>
+    <text x="305" y="24" font-size="10" font-weight="800" fill="#4338ca" text-anchor="middle">LEADER</text>
+    
+    <text x="64" y="42" font-size="11.5" font-weight="600" fill="#64748b">1 Sale trực thuộc · 2 khách của Leader · 1 khách của Sale</text>
+    
+    <g transform="translate(935, 15)">
+      <rect width="24" height="24" class="btn-toggle-box"/>
+      <text x="12" y="12" class="btn-toggle-sign">−</text>
+    </g>
+
+    <!-- TRỤC CON BÊN TRONG CỤM LEADER 2 -->
+    <path class="tree-solid-line" d="M 50 60 L 50 200"/>
+
+    <!-- ── MỤC 1 TRONG CỤM: BẢN THÂN LEADER DEMO 2 ── -->
+    <path class="tree-solid-line" d="M 50 105 L 85 105"/>
+    <g transform="translate(85, 70)">
+      <rect width="860" height="72" fill="#ffffff" stroke="#e2e8f0" rx="8"/>
+      <circle cx="26" cy="20" r="11" class="avatar-l"/>
+      <text x="26" y="20" class="avatar-l-text" font-size="9">D2</text>
+      <text x="46" y="23" font-size="12.5" font-weight="800" fill="#0f172a">Leader Demo 2 (leader)</text>
+      <text x="220" y="23" font-size="11" fill="#64748b">LEADER · 2 khách của mình</text>
+      
+      <!-- Khách của Leader Demo 2 -->
+      <g transform="translate(30, 36)">
+        <path class="tree-guide-line" d="M 8 0 L 8 16 L 20 16"/>
+        <rect x="25" y="2" width="790" height="26" fill="#f8fafc" stroke="#f1f5f9" rx="4"/>
+        <text x="40" y="17" font-size="11" font-weight="700" fill="#0f172a">Phạm Quốc Dũng (0903.112.233)</text>
+        <text x="280" y="17" font-size="10.5" fill="#64748b">Tiktok Master · Bước 09: Mở tài khoản (Đã nạp 2.000$)</text>
+        <text x="660" y="17" font-size="10.5" fill="#4338ca" font-weight="700">Khách riêng Leader</text>
+      </g>
+    </g>
+
+    <!-- ── MỤC 2 TRONG CỤM: SALE DEMO 2 TRỰC THUỘC ── -->
+    <path class="tree-solid-line" d="M 50 195 L 85 195"/>
+    <g transform="translate(85, 160)">
+      <rect width="860" height="72" fill="#ffffff" stroke="#e2e8f0" rx="8"/>
+      <circle cx="26" cy="20" r="11" class="avatar-s"/>
+      <text x="26" y="20" class="avatar-s-text" font-size="9">D2</text>
+      <text x="46" y="23" font-size="12.5" font-weight="800" fill="#0f172a">Sale Demo 2 (sale)</text>
+      <rect x="180" y="13" width="46" height="16" class="pill-role-sale"/>
+      <text x="203" y="23" font-size="9.5" font-weight="800" fill="#15803d" text-anchor="middle">SALE</text>
+      <text x="238" y="23" font-size="11" fill="#64748b">Trực thuộc Leader Demo 2 · 1 khách của mình</text>
+      
+      <!-- Khách của Sale Demo 2 -->
+      <g transform="translate(30, 36)">
+        <path class="tree-guide-line" d="M 8 0 L 8 16 L 20 16"/>
+        <rect x="25" y="2" width="790" height="26" fill="#f8fafc" stroke="#f1f5f9" rx="4"/>
+        <text x="40" y="17" font-size="11" font-weight="700" fill="#0f172a">Vũ Đình Trọng (0977.889.900)</text>
+        <text x="280" y="17" font-size="10.5" fill="#64748b">Giới thiệu Sale 08 · Bước 04: Xác nhận học (Chờ Zoom)</text>
+        <text x="660" y="17" font-size="10.5" fill="#15803d" font-weight="700">Khách Sale Demo 2</text>
+      </g>
+    </g>
+  </g>
+
+</svg>
