@@ -23,7 +23,7 @@
     if(!q('#customerJourneyStyles')){
       const style=document.createElement('style');
       style.id='customerJourneyStyles';
-      style.textContent='.customer-journey-banner{width:100%;margin:0 0 16px;padding:10px 14px;background:#fff;border:1px solid var(--border,#e2e8f0);border-radius:12px;overflow:hidden;box-sizing:border-box;box-shadow:0 2px 8px rgba(0,0,0,.03)}.customer-journey-banner img{display:block;width:100%;max-width:1680px;height:auto;max-height:180px;margin:0 auto;object-fit:contain}@media(max-width:980px){.customer-journey-banner{padding:6px;overflow-x:auto;-webkit-overflow-scrolling:touch}.customer-journey-banner img{min-width:980px;max-width:none;max-height:none;margin:0 auto;height:auto}}';
+      style.textContent='.customer-journey-banner{width:100%;margin:0 0 16px;padding:10px 14px;background:#fff;border:1px solid var(--border,#e2e8f0);border-radius:12px;overflow:hidden;box-sizing:border-box;box-shadow:0 2px 8px rgba(0,0,0,.03)}.customer-journey-banner img{display:block;width:100%;max-width:100%;min-width:0;height:auto;max-height:180px;margin:0 auto;object-fit:contain}@media(max-width:980px){.customer-journey-banner{width:100%;padding:5px;overflow:hidden}.customer-journey-banner img{display:block;width:100%;min-width:0;max-width:100%;height:auto;max-height:none;margin:0}}';
       document.head.appendChild(style);
     }
     const banner=document.createElement('div');
@@ -1514,6 +1514,7 @@
     const sideWidgets=tab.querySelectorAll('#dataSubViewQueue > div:nth-child(2) > .widget-box');
     if(sideWidgets.length>1)sideWidgets[sideWidgets.length-1].remove();
     const typeFilter=q('#dataQueueTypeFilter');if(typeFilter)typeFilter.innerHTML=opt('', '\u0054\u1ea5t c\u1ea3 lo\u1ea1i data')+['DATA M\u1edaI','DATA TR\u1ea2 V\u1ec0','DATA \u0110I\u1ec0N L\u1ea0I FORM'].map(value=>opt(value,value,typeFilter.value)).join('');
+    if(role==='ADMIN'){const sourceFilter=q('#dataQueueSourceFilter'),selected=sourceFilter?.value||'';if(sourceFilter)sourceFilter.innerHTML=opt('','Tất cả nguồn',selected)+(data.websites||[]).map(w=>opt(w.name||w.domain,w.name||w.domain,selected)).join('');}
     if(role!=='ADMIN'&&q('#dataSubViewQueue')){
       const sourceFilter=q('#dataQueueSourceFilter'),typeFilter=q('#dataQueueTypeFilter');
       if(sourceFilter){sourceFilter.hidden=true;sourceFilter.setAttribute('aria-hidden','true');}
@@ -1576,7 +1577,7 @@
   }
 
   function configuredCustomerSourceUrl(customer){
-    const website=(data?.websites||[]).find(item=>item.id===customer?.websiteId);
+    const website=(data?.websites||[]).find(item=>item.id===customer?.websiteId||item.sourceUrl===customer?.source||item.webhookUrlOverride===customer?.source||item.publicWebhookUrl===customer?.source);
     return String(customer?.landingPageUrl||website?.sourceUrl||website?.webhookUrlOverride||website?.publicWebhookUrl||'').trim();
   }
 
@@ -1597,8 +1598,8 @@
       const customer=(data.customers||[]).find(c=>String(c.phone||'').replace(/\s+/g,'')===phone);
       const cell=document.createElement('td');
       if(!customer){cell.textContent='\u2014';row.lastElementChild?row.insertBefore(cell,row.lastElementChild):row.appendChild(cell);return;}
-      const sourceCell=row.cells[4],sourceUrl=configuredCustomerSourceUrl(customer);
-      if(sourceCell)sourceCell.innerHTML=sourceUrl?'<a href="'+esc(sourceUrl)+'" target="_blank" rel="noopener noreferrer" style="color:#2563eb;font-weight:700;overflow-wrap:anywhere">'+esc(sourceUrl)+'</a>':'<span style="color:var(--text-muted)">Ch\u01b0a c\u1ea5u h\u00ecnh URL</span>';
+      const sourceCell=row.cells[4],sourceUrl=configuredCustomerSourceUrl(customer),sourceWebsite=(data.websites||[]).find(item=>item.id===customer.websiteId||item.sourceUrl===customer.source||item.webhookUrlOverride===customer.source||item.publicWebhookUrl===customer.source),sourceName=sourceWebsite?.name||customer.source||'Chưa gắn nguồn';
+      if(sourceCell)sourceCell.innerHTML=sourceUrl?'<a href="'+esc(sourceUrl)+'" target="_blank" rel="noopener noreferrer" title="'+esc(sourceUrl)+'" style="color:#2563eb;font-weight:700;overflow-wrap:anywhere">'+esc(sourceName)+'</a>':'<span style="color:var(--text-muted)">'+esc(sourceName)+'</span>';
       const selectedId=customer.saleId||customer.leaderId||'';
       const options=['<option value="">\u2014 Ch\u01b0a ch\u1ecdn ng\u01b0\u1eddi ph\u1ee5 tr\u00e1ch \u2014</option>'].concat(recipients.map(m=>'<option value="'+esc(m.id)+'" data-role="'+m.role+'" '+(m.id===selectedId?'selected':'')+'>'+esc(m.name||'Ch\u01b0a \u0111\u1eb7t t\u00ean')+' \u00b7 '+roleLabel[m.role]+'</option>'));
       cell.innerHTML='<select data-admin-sale-select="'+esc(customer.id)+'" aria-label="Ch\u1ecdn ng\u01b0\u1eddi ph\u1ee5 tr\u00e1ch cho '+esc(customer.name)+'" style="min-width:190px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-surface);color:var(--text-main);font:inherit;font-size:12px">'+options.join('')+'</select>';
@@ -1617,6 +1618,8 @@
 
   const ordinaryQueue=renderDataQueue;renderDataQueue=function(){
     ordinaryQueue();
+    // Admin dung bang day du: co loai data, nguon webhook va thao tac.
+    if((data?.user?.actualRole||data?.user?.role)==='ADMIN')renderTypedDataQueue();
     installAdminWaitingSaleButton();
     renderAdminManualSaleColumn();
     const role=data?.user?.actualRole||data?.user?.role;

@@ -1572,3 +1572,35 @@ body, button, input, select, textarea { font-family:var(--font-sans); }
 body:not(.reference-ready)>.app-shell{visibility:hidden}
 body.reference-ready>.app-shell{visibility:visible}
 
+
+/* Mobile customer view: keep filters compact and prevent desktop-width controls. */
+@media (max-width: 820px) {
+  #tab-customers { min-width: 0; overflow: hidden; }
+  #tab-customers .headline-row { gap: 10px; align-items: flex-start; }
+  #tab-customers .headline-row > div { width: 100%; }
+  #tab-customers .headline-row .btn-action { min-height: 34px; padding: 7px 10px; font-size: 11px; }
+  #tab-customers .table-head-bar { display: block; padding: 12px; }
+  #tab-customers .table-head-bar > div:first-child { display: grid !important; grid-template-columns: minmax(0, 1fr); gap: 8px !important; width: 100%; }
+  #tab-customers #custSearchInput,
+  #tab-customers #custStatusFilter,
+  #tab-customers #custAssignFilter {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    height: 38px !important;
+    padding: 0 11px !important;
+    font-size: 13px !important;
+    line-height: 1.2 !important;
+    box-sizing: border-box !important;
+  }
+  #tab-customers .table-head-bar > div:last-child { margin-top: 10px; font-size: 11px !important; }
+  #tab-customers .table-responsive { width: 100%; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  #tab-customers .table-responsive table { min-width: 920px; }
+  #tab-customers #customerTableBody select { width: 150px !important; min-width: 150px !important; max-width: 150px !important; height: 34px !important; font-size: 11px !important; padding: 4px 7px !important; }
+  #tab-customers #customerTableBody td { font-size: 11px; }
+  #tab-customers #customerJourneyBanner,
+  #tab-customers .customer-journey-banner { width: 100% !important; max-width: 100% !important; min-width: 0 !important; padding: 5px !important; overflow: hidden !important; }
+  #tab-customers #customerJourneyBanner img,
+  #tab-customers .customer-journey-banner img { display: block !important; width: 100% !important; min-width: 0 !important; max-width: 100% !important; height: auto !important; object-fit: contain !important; }
+}
