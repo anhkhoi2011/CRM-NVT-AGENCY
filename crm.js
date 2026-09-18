@@ -475,7 +475,7 @@ function normalizeMemberRecord(member) {
     role,
     teamId,
     leaderId: role === 'SALE' ? cleanId(member.leaderId) : null,
-    managerId: role === 'LEADER' ? cleanId(member.managerId) : null,
+    managerId: ['LEADER', 'SALE'].includes(role) ? cleanId(member.managerId) : null,
     initials: cleanText(member.initials, 'NV', 4).toUpperCase(),
     avatar: /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(String(member.avatar || '')) ? String(member.avatar) : '',
     createdBy: cleanText(member.createdBy, 'Hệ thống', 160),
@@ -515,6 +515,7 @@ function normalizeCustomerRecord(customer, members = STAFF, websites = [], field
     saleId: sale?.id || null,
     leaderId: sale?.leaderId || leader?.id || null,
     teamId: sale?.teamId || leader?.teamId || null,
+    managerId: cleanId(customer.managerId) || cleanId(sale?.managerId) || cleanId(leader?.managerId),
     createdAt,
     updatedAt: cleanTimestamp(customer.updatedAt, createdAt),
     saleAcceptedAt: cleanTimestamp(customer.saleAcceptedAt),
@@ -1524,7 +1525,7 @@ function scopeSaleIds() {
   if (!currentAccount) return [];
   if (currentAccount.actualRole === 'MANAGER') {
     const leaderIds = new Set(activeStaff().filter(person => person.role === 'LEADER' && person.managerId === currentAccount.id).map(person => person.id));
-    return activeStaff().filter(person => person.role === 'SALE' && leaderIds.has(person.leaderId)).map(person => person.id);
+    return activeStaff().filter(person => person.role === 'SALE' && (person.managerId === currentAccount.id || leaderIds.has(person.leaderId))).map(person => person.id);
   }
   if (currentAccount.scope === 'ALL') return activeStaff().filter(person => person.role === 'SALE').map(person => person.id);
   if (currentAccount.scope === 'TEAM') return activeStaff().filter(person => person.role === 'SALE' && person.teamId === currentAccount.teamId && person.leaderId === currentAccount.leaderId).map(person => person.id);
@@ -1535,7 +1536,7 @@ function scopedCustomers() {
   const saleIds = scopeSaleIds();
   if (currentAccount?.actualRole === 'MANAGER') {
     const leaderIds = new Set(activeStaff().filter(person => person.role === 'LEADER' && person.managerId === currentAccount.id).map(person => person.id));
-    return state.customers.filter(customer => leaderIds.has(customer.leaderId));
+    return state.customers.filter(customer => customer.managerId === currentAccount.id || customer.ownerId === currentAccount.id || leaderIds.has(customer.leaderId) || saleIds.includes(customer.saleId));
   }
   if (currentAccount.scope === 'ALL') return state.customers;
   if (currentAccount.scope === 'TEAM') return state.customers.filter(customer => customer.teamId === currentAccount.teamId && customer.leaderId === currentAccount.leaderId);
@@ -1564,7 +1565,7 @@ function scopedOrders() {
   const ids = scopeSaleIds();
   if (currentAccount?.actualRole === 'MANAGER') {
     const leaderIds = new Set(activeStaff().filter(person => person.role === 'LEADER' && person.managerId === currentAccount.id).map(person => person.id));
-    return state.orders.filter(order => leaderIds.has(order.leaderId));
+    return state.orders.filter(order => leaderIds.has(order.leaderId) || ids.includes(order.saleId) || order.managerId === currentAccount.id);
   }
   if (currentAccount.scope === 'ALL') return state.orders;
   if (currentAccount.scope === 'TEAM') return state.orders.filter(order => order.teamId === currentAccount.teamId && order.leaderId === currentAccount.leaderId);
@@ -1574,7 +1575,7 @@ function scopedTasks() {
   const ids = scopeSaleIds();
   if (currentAccount?.actualRole === 'MANAGER') {
     const leaderIds = new Set(activeStaff().filter(person => person.role === 'LEADER' && person.managerId === currentAccount.id).map(person => person.id));
-    return state.tasks.filter(task => leaderIds.has(task.leaderId));
+    return state.tasks.filter(task => leaderIds.has(task.leaderId) || ids.includes(task.ownerId) || task.managerId === currentAccount.id);
   }
   if (currentAccount.scope === 'ALL') return state.tasks;
   if (currentAccount.scope === 'TEAM') return state.tasks.filter(task => task.teamId === currentAccount.teamId && task.leaderId === currentAccount.leaderId);
@@ -1584,7 +1585,7 @@ function scopedTraffic() {
   const ids = scopeSaleIds();
   if (currentAccount?.actualRole === 'MANAGER') {
     const leaderIds = new Set(activeStaff().filter(person => person.role === 'LEADER' && person.managerId === currentAccount.id).map(person => person.id));
-    return state.traffic.filter(event => leaderIds.has(event.leaderId));
+    return state.traffic.filter(event => leaderIds.has(event.leaderId) || ids.includes(event.saleId) || event.managerId === currentAccount.id);
   }
   if (currentAccount.scope === 'ALL') return state.traffic;
   if (currentAccount.scope === 'TEAM') return state.traffic.filter(event => event.teamId === currentAccount.teamId && event.leaderId === currentAccount.leaderId);

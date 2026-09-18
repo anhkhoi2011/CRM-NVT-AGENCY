@@ -3,7 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>NVT AGENCY - Enterprise Operating System · Trực quan hóa 10.000 Tỷ</title>
+  <title>NVT AGENCY CRM NỘI BỘ</title>
+  <link rel="icon" type="image/jpeg" href="./logo.jpg?v=20260918-crm">
+  <link rel="apple-touch-icon" href="./logo.jpg?v=20260918-crm">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600;700;800&display=swap" rel="stylesheet">
@@ -1430,13 +1432,13 @@
       color: var(--text-faint);
     }
   </style>
-  <link rel="stylesheet" href="crm-boot.css?v=20260918-boot-4">
+  <link rel="stylesheet" href="crm-boot.css?v=20260918-manager-fix-2">
   <link rel="stylesheet" href="./team-tree-hierarchy.css?v=20260918-nested-tree-1">
 </head>
 <body>
 <div id=crmBootScreen role=status aria-label=Loading><div class=crm-boot-mark><span class=crm-boot-spinner aria-hidden=true></span><span>NVT-AGENCY</span></div></div>
 <!-- Ẩn lớp đăng nhập trong lúc khôi phục phiên để F5 không nhấp nháy về form login. -->
-<iframe id="crmRuntimeFrame" title="Đăng nhập CRM" src="crm-runtime.html?v=20260918-login-clean-1" style="display:none;position:fixed;inset:0;width:100%;height:100%;border:0;z-index:2147483647;background:white"></iframe>
+<iframe id="crmRuntimeFrame" title="Đăng nhập CRM" src="crm-runtime.html?v=20260918-manager-fix-2" style="display:none;position:fixed;inset:0;width:100%;height:100%;border:0;z-index:2147483647;background:white"></iframe>
 
 <div class="bg-aura" style="visibility:hidden"></div>
 
@@ -2264,7 +2266,6 @@
                 <b style="font-size: 14px;">Data chưa có Sale</b>
                 <div style="font-size: 11px; color: var(--text-muted);">Danh sách khách hàng chưa được phân Sale phụ trách</div>
               </div>
-              <button class="btn-action btn-secondary" onclick="selectAllDataQueue()">Chọn data chưa có Sale</button>
             </div>
 
             <!-- Thanh tìm kiếm & lọc -->
@@ -4570,7 +4571,7 @@
 </div>
 
 <script src="reference-view.js?v=20260917-delete-sync-1"></script>
-<script src="reference-crm.js?v=20260918-production-clean-1"></script>
+<script src="reference-crm.js?v=20260918-manager-fix-2"></script>
 
 </body>
 </html>

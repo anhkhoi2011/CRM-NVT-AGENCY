@@ -109,18 +109,19 @@
         ? new Set(state.members.filter(m=>m.role==='LEADER'&&m.active!==false&&m.managerId===currentAccount.id).map(m=>m.id))
         : null;
       const customers=currentAccount.actualRole==='MANAGER'
-        ? state.customers.filter(c=>managerLeaderIds.has(c.leaderId))
+        ? state.customers.filter(c=>c.managerId===currentAccount.id||c.ownerId===currentAccount.id||managerLeaderIds.has(c.leaderId)||state.members.some(m=>m.role==='SALE'&&m.managerId===currentAccount.id&&m.id===c.saleId))
         : scopedCustomers().filter(c=>currentAccount.role!=='SALE'||!!c.saleAcceptedAt);
       const managerHierarchy=currentAccount.actualRole==='MANAGER'?(()=>{
         const leaderIds=new Set(state.members.filter(m=>m.role==='LEADER'&&m.active!==false&&m.managerId===currentAccount.id).map(m=>m.id));
-        const members=state.members.filter(m=>m.id===currentAccount.id||leaderIds.has(m.id)||m.role==='SALE'&&leaderIds.has(m.leaderId));
-        const hierarchyCustomers=state.customers.filter(c=>leaderIds.has(c.leaderId));
-        const orders=state.orders.filter(o=>leaderIds.has(o.leaderId));
+        const managerSales=new Set(state.members.filter(m=>m.role==='SALE'&&m.active!==false&&(m.managerId===currentAccount.id||leaderIds.has(m.leaderId))).map(m=>m.id));
+        const members=state.members.filter(m=>m.id===currentAccount.id||leaderIds.has(m.id)||m.role==='SALE'&&managerSales.has(m.id));
+        const hierarchyCustomers=state.customers.filter(c=>c.managerId===currentAccount.id||c.ownerId===currentAccount.id||leaderIds.has(c.leaderId)||managerSales.has(c.saleId));
+        const orders=state.orders.filter(o=>leaderIds.has(o.leaderId)||managerSales.has(o.saleId));
         const orderIds=new Set(orders.map(o=>o.id));
-        return {members,customers:hierarchyCustomers,orders,tasks:state.tasks.filter(t=>leaderIds.has(t.leaderId)),financialEvents:financialEvents(orders).filter(e=>orderIds.has(e.orderId))};
+        return {members,customers:hierarchyCustomers,orders,tasks:state.tasks.filter(t=>leaderIds.has(t.leaderId)||managerSales.has(t.ownerId)),financialEvents:financialEvents(orders).filter(e=>orderIds.has(e.orderId))};
       })():null;
       const visibleOrders=currentAccount.actualRole==='MANAGER'
-        ? state.orders.filter(o=>managerLeaderIds.has(o.leaderId))
+        ? state.orders.filter(o=>managerLeaderIds.has(o.leaderId)||state.members.some(m=>m.role==='SALE'&&m.managerId===currentAccount.id&&m.id===o.saleId))
         : scopedOrders();
       return structuredClone({user:currentAccount,managerHierarchy,fonts:referenceFonts,pendingOffers:currentAccount.role==='SALE'?pendingOffersForMe().map(o=>({id:o.id,name:customerById(o.customerId)?.name||'',offeredAt:o.offeredAt,minutesLeft:offerMinutesLeft(o)})):[],customers,orders:visibleOrders,products:state.products,productCategories:state.productCategories,members:state.members,registeredAccounts:state.registeredAccounts,fields:state.customFieldDefinitions,careGroups:state.careGroups,imports:currentAccount.role==='ADMIN'?state.imports:[],resubmissions:state.resubmissions,websites:state.websites.map(w=>({...w,publicWebhookUrl:webhookUrlFor(w)})),webhookPending,webhookTransport:{...webhookTransport,label:(WEBHOOK_TRANSPORT_META[webhookTransport.mode]||WEBHOOK_TRANSPORT_META.idle)[0]},settings:state.settings,notifications:visibleNotifications(),audit:state.audit,attendance:state.attendance,brokerageMetrics:state.brokerageMetrics,tasks:scopedTasks(),leaderDistribution:state.leaderDistribution,saleDistributionByLeader:state.saleDistributionByLeader,offers:state.dataOffers,financialEvents:financialEvents(visibleOrders),navigation:allowedViews(),today:dayIso(0)});
     },
@@ -328,14 +329,17 @@
         }
         if(!['SALE','LEADER','MANAGER'].includes(role)||(role!=='MANAGER'&&!/^[A-Z0-9_-]{1,20}$/.test(teamId)))throw Error('Chọn chức vụ và Team hợp lệ.');
         if(role==='SALE'&&(!leader||leader.teamId!==teamId||leader.id===id))throw Error('Sale phải thuộc đúng Team của Leader.');
-        if(member?.role==='LEADER'&&role!=='LEADER'&&state.members.some(m=>m.active!==false&&m.leaderId===id))throw Error('Chuyển Sale trực thuộc trước khi đổi Leader.');
+        // Leader có thể được nâng lên Manager mà không cần chuyển Sale.\n        // Sale vẫn giữ nguyên leaderId/teamId; Manager chỉ nhận thêm phạm vi quản lý.\n        if(member?.role==='LEADER'&&role!=='LEADER'&&role!=='MANAGER'&&state.members.some(m=>m.active!==false&&m.leaderId===id))throw Error('Chuyển Sale trực thuộc trước khi đổi Leader.');
         const managerId=role==='LEADER'?String(input.managerId||''):null;
         if(managerId&&!state.members.some(m=>m.id===managerId&&m.role==='MANAGER'&&m.active!==false))throw Error('Manager không hoạt động.');
         if(member?.role==='MANAGER'&&role!=='MANAGER'&&state.members.some(m=>m.managerId===id))throw Error('Bỏ phân công các Leader trước khi đổi chức Manager.');
-        if(role==='MANAGER'&&member&&member.role!=='MANAGER'&&state.customers.some(c=>c.saleId===id||c.leaderId===id))throw Error('Chuyển khách đang phụ trách trước khi nâng lên Manager.');
         if(role==='MANAGER'){
-          const next={...(member||pending||{}),id:id||makeRecordId('MANAGER'),name,accountId,email,phone,role,teamId:'',leaderId:null,managerId:null,active:true,initials:memberInitials(name)};
+          const source=member||pending||{};
+          const next={...source,id:id||makeRecordId('MANAGER'),name,accountId,email,phone,role,teamId:'',leaderId:null,managerId:null,active:true,initials:memberInitials(name)};
           if(member)Object.assign(member,next);else state.members.push(next);
+          const inheritedSales=state.members.filter(item=>item.active!==false&&item.role==='SALE'&&item.leaderId===id);
+          inheritedSales.forEach(sale=>{sale.managerId=id;});
+          state.customers.filter(customer=>customer.managerId===id||customer.ownerId===id||customer.leaderId===id||customer.saleId===id||inheritedSales.some(sale=>sale.id===customer.saleId)).forEach(customer=>{customer.managerId=id;});
           state.registeredAccounts=state.registeredAccounts.filter(m=>m.id!==id);STAFF=state.members.filter(m=>m.active!==false);audit('UPDATE_MANAGER',next.id,name);return {id:next.id};
         }
         if(pending){const next={...pending,name,accountId,email,phone,role,teamId,managerId,leaderId:role==='SALE'?leader.id:null,active:true,initials:memberInitials(name)};state.members.push(next);state.registeredAccounts=state.registeredAccounts.filter(m=>m.id!==id);STAFF=state.members.filter(m=>m.active!==false);audit('ASSIGN_REGISTERED_ACCOUNT',id,name);return {id};}

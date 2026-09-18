@@ -105,10 +105,11 @@ async function allData(c){
 }
 // Phạm vi Manager lấy từ bản ghi đã lưu, tuyệt đối không lấy danh sách quyền từ request.
 function managerLeaders(user,data){return [...data.members.values()].filter(m=>m.active!==false&&m.role==='LEADER'&&m.managerId===user.id);}
-function managerOwns(user,row,data){return !!row&&managerLeaders(user,data).some(l=>row.leaderId===l.id&&row.teamId===l.teamId);}
+function managerSales(user,data){const leaders=managerLeaders(user,data),leaderIds=new Set(leaders.map(l=>l.id));return [...data.members.values()].filter(m=>m.active!==false&&m.role==='SALE'&&(m.managerId===user.id||leaderIds.has(m.leaderId)));}
+function managerOwns(user,row,data){if(!row)return false;const leaders=managerLeaders(user,data),sales=managerSales(user,data);return row.managerId===user.id||row.ownerId===user.id||leaders.some(l=>row.leaderId===l.id&&row.teamId===l.teamId)||sales.some(s=>row.saleId===s.id);}
 function managerReadable(user,key,r,data){
  const leaders=managerLeaders(user,data),ids=new Set(leaders.map(l=>l.id));
- if(key==='members')return r.id===user.id||ids.has(r.id)||(r.role==='SALE'&&ids.has(r.leaderId)&&leaders.some(l=>l.id===r.leaderId&&l.teamId===r.teamId));
+ if(key==='members')return r.id===user.id||ids.has(r.id)||(r.role==='SALE'&&((r.managerId===user.id)||ids.has(r.leaderId)&&leaders.some(l=>l.id===r.leaderId&&l.teamId===r.teamId)));
  if(['customers','orders'].includes(key))return managerOwns(user,r,data);
  if(['products','customFieldDefinitions','productCategories','websites','settings','saleDistributionByLeader','careGroups','leaderDistribution'].includes(key))return true;
  if(key==='attendance')return r.accountId===user.id||[...data.members.values()].some(m=>m.id===r.accountId&&(ids.has(m.id)||m.role==='SALE'&&ids.has(m.leaderId)));
@@ -148,6 +149,7 @@ function authorizeManager(user,key,old,next,data){
  if(key==='orders'&&old&&!managerOwns(user,old,data))error(403,'Đơn ngoài hệ thống');
  if(key==='dataOffers'&&next&&(!ids.includes(next.leaderId)||!([...data.members.values()].some(m=>m.id===next.saleId&&m.role==='SALE'&&m.leaderId===next.leaderId&&m.teamId===customer.teamId))))error(403,'Lời mời ngoài Team');
  const leader=leaders.find(l=>l.id===customer.leaderId);
+ if(!leader)return;
  return authorize({...user,role:'LEADER',id:leader.id,teamId:leader.teamId,leaderId:leader.id},key,old,next,data);
 }
 function customerScope(user,r){return !!r&&(user.role==='ADMIN'||(user.role==='SALE'&&r.saleId===user.id)||(user.role==='LEADER'&&((!!user.teamId&&r.teamId===user.teamId)||r.leaderId===user.id)));}
