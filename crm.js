@@ -369,12 +369,21 @@ function sanitizeSaleDistribution(input, members, defaults) {
   const output = {};
   members.filter(member => member.role === 'LEADER').forEach(leader => {
     const sales = members.filter(member => member.role === 'SALE' && member.leaderId === leader.id);
-    const saleIds = new Set(sales.map(sale => sale.id));
+    // Keep Manager as a compatible recipient in the leader's distribution pool.
+    const manager = members.find(member => member.role === 'MANAGER' && member.id === leader.managerId);
+    const managerRecipient = manager ? { ...manager, role: 'SALE', actualRole: 'MANAGER', managerRecipient: true, leaderId: leader.id, teamId: leader.teamId } : null;
+    const recipients = managerRecipient ? [...sales, managerRecipient] : sales;
+    const saleIds = new Set(recipients.map(sale => sale.id));
     const source = value[leader.id] && typeof value[leader.id] === 'object' ? value[leader.id] : defaults[leader.id] || {};
+    const configuredIds = Array.isArray(source.enabledSaleIds) ? source.enabledSaleIds : recipients.map(sale => sale.id);
+    const migratedIds = managerRecipient && source.managerDistributionInitialized !== true && !configuredIds.includes(managerRecipient.id)
+      ? [...configuredIds, managerRecipient.id]
+      : configuredIds;
     output[leader.id] = {
       leaderEnabled: source.leaderEnabled !== false,
-      enabledSaleIds: Array.from(new Set((Array.isArray(source.enabledSaleIds) ? source.enabledSaleIds : sales.map(sale => sale.id)).filter(id => saleIds.has(id)))),
-      weights: Object.fromEntries([...sales, leader].map(sale => [sale.id, cleanNumber(Number(source.weights?.[sale.id]), 1, 1, 100, true)]))
+      managerDistributionInitialized: true,
+      enabledSaleIds: Array.from(new Set(migratedIds.filter(id => saleIds.has(id)))),
+      weights: Object.fromEntries([...recipients, leader].map(sale => [sale.id, cleanNumber(Number(source.weights?.[sale.id]), 1, 1, 100, true)]))
     };
   });
   return output;
@@ -2166,9 +2175,12 @@ async function quickAssignSale(customerId, saleId) {
   if (!['ADMIN', 'MANAGER', 'LEADER'].includes(currentAccount.role)) return false;
   const customer = customerById(customerId);
   if (!saleId) return clearManualRecipient(customer);
-  const sale = customer?.leaderId
-    ? teamRecipients(customer.leaderId, customer.teamId).find(p=>p.id===saleId)
-    : activeStaff().find(p=>p.id===saleId&&p.role==='SALE');
+  // Admin được chọn Sale ở toàn hệ thống; Leader/Manager vẫn bị giới hạn đúng Team được giao.
+  const sale = currentAccount.role === 'ADMIN'
+    ? activeStaff().find(p=>p.id===saleId&&p.role==='SALE')
+    : customer?.leaderId
+      ? teamRecipients(customer.leaderId, customer.teamId).find(p=>p.id===saleId)
+      : activeStaff().find(p=>p.id===saleId&&p.role==='SALE');
   const managerLeaders = currentAccount.role === 'MANAGER'
     ? activeStaff().filter(person => person.role === 'LEADER' && person.active !== false && person.managerId === currentAccount.id)
     : [];
@@ -2364,7 +2376,7 @@ function distributionView() {
     body = `<div class="grid grid-2"><section class="panel"><div class="panel-head"><div><div class="panel-title">Cơ chế chia data mới</div></div><button class="toggle ${state.leaderDistribution.enabled ? 'on' : ''}" id="toggleLeaderDistribution" aria-pressed="${state.leaderDistribution.enabled}" aria-label="Bật tắt chia Leader"></button></div><div class="panel-body"><label class="form-field">Chế độ mặc định<select id="assignmentModeSelect"><option value="MANUAL" ${state.settings.assignmentMode === 'MANUAL' ? 'selected' : ''}>Thủ công</option><option value="EQUAL" ${state.settings.assignmentMode === 'EQUAL' || state.settings.assignmentMode === 'ROUND_ROBIN' ? 'selected' : ''}>Chia đều</option><option value="BALANCED" ${state.settings.assignmentMode === 'BALANCED' ? 'selected' : ''}>Chia theo tỷ trọng</option></select></label></div></section><section class="panel"><div class="panel-head"><div><div class="panel-title">Tình trạng phân phối</div></div></div><div class="panel-body"><div class="stat-row"><div><small>Leader hoạt động</small><b>${enabledLeaders.size}/${leaders.length}</b></div><div><small>Chế độ hiện tại</small><b>${state.settings.assignmentMode === 'MANUAL' ? 'Thủ công' : state.settings.assignmentMode === 'BALANCED' ? 'Theo tỷ trọng' : 'Chia đều'}</b></div><div><small>Khách đang chờ</small><b>${state.customers.filter(customer => !customer.leaderId && !customer.saleId).length}</b></div></div></div></section></div>`;  } else if (distributionTab === 'LEADERS') {
     body = `<section class="panel"><div class="panel-head"><div><div class="panel-title">Leader nhận data</div><div class="panel-sub">Bật/tắt và đặt tỷ trọng riêng cho từng Leader</div></div></div><div class="field-manager">${leaders.map(leader => { const saleCount = activeStaff().filter(member => member.role === 'SALE' && member.leaderId === leader.id).length; return `<div class="field-manager-row"><div class="avatar">${escapeHtml(leader.initials)}</div><div><b>${escapeHtml(leader.name)}</b><small>${escapeHtml(leader.teamId)} · ${saleCount} Sale · đang phụ trách ${assignmentLoad(leader)} khách</small></div><label class="weight-control">Tỷ trọng<input class="weight-input" type="number" min="1" max="100" value="${state.leaderDistribution.weights[leader.id] || 1}" data-distribution-weight="LEADER:${escapeHtml(leader.id)}"></label><label class="member-switch"><input type="checkbox" data-distribution-member="LEADER:${escapeHtml(leader.id)}" ${enabledLeaders.has(leader.id) ? 'checked' : ''}><span>${enabledLeaders.has(leader.id) ? 'Đang nhận' : 'Tạm tắt'}</span></label></div>`; }).join('') || '<div class="empty"><b>Chưa có Leader</b><span>Thêm Leader tại mục Đội ngũ trước.</span></div>'}</div></section>`;
   } else {
-    body = `<section class="panel"><div class="panel-head"><div><div class="panel-title">Sale nhận data trong từng Team</div><div class="panel-sub">Leader chỉ có thể chia cho Sale đã được Admin bật ở đây</div></div><select id="distributionLeaderSelect">${leaders.map(leader => `<option value="${escapeHtml(leader.id)}" ${leader.id === distributionLeaderId ? 'selected' : ''}>${escapeHtml(leader.name)} · ${escapeHtml(leader.teamId)}</option>`).join('')}</select></div><div class="field-manager">${sales.map(sale => `<div class="field-manager-row"><div class="avatar">${escapeHtml(sale.initials)}</div><div><b>${escapeHtml(sale.name)}</b><small>${escapeHtml(sale.teamId)} · đang phụ trách ${assignmentLoad(sale)} khách</small></div><label class="weight-control">Tỷ trọng<input class="weight-input" type="number" min="1" max="100" value="${saleConfig.weights[sale.id] || 1}" data-distribution-weight="SALE:${escapeHtml(sale.id)}"></label><label class="member-switch"><input type="checkbox" data-distribution-member="SALE:${escapeHtml(sale.id)}" ${(sale.teamLeaderRecipient ? saleConfig.leaderEnabled !== false : enabledSales.has(sale.id)) ? 'checked' : ''}><span>${(sale.teamLeaderRecipient ? saleConfig.leaderEnabled !== false : enabledSales.has(sale.id)) ? 'Đang nhận' : 'Tạm tắt'}</span></label></div>`).join('') || '<div class="empty"><b>Leader chưa có Sale</b><span>Thêm hoặc điều chuyển Sale tại mục Đội ngũ.</span></div>'}</div></section>`;
+    body = `<section class="panel"><div class="panel-head"><div><div class="panel-title">Sale nhận data trong từng Team</div><div class="panel-sub">Manager, Leader và Sale trong tuyến đều có thể được bật để nhận data</div></div><select id="distributionLeaderSelect">${leaders.map(leader => `<option value="${escapeHtml(leader.id)}" ${leader.id === distributionLeaderId ? 'selected' : ''}>${escapeHtml(leader.name)} · ${escapeHtml(leader.teamId)}</option>`).join('')}</select></div><div class="field-manager">${sales.map(sale => { const isManager = sale.managerRecipient; const isLeader = sale.teamLeaderRecipient; const enabled = isLeader ? saleConfig.leaderEnabled !== false : (isManager && saleConfig.managerDistributionInitialized !== true ? true : enabledSales.has(sale.id)); return `<div class="field-manager-row"><div class="avatar">${escapeHtml(sale.initials)}</div><div><b>${escapeHtml(sale.name)}</b><small>${isManager ? 'MANAGER' : isLeader ? 'LEADER' : 'SALE'} · ${escapeHtml(sale.teamId || '')} · đang phụ trách ${assignmentLoad(sale)} khách</small></div><label class="weight-control">Tỷ trọng<input class="weight-input" type="number" min="1" max="100" value="${saleConfig.weights[sale.id] || 1}" data-distribution-weight="${isManager ? 'MANAGER' : 'SALE'}:${escapeHtml(sale.id)}"></label><label class="member-switch"><input type="checkbox" data-distribution-member="${isManager ? 'MANAGER' : 'SALE'}:${escapeHtml(sale.id)}" ${enabled ? 'checked' : ''}><span>${enabled ? 'Đang nhận' : 'Tạm tắt'}</span></label></div>`; }).join('') || '<div class="empty"><b>Chưa có nhân sự trong tuyến</b><span>Thêm Manager, Leader hoặc Sale tại mục Đội ngũ.</span></div>'}</div></section>`;
   }
   return pageHead('Data', 'Phân data cho Leader và Sale; lịch sử phụ trách cũ luôn được giữ.') + `<div class="distribution-tabs">${tabs.map(([id, label]) => `<button class="distribution-tab ${distributionTab === id ? 'active' : ''}" data-distribution-tab="${id}">${label}</button>`).join('')}</div>${body}`;
 }
@@ -2385,9 +2397,14 @@ function updateDistributionMember(kind, id, enabled) {
     state.leaderDistribution.enabledLeaderIds = Array.from(ids);
   } else {
     const raw = activeStaff().find(member => member.id === id);
-    const sale = raw?.role === 'LEADER' ? {...raw,leaderId:raw.id,teamLeaderRecipient:true} : raw;
+    const sale = raw?.role === 'LEADER'
+      ? {...raw,leaderId:raw.id,teamLeaderRecipient:true}
+      : raw?.role === 'MANAGER'
+        ? teamRecipients(distributionLeaderId, activeStaff().find(member => member.id === distributionLeaderId)?.teamId).find(member => member.id === id)
+        : raw;
     if (!sale) return;
     const config = state.saleDistributionByLeader[sale.leaderId] || (state.saleDistributionByLeader[sale.leaderId] = { enabledSaleIds: [], weights: {} });
+    config.managerDistributionInitialized = true;
     if (sale.teamLeaderRecipient) config.leaderEnabled = enabled;
     const ids = new Set(config.enabledSaleIds);
     enabled ? ids.add(id) : ids.delete(id);
@@ -2403,9 +2420,14 @@ function updateDistributionWeight(kind, id, value) {
   if (kind === 'LEADER') state.leaderDistribution.weights[id] = weight;
   else {
     const raw = activeStaff().find(member => member.id === id);
-    const sale = raw?.role === 'LEADER' ? {...raw,leaderId:raw.id,teamLeaderRecipient:true} : raw;
+    const sale = raw?.role === 'LEADER'
+      ? {...raw,leaderId:raw.id,teamLeaderRecipient:true}
+      : raw?.role === 'MANAGER'
+        ? teamRecipients(distributionLeaderId, activeStaff().find(member => member.id === distributionLeaderId)?.teamId).find(member => member.id === id)
+        : raw;
     if (!sale) return;
     const config = state.saleDistributionByLeader[sale.leaderId] || (state.saleDistributionByLeader[sale.leaderId] = { enabledSaleIds: [], weights: {} });
+    config.managerDistributionInitialized = true;
     config.weights[id] = weight;
   }
   audit('UPDATE_DISTRIBUTION_WEIGHT', id, `${kind} · tỷ trọng ${weight}`);
@@ -3942,7 +3964,19 @@ function newOrderModal(customerId = '') {
 
 // Leader tham gia chia data trong Team nhu mot nguoi phu trach.
 function teamRecipients(leaderId, teamId) {
-  return activeStaff().filter(p => p.teamId === teamId && (p.id === leaderId || (p.role === 'SALE' && p.leaderId === leaderId))).map(p => p.id === leaderId ? {...p, role:'SALE', leaderId:p.id, teamLeaderRecipient:true} : p);
+  const leader = activeStaff().find(p => p.id === leaderId && p.role === 'LEADER');
+  const sales = activeStaff().filter(p => p.teamId === teamId && p.role === 'SALE' && p.leaderId === leaderId);
+  const manager = leader?.managerId
+    ? activeStaff().find(p => p.id === leader.managerId && p.role === 'MANAGER')
+    : null;
+  const managerRecipient = manager
+    ? { ...manager, role: 'SALE', actualRole: 'MANAGER', leaderId, teamId, managerRecipient: true }
+    : null;
+  return [
+    ...(leader ? [{ ...leader, role: 'SALE', leaderId: leader.id, teamId, teamLeaderRecipient: true }] : []),
+    ...sales,
+    ...(managerRecipient ? [managerRecipient] : [])
+  ];
 }
 function assignmentCandidates(customer) {
   if (customer.leaderId) {
@@ -3958,6 +3992,9 @@ function assignmentModeFor(customer) {
 }
 
 function assignmentLoad(person) {
+  if (person.managerRecipient || person.actualRole === 'MANAGER' || person.role === 'MANAGER') {
+    return state.customers.filter(customer => customer.managerId === person.id).length;
+  }
   if (person.role === 'LEADER') return state.customers.filter(customer => customer.leaderId === person.id).length;
   return state.customers.filter(customer => customer.saleId === person.id && customer.leaderId === person.leaderId && customer.teamId === person.teamId).length + state.dataOffers.filter(o=>o.saleId===person.id&&o.status==='PENDING').length;
 }
@@ -4102,6 +4139,19 @@ function applyCustomerAssignment(customer, target, reason, source = 'MANUAL', di
     state.dataOffers.forEach(o => { if (o.customerId === customer.id && o.status === 'PENDING') { o.status = 'EXPIRED'; o.resolvedAt = stamp(); } });
   }
   const previous = assignmentSnapshot(customer);
+  if (target.managerRecipient) {
+    customer.saleId = null;
+    customer.leaderId = target.leaderId;
+    customer.teamId = target.teamId;
+    customer.managerId = target.id;
+    customer.saleAcceptedAt = stamp();
+    customer.updatedAt = stamp();
+    customer.note = reason;
+    state.notifications.unshift({ id: `NT-${Date.now()}-${customer.id}`, role: 'MANAGER', managerId: target.id, leaderId: target.leaderId, teamId: target.teamId, title: 'Khách mới trong tuyến', text: `${customer.name} · ${customerLandingName(customer)}`, at: stamp(), readBy: [] });
+    state.notes.unshift({ id: `NOTE-${Date.now()}-${customer.id}-${target.id}`, customerId: customer.id, authorId: currentAccount?.id || 'SYSTEM', author: currentAccount?.name || 'Hệ thống phân data', role: currentAccount?.role || 'SYSTEM', text: `${reason} · ${target.name}`, at: stamp() });
+    recordAssignmentChange(customer, previous, reason, source);
+    return true;
+  }
   if (target.role === 'LEADER') {
     customer.saleId = null;
     customer.leaderId = target.id;

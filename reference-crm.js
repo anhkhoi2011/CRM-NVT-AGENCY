@@ -1357,15 +1357,18 @@
     const enabledLeaders=new Set(data.leaderDistribution?.enabledLeaderIds||[]);
     const initials=m=>String(m.name||'?').trim().split(/\s+/).slice(-2).map(x=>x[0]).join('').toUpperCase()||'?';
     const row=(member,kind,level)=>{
-      const isLeader=kind==='LEADER',config=isLeader?null:(data.saleDistributionByLeader?.[member.leaderId]||{});
+      const isManager=kind==='MANAGER',isLeader=kind==='LEADER';
+      const managerLeaders=isManager?byManager(member.id):[];
+      const configLeaderId=isManager?managerLeaders[0]?.id:member.leaderId;
+      const config=isLeader||!configLeaderId?{}:(data.saleDistributionByLeader?.[configLeaderId]||{});
       const weight=isLeader?(data.leaderDistribution?.weights?.[member.id]||1):(config?.weights?.[member.id]||1);
-      const enabled=isLeader?enabledLeaders.has(member.id):(Array.isArray(config?.enabledSaleIds)?config.enabledSaleIds.includes(member.id):true);
-      const load=(data.customers||[]).filter(c=>c[isLeader?'leaderId':'saleId']===member.id).length;
-      const controls=kind==='MANAGER'?'<span class="distribution-readonly">Quan ly tuyen</span>':'<label>Ty trong <input type="number" min="1" max="100" value="'+weight+'" data-ref-distribution-weight="'+kind+':'+esc(member.id)+'"></label><label class="distribution-check"><input type="checkbox" '+(enabled?'checked':'')+' data-ref-distribution-member="'+kind+':'+esc(member.id)+'"><span>'+(enabled?'Dang nhan':'Tam tat')+'</span></label>';
+      const enabled=isLeader?enabledLeaders.has(member.id):(config?.managerDistributionInitialized!==true&&isManager?true:(Array.isArray(config?.enabledSaleIds)?config.enabledSaleIds.includes(member.id):true));
+      const load=(data.customers||[]).filter(c=>isManager?c.managerId===member.id:c[isLeader?'leaderId':'saleId']===member.id).length;
+      const controls='<label>Ty trong <input type="number" min="1" max="100" value="'+weight+'" data-ref-distribution-weight="'+kind+':'+esc(member.id)+'"></label><label class="distribution-check"><input type="checkbox" '+(enabled?'checked':'')+' data-ref-distribution-member="'+kind+':'+esc(member.id)+'"><span>'+(enabled?'Dang nhan':'Tam tat')+'</span></label>';
       return '<div class="distribution-person-row level-'+level+'"><div class="distribution-person-main"><span class="distribution-avatar">'+esc(initials(member))+'</span><span><b>'+esc(member.name||'Chua dat ten')+'</b><small>'+esc(kind)+' · '+esc(member.teamId||'Chua gan Team')+' · '+load+' khach</small></span></div><div class="distribution-person-controls">'+controls+'</div></div>';
     };
     const block=(title,sub,html)=>'<section class="distribution-tree-block"><div class="distribution-tree-head"><b>'+esc(title)+'</b><small>'+esc(sub)+'</small></div>'+html+'</section>';
-    let blocks=managers.map(manager=>block(manager.name||'Manager', 'MANAGER · '+(manager.teamId||'Quan ly tuyen'), byManager(manager.id).map(leader=>row(leader,'LEADER',1)+byLeader(leader.id).map(sale=>row(sale,'SALE',2)).join('')).join(''))).join('');
+    let blocks=managers.map(manager=>block(manager.name||'Manager', 'MANAGER · '+(manager.teamId||'Quan ly tuyen'), row(manager,'MANAGER',0)+byManager(manager.id).map(leader=>row(leader,'LEADER',1)+byLeader(leader.id).map(sale=>row(sale,'SALE',2)).join('')).join(''))).join('');
     const unassignedLeaders=leaders.filter(l=>!l.managerId);
     if(unassignedLeaders.length)blocks+=block('Chua gan Manager','Leader chua duoc gan tuyen',unassignedLeaders.map(leader=>row(leader,'LEADER',1)+byLeader(leader.id).map(sale=>row(sale,'SALE',2)).join('')).join(''));
     const unassignedSales=sales.filter(sale=>!sale.leaderId);

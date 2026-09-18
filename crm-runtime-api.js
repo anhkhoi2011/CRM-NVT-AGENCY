@@ -406,12 +406,18 @@
       const normalizedKind=String(kind||'').toUpperCase();
       const member=state.members.find(item=>item.id===id&&item.active!==false);
       const weight=Math.max(1,Math.min(100,Math.round(Number(value)||1)));
-      if(!member||!['LEADER','SALE'].includes(normalizedKind)||member.role!==normalizedKind)throw Error('Nhan su khong hop le de cai ty trong.');
+      if(!member||!['LEADER','SALE','MANAGER'].includes(normalizedKind)||member.role!==normalizedKind)throw Error('Nhan su khong hop le de cai ty trong.');
       if(normalizedKind==='LEADER')state.leaderDistribution.weights[id]=weight;
       else {
-        const config=state.saleDistributionByLeader[member.leaderId] ||= {leaderEnabled:true,enabledSaleIds:[],weights:{}};
-        config.weights ||= {};config.weights[id]=weight;
-        if(!config.enabledSaleIds.length)config.enabledSaleIds=state.members.filter(item=>item.role==='SALE'&&item.active!==false&&item.leaderId===member.leaderId).map(item=>item.id);
+        const leaderIds=normalizedKind==='MANAGER'
+          ? state.members.filter(item=>item.role==='LEADER'&&item.managerId===member.id&&item.active!==false).map(item=>item.id)
+          : [member.leaderId];
+        if(!leaderIds.filter(Boolean).length)throw Error('Manager chua co Leader truc thuoc de cai ty trong.');
+        leaderIds.filter(Boolean).forEach(leaderId=>{
+          const config=state.saleDistributionByLeader[leaderId] ||= {leaderEnabled:true,enabledSaleIds:[],weights:{}};
+          config.weights ||= {};config.weights[id]=weight;config.managerDistributionInitialized=true;
+          if(!config.enabledSaleIds.length)config.enabledSaleIds=state.members.filter(item=>item.active!==false&&((item.role==='SALE'&&item.leaderId===leaderId)||(item.role==='MANAGER'&&item.id===member.id))).map(item=>item.id);
+        });
       }
       audit('UPDATE_DISTRIBUTION_WEIGHT',id,normalizedKind+' - ty trong '+weight);
       if(!await flushServerPersistence())throw Error('Chua luu ty trong phan data.');
@@ -428,12 +434,19 @@
       requireRole(['ADMIN']);
       const normalizedKind=String(kind||'').toUpperCase();
       const member=state.members.find(item=>item.id===id&&item.active!==false);
-      if(!member||!['LEADER','SALE'].includes(normalizedKind)||member.role!==normalizedKind)throw Error('Nhan su khong hop le de bat nhan data.');
+      if(!member||!['LEADER','SALE','MANAGER'].includes(normalizedKind)||member.role!==normalizedKind)throw Error('Nhan su khong hop le de bat nhan data.');
       if(normalizedKind==='LEADER'){
         const ids=new Set(state.leaderDistribution.enabledLeaderIds||[]);enabled?ids.add(id):ids.delete(id);state.leaderDistribution.enabledLeaderIds=Array.from(ids);
       } else {
-        const config=state.saleDistributionByLeader[member.leaderId] ||= {leaderEnabled:true,enabledSaleIds:[],weights:{}};
-        const ids=new Set(config.enabledSaleIds||[]);enabled?ids.add(id):ids.delete(id);config.enabledSaleIds=Array.from(ids);
+        const leaderIds=normalizedKind==='MANAGER'
+          ? state.members.filter(item=>item.role==='LEADER'&&item.managerId===member.id&&item.active!==false).map(item=>item.id)
+          : [member.leaderId];
+        if(!leaderIds.filter(Boolean).length)throw Error('Manager chua co Leader truc thuoc de bat nhan data.');
+        leaderIds.filter(Boolean).forEach(leaderId=>{
+          const config=state.saleDistributionByLeader[leaderId] ||= {leaderEnabled:true,enabledSaleIds:[],weights:{}};
+          config.managerDistributionInitialized=true;
+          const ids=new Set(config.enabledSaleIds||[]);enabled?ids.add(id):ids.delete(id);config.enabledSaleIds=Array.from(ids);
+        });
       }
       audit('UPDATE_DISTRIBUTION_MEMBER',id,normalizedKind+' - '+(enabled?'bat':'tat'));
       if(!await flushServerPersistence())throw Error('Chua luu trang thai nhan data.');

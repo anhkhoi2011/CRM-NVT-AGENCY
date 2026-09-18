@@ -375,7 +375,7 @@ async function distributeAutomatic(c, data = null) {
  const pick = (people, weights, key, team) => {
   if (!people.length) return null;
   if (mode === 'BALANCED') {
-   const load = person => [...data.customers.values()].filter(row => team ? row.saleId === person.id : row.leaderId === person.id).length + (team ? [...data.dataOffers.values()].filter(o=>o.saleId===person.id&&o.status==='PENDING').length : 0);
+   const load = person => [...data.customers.values()].filter(row => team ? (person.managerRecipient ? row.managerId === person.id : row.saleId === person.id) : row.leaderId === person.id).length + (team && !person.managerRecipient ? [...data.dataOffers.values()].filter(o=>o.saleId===person.id&&o.status==='PENDING').length : 0);
    return people.slice().sort((a,b)=>load(a)/weight(weights,a.id)-load(b)/weight(weights,b.id)||a.id.localeCompare(b.id))[0];
   }
   const weighted = mode === 'ROUND_ROBIN';
@@ -406,12 +406,20 @@ async function distributeAutomatic(c, data = null) {
   const leader = automatic ? (sourceRule ? leaders.find(item => item.id === sourceRule.targetLeaderId) : pick(leaders,config.weights,'leaders',false)) : null;
   if (!leader) continue;
   const saleConfig = saleConfigs[leader.id] || {};
-  const recipients = members.filter(p=>p.teamId===leader.teamId && (p.id===leader.id ? saleConfig.leaderEnabled!==false : p.role==='SALE'&&p.leaderId===leader.id&&(!Array.isArray(saleConfig.enabledSaleIds)||saleConfig.enabledSaleIds.includes(p.id)))).sort((a,b)=>a.id.localeCompare(b.id));
+  const manager = leader.managerId ? members.find(p=>p.role==='MANAGER'&&p.id===leader.managerId) : null;
+  const managerRecipient = manager ? {...manager,role:'SALE',actualRole:'MANAGER',managerRecipient:true,leaderId:leader.id,teamId:leader.teamId} : null;
+  const managerEnabled = managerRecipient && (saleConfig.managerDistributionInitialized !== true || !Array.isArray(saleConfig.enabledSaleIds) || saleConfig.enabledSaleIds.includes(managerRecipient.id));
+  const recipients = [
+   ...members.filter(p=>p.id===leader.id && saleConfig.leaderEnabled!==false),
+   ...members.filter(p=>p.teamId===leader.teamId && p.role==='SALE'&&p.leaderId===leader.id&&(!Array.isArray(saleConfig.enabledSaleIds)||saleConfig.enabledSaleIds.includes(p.id))),
+   ...(managerEnabled ? [managerRecipient] : [])
+  ].sort((a,b)=>a.id.localeCompare(b.id));
   const recipient = automatic ? pick(recipients,saleConfig.weights,leader.id,true) : null;
   const direct = recipient?.id===leader.id;
-  const next = {...row,leaderId:leader.id,teamId:leader.teamId,saleId:direct?leader.id:null,saleAcceptedAt:direct?at:null,updatedAt:at,note:'Ph\u00e2n t\u1ef1 \u0111\u1ed9ng theo t\u1ef7 tr\u1ecdng'};
+  const managerDirect = recipient?.managerRecipient === true;
+  const next = {...row,leaderId:leader.id,teamId:leader.teamId,managerId:managerDirect?recipient.id:(row.managerId||null),saleId:direct?leader.id:null,saleAcceptedAt:(direct||managerDirect)?at:null,updatedAt:at,note:'Ph\u00e2n t\u1ef1 \u0111\u1ed9ng theo t\u1ef7 tr\u1ecdng'};
   await put('customers',row.id,next);
-  if (recipient && !direct) {
+  if (recipient && !direct && !managerDirect) {
    const id='OFR-'+crypto.randomUUID();
    await put('dataOffers',id,{id,customerId:row.id,saleId:recipient.id,leaderId:leader.id,teamId:leader.teamId,offeredAt:at,status:'PENDING',resolvedAt:'',source:'AUTO'});
   }
@@ -421,9 +429,9 @@ async function distributeAutomatic(c, data = null) {
    await put('tasks',id,{id,customerId:row.id,customerName:row.name,ownerId:leader.id,leaderId:leader.id,teamId:leader.teamId,type:'Li\u00ean h\u1ec7 data m\u1edbi',createdAt:at,dueAt,slaBased:true,status:'OPEN',priority:'HIGH'});
   }
   const id='ASN-'+crypto.randomUUID();
-  await put('assignmentHistory',id,{id,customerId:row.id,fromSaleId:null,fromLeaderId:null,toSaleId:next.saleId,toLeaderId:leader.id,toLeaderName:leader.name,toSaleName:direct?leader.name:'',offeredSaleId:direct?null:recipient?.id||null,teamId:leader.teamId,actorId:'SYSTEM',actor:'H\u1ec7 th\u1ed1ng',source:'AUTO',reason:next.note,at});
+  await put('assignmentHistory',id,{id,customerId:row.id,fromSaleId:null,fromLeaderId:null,toSaleId:next.saleId,toLeaderId:leader.id,toLeaderName:leader.name,toSaleName:direct?leader.name:managerDirect?recipient.name:'',offeredSaleId:direct||managerDirect?null:recipient?.id||null,managerId:managerDirect?recipient.id:null,teamId:leader.teamId,actorId:'SYSTEM',actor:'H\u1ec7 th\u1ed1ng',source:'AUTO',reason:next.note,at});
   const notificationId='NT-'+crypto.randomUUID();
-  await put('notifications',notificationId,{id:notificationId,role:recipient?'OWN':'LEADER',saleId:recipient?.id||null,leaderId:leader.id,teamId:leader.teamId,title:recipient?'Data m\u1edbi \u0111\u01b0\u1ee3c ph\u00e2n':'Kh\u00e1ch m\u1edbi trong Team',text:row.name,at,readBy:[]});
+  await put('notifications',notificationId,{id:notificationId,role:managerDirect?'MANAGER':recipient?'OWN':'LEADER',saleId:managerDirect?null:recipient?.id||null,managerId:managerDirect?recipient.id:null,leaderId:leader.id,teamId:leader.teamId,title:recipient?'Data m\u1edbi \u0111\u01b0\u1ee3c ph\u00e2n':'Kh\u00e1ch m\u1edbi trong Team',text:row.name,at,readBy:[]});
   count++;
  }
  if (count) {
