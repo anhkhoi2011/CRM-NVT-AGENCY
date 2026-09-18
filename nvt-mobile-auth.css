@@ -92,6 +92,22 @@
     box-sizing: border-box !important;
   }
 
+  .login-card form,
+  .nvt-auth-card form,
+  #loginScreen #loginForm,
+  #loginScreen #registerForm {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+  }
+
   /* 5. Switch Tab Đăng nhập ⟷ Đăng ký */
   .nvt-auth-tabs {
     display: flex !important;
@@ -299,15 +315,36 @@
     white-space: nowrap !important;
     text-transform: none !important;
   }
-  .nvt-remember-wrap input[type="checkbox"] {
+  .nvt-remember-wrap input[type="checkbox"],
+  .remember-label input[type="checkbox"] {
     accent-color: var(--nvt-orange) !important;
-    width: 15px !important;
-    height: 15px !important;
+    width: 16px !important;
+    height: 16px !important;
+    min-height: 16px !important;
+    flex: 0 0 16px !important;
+    margin: 0 !important;
+    cursor: pointer !important;
   }
-  .nvt-forgot-link {
+  .nvt-forgot-link,
+  .forgot-link {
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
     color: var(--nvt-orange) !important;
     font-weight: 700 !important;
+    font-size: 12px !important;
+    font-family: inherit !important;
     text-decoration: none !important;
+    cursor: pointer !important;
+    outline: none !important;
+    box-shadow: none !important;
+    line-height: 1 !important;
+  }
+  .nvt-forgot-link:hover,
+  .forgot-link:hover {
+    text-decoration: underline !important;
+    color: #c2410c !important;
   }
 
   /* 9. NÚT BẤM CHUẨN XỊN HÌNH 3 */
@@ -360,11 +397,26 @@
     font-size: 11.5px !important;
     color: var(--nvt-text-muted) !important;
   }
-  .nvt-auth-switch-link {
+  .nvt-auth-switch-link,
+  .switch-auth-link {
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin-left: 4px !important;
     color: var(--nvt-orange) !important;
     font-weight: 800 !important;
+    font-size: 12px !important;
+    font-family: inherit !important;
     text-decoration: none !important;
-    margin-left: 4px !important;
+    cursor: pointer !important;
+    outline: none !important;
+    box-shadow: none !important;
+    display: inline-block !important;
+  }
+  .nvt-auth-switch-link:hover,
+  .switch-auth-link:hover {
+    text-decoration: underline !important;
+    color: #c2410c !important;
   }
 
   /* 11. Thông báo lỗi / thành công */
@@ -437,4 +489,47 @@
   #loginScreen:not(.is-hidden) #registerForm:not(.is-hidden) .nvt-form-group {
     flex-direction: column !important;
   }
+}
+
+/* Mobile auth compact polish: keeps the desktop layout untouched. */
+@media (max-width: 768px) {
+  html, body { background: #f8fafc !important; }
+  #loginScreen:not(.is-hidden) { background: linear-gradient(180deg, #f8fafc 0%, #fff7ed 100%) !important; }
+  #loginScreen:not(.is-hidden) .nvt-auth-wrapper {
+    min-height: 100dvh !important;
+    padding: 14px 12px 24px !important;
+  }
+  #loginScreen:not(.is-hidden) .nvt-auth-card {
+    width: min(100%, 356px) !important;
+    max-width: 356px !important;
+    padding: 20px 16px 18px !important;
+    border-radius: 20px !important;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, .09), 0 0 0 1px rgba(15, 23, 42, .05) !important;
+  }
+  #loginScreen:not(.is-hidden) .nvt-auth-hero { margin-bottom: 13px !important; }
+  #loginScreen:not(.is-hidden) .nvt-auth-brand-name { font-size: 16px !important; letter-spacing: .18em !important; }
+  #loginScreen:not(.is-hidden) .nvt-auth-slogan { font-size: 8px !important; letter-spacing: .18em !important; }
+  #loginScreen:not(.is-hidden) .form-hero-title { margin-top: 9px !important; font-size: 18px !important; line-height: 1.2 !important; }
+  #loginScreen:not(.is-hidden) .form-hero-desc { margin-top: 3px !important; font-size: 10px !important; line-height: 1.35 !important; }
+  #loginScreen:not(.is-hidden) .nvt-form-group { margin-bottom: 8px !important; }
+  #loginScreen:not(.is-hidden) .nvt-input-label { margin-bottom: 4px !important; font-size: 8.5px !important; letter-spacing: .07em !important; }
+  #loginScreen:not(.is-hidden) .nvt-input-box { height: 42px !important; min-height: 42px !important; padding: 0 10px !important; gap: 8px !important; border-radius: 11px !important; }
+  #loginScreen:not(.is-hidden) .nvt-input-icon { width: 15px !important; height: 15px !important; }
+  #loginScreen:not(.is-hidden) .nvt-input-native { font-size: 12px !important; }
+  #loginScreen:not(.is-hidden) .nvt-eye-toggle { padding: 3px !important; }
+  #loginScreen:not(.is-hidden) .nvt-eye-toggle svg { width: 15px !important; height: 15px !important; }
+  #loginScreen:not(.is-hidden) .nvt-auth-row-meta { margin: 5px 0 2px !important; font-size: 10px !important; }
+  #loginScreen:not(.is-hidden) .nvt-remember-wrap { gap: 5px !important; }
+  #loginScreen:not(.is-hidden) .nvt-remember-wrap input[type="checkbox"] { width: 14px !important; height: 14px !important; }
+  #loginScreen:not(.is-hidden) .nvt-forgot-link { font-size: 10px !important; }
+  #loginScreen:not(.is-hidden) .nvt-btn-submit { height: 42px !important; min-height: 42px !important; margin-top: 11px !important; border-radius: 11px !important; font-size: 11px !important; letter-spacing: .07em !important; }
+  #loginScreen:not(.is-hidden) .nvt-btn-arrow { width: 13px !important; height: 13px !important; }
+  #loginScreen:not(.is-hidden) .nvt-auth-footer { margin-top: 10px !important; font-size: 10.5px !important; }
+  #loginScreen:not(.is-hidden) .nvt-auth-switch-link { margin-left: 3px !important; font-size: 10.5px !important; }
+  #loginScreen:not(.is-hidden) .nvt-auth-error-msg,
+  #loginScreen:not(.is-hidden) .nvt-auth-success-msg { margin-top: 6px !important; padding: 6px 8px !important; font-size: 10px !important; }
+}
+@media (max-width: 380px) {
+  #loginScreen:not(.is-hidden) .nvt-auth-card { padding: 18px 14px 16px !important; }
+  #loginScreen:not(.is-hidden) .form-hero-title { font-size: 17px !important; }
 }

@@ -1,0 +1,336 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#070a12"/>
+      <stop offset="50%" stop-color="#0d1527"/>
+      <stop offset="100%" stop-color="#0a0e1a"/>
+    </linearGradient>
+
+    <linearGradient id="phoneGlow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2563eb" stop-opacity="0.25"/>
+      <stop offset="50%" stop-color="#ea580c" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.0"/>
+    </linearGradient>
+
+    <linearGradient id="cardGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1e293b" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#0f172a" stop-opacity="0.9"/>
+    </linearGradient>
+
+    <linearGradient id="btnPrimary" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+
+    <linearGradient id="btnOrange" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#ea580c"/>
+      <stop offset="100%" stop-color="#f97316"/>
+    </linearGradient>
+
+    <linearGradient id="chartBlueGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.0"/>
+    </linearGradient>
+
+    <filter id="dropShadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="16" stdDeviation="24" flood-color="#000000" flood-opacity="0.6"/>
+    </filter>
+    <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="900" fill="url(#bgGrad)"/>
+  <circle cx="280" cy="450" r="320" fill="url(#phoneGlow)" filter="url(#softGlow)"/>
+  <circle cx="950" cy="200" r="260" fill="#ea580c" fill-opacity="0.06" filter="url(#softGlow)"/>
+
+  <!-- Left: Mobile Device Frame (iPhone 16 Pro Style) -->
+  <g transform="translate(70, 40)" filter="url(#dropShadow)">
+    <!-- Outer Titanium Rim -->
+    <rect x="0" y="0" width="410" height="820" rx="44" fill="#1e293b" stroke="#334155" stroke-width="3.5"/>
+    <!-- Inner Screen Bezel -->
+    <rect x="7" y="7" width="396" height="806" rx="38" fill="#f8fafc"/>
+
+    <!-- Dynamic Island & Status Bar -->
+    <g transform="translate(7, 7)">
+      <rect width="396" height="42" fill="#ffffff" rx="38" clip-path="url(#topClip)"/>
+      <text x="24" y="27" font-family="'Plus Jakarta Sans', sans-serif" font-size="12" font-weight="800" fill="#0f172a">18:32</text>
+      <!-- Pill Island -->
+      <rect x="153" y="10" width="90" height="22" rx="11" fill="#000000"/>
+      <circle cx="225" cy="21" r="5" fill="#1e293b"/>
+      <text x="330" y="27" font-family="'Plus Jakarta Sans', sans-serif" font-size="11" font-weight="700" fill="#0f172a">5G 100%</text>
+    </g>
+
+    <!-- Header Row -->
+    <g transform="translate(18, 56)">
+      <!-- Hamburger -->
+      <rect x="0" y="0" width="34" height="34" rx="8" fill="#f1f5f9" stroke="#e2e8f0"/>
+      <line x1="9" y1="12" x2="25" y2="12" stroke="#0f172a" stroke-width="2" stroke-linecap="round"/>
+      <line x1="9" y1="17" x2="25" y2="17" stroke="#0f172a" stroke-width="2" stroke-linecap="round"/>
+      <line x1="9" y1="22" x2="25" y2="22" stroke="#0f172a" stroke-width="2" stroke-linecap="round"/>
+
+      <!-- Breadcrumbs -->
+      <text x="44" y="15" font-family="'Plus Jakarta Sans', sans-serif" font-size="12" font-weight="800" fill="#0f172a">NVT AGENCY <tspan font-weight="400" fill="#94a3b8">/</tspan> <tspan fill="#0f172a">Tổng quan</tspan></text>
+      <text x="44" y="29" font-family="'JetBrains Mono', monospace" font-size="10" font-weight="600" fill="#64748b">18:32:37 · 18/9/2026</text>
+
+      <!-- Sun Toggle -->
+      <rect x="296" y="0" width="34" height="34" rx="8" fill="#f1f5f9" stroke="#e2e8f0"/>
+      <circle cx="313" cy="17" r="4.5" fill="none" stroke="#64748b" stroke-width="1.8"/>
+      <line x1="313" y1="8" x2="313" y2="10" stroke="#64748b" stroke-width="1.8"/>
+      <line x1="313" y1="24" x2="313" y2="26" stroke="#64748b" stroke-width="1.8"/>
+
+      <!-- Bell + Badge -->
+      <rect x="338" y="0" width="34" height="34" rx="8" fill="#f1f5f9" stroke="#e2e8f0"/>
+      <path d="M355 10 A4 4 0 0 0 351 14 c0 4-2 5-2 5 h12 s-2-1-2-5 a4 4 0 0 0-4-4 Z" fill="none" stroke="#64748b" stroke-width="1.8"/>
+      <rect x="358" y="-3" width="18" height="15" rx="7.5" fill="#ef4444"/>
+      <text x="367" y="8" font-family="'Plus Jakarta Sans', sans-serif" font-size="9" font-weight="900" fill="#ffffff" text-anchor="middle">10</text>
+    </g>
+
+    <!-- Page Title + Action Button -->
+    <g transform="translate(18, 102)">
+      <text x="0" y="20" font-family="'Plus Jakarta Sans', sans-serif" font-size="19" font-weight="900" fill="#0f172a">Tổng quan</text>
+      
+      <rect x="236" y="0" width="138" height="30" rx="15" fill="url(#btnPrimary)"/>
+      <text x="305" y="19" font-family="'Plus Jakarta Sans', sans-serif" font-size="11" font-weight="800" fill="#ffffff" text-anchor="middle">+ Tạo Đơn Hàng Mới</text>
+    </g>
+
+    <!-- 4 Bento KPI Cards (2x2) -->
+    <g transform="translate(18, 142)">
+      <!-- Card 1: Tổng khách hàng -->
+      <g transform="translate(0, 0)">
+        <rect width="182" height="74" rx="14" fill="#ffffff" stroke="#e2e8f0"/>
+        <line x1="0" y1="0" x2="182" y2="0" stroke="#8b5cf6" stroke-width="3.5"/>
+        <text x="12" y="19" font-family="'Plus Jakarta Sans', sans-serif" font-size="10.5" font-weight="700" fill="#64748b">Tổng khách hàng</text>
+        <text x="12" y="52" font-family="'JetBrains Mono', monospace" font-size="24" font-weight="800" fill="#0f172a">10</text>
+        <path d="M 90 56 Q 115 50, 135 44 T 170 38" fill="none" stroke="#8b5cf6" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="170" cy="38" r="2.5" fill="#8b5cf6"/>
+      </g>
+
+      <!-- Card 2: KH Mới Hôm Nay -->
+      <g transform="translate(192, 0)">
+        <rect width="182" height="74" rx="14" fill="#ffffff" stroke="#e2e8f0"/>
+        <line x1="0" y1="0" x2="182" y2="0" stroke="#0284c7" stroke-width="3.5"/>
+        <text x="12" y="19" font-family="'Plus Jakarta Sans', sans-serif" font-size="10.5" font-weight="700" fill="#64748b">KH Mới Hôm Nay</text>
+        <text x="12" y="52" font-family="'JetBrains Mono', monospace" font-size="24" font-weight="800" fill="#0f172a">3</text>
+        <!-- Bars -->
+        <rect x="120" y="48" width="6" height="10" rx="1.5" fill="#bae6fd"/>
+        <rect x="132" y="42" width="6" height="16" rx="1.5" fill="#7dd3fc"/>
+        <rect x="144" y="38" width="6" height="20" rx="1.5" fill="#38bdf8"/>
+        <rect x="156" y="32" width="6" height="26" rx="1.5" fill="#0284c7"/>
+      </g>
+
+      <!-- Card 3: Doanh thu Agency -->
+      <g transform="translate(0, 84)">
+        <rect width="182" height="74" rx="14" fill="#ffffff" stroke="#e2e8f0"/>
+        <line x1="0" y1="0" x2="182" y2="0" stroke="#0d9488" stroke-width="3.5"/>
+        <text x="12" y="19" font-family="'Plus Jakarta Sans', sans-serif" font-size="10.5" font-weight="700" fill="#64748b">Doanh thu Agency</text>
+        <text x="12" y="52" font-family="'JetBrains Mono', monospace" font-size="22" font-weight="800" fill="#0f172a">0 <tspan font-size="14" fill="#64748b">₫</tspan></text>
+      </g>
+
+      <!-- Card 4: Khách thuê chỉ báo -->
+      <g transform="translate(192, 84)">
+        <rect width="182" height="74" rx="14" fill="#ffffff" stroke="#e2e8f0"/>
+        <line x1="0" y1="0" x2="182" y2="0" stroke="#ea580c" stroke-width="3.5"/>
+        <text x="12" y="19" font-family="'Plus Jakarta Sans', sans-serif" font-size="10.5" font-weight="700" fill="#64748b">Khách thuê chỉ báo</text>
+        <text x="12" y="52" font-family="'JetBrains Mono', monospace" font-size="22" font-weight="800" fill="#0f172a">0</text>
+      </g>
+    </g>
+
+    <!-- Card: Data chưa xử lý (10 khách) -->
+    <g transform="translate(18, 310)">
+      <rect width="374" height="225" rx="16" fill="#ffffff" stroke="#e2e8f0"/>
+      
+      <!-- Card Head -->
+      <text x="14" y="23" font-family="'Plus Jakarta Sans', sans-serif" font-size="13.5" font-weight="800" fill="#0f172a">Data chưa xử lý</text>
+      <rect x="296" y="11" width="64" height="18" rx="9" fill="#eff6ff" stroke="#bfdbfe"/>
+      <text x="328" y="24" font-family="'Plus Jakarta Sans', sans-serif" font-size="10" font-weight="800" fill="#2563eb" text-anchor="middle">10 khách</text>
+      <text x="14" y="41" font-family="'Plus Jakarta Sans', sans-serif" font-size="10" fill="#64748b">Chọn Manager hoặc Leader để xem cấp dưới và khách</text>
+
+      <!-- Accordion Items -->
+      <g transform="translate(14, 52)">
+        <!-- Item 1 -->
+        <rect width="346" height="36" rx="8" fill="#f8fafc" stroke="#e2e8f0"/>
+        <text x="12" y="16" font-family="'Plus Jakarta Sans', sans-serif" font-size="11.5" font-weight="800" fill="#0f172a">Team Phương Anh (manager)</text>
+        <text x="12" y="28" font-family="'Plus Jakarta Sans', sans-serif" font-size="9.5" fill="#64748b">2 khách · 1 Leader</text>
+        <circle cx="330" cy="18" r="8" fill="#f1f5f9"/>
+        <text x="330" y="22" font-size="12" font-weight="700" fill="#64748b" text-anchor="middle">+</text>
+
+        <!-- Item 2 -->
+        <g transform="translate(0, 42)">
+          <rect width="346" height="36" rx="8" fill="#f8fafc" stroke="#e2e8f0"/>
+          <text x="12" y="16" font-family="'Plus Jakarta Sans', sans-serif" font-size="11.5" font-weight="800" fill="#0f172a">Team Nguyễn Hoàng Khánh (manager)</text>
+          <text x="12" y="28" font-family="'Plus Jakarta Sans', sans-serif" font-size="9.5" fill="#64748b">2 khách · 1 Leader</text>
+          <circle cx="330" cy="18" r="8" fill="#f1f5f9"/>
+          <text x="330" y="22" font-size="12" font-weight="700" fill="#64748b" text-anchor="middle">+</text>
+        </g>
+
+        <!-- Item 3 -->
+        <g transform="translate(0, 84)">
+          <rect width="346" height="36" rx="8" fill="#f8fafc" stroke="#e2e8f0"/>
+          <text x="12" y="16" font-family="'Plus Jakarta Sans', sans-serif" font-size="11.5" font-weight="800" fill="#0f172a">Team Đỗ Mạnh Hùng (leader)</text>
+          <text x="12" y="28" font-family="'Plus Jakarta Sans', sans-serif" font-size="9.5" fill="#64748b">Leader · 1 khách</text>
+          <circle cx="330" cy="18" r="8" fill="#f1f5f9"/>
+          <text x="330" y="22" font-size="12" font-weight="700" fill="#64748b" text-anchor="middle">+</text>
+        </g>
+
+        <!-- Item 4 -->
+        <g transform="translate(0, 126)">
+          <rect width="346" height="36" rx="8" fill="#f8fafc" stroke="#e2e8f0"/>
+          <text x="12" y="16" font-family="'Plus Jakarta Sans', sans-serif" font-size="11.5" font-weight="800" fill="#0f172a">Team Vũ Thị Quỳnh (leader)</text>
+          <text x="12" y="28" font-family="'Plus Jakarta Sans', sans-serif" font-size="9.5" fill="#64748b">Leader · 1 khách</text>
+          <circle cx="330" cy="18" r="8" fill="#f1f5f9"/>
+          <text x="330" y="22" font-size="12" font-weight="700" fill="#64748b" text-anchor="middle">+</text>
+        </g>
+      </g>
+    </g>
+
+    <!-- Card: Tăng trưởng khách hàng mới (Landing Page) -->
+    <g transform="translate(18, 545)">
+      <rect width="374" height="195" rx="16" fill="#ffffff" stroke="#e2e8f0"/>
+      <text x="14" y="22" font-family="'Plus Jakarta Sans', sans-serif" font-size="12" font-weight="800" fill="#0f172a">Tăng trưởng khách hàng mới (Landing Page)</text>
+      <text x="328" y="22" font-family="'Plus Jakarta Sans', sans-serif" font-size="11" font-weight="700" fill="#2563eb">Chi tiết</text>
+      <text x="14" y="48" font-family="'JetBrains Mono', monospace" font-size="22" font-weight="800" fill="#0f172a">10</text>
+
+      <!-- SVG Chart -->
+      <g transform="translate(14, 60)">
+        <line x1="0" y1="20" x2="346" y2="20" stroke="#f1f5f9" stroke-dasharray="3 3"/>
+        <line x1="0" y1="55" x2="346" y2="55" stroke="#f1f5f9" stroke-dasharray="3 3"/>
+        <line x1="0" y1="90" x2="346" y2="90" stroke="#e2e8f0"/>
+
+        <path d="M 10 85 C 60 85, 100 75, 150 80 C 200 85, 230 40, 270 50 C 300 60, 320 25, 340 15 L 340 90 L 10 90 Z" fill="url(#chartBlueGrad)"/>
+        <path d="M 10 85 C 60 85, 100 75, 150 80 C 200 85, 230 40, 270 50 C 300 60, 320 25, 340 15" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="270" cy="50" r="3.5" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+        <circle cx="340" cy="15" r="4.5" fill="#2563eb" stroke="#ffffff" stroke-width="1.8"/>
+
+        <!-- X labels -->
+        <text x="10" y="106" font-size="9" font-weight="700" fill="#94a3b8">T2</text>
+        <text x="65" y="106" font-size="9" font-weight="700" fill="#94a3b8">T3</text>
+        <text x="120" y="106" font-size="9" font-weight="700" fill="#94a3b8">T4</text>
+        <text x="175" y="106" font-size="9" font-weight="700" fill="#94a3b8">T5</text>
+        <text x="230" y="106" font-size="9" font-weight="700" fill="#94a3b8">T6</text>
+        <text x="285" y="106" font-size="9" font-weight="700" fill="#94a3b8">T7</text>
+        <text x="340" y="106" font-size="9" font-weight="800" fill="#2563eb" text-anchor="end">CN</text>
+      </g>
+    </g>
+
+    <!-- Bottom Navigation Bar (Fixed) -->
+    <g transform="translate(7, 750)">
+      <rect width="396" height="63" rx="0" fill="#ffffff" stroke="#e2e8f0"/>
+      <!-- Home Active (Orange) -->
+      <g transform="translate(38, 12)">
+        <path d="M 0 10 L 10 2 L 20 10 L 20 20 L 0 20 Z" fill="none" stroke="#ea580c" stroke-width="2"/>
+        <text x="10" y="32" font-family="'Plus Jakarta Sans', sans-serif" font-size="9" font-weight="800" fill="#ea580c" text-anchor="middle">Trang chủ</text>
+      </g>
+      <!-- Orders -->
+      <g transform="translate(116, 12)">
+        <circle cx="6" cy="18" r="1.5" fill="#64748b"/>
+        <circle cx="15" cy="18" r="1.5" fill="#64748b"/>
+        <path d="M 1 2 h 3 l 2.5 10 h 10 l 1.5 -7 H 4" fill="none" stroke="#64748b" stroke-width="1.8"/>
+        <text x="10" y="32" font-family="'Plus Jakarta Sans', sans-serif" font-size="9" font-weight="700" fill="#64748b" text-anchor="middle">Đơn hàng</text>
+      </g>
+      <!-- Customers -->
+      <g transform="translate(196, 12)">
+        <circle cx="10" cy="6" r="4" fill="none" stroke="#64748b" stroke-width="1.8"/>
+        <path d="M 3 18 C 3 14, 6 12, 10 12 C 14 12, 17 14, 17 18" fill="none" stroke="#64748b" stroke-width="1.8"/>
+        <text x="10" y="32" font-family="'Plus Jakarta Sans', sans-serif" font-size="9" font-weight="700" fill="#64748b" text-anchor="middle">Khách hàng</text>
+      </g>
+      <!-- Care -->
+      <g transform="translate(276, 12)">
+        <path d="M 10 17 L 3 10 A 4.5 4.5 0 0 1 10 4 A 4.5 4.5 0 0 1 17 10 Z" fill="none" stroke="#64748b" stroke-width="1.8"/>
+        <text x="10" y="32" font-family="'Plus Jakarta Sans', sans-serif" font-size="9" font-weight="700" fill="#64748b" text-anchor="middle">Chăm sóc</text>
+      </g>
+      <!-- Menu -->
+      <g transform="translate(354, 12)">
+        <line x1="2" y1="6" x2="18" y2="6" stroke="#64748b" stroke-width="1.8"/>
+        <line x1="2" y1="11" x2="18" y2="11" stroke="#64748b" stroke-width="1.8"/>
+        <line x1="2" y1="16" x2="18" y2="16" stroke="#64748b" stroke-width="1.8"/>
+        <text x="10" y="32" font-family="'Plus Jakarta Sans', sans-serif" font-size="9" font-weight="700" fill="#64748b" text-anchor="middle">Menu</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- Right: Architecture & Features Explanation -->
+  <g transform="translate(540, 60)">
+    
+    <!-- Title Tag -->
+    <rect width="170" height="28" rx="14" fill="#ea580c" fill-opacity="0.15" stroke="#ea580c" stroke-width="1.2"/>
+    <text x="85" y="18" font-family="'Plus Jakarta Sans', sans-serif" font-size="11" font-weight="800" fill="#ff914d" text-anchor="middle" letter-spacing="1">STANDALONE LINK</text>
+
+    <!-- Main Title -->
+    <text x="0" y="65" font-family="'Cinzel', serif" font-size="28" font-weight="900" fill="#ffffff">TRANG TỔNG QUAN ADMIN MOBILE</text>
+    <text x="0" y="94" font-family="'Plus Jakarta Sans', sans-serif" font-size="15" fill="#94a3b8">Bản di động chuyên biệt, tương tác mượt mà, đầy đủ tính năng của bản Desktop</text>
+
+    <!-- URL Box -->
+    <g transform="translate(0, 120)">
+      <rect width="600" height="66" rx="14" fill="#131b2e" stroke="#2563eb" stroke-width="1.5"/>
+      <text x="20" y="26" font-family="'Plus Jakarta Sans', sans-serif" font-size="11" font-weight="700" fill="#60a5fa">ĐƯỜNG DẪN TRUY CẬP ĐỘC LẬP:</text>
+      <text x="20" y="49" font-family="'JetBrains Mono', monospace" font-size="15" font-weight="700" fill="#ffffff">http://localhost:3000/mobile_admin_overview.html</text>
+    </g>
+
+    <!-- 4 Highlight Cards -->
+    <g transform="translate(0, 210)">
+      
+      <!-- Card 1 -->
+      <g transform="translate(0, 0)">
+        <rect width="288" height="130" rx="16" fill="url(#cardGrad)" stroke="#1e293b"/>
+        <circle cx="34" cy="34" r="16" fill="#8b5cf6" fill-opacity="0.2"/>
+        <text x="34" y="40" font-size="16" text-anchor="middle">⚡</text>
+        <text x="60" y="38" font-family="'Plus Jakarta Sans', sans-serif" font-size="14" font-weight="800" fill="#ffffff">Bento KPI Grid 2x2</text>
+        <text x="20" y="70" font-family="'Plus Jakarta Sans', sans-serif" font-size="12" fill="#94a3b8" width="250">
+          <tspan x="20" dy="0">Sắp xếp 4 chỉ số cốt lõi:</tspan>
+          <tspan x="20" dy="18">Tổng KH (10), KH mới (3),</tspan>
+          <tspan x="20" dy="18">Doanh thu &amp; Chỉ báo trực quan.</tspan>
+        </text>
+      </g>
+
+      <!-- Card 2 -->
+      <g transform="translate(308, 0)">
+        <rect width="288" height="130" rx="16" fill="url(#cardGrad)" stroke="#1e293b"/>
+        <circle cx="34" cy="34" r="16" fill="#2563eb" fill-opacity="0.2"/>
+        <text x="34" y="40" font-size="16" text-anchor="middle">📂</text>
+        <text x="60" y="38" font-family="'Plus Jakarta Sans', sans-serif" font-size="14" font-weight="800" fill="#ffffff">Accordion Cây Team</text>
+        <text x="20" y="70" font-family="'Plus Jakarta Sans', sans-serif" font-size="12" fill="#94a3b8">
+          <tspan x="20" dy="0">Data chưa xử lý dạng thẻ thu</tspan>
+          <tspan x="20" dy="18">gọn. Chạm dấu [+] để bung</tspan>
+          <tspan x="20" dy="18">danh sách Sale &amp; khách hàng.</tspan>
+        </text>
+      </g>
+
+      <!-- Card 3 -->
+      <g transform="translate(0, 150)">
+        <rect width="288" height="130" rx="16" fill="url(#cardGrad)" stroke="#1e293b"/>
+        <circle cx="34" cy="34" r="16" fill="#0d9488" fill-opacity="0.2"/>
+        <text x="34" y="40" font-size="16" text-anchor="middle">📈</text>
+        <text x="60" y="38" font-family="'Plus Jakarta Sans', sans-serif" font-size="14" font-weight="800" fill="#ffffff">Biểu Đồ Vector Chạm</text>
+        <text x="20" y="70" font-family="'Plus Jakarta Sans', sans-serif" font-size="12" fill="#94a3b8">
+          <tspan x="20" dy="0">Biểu đồ đường cong Landing</tspan>
+          <tspan x="20" dy="18">Page và cột doanh thu tuần</tspan>
+          <tspan x="20" dy="18">co giãn 100% màn hình điện thoại.</tspan>
+        </text>
+      </g>
+
+      <!-- Card 4 -->
+      <g transform="translate(308, 150)">
+        <rect width="288" height="130" rx="16" fill="url(#cardGrad)" stroke="#1e293b"/>
+        <circle cx="34" cy="34" r="16" fill="#ea580c" fill-opacity="0.2"/>
+        <text x="34" y="40" font-size="16" text-anchor="middle">🧭</text>
+        <text x="60" y="38" font-family="'Plus Jakarta Sans', sans-serif" font-size="14" font-weight="800" fill="#ffffff">Bottom Bar &amp; Drawer</text>
+        <text x="20" y="70" font-family="'Plus Jakarta Sans', sans-serif" font-size="12" fill="#94a3b8">
+          <tspan x="20" dy="0">5 Tab ngón cái dễ bấm,</tspan>
+          <tspan x="20" dy="18">kèm Menu trượt chứa trọn bộ</tspan>
+          <tspan x="20" dy="18">14 phân hệ Admin hệ thống.</tspan>
+        </text>
+      </g>
+    </g>
+
+    <!-- Bottom Feature Note -->
+    <g transform="translate(0, 520)">
+      <rect width="600" height="80" rx="14" fill="#1e293b" fill-opacity="0.5" stroke="#334155"/>
+      <text x="24" y="32" font-family="'Plus Jakarta Sans', sans-serif" font-size="13" font-weight="800" fill="#ff914d">📱 Chế độ hiển thị thông minh:</text>
+      <text x="24" y="55" font-family="'Plus Jakarta Sans', sans-serif" font-size="12" fill="#cbd5e1">Khi mở trên điện thoại thật tự động tràn viền 100%. Khi mở trên máy tính có nút chuyển đổi giữa Khung iPhone và Toàn màn hình.</text>
+    </g>
+
+  </g>
+</svg>
