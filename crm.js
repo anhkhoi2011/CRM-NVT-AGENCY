@@ -2705,8 +2705,8 @@ function assignRegisteredAccountModal(accountId) {
   if (currentAccount.role !== 'ADMIN') return;
   const account = (state.registeredAccounts || []).find(item => item.id === accountId && item.role === 'UNASSIGNED');
   if (!account) return;
-  const leaders = activeStaff().filter(person => person.role === 'LEADER');
-  const leaderOptions = leaders.map(leader => '<option value="' + escapeHtml(leader.id) + '">' + escapeHtml(leader.name) + ' · ' + escapeHtml(leader.teamId) + '</option>').join('');
+  const leaders = activeStaff().filter(person => ['LEADER', 'MANAGER'].includes(person.role));
+  const leaderOptions = leaders.map(leader => '<option value="' + escapeHtml(leader.id) + '">' + escapeHtml(leader.name) + ' · ' + escapeHtml(leader.role === 'MANAGER' ? 'MANAGER' : leader.teamId) + '</option>').join('');
   openModal('Phân chức vụ cho tài khoản', '<form id="assignAccountForm"><div class="form-grid"><label class="form-field full">Họ tên<input id="assignAccountName" value="' + escapeHtml(account.name) + '" required maxlength="160"></label><label class="form-field">Chức vụ<select id="assignAccountRole"><option value="SALE">SALE</option><option value="LEADER">LEADER</option></select></label><label class="form-field">Team<input id="assignAccountTeam" value="T2" required maxlength="20"></label><label class="form-field">Leader trực tiếp<select id="assignAccountLeader"><option value="">Không áp dụng</option>' + leaderOptions + '</select></label></div><div class="modal-actions"><button class="button" type="button" data-close-modal>Huỷ</button><button class="button button-primary" type="submit">Lưu phân chức vụ</button></div></form>');
   $('[data-close-modal]')?.addEventListener('click', closeModal);
   $('#assignAccountForm').onsubmit = async event => {
@@ -2714,11 +2714,11 @@ function assignRegisteredAccountModal(accountId) {
     const role = $('#assignAccountRole').value;
     const teamId = $('#assignAccountTeam').value.trim().toUpperCase();
     const leaderId = $('#assignAccountLeader').value || null;
-    const leader = leaderId && activeStaff().find(person => person.id === leaderId && person.role === 'LEADER');
+    const leader = leaderId && activeStaff().find(person => person.id === leaderId && ['LEADER', 'MANAGER'].includes(person.role));
     const name = $('#assignAccountName').value.trim();
     if (!name || !/^[A-Z0-9_-]{1,20}$/.test(teamId)) { toast('Thông tin không hợp lệ'); return; }
-    if (role === 'SALE' && (!leader || leader.teamId !== teamId)) { toast('Sale phải thuộc đúng Team của Leader'); return; }
-    const assignment = { role, teamId, leaderId: role === 'SALE' ? leaderId : null, name, active: true, initials: memberInitials(name) };
+    if (role === 'SALE' && (!leader || (leader.role === 'LEADER' && leader.teamId !== teamId))) { toast('Sale phải thuộc đúng Team của Leader hoặc Manager'); return; }
+    const assignment = { role, teamId, leaderId: role === 'SALE' ? leaderId : null, managerId: role === 'SALE' && leader?.role === 'MANAGER' ? leader.id : null, name, active: true, initials: memberInitials(name) };
     audit('ASSIGN_REGISTERED_ACCOUNT', account.id, name + ' · ' + role + ' · ' + teamId);
     if (!await pushServerRecord('users', 'PUT', account.id, assignment)) { toast('Chưa lưu được phân quyền; xem trạng thái lưu'); return; }
     closeModal(); await syncServerState(); render(); toast('Đã lưu phân quyền vào MySQL');
@@ -2731,8 +2731,8 @@ function teamMemberModal(id = null, registrationId = null) {
   const member = STAFF.find(person => person.id === id);
   const source = member || registration || { name: '', email: '', requestedRole: 'SALE', teamId: 'T2' };
   const role = member?.role || source.requestedRole || 'SALE';
-  const leaders = activeStaff().filter(person => person.role === 'LEADER' && person.id !== id);
-  const leaderOptions = leaders.map(leader => '<option value="' + escapeHtml(leader.id) + '" ' + ((member?.leaderId || '') === leader.id ? 'selected' : '') + '>' + escapeHtml(leader.name) + ' · ' + escapeHtml(leader.teamId) + '</option>').join('');
+  const leaders = activeStaff().filter(person => ['LEADER', 'MANAGER'].includes(person.role) && person.id !== id);
+  const leaderOptions = leaders.map(leader => '<option value="' + escapeHtml(leader.id) + '" ' + ((member?.leaderId || '') === leader.id ? 'selected' : '') + '>' + escapeHtml(leader.name) + ' · ' + escapeHtml(leader.role === 'MANAGER' ? 'MANAGER' : leader.teamId) + '</option>').join('');
   openModal(member ? 'Chỉnh sửa thành viên' : 'Thêm thành viên', '<form id="teamMemberForm"><div class="form-grid"><label class="form-field full">Họ tên<input id="memberName" required maxlength="160" value="' + escapeHtml(source.name) + '"></label><label class="form-field full">Gmail nhận thông báo<input id="memberEmail" type="email" maxlength="254" value="' + escapeHtml(source.email || '') + '" placeholder="sale@gmail.com"></label><label class="form-field">Chức vụ<select id="memberRole"><option value="SALE" ' + (role === 'SALE' ? 'selected' : '') + '>SALE</option><option value="LEADER" ' + (role === 'LEADER' ? 'selected' : '') + '>LEADER</option></select></label><label class="form-field">Team<input id="memberTeam" required maxlength="20" value="' + escapeHtml(source.teamId || 'T2') + '"></label><label class="form-field">Leader trực tiếp<select id="memberLeader"><option value="">Không áp dụng</option>' + leaderOptions + '</select></label></div><div class="modal-actions"><button class="button" type="button" data-close-modal>Huỷ</button><button class="button button-primary" type="submit">Lưu thành viên</button></div></form>');
   $('[data-close-modal]')?.addEventListener('click', closeModal);
   $('#teamMemberForm').onsubmit = event => { event.preventDefault(); saveTeamMember(id, registrationId); };
@@ -2763,8 +2763,8 @@ function saveTeamMember(id = null, registrationId = null) {
   if (!name || !['LEADER', 'SALE'].includes(role) || !/^[A-Z0-9_-]{1,20}$/.test(teamId)) { toast('Thông tin nhân sự không hợp lệ'); return; }
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast('Gmail nhân sự không hợp lệ'); return; }
   if (existing?.role === 'LEADER' && role === 'SALE' && STAFF.some(person => person.role === 'SALE' && person.leaderId === existing.id)) { toast('Hãy chuyển các Sale trực thuộc sang Leader khác trước khi đổi chức vụ'); return; }
-  const leader = role === 'SALE' ? STAFF.find(person => person.id === leaderId && person.role === 'LEADER' && person.active !== false) : null;
-  if (role === 'SALE' && (!leader || leader.teamId !== teamId)) { toast('Sale phải thuộc đúng Team của Leader trực tiếp'); return; }
+  const leader = role === 'SALE' ? STAFF.find(person => person.id === leaderId && ['LEADER', 'MANAGER'].includes(person.role) && person.active !== false) : null;
+  if (role === 'SALE' && (!leader || (leader.role === 'LEADER' && leader.teamId !== teamId))) { toast('Sale phải thuộc đúng Team của Leader hoặc Manager trực tiếp'); return; }
   if (existing) {
     const previous = { ...existing };
     if (previous.role === 'SALE' && role !== 'SALE') {
@@ -2779,10 +2779,10 @@ function saveTeamMember(id = null, registrationId = null) {
       STAFF.filter(person => person.role === 'SALE' && person.leaderId === previous.id).forEach(sale => { sale.teamId = teamId; state.customers.filter(customer => customer.saleId === sale.id).forEach(customer => { const before = assignmentSnapshot(customer); customer.teamId = teamId; recordAssignmentChange(customer, before, `Team của Leader ${name} thay đổi`, 'SYSTEM'); }); state.tasks.filter(task => task.ownerId === sale.id && task.status !== 'DONE').forEach(task => { task.teamId = teamId; }); });
       state.customers.filter(customer => customer.leaderId === previous.id).forEach(customer => { const before = assignmentSnapshot(customer); customer.teamId = teamId; recordAssignmentChange(customer, before, `Team của Leader ${name} thay đổi`, 'SYSTEM'); });
     }
-    Object.assign(existing, { name, email, role, teamId, leaderId: role === 'SALE' ? leader.id : null, initials: memberInitials(name), active: true });
+    Object.assign(existing, { name, email, role, teamId, leaderId: role === 'SALE' ? leader.id : null, managerId: role === 'SALE' && leader.role === 'MANAGER' ? leader.id : null, initials: memberInitials(name), active: true });
   } else {
     const memberId = `${role === 'LEADER' ? 'l' : 's'}-${Date.now()}`;
-    state.members.push({ id: memberId, name, email, role, teamId, leaderId: role === 'SALE' ? leader.id : null, initials: memberInitials(name), createdBy: currentAccount.name, active: true });
+    state.members.push({ id: memberId, name, email, role, teamId, leaderId: role === 'SALE' ? leader.id : null, managerId: role === 'SALE' && leader.role === 'MANAGER' ? leader.id : null, initials: memberInitials(name), createdBy: currentAccount.name, active: true });
   }
   const registration = state.registrations.find(item => item.id === registrationId);
   if (registration) registration.status = 'APPROVED';

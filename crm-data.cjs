@@ -472,7 +472,7 @@ async function write(user,requestId,changes){
   for(const change of changes.filter(x=>x.key==='members')){if(change.value)resultingMembers.set(change.id,change.value);else resultingMembers.delete(change.id);}
   if([...data.members.values()].some(r=>r.role==='ADMIN'&&r.active!==false)&&![...resultingMembers.values()].some(r=>r.role==='ADMIN'&&r.active!==false))error(400,'Phải giữ ít nhất một Admin hoạt động');
   for(const m of resultingMembers.values()){
-   if(m.managerId&&(m.role!=='LEADER'||resultingMembers.get(m.managerId)?.role!=='MANAGER'||resultingMembers.get(m.managerId)?.active===false))error(400,'Leader phải thuộc Manager đang hoạt động');
+   if(m.managerId&&(!['LEADER','SALE'].includes(m.role)||resultingMembers.get(m.managerId)?.role!=='MANAGER'||resultingMembers.get(m.managerId)?.active===false))error(400,'Leader hoặc Sale phải thuộc Manager đang hoạt động');
   }
   const resultingProducts=new Map(data.products);
   for(const change of changes.filter(x=>x.key==='products')){if(change.value)resultingProducts.set(change.id,change.value);else resultingProducts.delete(change.id);}

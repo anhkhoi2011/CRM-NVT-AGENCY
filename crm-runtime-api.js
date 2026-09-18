@@ -320,7 +320,7 @@
       requireRole(['ADMIN']);return persist(()=>{
         const member=state.members.find(m=>m.id===id),pending=state.registeredAccounts.find(m=>m.id===id);
         if(id&&!member&&!pending)throw Error('Tài khoản không còn tồn tại.');
-        const name=String(input.name||'').trim(),accountId=String(input.accountId||'').trim().toUpperCase(),email=String(input.email||'').trim().toLowerCase(),phone=String(input.phone||'').trim(),role=input.role,teamId=String(input.teamId||'').trim().toUpperCase(),leader=state.members.find(m=>m.id===input.leaderId&&m.role==='LEADER'&&m.active!==false);
+        const name=String(input.name||'').trim(),accountId=String(input.accountId||'').trim().toUpperCase(),email=String(input.email||'').trim().toLowerCase(),phone=String(input.phone||'').trim(),role=input.role,teamId=String(input.teamId||'').trim().toUpperCase(),leader=state.members.find(m=>m.id===input.leaderId&&['LEADER','MANAGER'].includes(m.role)&&m.active!==false);
         if(!name||name.length>160||(accountId&&!/^[A-Z0-9][A-Z0-9._-]{2,63}$/.test(accountId))||email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw Error('Họ tên, ID tài khoản hoặc email không hợp lệ.');
         if(state.members.concat(state.registeredAccounts).some(m=>m.id!==id&&((accountId&&String(m.accountId||'').toUpperCase()===accountId)||(email&&m.email?.toLowerCase()===email)||(phone&&m.phone===phone))))throw Error('ID tài khoản, email hoặc số điện thoại đã tồn tại.');
         if(member&&!['SALE','LEADER','MANAGER'].includes(member.role)){
@@ -328,9 +328,9 @@
           Object.assign(member,{name,accountId,email,phone,initials:memberInitials(name)});audit('UPDATE_MEMBER',id,name);return {id};
         }
         if(!['SALE','LEADER','MANAGER'].includes(role)||(role!=='MANAGER'&&!/^[A-Z0-9_-]{1,20}$/.test(teamId)))throw Error('Chọn chức vụ và Team hợp lệ.');
-        if(role==='SALE'&&(!leader||leader.teamId!==teamId||leader.id===id))throw Error('Sale phải thuộc đúng Team của Leader.');
+        if(role==='SALE'&&(!leader||leader.id===id||leader.role==='LEADER'&&leader.teamId!==teamId))throw Error('Sale phải thuộc đúng Team của Leader hoặc Manager.');
         // Leader có thể được nâng lên Manager mà không cần chuyển Sale.\n        // Sale vẫn giữ nguyên leaderId/teamId; Manager chỉ nhận thêm phạm vi quản lý.\n        if(member?.role==='LEADER'&&role!=='LEADER'&&role!=='MANAGER'&&state.members.some(m=>m.active!==false&&m.leaderId===id))throw Error('Chuyển Sale trực thuộc trước khi đổi Leader.');
-        const managerId=role==='LEADER'?String(input.managerId||''):null;
+        const managerId=role==='LEADER'?String(input.managerId||''):role==='SALE'&&leader?.role==='MANAGER'?leader.id:null;
         if(managerId&&!state.members.some(m=>m.id===managerId&&m.role==='MANAGER'&&m.active!==false))throw Error('Manager không hoạt động.');
         if(member?.role==='MANAGER'&&role!=='MANAGER'&&state.members.some(m=>m.managerId===id))throw Error('Bỏ phân công các Leader trước khi đổi chức Manager.');
         if(role==='MANAGER'){
@@ -342,7 +342,7 @@
           state.customers.filter(customer=>customer.managerId===id||customer.ownerId===id||customer.leaderId===id||customer.saleId===id||inheritedSales.some(sale=>sale.id===customer.saleId)).forEach(customer=>{customer.managerId=id;});
           state.registeredAccounts=state.registeredAccounts.filter(m=>m.id!==id);STAFF=state.members.filter(m=>m.active!==false);audit('UPDATE_MANAGER',next.id,name);return {id:next.id};
         }
-        if(pending){const next={...pending,name,accountId,email,phone,role,teamId,managerId,leaderId:role==='SALE'?leader.id:null,active:true,initials:memberInitials(name)};state.members.push(next);state.registeredAccounts=state.registeredAccounts.filter(m=>m.id!==id);STAFF=state.members.filter(m=>m.active!==false);audit('ASSIGN_REGISTERED_ACCOUNT',id,name);return {id};}
+        if(pending){const next={...pending,name,accountId,email,phone,role,teamId,managerId,leaderId:role==='SALE'?leader.id:null,managerId,active:true,initials:memberInitials(name)};state.members.push(next);state.registeredAccounts=state.registeredAccounts.filter(m=>m.id!==id);STAFF=state.members.filter(m=>m.active!==false);audit('ASSIGN_REGISTERED_ACCOUNT',id,name);return {id};}
         // Gọi nghiệp vụ cũ để chuyển khách và công việc đúng khi đổi Team/Leader.
         const before=new Set(state.members.map(m=>m.id));teamMemberModal(id);
         Object.entries({memberName:name,memberEmail:email,memberRole:role,memberTeam:teamId,memberLeader:input.leaderId||''}).forEach(([key,value])=>$('#'+key).value=value);
