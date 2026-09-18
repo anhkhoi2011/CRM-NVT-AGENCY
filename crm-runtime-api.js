@@ -122,10 +122,18 @@
       const visibleOrders=currentAccount.actualRole==='MANAGER'
         ? state.orders.filter(o=>managerLeaderIds.has(o.leaderId))
         : scopedOrders();
-      return structuredClone({user:currentAccount,managerHierarchy,fonts:referenceFonts,pendingOffers:currentAccount.role==='SALE'?pendingOffersForMe().map(o=>({id:o.id,name:customerById(o.customerId)?.name||'',offeredAt:o.offeredAt,minutesLeft:offerMinutesLeft(o)})):[],customers,orders:visibleOrders,products:state.products,productCategories:state.productCategories,members:state.members,registeredAccounts:state.registeredAccounts,fields:state.customFieldDefinitions,careGroups:state.careGroups,websites:state.websites.map(w=>({...w,publicWebhookUrl:webhookUrlFor(w)})),webhookPending,webhookTransport:{...webhookTransport,label:(WEBHOOK_TRANSPORT_META[webhookTransport.mode]||WEBHOOK_TRANSPORT_META.idle)[0]},settings:state.settings,notifications:visibleNotifications(),audit:state.audit,attendance:state.attendance,brokerageMetrics:state.brokerageMetrics,tasks:scopedTasks(),leaderDistribution:state.leaderDistribution,saleDistributionByLeader:state.saleDistributionByLeader,offers:state.dataOffers,financialEvents:financialEvents(visibleOrders),navigation:allowedViews(),today:dayIso(0)});
+      return structuredClone({user:currentAccount,managerHierarchy,fonts:referenceFonts,pendingOffers:currentAccount.role==='SALE'?pendingOffersForMe().map(o=>({id:o.id,name:customerById(o.customerId)?.name||'',offeredAt:o.offeredAt,minutesLeft:offerMinutesLeft(o)})):[],customers,orders:visibleOrders,products:state.products,productCategories:state.productCategories,members:state.members,registeredAccounts:state.registeredAccounts,fields:state.customFieldDefinitions,careGroups:state.careGroups,imports:currentAccount.role==='ADMIN'?state.imports:[],resubmissions:state.resubmissions,websites:state.websites.map(w=>({...w,publicWebhookUrl:webhookUrlFor(w)})),webhookPending,webhookTransport:{...webhookTransport,label:(WEBHOOK_TRANSPORT_META[webhookTransport.mode]||WEBHOOK_TRANSPORT_META.idle)[0]},settings:state.settings,notifications:visibleNotifications(),audit:state.audit,attendance:state.attendance,brokerageMetrics:state.brokerageMetrics,tasks:scopedTasks(),leaderDistribution:state.leaderDistribution,saleDistributionByLeader:state.saleDistributionByLeader,offers:state.dataOffers,financialEvents:financialEvents(visibleOrders),navigation:allowedViews(),today:dayIso(0)});
     },
     async logout() { await endSession(); },
     async refresh() { return syncServerState(); },
+    // Sale nhận đúng lời mời đang chờ và chỉ báo thành công sau khi MySQL xác nhận lưu.
+    async acceptOffer(offerId) {
+      requireRole(['SALE']);
+      return persist(() => {
+        if (!acceptDataOffer(offerId)) throw Error(lastNotice || 'Không nhận được data này.');
+        return {ok:true};
+      }, 'accept-offer:' + offerId);
+    },
     async classify(id, value) {
       const c=customerById(id);if (!fieldOptionsValid(value)) throw Error('Phân loại không hợp lệ.');if (!canUpdateCustomer(c)) throw Error('Không được sửa khách hàng này.');
       await quickUpdateCustomerField(id,'customerClass',value);

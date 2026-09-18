@@ -4067,12 +4067,12 @@ function acceptQueueView() {
 }
 
 function acceptDataOffer(offerId) {
-  if (currentAccount.role !== 'SALE') { toast('FORBIDDEN · chỉ Sale được nhận data'); return; }
+  if (currentAccount.role !== 'SALE') { toast('FORBIDDEN · chỉ Sale được nhận data'); return false; }
   const offer = state.dataOffers.find(item => item.id === offerId);
-  if (!offer || offer.status !== 'PENDING') { toast('Data này không còn chờ nhận'); render(); return; }
-  if (offer.saleId !== currentAccount.saleId) { toast('FORBIDDEN · data không dành cho bạn'); return; }
+  if (!offer || offer.status !== 'PENDING') { toast('Data này không còn chờ nhận'); render(); return false; }
+  if (offer.saleId !== currentAccount.saleId) { toast('FORBIDDEN · data không dành cho bạn'); return false; }
   const customer = customerById(offer.customerId);
-  if (!customer) { toast('Khách không tồn tại'); return; }
+  if (!customer) { toast('Khách không tồn tại'); return false; }
   customer.saleId = offer.saleId;
   customer.leaderId = offer.leaderId;
   customer.teamId = offer.teamId;
@@ -4089,6 +4089,7 @@ function acceptDataOffer(offerId) {
   );
   audit('ACCEPT_DATA', customer.id, `${currentAccount.name} nhận từ hàng chờ`);
   saveState(); render(); toast(`Đã nhận data ${customer.name}`);
+  return true;
 }
 
 /* Quét định kỳ: offer quá hạn thì khách GIỮ leader/team và saleId null — tức trả về

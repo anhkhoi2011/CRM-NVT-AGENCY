@@ -1517,7 +1517,7 @@
 
       <!-- TỔ CHỨC & HỆ THỐNG -->
       <div>
-        <div class="nav-group-title">TỔ CHỨC</div>
+        <div class="nav-group-title" id="organizationNavGroupLabel">TỔ CHỨC</div>
         <ul class="nav-list">
           <li>
             <button class="nav-link" data-tab="tab-team">
@@ -2157,10 +2157,10 @@
         </div>
 
         <!-- Khung Lịch sử kết nối & cập nhật data (Đúng ảnh 1) -->
-        <div class="table-container" style="margin-top: 10px;">
+        <div class="table-container" id="customerImportHistory" style="margin-top: 10px;">
           <div class="table-head-bar">
             <b>Lịch sử kết nối & cập nhật data</b>
-            <button class="btn-action btn-secondary" style="padding: 5px 12px; font-size: 11.5px;">+ Nguồn data</button>
+            <button class="btn-action btn-secondary" id="customerImportSourceButton" type="button" style="padding: 5px 12px; font-size: 11.5px;">+ Nguồn data</button>
           </div>
           <div class="table-responsive">
             <table class="modern-table">
@@ -2174,16 +2174,7 @@
                   <th>TRẠNG THÁI</th>
                 </tr>
               </thead>
-              <tbody>
-                <tr>
-                  <td style="font-family: var(--font-mono); font-size: 11.5px;">14/09/2026 14:22</td>
-                  <td><b>Landing Page</b></td>
-                  <td><code>nvtagency.top/webhook</code></td>
-                  <td><b>6</b></td>
-                  <td>Hệ thống tự động</td>
-                  <td><span class="chip chip-green">Thành công</span></td>
-                </tr>
-              </tbody>
+              <tbody id="customerImportHistoryBody"></tbody>
             </table>
           </div>
         </div>
@@ -2277,7 +2268,7 @@
             </div>
 
             <!-- Thanh tìm kiếm & lọc -->
-            <div style="padding: 12px 18px; border-bottom: 1px solid var(--border-light); display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+            <div id="dataQueueFilters" style="padding: 12px 18px; border-bottom: 1px solid var(--border-light); display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
               <input type="text" id="dataQueueSearch" placeholder="Tìm theo tên, SĐT..." style="flex: 1; min-width: 180px; padding: 7px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; background: var(--bg-surface); color: var(--text-main);" oninput="filterDataQueueTable()">
               <select id="dataQueueSourceFilter" style="padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 12px; background: var(--bg-surface); color: var(--text-main);" onchange="filterDataQueueTable()">
                 <option value="">Tất cả nguồn</option>
@@ -2995,26 +2986,26 @@
         <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px;">
           <div class="bento-card" style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; border-left: 4px solid #2563eb; box-shadow: var(--shadow-sm);">
             <div style="font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">TỔNG ĐƠN HÀNG</div>
-            <div style="font-size: 26px; font-weight: 900; font-family: var(--font-mono); color: var(--text-main); margin: 4px 0 2px;">5 đơn</div>
-            <div style="font-size: 11px; color: var(--text-muted);">Tổng giá trị: <b style="color: #2563eb;">61.126.000 ₫</b></div>
+            <div id="orderKpiTotalCount" style="font-size: 26px; font-weight: 900; font-family: var(--font-mono); color: var(--text-main); margin: 4px 0 2px;">0 đơn</div>
+            <div style="font-size: 11px; color: var(--text-muted);">Tổng giá trị: <b id="orderKpiTotalValue" style="color: #2563eb;">0 ₫</b></div>
           </div>
 
           <div class="bento-card" style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; border-left: 4px solid #ea580c; box-shadow: var(--shadow-sm);">
             <div style="font-size: 11px; font-weight: 800; color: #c2410c; text-transform: uppercase;">🛒 BÊN BÁN (KHÓA HỌC / SP)</div>
-            <div style="font-size: 26px; font-weight: 900; font-family: var(--font-mono); color: #ea580c; margin: 4px 0 2px;">2 đơn</div>
-            <div style="font-size: 11px; color: var(--text-muted);">Doanh số bán đứt: <b style="color: #ea580c;">52.000.000 ₫</b></div>
+            <div id="orderKpiSaleCount" style="font-size: 26px; font-weight: 900; font-family: var(--font-mono); color: #ea580c; margin: 4px 0 2px;">0 đơn</div>
+            <div style="font-size: 11px; color: var(--text-muted);">Doanh số bán đứt: <b id="orderKpiSaleValue" style="color: #ea580c;">0 ₫</b></div>
           </div>
 
           <div class="bento-card" style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; border-left: 4px solid #0284c7; box-shadow: var(--shadow-sm);">
             <div style="font-size: 11px; font-weight: 800; color: #0284c7; text-transform: uppercase;">⚡ BÊN THUÊ (CHỈ BÁO & TOOL)</div>
-            <div style="font-size: 26px; font-weight: 900; font-family: var(--font-mono); color: #0284c7; margin: 4px 0 2px;">3 gói thuê</div>
-            <div style="font-size: 11px; color: var(--text-muted);">Dòng tiền thuê: <b style="color: #0284c7;">9.126.000 ₫</b></div>
+            <div id="orderKpiRentCount" style="font-size: 26px; font-weight: 900; font-family: var(--font-mono); color: #0284c7; margin: 4px 0 2px;">0 gói thuê</div>
+            <div style="font-size: 11px; color: var(--text-muted);">Dòng tiền thuê: <b id="orderKpiRentValue" style="color: #0284c7;">0 ₫</b></div>
           </div>
 
           <div class="bento-card" style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; border-left: 4px solid #059669; box-shadow: var(--shadow-sm);">
             <div style="font-size: 11px; font-weight: 800; color: #047857; text-transform: uppercase;">ĐÃ THU TIỀN THỰC TẾ</div>
-            <div style="font-size: 26px; font-weight: 900; font-family: var(--font-mono); color: #059669; margin: 4px 0 2px;">3 đơn</div>
-            <div style="font-size: 11px; color: var(--text-muted);">Thực thu: <b style="color: #059669;">33.542.000 ₫</b></div>
+            <div id="orderKpiCollectedCount" style="font-size: 26px; font-weight: 900; font-family: var(--font-mono); color: #059669; margin: 4px 0 2px;">0 đơn</div>
+            <div style="font-size: 11px; color: var(--text-muted);">Thực thu: <b id="orderKpiCollectedValue" style="color: #059669;">0 ₫</b></div>
           </div>
         </div>
 
@@ -3024,7 +3015,7 @@
             <!-- Sub-tabs chuyển đổi Bên Bán và Bên Thuê -->
             <div class="pill-tab-group" id="orderTypePillGroup">
               <button class="pill-tab-item active" onclick="filterOrderTypeGroup('all', this)" id="btnOrderTabAll">
-                Tất cả đơn hàng <span style="background: var(--bg-muted); color: var(--text-main); padding: 2px 7px; border-radius: 999px; font-size: 10.5px; margin-left: 4px; font-family: var(--font-mono); font-weight: 700;">5</span>
+                Tất cả đơn hàng <span style="background: var(--bg-muted); color: var(--text-main); padding: 2px 7px; border-radius: 999px; font-size: 10.5px; margin-left: 4px; font-family: var(--font-mono); font-weight: 700;" id="orderAllCountBadge">0</span>
               </button>
               <button class="pill-tab-item" onclick="filterOrderTypeGroup('sale', this)" id="btnOrderTabSale">
                 Bên Bán (Khóa học & SP)
@@ -3039,12 +3030,12 @@
               <span style="font-weight: 800; font-size: 10.5px; color: var(--text-faint); text-transform: uppercase;">LỌC NGÀY</span>
               <div style="display: flex; align-items: center; gap: 4px; cursor: pointer;" onclick="document.getElementById('orderStartDate').showPicker && document.getElementById('orderStartDate').showPicker()">
                 <span>Từ</span>
-                <input type="date" id="orderStartDate" value="2026-08-15" class="native-date-picker" onclick="event.stopPropagation(); this.showPicker && this.showPicker();" onchange="filterOrdersDate()" style="padding: 3px 6px; font-size: 11px;">
+                <input type="date" id="orderStartDate" class="native-date-picker" onclick="event.stopPropagation(); this.showPicker && this.showPicker();" onchange="filterOrdersDate()" style="padding: 3px 6px; font-size: 11px;">
               </div>
               <span>➔</span>
               <div style="display: flex; align-items: center; gap: 4px; cursor: pointer;" onclick="document.getElementById('orderEndDate').showPicker && document.getElementById('orderEndDate').showPicker()">
                 <span>Đến</span>
-                <input type="date" id="orderEndDate" value="2026-09-14" class="native-date-picker" onclick="event.stopPropagation(); this.showPicker && this.showPicker();" onchange="filterOrdersDate()" style="padding: 3px 6px; font-size: 11px;">
+                <input type="date" id="orderEndDate" class="native-date-picker" onclick="event.stopPropagation(); this.showPicker && this.showPicker();" onchange="filterOrdersDate()" style="padding: 3px 6px; font-size: 11px;">
               </div>
               <button class="btn-secondary" style="padding: 4px 10px; font-size: 11px; border-radius: 6px; font-weight: 700;" onclick="filterOrdersDate(true)">Áp dụng</button>
               <span id="orderDateFilterBadge" style="font-size: 11px; font-family: var(--font-mono); color: #0284c7; font-weight: 700;">Toàn thời gian</span>
@@ -3065,7 +3056,7 @@
             </div>
             <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted);">
               <span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981;"></span>
-              <b id="orderCountSummary">5 đơn hàng</b> trong hệ thống
+              <b id="orderCountSummary">0 đơn hàng</b> trong hệ thống
             </div>
           </div>
 
@@ -3087,122 +3078,7 @@
                   <th style="text-align: right;">THAO TÁC</th>
                 </tr>
               </thead>
-              <tbody id="ordersMainTableBody">
-                <!-- Đơn 1: BÊN BÁN KHÓA HỌC -->
-                <tr data-order-group="sale" data-order-status="Đã thanh toán">
-                  <td style="font-family: var(--font-mono); font-weight: 800; color: #2563eb;">ORD-202609-001</td>
-                  <td><span class="chip" style="background: #ffedd5; color: #c2410c; font-weight: 800;"><span style="font-size: 12px;">🛒</span> Bên Bán</span></td>
-                  <td>
-                    <b style="font-size: 12.5px;">Lê Hoàng Nam</b>
-                    <div style="font-size: 10.5px; color: var(--text-muted); font-family: var(--font-mono);">0912839291</div>
-                  </td>
-                  <td>
-                    <b>Khóa học RSI MA chuyên sâu</b>
-                    <div style="font-size: 10px; color: var(--text-muted);">Đào tạo VIP 1-1 + Tài liệu</div>
-                  </td>
-                  <td><span class="chip" style="background: #ffedd5; color: #c2410c; font-weight: 700;">Vĩnh viễn</span></td>
-                  <td><b>Nguyễn Thị Mai</b></td>
-                  <td style="font-family: var(--font-mono); font-weight: 800;">26.000.000 ₫</td>
-                  <td style="font-family: var(--font-mono); color: var(--text-muted);">2.600.000 ₫</td>
-                  <td style="font-family: var(--font-mono); font-weight: 900; color: #059669;">28.600.000 ₫</td>
-                  <td><span class="chip chip-green">● Đã thanh toán</span></td>
-                  <td style="text-align: right; white-space: nowrap;">
-                    <button class="btn-secondary" style="padding: 4px 9px; font-size: 11px; border-radius: 6px;" onclick="alert('Xem hóa đơn điện tử ORD-202609-001 (Bên Bán)')">Hóa đơn</button>
-                  </td>
-                </tr>
-
-                <!-- Đơn 2: BÊN THUÊ CHỈ BÁO -->
-                <tr data-order-group="rent" data-order-status="Đã kích hoạt">
-                  <td style="font-family: var(--font-mono); font-weight: 800; color: #2563eb;">ORD-202609-002</td>
-                  <td><span class="chip" style="background: #e0f2fe; color: #0284c7; font-weight: 800;"><span style="font-size: 12px;">⚡</span> Bên Thuê</span></td>
-                  <td>
-                    <b style="font-size: 12.5px;">Dũng Lưu</b>
-                    <div style="font-size: 10.5px; color: var(--text-muted); font-family: var(--font-mono);">0991234567</div>
-                  </td>
-                  <td>
-                    <b>Thuê chỉ báo Breakout VIP</b>
-                    <div style="font-size: 10px; color: var(--text-muted);">Bản quyền TradingView 3M</div>
-                  </td>
-                  <td><span class="chip" style="background: #e0f2fe; color: #0284c7; font-weight: 700;">3 Tháng (đến 12/12)</span></td>
-                  <td><b>Phạm Thu Hà</b></td>
-                  <td style="font-family: var(--font-mono); font-weight: 800;">3.042.000 ₫</td>
-                  <td style="font-family: var(--font-mono); color: var(--text-muted);">304.200 ₫</td>
-                  <td style="font-family: var(--font-mono); font-weight: 900; color: #059669;">3.346.200 ₫</td>
-                  <td><span class="chip chip-green">● Đã kích hoạt</span></td>
-                  <td style="text-align: right; white-space: nowrap;">
-                    <button class="btn-secondary" style="padding: 4px 9px; font-size: 11px; border-radius: 6px;" onclick="alert('Xem hợp đồng thuê chỉ báo của Dũng Lưu (Bên Thuê)')">Hợp đồng</button>
-                  </td>
-                </tr>
-
-                <!-- Đơn 3: BÊN THUÊ BOT TÍN HIỆU -->
-                <tr data-order-group="rent" data-order-status="Đã thanh toán">
-                  <td style="font-family: var(--font-mono); font-weight: 800; color: #2563eb;">ORD-202609-003</td>
-                  <td><span class="chip" style="background: #e0f2fe; color: #0284c7; font-weight: 800;"><span style="font-size: 12px;">⚡</span> Bên Thuê</span></td>
-                  <td>
-                    <b style="font-size: 12.5px;">Trần Quốc Bảo</b>
-                    <div style="font-size: 10.5px; color: var(--text-muted); font-family: var(--font-mono);">0933881122</div>
-                  </td>
-                  <td>
-                    <b>Bot Tín Hiệu RSI Realtime</b>
-                    <div style="font-size: 10px; color: var(--text-muted);">Room tín hiệu tự động 24/7</div>
-                  </td>
-                  <td><span class="chip" style="background: #e0f2fe; color: #0284c7; font-weight: 700;">6 Tháng (đến 02/2027)</span></td>
-                  <td><b>Nguyễn Thị Mai</b></td>
-                  <td style="font-family: var(--font-mono); font-weight: 800;">4.500.000 ₫</td>
-                  <td style="font-family: var(--font-mono); color: var(--text-muted);">450.000 ₫</td>
-                  <td style="font-family: var(--font-mono); font-weight: 900; color: #059669;">4.950.000 ₫</td>
-                  <td><span class="chip chip-green">● Đã thanh toán</span></td>
-                  <td style="text-align: right; white-space: nowrap;">
-                    <button class="btn-secondary" style="padding: 4px 9px; font-size: 11px; border-radius: 6px;" onclick="alert('Xem hợp đồng bot tín hiệu của Trần Quốc Bảo (Bên Thuê)')">Hợp đồng</button>
-                  </td>
-                </tr>
-
-                <!-- Đơn 4: BÊN THUÊ TOOL TRADING PRO -->
-                <tr data-order-group="rent" data-order-status="Sắp hết hạn">
-                  <td style="font-family: var(--font-mono); font-weight: 800; color: #2563eb;">ORD-202609-004</td>
-                  <td><span class="chip" style="background: #e0f2fe; color: #0284c7; font-weight: 800;"><span style="font-size: 12px;">⚡</span> Bên Thuê</span></td>
-                  <td>
-                    <b style="font-size: 12.5px;">Hoàng Minh Đức</b>
-                    <div style="font-size: 10.5px; color: var(--text-muted); font-family: var(--font-mono);">0909552233</div>
-                  </td>
-                  <td>
-                    <b>Suite Tool Trading Pro</b>
-                    <div style="font-size: 10px; color: var(--text-muted);">Phần mềm phân tích kỹ thuật</div>
-                  </td>
-                  <td><span class="chip" style="background: #fef3c7; color: #b45309; font-weight: 700;">1 Tháng (Còn 6 ngày)</span></td>
-                  <td><b>Nguyễn Thị Mai</b></td>
-                  <td style="font-family: var(--font-mono); font-weight: 800;">1.584.000 ₫</td>
-                  <td style="font-family: var(--font-mono); color: var(--text-muted);">158.400 ₫</td>
-                  <td style="font-family: var(--font-mono); font-weight: 900; color: #d97706;">1.742.400 ₫</td>
-                  <td><span class="chip chip-warm">● Sắp hết hạn</span></td>
-                  <td style="text-align: right; white-space: nowrap;">
-                    <button class="btn-primary" style="padding: 4px 9px; font-size: 11px; border-radius: 6px;" onclick="alert('Gửi thông báo nhắc gia hạn thuê tool cho khách')">Gia hạn</button>
-                  </td>
-                </tr>
-
-                <!-- Đơn 5: BÊN BÁN KHÓA HỌC -->
-                <tr data-order-group="sale" data-order-status="Chờ nạp tiền">
-                  <td style="font-family: var(--font-mono); font-weight: 800; color: #2563eb;">ORD-202609-005</td>
-                  <td><span class="chip" style="background: #ffedd5; color: #c2410c; font-weight: 800;"><span style="font-size: 12px;">🛒</span> Bên Bán</span></td>
-                  <td>
-                    <b style="font-size: 12.5px;">Nguyễn Văn Tâm</b>
-                    <div style="font-size: 10.5px; color: var(--text-muted); font-family: var(--font-mono);">0866950272</div>
-                  </td>
-                  <td>
-                    <b>Khóa học RSI MA Online</b>
-                    <div style="font-size: 10px; color: var(--text-muted);">Đã hẹn lịch nạp vốn</div>
-                  </td>
-                  <td><span class="chip" style="background: #f1f5f9; color: var(--text-muted); font-weight: 700;">Vĩnh viễn</span></td>
-                  <td><span style="color: var(--text-muted); font-style: italic;">Chờ phân Sale</span></td>
-                  <td style="font-family: var(--font-mono); font-weight: 800;">26.000.000 ₫</td>
-                  <td style="font-family: var(--font-mono); color: var(--text-muted);">2.600.000 ₫</td>
-                  <td style="font-family: var(--font-mono); font-weight: 900; color: #d97706;">28.600.000 ₫</td>
-                  <td><span class="chip chip-cold">○ Chờ nạp tiền</span></td>
-                  <td style="text-align: right; white-space: nowrap;">
-                    <button class="btn-secondary" style="padding: 4px 9px; font-size: 11px; border-radius: 6px;" onclick="alert('Mở phiếu giữ chỗ khóa học (Bên Bán)')">Phiếu thu</button>
-                  </td>
-                </tr>
-              </tbody>
+              <tbody id="ordersMainTableBody"></tbody>
             </table>
           </div>
         </div>
@@ -3394,7 +3270,7 @@
               <span style="font-size: 11px; font-weight: 800; color: #c2410c; text-transform: uppercase; letter-spacing: 0.5px;">DOANH THU ĐÃ BÁN (30 NGÀY)</span>
               <span class="chip" style="background: #ffedd5; color: #c2410c; font-weight: 800;">+18.4%</span>
             </div>
-            <div style="font-size: 26px; font-weight: 900; font-family: var(--font-mono); color: #ea580c; line-height: 1.2;" id="revStatSoldAmount">29.042.000 ₫</div>
+            <div style="font-size: 26px; font-weight: 900; font-family: var(--font-mono); color: #ea580c; line-height: 1.2;" id="revStatSoldAmount">0 ₫</div>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: 11px; color: var(--text-muted);">
               <span>2 hợp đồng đã thu tiền</span>
               <b style="color: #ea580c;">100% tiền tươi</b>
@@ -3420,7 +3296,7 @@
               <span style="font-size: 11px; font-weight: 800; color: #0369a1; text-transform: uppercase; letter-spacing: 0.5px;">DOANH THU THUÊ ĐỊNH KỲ</span>
               <span class="chip" style="background: #e0f2fe; color: #0284c7; font-weight: 800;">Dòng tiền</span>
             </div>
-            <div style="font-size: 26px; font-weight: 900; font-family: var(--font-mono); color: #0284c7; line-height: 1.2;" id="revStatMrr">9.126.000 ₫</div>
+            <div style="font-size: 26px; font-weight: 900; font-family: var(--font-mono); color: #0284c7; line-height: 1.2;" id="revStatMrr">0 ₫</div>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: 11px; color: var(--text-muted);">
               <span>Tỷ lệ gia hạn định kỳ</span>
               <b style="color: #0284c7;">92.5%</b>
@@ -3529,8 +3405,8 @@
             </div>
 
             <div style="padding-top: 14px; margin-top: 12px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; font-size: 11.5px; color: var(--text-muted);">
-              <span>Tổng hợp đồng thuê đang duy trì: <b style="color: var(--text-main); font-family: var(--font-mono);">3 khách</b></span>
-              <span>Tổng dòng tiền thuê: <b style="color: #059669; font-family: var(--font-mono);">9.126.000 ₫</b></span>
+              <span>Tổng hợp đồng thuê đang duy trì: <b id="revRentalCountFooter" style="color: var(--text-main); font-family: var(--font-mono);">0 khách</b></span>
+              <span>Tổng dòng tiền thuê: <b id="revRentalAmountFooter" style="color: #059669; font-family: var(--font-mono);">0 ₫</b></span>
             </div>
           </div>
 
@@ -3565,7 +3441,7 @@
                     <text id="revSvgRentText" x="125" y="110" fill="#ffffff" font-size="9" font-weight="900" font-family="var(--font-mono)" text-anchor="middle" dominant-baseline="central" style="text-shadow: 0 1px 3px rgba(0,0,0,0.5);">10.5%</text>
                   </svg>
                   <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; pointer-events: none;">
-                    <span style="font-size: 17px; font-weight: 900; font-family: var(--font-mono); color: var(--text-main); line-height: 1; display: none;" id="revDonutCenterAmount">29.04M</span>
+                    <span style="font-size: 17px; font-weight: 900; font-family: var(--font-mono); color: var(--text-main); line-height: 1; display: none;" id="revDonutCenterAmount">0 ₫</span>
                     <span style="font-size: 13px; font-weight: 900; color: var(--text-main); text-transform: uppercase; margin-top: 0;" id="revDonutCenterPeriod">30 NGÀY</span>
                   </div>
                 </div>
@@ -3577,7 +3453,7 @@
                       <b style="font-size: 11.5px;">Bên Bán (Khóa Học RSI MA)</b>
                       <span style="font-family: var(--font-mono); font-weight: 800; color: #ea580c; font-size: 12px;" id="revDonutSalePercent">89.5%</span>
                     </div>
-                    <div style="font-size: 10px; color: var(--text-muted); margin-top: 1px;" id="revDonutSaleDetail">26.000.000 ₫ · Bán đứt trọn đời</div>
+                    <div style="font-size: 10px; color: var(--text-muted); margin-top: 1px;" id="revDonutSaleDetail">0 ₫</div>
                   </div>
 
                   <div style="padding: 8px 10px; background: var(--bg-subtle); border-radius: 7px; border-left: 3px solid #0284c7;">
@@ -3585,7 +3461,7 @@
                       <b style="font-size: 11.5px;">Bên Thuê (Chỉ Báo & Tool)</b>
                       <span style="font-family: var(--font-mono); font-weight: 800; color: #0284c7; font-size: 12px;" id="revDonutRentPercent">10.5%</span>
                     </div>
-                    <div style="font-size: 10px; color: var(--text-muted); margin-top: 1px;" id="revDonutRentDetail">3.042.000 ₫ · Thuê gói định kỳ</div>
+                    <div style="font-size: 10px; color: var(--text-muted); margin-top: 1px;" id="revDonutRentDetail">0 ₫</div>
                   </div>
                 </div>
               </div>
@@ -3593,8 +3469,8 @@
 
             <!-- Footer tóm tắt doanh thu -->
             <div style="padding-top: 14px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; font-size: 11.5px; color: var(--text-muted);">
-              <span>Tổng doanh thu thực nhận: <b style="color: var(--text-main); font-family: var(--font-mono);" id="revDonutTotalAmount">29.042.000 ₫</b></span>
-              <span>VAT: <b style="color: #0284c7; font-family: var(--font-mono);" id="revDonutVatAmount">2.904.200 ₫</b></span>
+              <span>Tổng doanh thu thực nhận: <b style="color: var(--text-main); font-family: var(--font-mono);" id="revDonutTotalAmount">0 ₫</b></span>
+              <span>VAT: <b style="color: #0284c7; font-family: var(--font-mono);" id="revDonutVatAmount">0 ₫</b></span>
             </div>
           </div>
 
@@ -3680,8 +3556,8 @@
           </div>
 
           <div style="padding-top: 14px; margin-top: 12px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; font-size: 11.5px; color: var(--text-muted); flex-wrap: wrap; gap: 8px;">
-            <span>Tổng số đơn đã bán trong 30 ngày: <b style="color: var(--text-main); font-family: var(--font-mono);">2 hợp đồng</b></span>
-            <span>Tổng doanh thu thuần: <b style="color: #ea580c; font-family: var(--font-mono); font-size: 13px;">29.042.000 ₫</b> · Tổng thực thu (gồm VAT): <b style="color: #059669; font-family: var(--font-mono); font-size: 13px;">31.946.200 ₫</b></span>
+            <span>Tổng số đơn đã bán trong 30 ngày: <b id="revTransactionCountFooter" style="color: var(--text-main); font-family: var(--font-mono);">0 hợp đồng</b></span>
+            <span>Tổng doanh thu thuần: <b id="revNetAmountFooter" style="color: #ea580c; font-family: var(--font-mono); font-size: 13px;">0 ₫</b> · Tổng thực thu (gồm VAT): <b id="revGrossAmountFooter" style="color: #059669; font-family: var(--font-mono); font-size: 13px;">0 ₫</b></span>
           </div>
         </div>
 
@@ -3739,19 +3615,7 @@
                   <th style="text-align: right;">THAO TÁC</th>
                 </tr>
               </thead>
-              <tbody>
-                <tr>
-                  <td><b style="font-family: var(--font-mono); font-size: 13px;">0901234567</b></td>
-                  <td><b>T2</b></td>
-                  <td><span class="chip chip-warm" style="font-size: 11px;">● Chưa điểm danh</span></td>
-                  <td><span style="color: var(--text-faint);">-</span></td>
-                  <td><span style="color: var(--text-faint);">-</span></td>
-                  <td><span style="color: var(--text-faint);">-</span></td>
-                  <td style="text-align: right;">
-                    <button class="btn-action btn-secondary" style="padding: 5px 14px; font-size: 11.5px; font-weight: 700;" onclick="openAttendanceModal()">Chi tiết</button>
-                  </td>
-                </tr>
-              </tbody>
+              <tbody></tbody>
             </table>
           </div>
         </div>
@@ -3766,7 +3630,7 @@
           </div>
           <div style="display: flex; gap: 8px;">
             <button class="btn-action btn-secondary" onclick="alert('Đã đánh dấu tất cả thông báo là đã đọc!')">Đánh dấu đã đọc</button>
-            <button class="btn-action btn-primary" onclick="alert('Mở cấu hình kênh nhận thông báo Telegram / Webhook!')">Cài đặt thông báo</button>
+            <button class="btn-action btn-primary" id="notificationSettingsButton" onclick="alert('Mở cấu hình kênh nhận thông báo Telegram / Webhook!')">Cài đặt thông báo</button>
           </div>
         </div>
 
@@ -3774,26 +3638,26 @@
         <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px;">
           <div class="bento-card" style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; border-left: 4px solid #2563eb; box-shadow: var(--shadow-sm);">
             <div style="font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">TỔNG THÔNG BÁO</div>
-            <div style="font-size: 26px; font-weight: 900; font-family: var(--font-mono); color: var(--text-main); margin: 4px 0 2px;">5 tin mới</div>
+            <div style="font-size: 26px; font-weight: 900; font-family: var(--font-mono); color: var(--text-main); margin: 4px 0 2px;">0</div>
             <div style="font-size: 11px; color: var(--text-muted);">Cập nhật theo thời gian thực</div>
           </div>
 
           <div class="bento-card" style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; border-left: 4px solid #f59e0b; box-shadow: var(--shadow-sm);">
             <div style="font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">CẢNH BÁO QUAN TRỌNG</div>
-            <div style="font-size: 26px; font-weight: 900; font-family: var(--font-mono); color: #d97706; margin: 4px 0 2px;">2 cảnh báo</div>
+            <div style="font-size: 26px; font-weight: 900; font-family: var(--font-mono); color: #d97706; margin: 4px 0 2px;">0</div>
             <div style="font-size: 11px; color: var(--text-muted);">Hạn thuê & Chờ chia Sale</div>
           </div>
 
           <div class="bento-card" style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; border-left: 4px solid #059669; box-shadow: var(--shadow-sm);">
             <div style="font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">GIAO DỊCH TÀI CHÍNH</div>
-            <div style="font-size: 26px; font-weight: 900; font-family: var(--font-mono); color: #059669; margin: 4px 0 2px;">2 giao dịch</div>
-            <div style="font-size: 11px; color: var(--text-muted);">Tổng thanh toán: <b style="color: #059669;">31.94M ₫</b></div>
+            <div style="font-size: 26px; font-weight: 900; font-family: var(--font-mono); color: #059669; margin: 4px 0 2px;">0</div>
+            <div style="font-size: 11px; color: var(--text-muted);">Tổng thanh toán: <b style="color: #059669;">0 ₫</b></div>
           </div>
 
           <div class="bento-card" style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; border-left: 4px solid #0284c7; box-shadow: var(--shadow-sm);">
             <div style="font-size: 11px; font-weight: 800; color: var(--text-muted); text-transform: uppercase;">DATA LANDING PAGE</div>
-            <div style="font-size: 26px; font-weight: 900; font-family: var(--font-mono); color: #0284c7; margin: 4px 0 2px;">+2 data mới</div>
-            <div style="font-size: 11px; color: var(--text-muted);">Từ LP Khóa học RSI MA</div>
+            <div style="font-size: 26px; font-weight: 900; font-family: var(--font-mono); color: #0284c7; margin: 4px 0 2px;">0</div>
+            <div style="font-size: 11px; color: var(--text-muted);">Chưa có thông báo mới</div>
           </div>
         </div>
 
@@ -4707,7 +4571,7 @@
 </div>
 
 <script src="reference-view.js?v=20260917-delete-sync-1"></script>
-<script src="reference-crm.js?v=20260918-data-no-view-1"></script>
+<script src="reference-crm.js?v=20260918-production-clean-1"></script>
 
 </body>
 </html>
