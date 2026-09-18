@@ -19,6 +19,20 @@ function parsed(value) {
   if (!value) return null;
   try { return typeof value === 'string' ? JSON.parse(value) : value; } catch { return null; }
 }
+function extractReferenceAmount(raw) {
+  const values = raw && typeof raw === 'object' ? raw : {};
+  const aliases = new Set(['referenceamount','amountreference','sotienkhachthamkhao','sotienkhachhang','sotien','von','capital','budget','investment','khoandautu','taichinh','financialcapacity','customerbudget','recentamount']);
+  for (const [key, value] of Object.entries(values)) {
+    const normalized = String(key).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const inferredReference = normalized.includes('sotien') && (normalized.includes('thamkhao') || normalized.includes('khach'));
+    if (!aliases.has(normalized) && !inferredReference) continue;
+    const digits = String(value ?? '').replace(/[^0-9]/g, '');
+    if (!digits) continue;
+    const amount = Number(digits);
+    if (Number.isFinite(amount) && amount >= 0 && amount <= 1e15) return amount;
+  }
+  return null;
+}
 function cleanSourceUrl(value, domain = '') {
   const raw = String(value || (domain ? `https://${domain}/` : '')).trim();
   if (!raw) return '';
@@ -57,7 +71,9 @@ async function persistWebhook(record) {
     const customerId = `CUS-${eventId}`;
     if (record.status === 'NEW') {
       // Lưu ảnh chụp nguồn cùng khách; replay không ghi đè phân công/trạng thái cũ.
+      const referenceAmount = extractReferenceAmount(record.raw);
       const meta = { webhookSlug: record.slug, webhookEventId: eventId };
+      if (referenceAmount !== null) meta.referenceAmount = referenceAmount;
       if (sourceSnapshot) Object.assign(meta, sourceSnapshot);
       await connection.execute(`INSERT INTO customers (id, name, phone, email, source, campaign, website_id, status, note, custom_fields_json, created_at)
         VALUES (?, ?, ?, ?, 'Landing Page', ?, ?, 'NEW', ?, ?, ?) ON DUPLICATE KEY UPDATE id = id`,

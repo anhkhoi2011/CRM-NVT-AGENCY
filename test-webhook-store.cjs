@@ -62,6 +62,13 @@ test('Webhook maps website, campaign and source URL into MySQL customer', async 
   assert.equal(payload.__crmMeta.landingPageUrl, 'https://www.hoangphucacademy.vn/');
   assert.equal(payload.__crmMeta.landingPageDomain, 'www.hoangphucacademy.vn');
 });
+test('Webhook stores the customer reference amount without changing the customer schema', async () => {
+  const f = fixture();
+  const result = await f.persistWebhook({ ...record, raw: { 'Số tiền khách tham khảo gần đây': '1.500.000 đ' } });
+  const values = f.customers.get(result.customerId);
+  const payload = JSON.parse(values[7]);
+  assert.equal(payload.__crmMeta.referenceAmount, 1500000);
+});
 test('Unknown webhook slug stays unattributed without inventing a website', async () => {
   const f = fixture(false, []);
   const result = await f.persistWebhook(record);

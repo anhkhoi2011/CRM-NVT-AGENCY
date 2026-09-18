@@ -2460,7 +2460,7 @@ function ordersView() {
     </button>
   </div>`;
 
-  return pageHead(currentAccount.role === 'SALE' ? 'Tạo đơn cho khách' : 'Quản lý đơn hàng', 'Đơn hàng, sản phẩm và trạng thái thanh toán trên cùng một bản ghi.', `${currentAccount.role !== 'SALE' ? '<button class="button" id="exportOrdersButton" type="button">Xuất CSV</button>' : ''}<button class="button button-primary" id="newOrderButton" type="button">+ Tạo đơn cho khách</button>`) +
+  return pageHead(currentAccount.role === 'SALE' ? 'Tạo đơn cho khách' : 'Quản lý đơn hàng', '', `${currentAccount.role !== 'SALE' ? '<button class="button" id="exportOrdersButton" type="button">Xuất CSV</button>' : ''}<button class="button button-primary" id="newOrderButton" type="button">+ Tạo đơn cho khách</button>`) +
     orderTypeTabs +
     `<section class="panel"><div class="toolbar"><input id="orderSearch" type="search" placeholder="Mã đơn, khách, sản phẩm..." value="${escapeHtml(globalQuery)}"><select id="orderStatusFilter"><option value="ALL">Tất cả thanh toán</option>${Object.entries(ORDER_STATUS).map(([key, meta]) => `<option value="${key}" ${orderStatusFilter === key ? 'selected' : ''}>${meta[0]}</option>`).join('')}</select><span class="spacer"></span><span class="data-note">${orders.length} đơn hiển thị</span></div>${ordersTable(orders, true)}</section>`;
 }

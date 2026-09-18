@@ -253,7 +253,11 @@ function authorize(user,key,old,next,data){
  if(key==='audit'){if(!old&&next&&next.actorId===user.id)return;error(403,'Nhật ký chỉ được ghi thêm');}
  if(key==='notifications'){
   if(old&&next&&readable(user,key,old,data)&&sameExcept(old,next,['readBy'])&&Array.isArray(next.readBy)&&next.readBy.every(id=>id===user.id||(old.readBy||[]).includes(id)))return;
-  if(!old&&next&&['SALE','LEADER'].includes(user.role)&&next.role!=='ALL')return;
+  if(!old&&next&&['SALE','LEADER'].includes(user.role)){
+   const ownLeaderNotice=user.role==='SALE'&&next.role==='LEADER'&&next.leaderId===user.leaderId&&next.teamId===user.teamId&&next.saleId===user.id;
+   const ownLeaderNoticeAsLeader=user.role==='LEADER'&&next.role!=='ALL';
+   if(next.role==='ALL'||ownLeaderNotice||ownLeaderNoticeAsLeader)return;
+  }
   error(403,'Không được sửa thông báo');
  }
  if(key==='dataOffers'){
