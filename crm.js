@@ -1391,7 +1391,7 @@ async function flushServerPersistence() {
   })();
   try{return await serverSavePromise;}finally{serverSavePromise=null;}
 }
-function startServerSyncPolling(){stopServerSyncPolling();serverSyncTimer=setInterval(()=>{if(currentAccount&&serverSyncToken){syncServerState();refreshNavigationCounts();}},1000);}
+function startServerSyncPolling(){stopServerSyncPolling();serverSyncTimer=setInterval(()=>{if(currentAccount&&serverSyncToken){syncServerState();refreshNavigationCounts();}},3000);}
 function stopServerSyncPolling(){if(serverSyncTimer)clearInterval(serverSyncTimer);serverSyncTimer=null;}
 async function refreshNavigationCounts() {
   if(!serverSyncToken||currentAccount?.role!=='ADMIN'||navigationCountsReading)return false;

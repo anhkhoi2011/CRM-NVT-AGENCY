@@ -903,7 +903,12 @@ async function serveStatic(request, response, urlPathname) {
     const absolute = path.resolve(REPO_ROOT, `.${decoded}`);
     try {
       const body = await fsp.readFile(absolute);
-      response.writeHead(200, {'Content-Type':'image/svg+xml; charset=utf-8','Content-Length':body.length,'Cache-Control':'no-cache'});
+      const hasVersion=Boolean(new URL(request.url, `http://${request.headers.host || 'localhost'}`).searchParams.get('v'));
+      response.writeHead(200, {
+        'Content-Type':'image/svg+xml; charset=utf-8',
+        'Content-Length':body.length,
+        'Cache-Control':hasVersion ? 'public, max-age=31536000, immutable' : 'no-cache'
+      });
       response.end(body);
     } catch {
       response.writeHead(404, {'Content-Type':'text/plain; charset=utf-8'});
@@ -929,10 +934,11 @@ async function serveStatic(request, response, urlPathname) {
     }
     const extension = path.extname(absolute).toLowerCase();
     const body = await fsp.readFile(absolute);
+    const hasVersion=Boolean(new URL(request.url, `http://${request.headers.host || 'localhost'}`).searchParams.get('v'));
     response.writeHead(200, {
       'Content-Type': MIME[extension] || 'application/octet-stream',
       'Content-Length': body.length,
-      'Cache-Control': 'no-cache'
+      'Cache-Control': hasVersion ? 'public, max-age=31536000, immutable' : 'no-cache'
     });
     response.end(body);
   } catch {

@@ -89,7 +89,12 @@
       },'brokerage-metric');
     },
 
-    async closeWorkflow(){if(workflowPending&&!await flushServerPersistence())throw Error("Dữ liệu chưa được lưu; giữ form để thử lại.");workflowPending=false;workflowActive=false;workflowView=false;closeModal();closeDrawer();},
+    async closeWorkflow(force=false){
+      if(!force&&workflowPending&&!await flushServerPersistence())throw Error("Dữ liệu chưa được lưu; giữ form để thử lại.");
+      // Cho phép đóng giao diện khi mạng/MySQL tạm thời lỗi; request nháp vẫn
+      // được giữ trong hàng đợi để vòng đồng bộ nền tiếp tục thử lại.
+      workflowPending=false;workflowActive=false;workflowView=false;closeModal();closeDrawer();
+    },
     async selectManagerTeam(leaderId){
       if(currentAccount?.actualRole!=='MANAGER')throw Error('Chỉ Manager được chọn hệ thống quản lý.');
       if(!state.members.some(m=>m.id===leaderId&&m.role==='LEADER'&&m.active!==false&&m.managerId===currentAccount.id))throw Error('Team chưa được Admin giao.');
@@ -144,13 +149,17 @@
     async assign(id, saleId) { if (!await quickAssignSale(id,saleId)) throw Error(lastNotice || 'Chưa phân công được Sale.'); },
     async createCustomer(input) {
       return persist(async()=>{
-        const recipient=input.saleId?activeStaff().find(m=>m.id===input.saleId && ['SALE','LEADER'].includes(m.role) && (currentAccount.role==='ADMIN'||m.teamId===currentAccount.teamId)):null;
-        if(input.saleId && currentAccount.role!=='SALE' && !recipient) throw Error('Sale không nằm trong phạm vi tài khoản.');
-        const result=ingestCustomer(input,{intakeType:'MANUAL',sourceLabel:'Nhập thủ công'});
+        const websites=state.websites||[];
+        const selectedWebsite=websites.find(website=>website.id===input.websiteId||website.name===input.websiteId||website.domain===input.websiteId)||websites[0];
+        if(!selectedWebsite)throw Error('Chưa có Landing page/website nguồn để tạo data.');
+        const normalizedInput={...input,websiteId:selectedWebsite.id};
+        const recipient=normalizedInput.saleId?activeStaff().find(m=>m.id===normalizedInput.saleId && ['SALE','LEADER'].includes(m.role) && (currentAccount.role==='ADMIN'||m.teamId===currentAccount.teamId)):null;
+        if(normalizedInput.saleId && currentAccount.role!=='SALE' && !recipient) throw Error('Sale không nằm trong phạm vi tài khoản.');
+        const result=ingestCustomer(normalizedInput,{intakeType:'MANUAL',sourceLabel:'Nhập thủ công'});
         if (!result.created&&!result.duplicate) throw Error(result.error);
-        if (result.created && input.saleId && currentAccount.role !== 'SALE') {
+        if (result.created && normalizedInput.saleId && currentAccount.role !== 'SALE') {
           const c=result.customer;
-          const recipient=activeStaff().find(m=>m.id===input.saleId && (currentAccount.role==='ADMIN'||m.teamId===currentAccount.teamId));
+          const recipient=activeStaff().find(m=>m.id===normalizedInput.saleId && (currentAccount.role==='ADMIN'||m.teamId===currentAccount.teamId));
           if (!recipient) throw Error('Sale không nằm trong phạm vi tài khoản.');
           applyCustomerAssignment(c,recipient,'Phân công khi tạo khách từ CRM');
         }
