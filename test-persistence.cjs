@@ -62,6 +62,25 @@ test('Gửi lại cùng requestId không tạo bản sao; phiên bản cũ bị 
  await assert.rejects(f.api.write(admin,'three',[change('customers',{...first.state.customers[0],name:'Cũ'},first.versions['customers/c1'])]),e=>e.status===409);
  assert.equal((await f.api.read(admin)).state.customers[0].name,'Mới');
 });
+test('Sale nhận data đang chờ phục hồi đầy đủ số điện thoại và lưu thành công',async()=>{
+ const f=fixture();
+ f.db.users.push({id:'lead',name:'Leader',role:'LEADER',team_id:'T',active:1},{id:'sale',name:'Sale',role:'SALE',team_id:'T',leader_id:'lead',active:1});
+ f.db.customers.push({id:'c_pending',name:'Khách pending',phone:'0988776655',email:'pending@test.vn',source:'Landing Page',campaign:'',website_id:null,status:'NEW',sale_id:null,leader_id:'lead',team_id:'T',custom_fields_json:'{}',created_at:'2026-08-01 09:00:00'});
+ const nowStr=new Date().toLocaleString('sv-SE',{timeZone:'Asia/Ho_Chi_Minh'}).slice(0,19);
+ f.db.docs.push({collection:'dataOffers',id:'o_pending',body:{id:'o_pending',customerId:'c_pending',saleId:'sale',leaderId:'lead',teamId:'T',offeredAt:nowStr,status:'PENDING',resolvedAt:'',source:'AUTO'},deleted:0});
+ const readBefore=await f.api.read(sale);
+ const censored=readBefore.state.customers.find(c=>c.id==='c_pending');
+ assert.equal(censored.phone,undefined);
+ const acceptedCust={...censored,saleId:'sale',saleAcceptedAt:nowStr,updatedAt:nowStr};
+ const acceptedOffer={id:'o_pending',customerId:'c_pending',saleId:'sale',leaderId:'lead',teamId:'T',offeredAt:nowStr,status:'ACCEPTED',resolvedAt:nowStr,source:'AUTO'};
+ const writeResult=await f.api.write(sale,'accept-req-1',[change('customers',acceptedCust,readBefore.versions['customers/c_pending']),change('dataOffers',acceptedOffer,readBefore.versions['dataOffers/o_pending'])]);
+ assert.equal(writeResult.ok,true);
+ const readAfter=await f.api.read(sale);
+ const fullCust=readAfter.state.customers.find(c=>c.id==='c_pending');
+ assert.equal(fullCust.saleId,'sale');
+ assert.equal(fullCust.phone,'0988776655');
+ assert.equal(fullCust.email,'pending@test.vn');
+});
 test('Sale không thấy khách đội khác, không tự PAID hay tự thăng Admin',async()=>{
  const f=fixture();await f.api.write(admin,'one',[change('customers',customer),change('orders',order)]);
  assert.equal((await f.api.read({...sale,id:'other'})).state.customers.length,0);

@@ -449,15 +449,19 @@ async function write(user,requestId,changes){
    const {key,id,base,value}=change;
    if(!data[key]||typeof id!=='string'||!/^[-\w.$:]{1,96}$/.test(id)||seen.has(`${key}/${id}`))error(400,'Mã bản ghi không hợp lệ/trùng');
    if(OBJECTS.includes(key)&&id!=='$')error(400,'Khóa cấu hình không hợp lệ');
-   seen.add(`${key}/${id}`);validate(key,value,id);
+   seen.add(`${key}/${id}`);
    const old=data[key].get(id);
+   if(key==='customers'&&user.role==='SALE'&&old&&pendingOffer(data,user,old.id)&&value){
+     change.value={...old,saleId:user.id,saleAcceptedAt:value.saleAcceptedAt||new Date().toLocaleString('sv-SE',{timeZone:'Asia/Ho_Chi_Minh'}).slice(0,19),updatedAt:value.updatedAt||new Date().toLocaleString('sv-SE',{timeZone:'Asia/Ho_Chi_Minh'}).slice(0,19),status:value.status||old.status,note:value.note!==undefined?value.note:old.note};
+   }
+   validate(key,change.value,id);
    if(key==='members'&&old?.role==='ADMIN'&&old.active!==false&&(!value||value.role!=='ADMIN'||value.active===false)&&[...data.members.values()].filter(r=>r.role==='ADMIN'&&r.active!==false).length<=1)error(400,'Phải giữ ít nhất một Admin hoạt động');
    if(revision(old===undefined?undefined:publicValue(user,key,old,data))!==base)error(409,`Bản ghi ${key}/${id} đã được máy khác cập nhật. Xuất bản nháp rồi tải lại.`);
-   authorize(user,key,key==='settings'&&old?publicValue(user,key,old,data):old,value,key==='customers'?data:prospective);
+   authorize(user,key,key==='settings'&&old?publicValue(user,key,old,data):old,change.value,key==='customers'?data:prospective);
    if(key==='settings'&&value&&user.role!=='ADMIN')change.value={...old,...value,...(user.role==='MANAGER'?{saleAssignmentModes:{...old?.saleAssignmentModes,...value.saleAssignmentModes}}:{})};
    if(key==='saleDistributionByLeader'&&value&&user.role==='MANAGER')change.value={...old,...value};
    history.push({key,id,before:old??null,after:change.value});
-   if(key==='customers'){if(value)prospective.customers.set(id,value);else prospective.customers.delete(id);}
+   if(key==='customers'){if(change.value)prospective.customers.set(id,change.value);else prospective.customers.delete(id);}
   }
   const resulting=new Map(data.customers);
   for(const change of changes.filter(x=>x.key==='customers')){if(change.value)resulting.set(change.id,change.value);else resulting.delete(change.id);}
