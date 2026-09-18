@@ -417,4 +417,24 @@
     display: flex !important;
     flex-direction: column !important;
   }
+  /* Fallback cuối cùng cho mobile khi hosting còn giữ CSS cũ trong cache. */
+  #loginScreen:not(.is-hidden) .nvt-auth-hero,
+  #loginScreen:not(.is-hidden) #loginForm:not(.is-hidden),
+  #loginScreen:not(.is-hidden) #registerForm:not(.is-hidden) {
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  #loginScreen:not(.is-hidden) #loginForm:not(.is-hidden) .nvt-form-group,
+  #loginScreen:not(.is-hidden) #registerForm:not(.is-hidden) .nvt-form-group,
+  #loginScreen:not(.is-hidden) #loginForm:not(.is-hidden) .nvt-auth-row-meta,
+  #loginScreen:not(.is-hidden) #loginForm:not(.is-hidden) .nvt-btn-submit,
+  #loginScreen:not(.is-hidden) #registerForm:not(.is-hidden) .nvt-btn-submit,
+  #loginScreen:not(.is-hidden) #loginForm:not(.is-hidden) .nvt-auth-footer,
+  #loginScreen:not(.is-hidden) #registerForm:not(.is-hidden) .nvt-auth-footer {
+    display: flex !important;
+  }
+  #loginScreen:not(.is-hidden) #loginForm:not(.is-hidden) .nvt-form-group,
+  #loginScreen:not(.is-hidden) #registerForm:not(.is-hidden) .nvt-form-group {
+    flex-direction: column !important;
+  }
 }
