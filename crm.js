@@ -4081,12 +4081,8 @@ function acceptDataOffer(offerId) {
   createInitialTask(customer);
   offer.status = 'ACCEPTED';
   offer.resolvedAt = stamp();
-  state.notifications.unshift({ id: `NT-ACCEPT-${Date.now()}-${customer.id}`, role: 'LEADER', leaderId: offer.leaderId, teamId: offer.teamId, title: 'Sale đã nhận data', text: `${currentAccount.name} nhận ${customer.name} · ${customer.phone}`, at: stamp(), readBy: [] });
-  queueEmailNotification(
-    [staffEmail(offer.leaderId)],
-    `Sale đã nhận data - ${customer.name}`,
-    `Xin chào ${staffName(offer.leaderId)},\n\n${currentAccount.name} đã nhận data trong Team ${offer.teamId}.\nKhách hàng: ${customer.name}\nSố điện thoại: ${customer.phone}\nThời gian: ${stamp()}`
-  );
+  // Sale nhận data chỉ cập nhật quyền phụ trách và trạng thái khách hàng.
+  // Không tạo thông báo/email cho Leader ở bước này; lịch sử vẫn được giữ để đối soát.
   audit('ACCEPT_DATA', customer.id, `${currentAccount.name} nhận từ hàng chờ`);
   saveState(); render(); toast(`Đã nhận data ${customer.name}`);
   return true;
