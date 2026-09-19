@@ -1,0 +1,10 @@
+# NVT AGENCY CRM - UTF-8 for Apache/LiteSpeed
+AddDefaultCharset UTF-8
+AddCharset UTF-8 .html .htm .css .js .cjs .json .svg .txt
+<IfModule mod_mime.c>
+  AddType "text/html; charset=UTF-8" .html .htm
+  AddType "text/css; charset=UTF-8" .css
+  AddType "application/javascript; charset=UTF-8" .js .cjs
+  AddType "application/json; charset=UTF-8" .json
+  AddType "image/svg+xml; charset=UTF-8" .svg
+</IfModule>
