@@ -763,3 +763,20 @@ test('Sale queue excludes expired, missing and foreign offers; keeps yesterday w
  assert.equal(vm.runInContext("acceptDataOffer('old')",c),false);
  assert.equal(vm.runInContext("state.dataOffers.find(o=>o.id==='old').status",c),'PENDING');
 });
+
+ test('Sale assigned statistics stay unchanged after acceptance and count only own unique customers in each period',()=>{
+ const c=frontend();
+ vm.runInContext(`
+ currentAccount={id:'sale',saleId:'sale',role:'SALE'};
+ const offer=(id,customerId,days,status='PENDING',saleId='sale')=>({id,customerId,saleId,status,offeredAt:dayIso(days)+' 09:00:00'});
+ state.dataOffers=[offer('a','c1',0),offer('b','c2',0),offer('repeat','c1',0),
+ offer('older','c3',2,'ACCEPTED'),offer('expired','c4',6,'EXPIRED'),
+ offer('outside','c5',7),offer('future','c6',-1),offer('foreign','c7',0,'PENDING','other')];
+ `,c);
+ const stats=()=>JSON.parse(vm.runInContext('JSON.stringify(assignedDataStatsForMe())',c));
+ assert.deepEqual(stats(),{today:2,threeDays:3,sevenDays:4});
+ vm.runInContext("state.dataOffers[0].status='ACCEPTED';state.dataOffers[0].resolvedAt=stamp();",c);
+ assert.deepEqual(stats(),{today:2,threeDays:3,sevenDays:4});
+ vm.runInContext("state.dataOffers[1].status='EXPIRED';",c);
+ assert.deepEqual(stats(),{today:2,threeDays:3,sevenDays:4});
+ });

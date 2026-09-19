@@ -4084,6 +4084,20 @@ function pendingOffersForMe() {
   return state.dataOffers.filter(item => item.status === 'PENDING' && item.saleId === currentAccount.saleId && customerById(item.customerId) && Date.parse(String(item.offeredAt).replace(' ', 'T') + '+07:00') + offerDeadlineMs() > Date.now()).sort((a, b) => a.offeredAt.localeCompare(b.offeredAt) || a.id.localeCompare(b.id));
 }
 
+// Thong ke data da duoc giao theo ngay giao, doc lap voi hang cho nhan.
+// Mot khach duoc giao lai nhieu lan trong cung ky chi dem mot lan.
+function assignedDataStatsForMe() {
+  const saleId = currentAccount?.saleId || currentAccount?.id;
+  const today = dayIso(0);
+  const offers = state.dataOffers.filter(offer => offer.saleId === saleId
+    && offer.customerId && ['PENDING', 'ACCEPTED', 'EXPIRED'].includes(offer.status));
+  const count = days => new Set(offers.filter(offer => {
+    const date = String(offer.offeredAt || '').slice(0, 10);
+    return date >= dayIso(days - 1) && date <= today;
+  }).map(offer => offer.customerId)).size;
+  return { today: count(1), threeDays: count(3), sevenDays: count(7) };
+}
+
 function pendingOfferCount() {
   return currentAccount && currentAccount.role === 'SALE' ? pendingOffersForMe().length : 0;
 }

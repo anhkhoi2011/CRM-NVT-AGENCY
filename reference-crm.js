@@ -1113,7 +1113,7 @@
     const jobs={
       'tab-customers':[()=>{renderCustomerTable();renderCustomerImportHistory();},[data.customers,data.members,data.fields,data.offers,data.imports]],
       'tab-care':[renderCareView,[data.customers,data.fields,data.careGroups]],
-      'tab-data':[renderDataQueue,[data.customers,data.pendingOffers,data.members,data.offers,data.resubmissions,data.today]],
+      'tab-data':[renderDataQueue,[data.customers,data.pendingOffers,data.members,data.offers,data.resubmissions,data.today,data.assignedDataStats]],
       'tab-orders':[drawOrders,[data.orders,data.members]],
       'tab-products':[catalog,[data.products]],
       'tab-team':[team,[data.members,data.registeredAccounts,data.customers,data.orders,data.managerHierarchy]],
@@ -1598,8 +1598,14 @@
       if(!q('#saleDataAcceptStyles')){const style=document.createElement('style');style.id='saleDataAcceptStyles';style.textContent='#tab-data .sale-data-countdown{display:inline-flex;align-items:center;min-height:28px;padding:5px 10px;border-radius:7px;background:#fff7ed;color:#c2410c;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}#tab-data .sale-accept-data{justify-content:center;background:#059669;color:#fff;border:1px solid #059669;box-shadow:0 3px 10px rgba(5,150,105,.2)}#tab-data .sale-accept-data:hover{background:#047857;border-color:#047857;box-shadow:0 5px 14px rgba(5,150,105,.28)}#tab-data .sale-accept-data:disabled{opacity:.6;cursor:wait}';document.head.appendChild(style);}
       const body=q('#dataQueueTableBody');
       body.innerHTML=items.map((o,index)=>{const minutes=Math.max(0,Number(o.minutesLeft)||0),countdown=Math.floor(minutes/60)+' giờ '+(minutes%60)+' phút';return '<tr><td><b>#'+(index+1)+'</b></td><td>'+esc(fmtDate(o.offeredAt))+'</td><td><b>'+esc(o.name)+'</b></td><td><span class="sale-data-countdown">'+esc(countdown)+'</span></td><td><button type="button" class="btn-action sale-accept-data" data-accept-offer="'+esc(o.id)+'">Nhận data</button></td></tr>';}).join('')||'<tr><td colspan="5"><div class="empty"><b>Không có data chờ nhận</b></div></td></tr>';
-      body.querySelectorAll('[data-accept-offer]').forEach(button=>button.onclick=async()=>{button.disabled=true;const result=await run(()=>api.acceptOffer(button.dataset.acceptOffer));if(result?.ok){switchTab('tab-customers');}});const todayItems=(data.pendingOffers||[]).filter(o=>String(o.offeredAt||'').slice(0,10)===data.today);
-      text('sidebarDataBadge',(data.pendingOffers||[]).length);text('dataTabCountBadge',items.length);text('dataStatToday',todayItems.length+' data');text('dataStat3Days',(data.pendingOffers||[]).filter(o=>String(o.offeredAt||'').slice(0,10)>=fromDay(3)).length+' data');text('dataStat7Days',(data.pendingOffers||[]).filter(o=>String(o.offeredAt||'').slice(0,10)>=fromDay(7)).length+' data');
+      body.querySelectorAll('[data-accept-offer]').forEach(button=>button.onclick=async()=>{button.disabled=true;const result=await run(()=>api.acceptOffer(button.dataset.acceptOffer));if(result?.ok){switchTab('tab-customers');}});
+      // Thong ke data duoc giao khong giam khi Sale bam nhan.
+      const assigned=data.assignedDataStats||{today:0,threeDays:0,sevenDays:0};
+      text('sidebarDataBadge',(data.pendingOffers||[]).length);
+      text('dataTabCountBadge',items.length);
+      text('dataStatToday',assigned.today+' data');
+      text('dataStat3Days',assigned.threeDays+' data');
+      text('dataStat7Days',assigned.sevenDays+' data');
     }
     if(role!=='ADMIN')normalizeSaleDataTable();
     removeDataActionColumn();
