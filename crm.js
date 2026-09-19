@@ -2191,7 +2191,7 @@ async function quickAssignSale(customerId, saleId) {
     : currentAccount.role === 'MANAGER' && !inManagerScope;
   if (!customer || !sale || outsideScope) { toast('Sale hoac khach hang nam ngoai pham vi duoc giao'); render(); return false; }
   const pending = state.dataOffers.find(o => o.customerId === customer.id && o.status === 'PENDING');
-  if (customer.saleId === sale.id || pending?.saleId === sale.id) return true;
+  if (customer.saleId === sale.id || (pending?.saleId === sale.id && Date.parse(String(pending.offeredAt).replace(' ', 'T') + '+07:00') + offerDeadlineMs() > Date.now())) return true;
   applyCustomerAssignment(customer, sale, `Giao thủ công cho ${sale.name}`);
   saveState(); renderPreservingCustomerScroll();
   const saved = await flushServerPersistence();
@@ -4061,6 +4061,8 @@ function offerOrAssignSale(customer, target, reason, source, previous, direct = 
     if (offer.status === 'PENDING' && offer.customerId === customer.id) { offer.status = 'EXPIRED'; offer.resolvedAt = stamp(); }
   });
   customer.saleId = null;
+  // Giao lai phai cho Sale moi nhan, khong giu moc da nhan cua Sale cu.
+  customer.saleAcceptedAt = null;
   customer.leaderId = target.leaderId;
   customer.teamId = target.teamId;
   state.dataOffers.unshift({ id: `OFR-${Date.now()}-${customer.id}`, customerId: customer.id, saleId: target.id, leaderId: target.leaderId, teamId: target.teamId, offeredAt: stamp(), status: 'PENDING', resolvedAt: '', source });
@@ -4079,7 +4081,7 @@ function offerOrAssignSale(customer, target, reason, source, previous, direct = 
 }
 
 function pendingOffersForMe() {
-  return state.dataOffers.filter(item => item.status === 'PENDING' && item.saleId === currentAccount.saleId).sort((a, b) => a.offeredAt.localeCompare(b.offeredAt) || a.id.localeCompare(b.id));
+  return state.dataOffers.filter(item => item.status === 'PENDING' && item.saleId === currentAccount.saleId && customerById(item.customerId) && Date.parse(String(item.offeredAt).replace(' ', 'T') + '+07:00') + offerDeadlineMs() > Date.now()).sort((a, b) => a.offeredAt.localeCompare(b.offeredAt) || a.id.localeCompare(b.id));
 }
 
 function pendingOfferCount() {
@@ -4109,6 +4111,7 @@ function acceptDataOffer(offerId) {
   const offer = state.dataOffers.find(item => item.id === offerId);
   if (!offer || offer.status !== 'PENDING') { toast('Data này không còn chờ nhận'); render(); return false; }
   if (offer.saleId !== currentAccount.saleId) { toast('FORBIDDEN · data không dành cho bạn'); return false; }
+  if (!pendingOffersForMe().some(item => item.id === offer.id)) { toast('Data da het han nhan. Vui long tai lai danh sach.'); return false; }
   const customer = customerById(offer.customerId);
   if (!customer) { toast('Khách không tồn tại'); return false; }
   customer.saleId = offer.saleId;

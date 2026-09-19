@@ -195,7 +195,21 @@ function demoToken(request) {
 function demoUserFromToken(request) {
   return demoState.members.find(user => user.id === demoSessions.get(demoToken(request))&&user.active!==false) || null;
 }
+function expireDemoOffers() {
+  // Demo cung tuan theo han nhan 24 gio nhu MySQL, khong dem offer cu vao badge.
+  const now=Date.now(),at=new Date(now).toLocaleString('sv-SE',{timeZone:'Asia/Ho_Chi_Minh'}).slice(0,16);
+  for(const offer of demoState.dataOffers){
+    if(offer.status!=='PENDING'||Date.parse(String(offer.offeredAt).replace(' ','T')+'+07:00')+24*3600000>now)continue;
+    offer.status='EXPIRED';offer.resolvedAt=at;
+    const customer=demoState.customers.find(c=>c.id===offer.customerId);
+    if(customer&&!customer.saleId&&!demoState.dataOffers.some(o=>o.customerId===customer.id&&o.status==='PENDING')){
+      customer.saleAcceptedAt=null;customer.updatedAt=at;
+      customer.note='Sale khong nhan data sau 24h. Cho Leader phan lai.';
+    }
+  }
+}
 function demoPayload(user) {
+  expireDemoOffers();
   return {...crmData.snapshot(user,demoData()),user};
 }
 async function handleDemoApi(request, response, pathname) {
@@ -234,10 +248,15 @@ async function handleDemoApi(request, response, pathname) {
   if (pathname === '/api/state' && request.method === 'POST') {
     const body = await readDbBody(request);
     try{
+      expireDemoOffers();
       const next=structuredClone(demoState),original=demoData(),changes=body.changes||[];
       for(const change of changes.slice().sort((a,b)=>(a.key==='customers'?0:1)-(b.key==='customers'?0:1))){
-        const {key,id,value}=change;if(!original[key])throw Object.assign(Error('Collection không hợp lệ'),{status:400});
-        const old=original[key].get(id);crmData.validate(key,value,id);crmData.authorize(user,key,old,value,demoData(next));
+        const {key,id}=change;let {value}=change;if(!original[key])throw Object.assign(Error('Collection không hợp lệ'),{status:400});
+        const old=original[key].get(id);
+        // Sale nhan ban ghi da che thong tin: giu thong tin goc nhu luong MySQL.
+        const pending=key==='customers'&&user.role==='SALE'&&old&&demoState.dataOffers.some(o=>o.customerId===id&&o.saleId===user.id&&o.status==='PENDING');
+        if(pending&&value)value={...old,saleId:user.id,saleAcceptedAt:value.saleAcceptedAt,updatedAt:value.updatedAt,status:value.status||old.status,note:value.note!==undefined?value.note:old.note};
+        crmData.validate(key,value,id);crmData.authorize(user,key,old,value,demoData(next));
         if(crmData.OBJECTS.includes(key)){next[key]=user.role==='MANAGER'&&['settings','saleDistributionByLeader'].includes(key)?{...next[key],...value}:value;}
         else{next[key]=(next[key]||[]).filter(r=>r.id!==id);if(value)next[key].push(value);}
       }

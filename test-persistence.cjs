@@ -743,3 +743,23 @@ test('Manager không chuyển ghi chú đội khác vào khách của mình đ�
  await f.api.write(admin,'outside-note',[change('notes',{id:'n-out',customerId:'c-out',text:'Ngoài phạm vi'})]);const a=await f.api.read(admin);
  await assert.rejects(f.api.write(m,'steal-note',[change('notes',{id:'n-out',customerId:'c1',text:'Chuyển về đội mình'},a.versions['notes/n-out'])]),e=>e.status===403);
 });
+
+// Hang cho Sale phai dung cung tap du lieu cho badge va danh sach.
+test('Sale queue excludes expired, missing and foreign offers; keeps yesterday within 24h',()=>{
+ const c=frontend();
+ vm.runInContext(`
+ currentAccount={id:'sale',saleId:'sale',role:'SALE'};
+ state.customers=[{id:'c1'},{id:'c2'},{id:'c3'}];
+ const at=hours=>new Date(Date.now()-hours*3600000).toLocaleString('sv-SE',{timeZone:'Asia/Ho_Chi_Minh'}).slice(0,19);
+ state.dataOffers=[
+ {id:'of1',customerId:'c1',saleId:'sale',status:'PENDING',offeredAt:at(20)},
+ {id:'of2',customerId:'c2',saleId:'sale',status:'PENDING',offeredAt:at(1)},
+ {id:'old',customerId:'c3',saleId:'sale',status:'PENDING',offeredAt:at(25)},
+ {id:'missing',customerId:'deleted',saleId:'sale',status:'PENDING',offeredAt:at(1)},
+ {id:'other',customerId:'c3',saleId:'other',status:'PENDING',offeredAt:at(1)}];
+ `,c);
+ assert.deepEqual(Array.from(vm.runInContext('pendingOffersForMe().map(o=>o.id)',c)),['of1','of2']);
+ assert.equal(vm.runInContext('pendingOfferCount()',c),2);
+ assert.equal(vm.runInContext("acceptDataOffer('old')",c),false);
+ assert.equal(vm.runInContext("state.dataOffers.find(o=>o.id==='old').status",c),'PENDING');
+});

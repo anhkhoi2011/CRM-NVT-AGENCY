@@ -466,8 +466,8 @@
         const row=table.querySelector('thead tr');
         if(row)row.innerHTML='<th>MÃ ĐƠN</th><th>PHÂN LOẠI</th><th>KHÁCH HÀNG</th><th>SẢN PHẨM / DỊCH VỤ</th><th>GÓI / THỜI HẠN</th><th>SALE PHỤ TRÁCH</th><th>DOANH THU</th><th>VAT</th><th>THỰC THU</th><th>TRẠNG THÁI</th>';
       }
+      const orders=(data.orders||[]).slice().sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||''))||String(b.id||'').localeCompare(String(a.id||''))).slice(0,10);
       if(body){
-        const orders=(data.orders||[]).slice().sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||''))||String(b.id||'').localeCompare(String(a.id||''))).slice(0,10);
         const statusLabel={PAID:'Đã thanh toán',COURSE_GRANTED:'Đã cấp khóa học',DEPOSIT:'Đã đặt cọc',PENDING:'Chờ thanh toán',REFUNDED:'Đã hoàn tiền',CANCELLED:'Đã hủy'};
         const statusClass={PAID:'chip-green',COURSE_GRANTED:'chip-green',DEPOSIT:'chip-warm',PENDING:'chip-orange',REFUNDED:'chip-cold',CANCELLED:'chip-cold'};
         body.innerHTML=orders.map(order=>{
@@ -1113,7 +1113,7 @@
     const jobs={
       'tab-customers':[()=>{renderCustomerTable();renderCustomerImportHistory();},[data.customers,data.members,data.fields,data.offers,data.imports]],
       'tab-care':[renderCareView,[data.customers,data.fields,data.careGroups]],
-      'tab-data':[renderDataQueue,[data.customers,data.pendingOffers,data.members]],
+      'tab-data':[renderDataQueue,[data.customers,data.pendingOffers,data.members,data.offers,data.resubmissions,data.today]],
       'tab-orders':[drawOrders,[data.orders,data.members]],
       'tab-products':[catalog,[data.products]],
       'tab-team':[team,[data.members,data.registeredAccounts,data.customers,data.orders,data.managerHierarchy]],
@@ -1222,7 +1222,7 @@
   // Khi bat tu dong, mac dinh dung che do ty trong cho data moi.
   toggleAutoDist=enabled=>run(()=>api.distribution(enabled,enabled?'BALANCED':data.settings.assignmentMode));
   updateAssignmentMode=mode=>run(()=>api.distribution(data.leaderDistribution.enabled,mode));
-  switchTab=function(id){if(data){const view=id.replace('tab-',''),alias={data:data.user.role==='LEADER'?'pool':data.user.role==='SALE'?'accept':'distribution'};if(!data.navigation.includes(alias[view]||view))return;}renders.switchTab(id);if(data){paintTab(id);wireParity();}};
+  switchTab=function(id){if(data){const view=id.replace('tab-',''),alias={data:data.user.role==='LEADER'?'pool':data.user.role==='SALE'?'accept':'distribution'};if(!data.navigation.includes(alias[view]||view))return;}renders.switchTab(id);if(data){if(id==='tab-data'&&(data.user.actualRole||data.user.role)==='SALE'){const search=q('#dataQueueSearch');if(search)search.value='';}paintTab(id,id==='tab-data');wireParity();}};
   filterTeamPeriod=(period,button)=>{q('#teamStartDate').value=fromDay(parseInt(period)||30);q('#teamEndDate').value=data.today;if(button){qa('.team-period-btn').forEach(b=>b.className='btn-secondary team-period-btn');button.className='btn-primary team-period-btn';}updateTeamDateLabel();};
   updateTeamDateLabel=()=>text('teamDateRangeLabel',fmtDate(q('#teamStartDate').value)+' - '+fmtDate(q('#teamEndDate').value));
   let revenuePeriod=30;
@@ -1583,7 +1583,8 @@
       bindReferenceDeleteButtons();
       return;
     }
-    ordinaryQueue();
+    // Sale dung truc tiep hang cho, khong chay renderer khach hang cu.
+    if(role!=='SALE')ordinaryQueue();
     renderAdminManualSaleColumn();
     if(role==='LEADER')renderScopedQueueUnified('LEADER');
     else if(role==='MANAGER')renderScopedQueueUnified('MANAGER');
@@ -1598,7 +1599,7 @@
       const body=q('#dataQueueTableBody');
       body.innerHTML=items.map((o,index)=>{const minutes=Math.max(0,Number(o.minutesLeft)||0),countdown=Math.floor(minutes/60)+' giờ '+(minutes%60)+' phút';return '<tr><td><b>#'+(index+1)+'</b></td><td>'+esc(fmtDate(o.offeredAt))+'</td><td><b>'+esc(o.name)+'</b></td><td><span class="sale-data-countdown">'+esc(countdown)+'</span></td><td><button type="button" class="btn-action sale-accept-data" data-accept-offer="'+esc(o.id)+'">Nhận data</button></td></tr>';}).join('')||'<tr><td colspan="5"><div class="empty"><b>Không có data chờ nhận</b></div></td></tr>';
       body.querySelectorAll('[data-accept-offer]').forEach(button=>button.onclick=async()=>{button.disabled=true;const result=await run(()=>api.acceptOffer(button.dataset.acceptOffer));if(result?.ok){switchTab('tab-customers');}});const todayItems=(data.pendingOffers||[]).filter(o=>String(o.offeredAt||'').slice(0,10)===data.today);
-      text('sidebarDataBadge',items.length);text('dataTabCountBadge',items.length);text('dataStatToday',todayItems.length+' data');text('dataStat3Days',(data.pendingOffers||[]).filter(o=>String(o.offeredAt||'').slice(0,10)>=fromDay(3)).length+' data');text('dataStat7Days',(data.pendingOffers||[]).filter(o=>String(o.offeredAt||'').slice(0,10)>=fromDay(7)).length+' data');
+      text('sidebarDataBadge',(data.pendingOffers||[]).length);text('dataTabCountBadge',items.length);text('dataStatToday',todayItems.length+' data');text('dataStat3Days',(data.pendingOffers||[]).filter(o=>String(o.offeredAt||'').slice(0,10)>=fromDay(3)).length+' data');text('dataStat7Days',(data.pendingOffers||[]).filter(o=>String(o.offeredAt||'').slice(0,10)>=fromDay(7)).length+' data');
     }
     if(role!=='ADMIN')normalizeSaleDataTable();
     removeDataActionColumn();
