@@ -446,6 +446,24 @@
   }
 }
 
+/* Chỉ hiển thị form đang được chọn. Không để CSS mobile làm lộ form đăng ký khi đang đăng nhập. */
+@media (max-width: 768px) {
+  #loginScreen #loginForm.is-hidden,
+  #loginScreen #registerForm.is-hidden {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+  #loginScreen #loginForm:not(.is-hidden),
+  #loginScreen #registerForm:not(.is-hidden) {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+}
+
 /* Fallback cho Safari/iOS: form phải hiện ngay khi chưa có phiên đăng nhập. */
 @media (max-width: 768px) {
   #loginScreen:not(.is-hidden) {

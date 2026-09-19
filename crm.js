@@ -4798,8 +4798,22 @@ function renderAccountCards(selectedId = null) {
 
 function switchAuthMode(mode) {
   const registering = mode === 'register';
-  $('#loginForm')?.classList.toggle('is-hidden', registering);
-  $('#registerForm')?.classList.toggle('is-hidden', !registering);
+  const loginForm = $('#loginForm');
+  const registerForm = $('#registerForm');
+  // ?n/hi?n b?ng c? class, thu?c t?nh hidden v? inline style ?? kh?ng b?
+  // stylesheet mobile c? l?m l? ??ng th?i hai form sau khi F5.
+  if (loginForm) {
+    loginForm.classList.toggle('is-hidden', registering);
+    loginForm.hidden = registering;
+    loginForm.style.display = registering ? 'none' : 'flex';
+    loginForm.setAttribute('aria-hidden', String(registering));
+  }
+  if (registerForm) {
+    registerForm.classList.toggle('is-hidden', !registering);
+    registerForm.hidden = !registering;
+    registerForm.style.display = registering ? 'flex' : 'none';
+    registerForm.setAttribute('aria-hidden', String(!registering));
+  }
   $('#loginTab')?.classList.toggle('active', !registering);
   $('#registerTab')?.classList.toggle('active', registering);
   $('#loginTab')?.setAttribute('aria-selected', String(!registering));
@@ -4927,6 +4941,8 @@ function trapFocus(container, event) {
 }
 
 function bindGlobalActions() {
+  // Tr?ng th?i m?c ??nh lu?n l? form ??ng nh?p, k? c? khi CSS/HTML c? c?n cache.
+  switchAuthMode('login');
   $('#loginTab')?.addEventListener('click', () => switchAuthMode('login'));
   $('#registerTab')?.addEventListener('click', () => switchAuthMode('register'));
   $$('[data-switch-auth]').forEach(button => button.addEventListener('click', () => switchAuthMode(button.dataset.switchAuth)));

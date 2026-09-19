@@ -3,16 +3,16 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="NVT AGENCY - há»‡ thá»‘ng váº­n hÃ nh ná»™i bá»™ cho Admin, Leader vÃ  Sale.">
+  <meta name="description" content="NVT AGENCY - Hệ thống vận hành nội bộ cho Admin, Manager, Leader và Sale.">
   <title>NVT AGENCY CRM NỘI BỘ</title>
   <link rel="icon" type="image/jpeg" href="./logo.jpg?v=20260918-crm">
   <link rel="apple-touch-icon" href="./logo.jpg?v=20260918-crm">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./crm.css?v=20260918-manager-fix-2">
-  <link rel="stylesheet" href="./crm-modern.css?v=20260918-manager-fix-2">
-  <link rel="stylesheet" href="./nvt-mobile-auth.css?v=20260918-mobile-auth-compact-1">
+  <link rel="stylesheet" href="./crm.css?v=20260919-auth-unified-2">
+  <link rel="stylesheet" href="./crm-modern.css?v=20260919-delete-button-1">
+  <link rel="stylesheet" href="./nvt-mobile-auth.css?v=20260919-auth-unified-4">
 <style id="nvt-mobile-auth-runtime-override">
 @media (max-width:768px){
 html,body{width:100%;min-width:0;min-height:100%;margin:0;background:#fff7ed!important}
@@ -36,10 +36,12 @@ html,body{width:100%;min-width:0;min-height:100%;margin:0;background:#fff7ed!imp
 #loginScreen:not(.is-hidden) .nvt-input-box{display:flex!important;min-height:44px!important}
 #loginScreen:not(.is-hidden) .nvt-input-native{display:block!important;min-width:0!important}
 #loginScreen:not(.is-hidden) .nvt-btn-submit{display:flex!important;min-height:44px!important}
+#loginScreen #loginForm.is-hidden,#loginScreen #registerForm.is-hidden{display:none!important;visibility:hidden!important;opacity:0!important;pointer-events:none!important}
+#loginScreen #loginForm:not(.is-hidden),#loginScreen #registerForm:not(.is-hidden){display:flex!important;visibility:visible!important;opacity:1!important;pointer-events:auto!important}
 }
 </style></head>
 <body>
-  <section id="loginScreen" class="login-screen desktop-login-layout">
+  <section id="loginScreen" class="login-screen desktop-login-layout nvt-auth-current" data-auth-ui="current">
     <!-- Banner tảng băng bên trái theo mẫu desktop. -->
     <div class="banner-side login-intro">
       <img class="banner-img-bg login-intro-img" src="./login-background.jpg" alt="NVT AGENCY">
@@ -81,7 +83,7 @@ html,body{width:100%;min-width:0;min-height:100%;margin:0;background:#fff7ed!imp
           <div class="form-footer-switch nvt-auth-footer"><span>Chưa có tài khoản?</span> <button type="button" class="switch-auth-link nvt-auth-switch-link" data-switch-auth="register">Đăng ký</button></div>
         </form>
 
-        <form id="registerForm" class="is-hidden" novalidate>
+        <form id="registerForm" class="is-hidden" hidden style="display:none!important" aria-hidden="true" novalidate>
           <div class="form-field-group nvt-form-group"><label for="registerName" class="field-label nvt-input-label">HỌ VÀ TÊN</label><div class="field-input-box nvt-input-box"><svg class="field-icon nvt-input-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg><input type="text" id="registerName" name="registerName" class="field-native-input nvt-input-native" placeholder="Nhập họ và tên" required autocomplete="name"></div></div>
           <div class="form-field-group nvt-form-group"><label for="registerAccountId" class="field-label nvt-input-label">ID TÀI KHOẢN SALE</label><div class="field-input-box nvt-input-box"><svg class="field-icon nvt-input-icon" viewBox="0 0 24 24" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg><input type="text" id="registerAccountId" name="registerAccountId" class="field-native-input nvt-input-native" placeholder="Nhập ID tài khoản SALE" required autocomplete="off"></div></div>
           <div class="form-field-group nvt-form-group"><label for="registerPhone" class="field-label nvt-input-label">SỐ ĐIỆN THOẠI</label><div class="field-input-box nvt-input-box"><svg class="field-icon nvt-input-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg><input type="tel" id="registerPhone" name="registerPhone" class="field-native-input nvt-input-native" placeholder="Nhập số điện thoại" required autocomplete="tel"></div></div>

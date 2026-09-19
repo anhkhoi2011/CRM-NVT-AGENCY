@@ -452,7 +452,18 @@
       gap: 6px;
       transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
     }
-    .btn-primary {
+    .btn-danger {
+      background: #fee2e2 !important;
+      color: #b91c1c !important;
+      border: 1px solid #fca5a5 !important;
+      box-shadow: none !important;
+    }
+    .btn-danger:hover {
+      background: #fecaca !important;
+      border-color: #f87171 !important;
+      color: #991b1b !important;
+      transform: translateY(-1px);
+    }    .btn-primary {
       background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
       color: white;
       border: 0;
@@ -1604,3 +1615,13 @@ body.reference-ready>.app-shell{visibility:visible}
   #tab-customers #customerJourneyBanner img,
   #tab-customers .customer-journey-banner img { display: block !important; width: 100% !important; min-width: 0 !important; max-width: 100% !important; height: auto !important; object-fit: contain !important; }
 }
+
+/* Form xác nhận tạo đơn hàng, thay cho alert() để thao tác không bị ngắt quãng. */
+.order-success-card { width: min(430px, calc(100vw - 24px)); }
+.order-success-body { text-align: center; padding: 26px 22px 20px; }
+.order-success-icon { display: grid; place-items: center; width: 52px; height: 52px; margin: 0 auto 14px; border-radius: 50%; background: #dcfce7; color: #15803d; font-size: 30px; font-weight: 800; }
+.order-success-body h4 { margin: 0 0 10px; color: var(--text-main); font-size: 16px; }
+.order-success-body p { margin: 7px 0; color: var(--text-muted); font-size: 12px; }
+.order-success-body p b { color: var(--accent, #2563eb); font-family: var(--font-mono); letter-spacing: .02em; }
+.order-success-body .order-success-note { font-size: 11px; }
+.order-success-card .modal-footer { justify-content: flex-end; }
