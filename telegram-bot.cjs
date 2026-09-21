@@ -506,11 +506,14 @@ async function sendBroadcastAnnouncement(announcement) {
     const targetLabel = announcement.target === 'SALE' ? 'Đội ngũ Sales / Tư vấn' :
       announcement.target === 'MANAGERS' ? 'Leader & Quản lý' : 'Toàn thể Agency';
 
+    const remindMinutes = Number(announcement.remind_minutes ?? 15);
+
     let text = `${header}\n\n` +
       `• <b>Tiêu đề:</b> 🎯 <b>${escapeHtml(announcement.title || '')}</b>\n` +
       `• <b>Gửi tới:</b> 👥 <b>${escapeHtml(targetLabel)}</b>\n` +
       (announcement.meeting_time ? `• <b>Thời gian:</b> ⏰ <b>${formatDateTimeVN(announcement.meeting_time)}</b>\n` : '') +
       (announcement.meeting_link ? `• <b>Địa điểm / Link:</b> 📍 <a href="${escapeHtml(announcement.meeting_link)}">${escapeHtml(announcement.meeting_link)}</a>\n` : '') +
+      (announcement.type === 'MEETING' && remindMinutes > 0 ? `• <b>Nhắc lại:</b> 🔔 Tự động nhắc trước ${remindMinutes} phút\n` : '') +
       (announcement.effective_date ? `• <b>Ngày áp dụng:</b> 📅 ${formatDateTimeVN(announcement.effective_date)}\n` : '') +
       `• <b>Người gửi:</b> ✍️ ${escapeHtml(announcement.host || 'Ban Quản Trị')}\n\n` +
       `📝 <b>Nội dung chi tiết:</b>\n${escapeHtml(announcement.content || '')}\n\n` +
@@ -521,6 +524,32 @@ async function sendBroadcastAnnouncement(announcement) {
       const res = await sendMessage(cid, text);
       if (res?.ok) sent++;
     }
+
+    // Nếu là cuộc họp có bật nhắc lại, lưu vào bảng để scheduler quét nhắc trước giờ họp
+    if (announcement.type === 'MEETING' && announcement.meeting_time && remindMinutes > 0) {
+      try {
+        await pool.query(`CREATE TABLE IF NOT EXISTS meeting_broadcasts (
+          id VARCHAR(96) PRIMARY KEY,
+          title VARCHAR(255) NOT NULL,
+          meeting_time DATETIME NOT NULL,
+          meeting_link VARCHAR(255),
+          host VARCHAR(100),
+          target VARCHAR(50) DEFAULT 'ALL',
+          remind_minutes INT DEFAULT 15,
+          reminded_at DATETIME,
+          created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+        const meetingId = 'mb_' + Date.now();
+        await pool.execute(
+          `INSERT INTO meeting_broadcasts (id, title, meeting_time, meeting_link, host, target, remind_minutes) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [meetingId, announcement.title || 'Cuộc họp', announcement.meeting_time, announcement.meeting_link || '', announcement.host || 'Ban Quản Trị', announcement.target || 'ALL', remindMinutes]
+        );
+      } catch (err) {
+        console.warn('[Telegram Bot] Lưu lịch nhắc cuộc họp thất bại:', err.message);
+      }
+    }
+
     return sent;
   } catch (err) {
     console.error('[Telegram Bot] sendBroadcastAnnouncement error:', err.message);
@@ -604,6 +633,40 @@ async function runTelegramScheduler() {
       }
     } catch (e) {
       // Table may not exist yet if db unconfigured
+    }
+
+    // 1b. Quét Cuộc họp Agency sắp diễn ra để nhắc lại 1 lần nữa theo cài đặt Admin
+    try {
+      const upcomingMeetings = await dbQuery(
+        `SELECT * FROM meeting_broadcasts
+         WHERE reminded_at IS NULL
+           AND meeting_time > NOW()
+           AND meeting_time <= DATE_ADD(NOW(), INTERVAL remind_minutes MINUTE)`
+      );
+
+      for (const mb of upcomingMeetings) {
+        let roleFilter = '';
+        if (mb.target === 'SALE') roleFilter = ` AND role = 'SALE'`;
+        else if (mb.target === 'MANAGERS') roleFilter = ` AND role IN ('ADMIN', 'MANAGER', 'LEADER')`;
+
+        const staffToRemind = await dbQuery(`SELECT telegram_chat_id FROM users WHERE active = 1 AND telegram_chat_id IS NOT NULL${roleFilter}`);
+        const chatIdsToRemind = staffToRemind.map(s => s.telegram_chat_id).filter(Boolean);
+
+        const remindText = `⏰ <b>NHẮC NHỞ: CUỘC HỌP SẮP DIỄN RA TRONG ${mb.remind_minutes} PHÚT NỮA!</b>\n\n` +
+          `• <b>Cuộc họp:</b> 🎯 <b>${escapeHtml(mb.title)}</b>\n` +
+          `• <b>Thời gian bắt đầu:</b> ⏰ <b>${formatDateTimeVN(mb.meeting_time)}</b> (Sắp diễn ra)\n` +
+          (mb.meeting_link ? `• <b>Địa điểm / Link vào họp:</b> 📍 <a href="${escapeHtml(mb.meeting_link)}">${escapeHtml(mb.meeting_link)}</a>\n` : '') +
+          `• <b>Người chủ trì:</b> ✍️ ${escapeHtml(mb.host || 'Ban Quản Trị')}\n\n` +
+          `👉 <i>Toàn thể nhân sự khẩn trương sắp xếp công việc và vào phòng họp đúng giờ!</i> 🚀`;
+
+        for (const cid of chatIdsToRemind) {
+          await sendMessage(cid, remindText);
+        }
+
+        await pool.execute(`UPDATE meeting_broadcasts SET reminded_at = NOW() WHERE id = ?`, [mb.id]);
+      }
+    } catch (e) {
+      // Safe skip
     }
 
     // 2. Điểm danh lúc 09:00 - 09:10 sáng hàng ngày

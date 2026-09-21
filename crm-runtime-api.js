@@ -195,7 +195,9 @@
         const order = state.orders.find(item => item.id === id);
         if (!order) throw Error('Order no longer exists on server.');
         if (currentAccount.role !== 'ADMIN') {
-          const created = Date.parse(`${String(order.createdAt || '').replace(' ', 'T')}+07:00`);
+          const raw = String(order.createdAt || '').trim();
+          const iso = raw.includes('T') ? raw : raw.replace(' ', 'T');
+          const created = Date.parse(/[zZ]|[+-]\d{2}:?\d{2}$/.test(iso) ? iso : `${iso}+07:00`);
           if (!Number.isFinite(created) || Date.now() - created >= 3 * 24 * 60 * 60 * 1000) {
             throw Error('Đơn hàng chỉ được xóa trong 3 ngày đầu.');
           }

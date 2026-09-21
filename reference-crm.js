@@ -634,7 +634,8 @@
     if(role==='ADMIN')return true;
     if(!['MANAGER','LEADER','SALE'].includes(role))return false;
     const raw=String(order?.createdAt||'').trim();
-    const created=Date.parse(raw.includes('T')?raw:`${raw.replace(' ','T')}+07:00`);
+    const iso=raw.includes('T')?raw:raw.replace(' ','T');
+    const created=Date.parse(/[zZ]|[+-]\d{2}:?\d{2}$/.test(iso)?iso:`${iso}+07:00`);
     return Number.isFinite(created)&&Date.now()-created<3*24*60*60*1000;
   }
   function drawOrders() {

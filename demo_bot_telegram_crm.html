@@ -302,15 +302,36 @@
                 <input id="noticeTitle" type="text" value="Họp tổng kết tuần &amp; Trao thưởng Top 1 Doanh số" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-purple-500 focus:bg-white outline-none font-bold text-slate-900">
               </div>
 
-              <!-- Trường thời gian & link họp (chỉ hiện khi loại là lịch họp) -->
-              <div id="fieldMeeting" class="grid grid-cols-1 md:grid-cols-2 gap-3 p-2.5 rounded-xl bg-blue-50/60 border border-blue-200">
-                <div>
-                  <label class="font-bold text-blue-900 block mb-1">⏰ Thời gian diễn ra</label>
-                  <input id="noticeTime" type="text" value="16:30 chiều nay" class="w-full bg-white border border-blue-200 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none font-semibold text-slate-900">
+              <!-- Trường thời gian, link họp & OPTION CHỌN GIỜ NHẮC LẠI (chỉ hiện khi loại là lịch họp) -->
+              <div id="fieldMeeting" class="space-y-2.5 p-3 rounded-xl bg-blue-50/70 border border-blue-200">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label class="font-bold text-blue-900 block mb-1">⏰ Thời gian diễn ra họp</label>
+                    <input id="noticeTime" type="text" value="16:30 chiều nay" class="w-full bg-white border border-blue-200 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none font-semibold text-slate-900">
+                  </div>
+                  <div>
+                    <label class="font-bold text-blue-900 block mb-1">📍 Địa điểm / Link họp</label>
+                    <input id="noticeLink" type="text" value="meet.google.com/nvt-agency-meet" class="w-full bg-white border border-blue-200 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none font-semibold text-slate-900">
+                  </div>
                 </div>
-                <div>
-                  <label class="font-bold text-blue-900 block mb-1">📍 Địa điểm / Link họp</label>
-                  <input id="noticeLink" type="text" value="meet.google.com/nvt-agency-meet" class="w-full bg-white border border-blue-200 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none font-semibold text-slate-900">
+
+                <!-- OPTION CHỌN GIỜ NHẮC LẠI 1 LẦN NỮA -->
+                <div class="pt-2 border-t border-blue-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div class="flex items-center gap-2">
+                    <span class="text-base">🔔</span>
+                    <div>
+                      <span class="font-bold text-blue-950 block text-[11px]">Chọn giờ nhắc lại 1 lần nữa trước giờ họp:</span>
+                      <span class="text-[10px] text-blue-700/80">Bot tự động bắn thêm 1 tin khẩn để nhân viên không bị trễ/quên</span>
+                    </div>
+                  </div>
+                  <select id="noticeRemindBefore" class="bg-white border-2 border-blue-300 font-bold text-blue-900 text-xs rounded-lg py-1.5 px-2.5 outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="15" selected>⏰ Nhắc trước 15 phút (Khuyên dùng)</option>
+                    <option value="30">⏰ Nhắc trước 30 phút</option>
+                    <option value="45">⏰ Nhắc trước 45 phút</option>
+                    <option value="60">⏰ Nhắc trước 1 tiếng</option>
+                    <option value="120">⏰ Nhắc trước 2 tiếng</option>
+                    <option value="0">❌ Không nhắc lại</option>
+                  </select>
                 </div>
               </div>
 
@@ -618,6 +639,7 @@
       }
 
       const targetLabel = target === 'ALL' ? 'Toàn bộ Agency' : target === 'SALE' ? 'Team Sale' : 'Ban Quản Lý';
+      const remindBefore = document.getElementById('noticeRemindBefore')?.value || '15';
 
       const html = `
         <div class="msg-in p-3.5 max-w-[92%] space-y-2 shadow-sm border ${borderStyle} animate-fade-in">
@@ -628,19 +650,50 @@
           <div class="text-slate-300 space-y-0.5 leading-relaxed">
             ${time && type === 'MEETING' ? `• <b>Thời gian:</b> ⏰ ${time}<br>` : ''}
             ${link && type === 'MEETING' ? `• <b>Link họp / Địa điểm:</b> 📍 <a href="#" class="text-cyan-400 underline">${link}</a><br>` : ''}
+            ${type === 'MEETING' && remindBefore !== '0' ? `• <b>Nhắc lại:</b> 🔔 Tự động nhắc lại trước ${remindBefore} phút<br>` : ''}
             • <b>Ban hành bởi:</b> ${host}
           </div>
           <div class="p-2 bg-slate-900/60 rounded border border-slate-700/50 text-[11px] text-slate-200 whitespace-pre-line">
             ${content}
           </div>
-          <div class="text-[10px] text-slate-400 text-right pt-0.5">
-            Bắn bởi Admin · Vừa xong
+          <div class="text-[10px] text-slate-400 text-right pt-0.5 flex items-center justify-between">
+            ${type === 'MEETING' && remindBefore !== '0' ? `<span class="text-[10px] text-blue-300">⏰ Đã hẹn giờ nhắc lại trước ${remindBefore}p</span>` : '<span></span>'}
+            <span>Bắn bởi Admin · Vừa xong</span>
           </div>
         </div>
       `;
 
       feed.insertAdjacentHTML('beforeend', html);
       scrollBottom();
+
+      // Nếu là cuộc họp có bật hẹn giờ nhắc lại, tự động mô phỏng tin nhắn Bot bắn nhắc nhở lần 2 trước giờ họp
+      if (type === 'MEETING' && remindBefore !== '0') {
+        setTimeout(() => {
+          const remindHtml = `
+            <div class="msg-in p-3.5 max-w-[92%] space-y-2 shadow-sm border border-cyan-500/60 bg-[#14233a] animate-fade-in">
+              <div class="font-bold text-cyan-300 flex items-center justify-between">
+                <span class="flex items-center gap-1.5">🔔 NHẮC HẸN: CUỘC HỌP SẮP DIỄN RA!</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full bg-cyan-900/70 text-cyan-200 border border-cyan-600 font-bold animate-pulse">Còn ${remindBefore} phút nữa</span>
+              </div>
+              <div class="text-slate-300 space-y-0.5 leading-relaxed">
+                • <b>Cuộc họp:</b> 🎯 <b>${title}</b><br>
+                • <b>Thời gian bắt đầu:</b> ⏰ <b>${time}</b> (Sắp đến giờ!)<br>
+                ${link ? `• <b>Địa điểm / Link vào họp:</b> 📍 <a href="#" class="text-cyan-400 underline font-bold">${link}</a><br>` : ''}
+                • <b>Người chủ trì:</b> ${host}
+              </div>
+              <div class="p-2.5 bg-blue-950/80 rounded-lg border border-blue-800/60 text-[11px] text-blue-200">
+                👉 <i>Toàn thể nhân sự khẩn trương sắp xếp công việc và bấm vào link để vào phòng họp đúng giờ!</i> 🚀
+              </div>
+              <div class="text-[10px] text-slate-400 text-right pt-0.5 flex items-center justify-between">
+                <span class="text-[10px] text-cyan-400">⚡ Bot tự động phát tin nhắc nhở lần 2 theo cài đặt Admin</span>
+                <span>Vừa xong</span>
+              </div>
+            </div>
+          `;
+          feed.insertAdjacentHTML('beforeend', remindHtml);
+          scrollBottom();
+        }, 1500);
+      }
     }
 
     function simNewLead() {

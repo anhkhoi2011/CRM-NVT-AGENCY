@@ -1692,7 +1692,9 @@ function financialEvents(orders, periodCheck = null) {
 function orderEditState(order) {
   if (['MARKETING', 'ACCOUNTING'].includes(currentAccount.role)) return { allowed: false, label: 'Chỉ có quyền xem' };
   if (currentAccount.role === 'ADMIN') return { allowed: true, label: 'Admin toàn quyền' };
-  const created = Date.parse(`${String(order.createdAt).replace(' ', 'T')}+07:00`);
+  const raw = String(order.createdAt || '').trim();
+  const iso = raw.includes('T') ? raw : raw.replace(' ', 'T');
+  const created = Date.parse(/[zZ]|[+-]\d{2}:?\d{2}$/.test(iso) ? iso : `${iso}+07:00`);
   const remaining = 3 * 24 * 60 * 60 * 1000 - (Date.now() - created);
   if (!Number.isFinite(created) || remaining <= 0) return { allowed: false, label: 'Đã khóa chỉnh sửa' };
   const days = Math.floor(remaining / 86400000), hours = Math.floor((remaining % 86400000) / 3600000);
@@ -3225,9 +3227,9 @@ function visibleNavigation() {
   const allowed = role === 'SALE'
     ? new Set(['dashboard','customers','accept','orders','revenue','businessReport','care','team','attendance','notifications','profile'])
     : role === 'LEADER' || role === 'MANAGER'
-      ? new Set(['dashboard','customers','pool','orders','revenue','businessReport','team','care','notifications','profile'])
+      ? new Set(['dashboard','customers','pool','orders','attendance','revenue','businessReport','team','care','notifications','profile'])
       : null;
-  return groups.map(([name, items]) => [name, items.filter(item => (!allowed || allowed.has(item[0])) && !(role === 'LEADER' && item[0] === 'attendance' && state.settings.leaderAttendanceRequired === false))]).filter(([, items]) => items.length);
+  return groups.map(([name, items]) => [name, items.filter(item => !allowed || allowed.has(item[0]))]).filter(([, items]) => items.length);
 }
 function allowedViews() { return Array.from(new Set([...visibleNavigation().flatMap(([, items]) => items.map(item => item[0])), 'profile'])); }
 function viewLabel(view) { return visibleNavigation().flatMap(([, items]) => items).find(item => item[0] === view)?.[1] || view; }
@@ -3880,6 +3882,16 @@ function openAdminBroadcastModal() {
             <label class="form-field" style="margin:0">Địa điểm / Link họp
               <input id="bcMeetingLink" placeholder="VD: Google Meet / Zoom hoặc Phòng họp tầng 2">
             </label>
+            <label class="form-field" style="grid-column:1/-1;margin-top:6px">Chọn giờ nhắc lại 1 lần nữa trước giờ họp:
+              <select id="bcRemindMinutes" style="width:100%;padding:6px 8px;border-radius:6px;border:1.5px solid #bfdbfe;font-weight:700;font-size:12px;color:#1e3a8a;background:#ffffff">
+                <option value="15" selected>⏰ Nhắc trước 15 phút (Khuyên dùng)</option>
+                <option value="30">⏰ Nhắc trước 30 phút</option>
+                <option value="45">⏰ Nhắc trước 45 phút</option>
+                <option value="60">⏰ Nhắc trước 1 tiếng</option>
+                <option value="120">⏰ Nhắc trước 2 tiếng</option>
+                <option value="0">❌ Không nhắc lại</option>
+              </select>
+            </label>
           </div>
         </div>
         <label class="form-field" style="grid-column:1/-1">Người chủ trì / Ban hành
@@ -3977,6 +3989,7 @@ function openAdminBroadcastModal() {
     const host = hostInput?.value.trim() || '';
     const meeting_time = $('#bcMeetingTime')?.value || null;
     const meeting_link = $('#bcMeetingLink')?.value || null;
+    const remind_minutes = Number($('#bcRemindMinutes')?.value ?? 15);
     const effective_date = $('#bcEffectiveDate')?.value || null;
 
     if (!title || !content) { toast('Vui lòng nhập tiêu đề và nội dung'); return; }
@@ -3991,7 +4004,7 @@ function openAdminBroadcastModal() {
       const res = await fetch(`${webhookApiBase()}/api/broadcast`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${serverSyncToken}` },
-        body: JSON.stringify({ type, target, title, content, host, meeting_time, meeting_link, effective_date })
+        body: JSON.stringify({ type, target, title, content, host, meeting_time, meeting_link, remind_minutes, effective_date })
       });
       const data = await res.json();
       if (data.ok) {
