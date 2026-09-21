@@ -1,5 +1,12 @@
 // Các hàm trình bày lấy nguyên từ giao diện tham chiếu. Adapter thay thao tác mô phỏng bằng CRM.
 let appState = { customers: [], orders: [], careGroups: [] };
+const CARE_PAGE_SIZE = 20;
+const carePageByGroup = Object.create(null);
+function setCarePage(groupId, page) {
+  carePageByGroup[groupId] = Math.max(1, Number(page) || 1);
+  if (typeof window.renderCareView === 'function') window.renderCareView();
+}
+window.setCarePage = setCarePage;
   function matchesPersonnelCustomer(customer, ownerId, members) {
     if (!ownerId || ownerId === 'ALL') return true;
     const member = members.find(m => m.id === ownerId);
@@ -153,7 +160,12 @@ let appState = { customers: [], orders: [], careGroups: [] };
     }
 
     container.innerHTML = GROUPS.map(g => {
-      const rows = g.list.map(c => `
+      const totalPages = Math.max(1, Math.ceil(g.list.length / CARE_PAGE_SIZE));
+      const currentPage = Math.min(totalPages, Math.max(1, carePageByGroup[g.id] || 1));
+      carePageByGroup[g.id] = currentPage;
+      const pageStart = (currentPage - 1) * CARE_PAGE_SIZE;
+      const visibleList = g.list.slice(pageStart, pageStart + CARE_PAGE_SIZE);
+      const rows = visibleList.map(c => `
         <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border-bottom: 1px solid var(--border-light); background: var(--bg-surface);">
           <div>
             <b style="font-size: 13px; color: var(--text-main);">${c.name}</b> 
@@ -168,19 +180,24 @@ let appState = { customers: [], orders: [], careGroups: [] };
       `).join('');
 
       return `
-        <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; box-shadow: var(--shadow-sm);">
-          <div style="padding: 14px 18px; border-bottom: 1px solid var(--border-light); display: flex; justify-content: space-between; align-items: center; background: var(--bg-surface);">
+        <div data-care-group="${g.id}" style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; box-shadow: var(--shadow-sm);">
+          <div data-care-toggle="${g.id}" role="button" tabindex="0" aria-expanded="false" onclick="filterCareGroup('${g.id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();filterCareGroup('${g.id}');}" style="padding: 12px 16px; border-bottom: 1px solid var(--border-light); display: flex; justify-content: space-between; align-items: center; gap: 12px; background: var(--bg-surface); cursor: pointer;">
             <div style="display: flex; align-items: center; gap: 8px;">
               <span style="font-weight: 700; font-size: 14px; color: var(--text-main);">${g.title}</span>
               <span style="color: var(--text-muted); font-size: 12.5px; font-weight: 600;">(${g.list.length})</span>
               ${g.tag ? `<span class="chip" style="background: ${g.color}15; color: ${g.color}; font-size: 11px; font-weight: 700;">${g.tag}</span>` : ''}
             </div>
             <div style="display: flex; gap: 6px;">
-              <button class="btn-secondary" style="padding: 4px 10px; font-size: 11px; border-radius: 6px;" onclick="openNewCustomerModal()">+ Thêm khách</button>
+              <span data-care-chevron style="display:inline-grid;place-items:center;width:26px;height:26px;border:1px solid var(--border);border-radius:7px;color:var(--text-muted);font-size:16px;line-height:1;">⌄</span>
             </div>
           </div>
-          <div>
+          <div data-care-list hidden>
             ${g.list.length ? rows : `<div style="padding: 24px; text-align: center; color: var(--text-muted); font-size: 13px;">${g.emptyText}</div>`}
+            ${totalPages > 1 ? `<div data-care-pagination style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-top:1px solid var(--border-light);background:var(--bg-subtle);">
+              <button type="button" class="btn-secondary" ${currentPage<=1?'disabled':''} onclick="event.stopPropagation();setCarePage('${g.id}',${currentPage-1})">← Trước</button>
+              <span style="font-size:11.5px;color:var(--text-muted);font-weight:700;">Trang ${currentPage}/${totalPages} · ${g.list.length} khách</span>
+              <button type="button" class="btn-secondary" ${currentPage>=totalPages?'disabled':''} onclick="event.stopPropagation();setCarePage('${g.id}',${currentPage+1})">Sau →</button>
+            </div>` : ''}
           </div>
         </div>
       `;

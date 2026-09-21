@@ -1401,7 +1401,7 @@ async function flushServerPersistence() {
   })();
   try{return await serverSavePromise;}finally{serverSavePromise=null;}
 }
-function startServerSyncPolling(){stopServerSyncPolling();serverSyncTimer=setInterval(()=>{if(currentAccount&&serverSyncToken){syncServerState();refreshNavigationCounts();}},3000);}
+function startServerSyncPolling(){stopServerSyncPolling();serverSyncTimer=setInterval(()=>{if(!document.hidden&&currentAccount&&serverSyncToken){syncServerState();refreshNavigationCounts();}},5000);}
 function stopServerSyncPolling(){if(serverSyncTimer)clearInterval(serverSyncTimer);serverSyncTimer=null;}
 async function refreshNavigationCounts() {
   if(!serverSyncToken||currentAccount?.role!=='ADMIN'||navigationCountsReading)return false;
@@ -2387,8 +2387,8 @@ function customerOwnerOptions() {
     const teams = Array.from(new Set(scope.leaders.map(person => person.teamId))).sort();
     const members = [...scope.leaders, ...scope.sales];
     const teamOptions = teams.map(teamId => `<option value="team:${escapeHtml(teamId)}" ${customerOwnerFilter === `team:${teamId}` ? 'selected' : ''}>Team ${escapeHtml(teamId)}</option>`).join('');
-    const memberOptions = members.map(person => `<option value="${person.role.toLowerCase()}:${escapeHtml(person.id)}" ${customerOwnerFilter === `${person.role.toLowerCase()}:${person.id}` ? 'selected' : ''}>${person.role === 'LEADER' ? 'Leader' : 'Sale'} Â· ${escapeHtml(person.name)}</option>`).join('');
-    return `<select id="customerOwnerFilter"><option value="ALL">Táº¥t cáº£ phÃ¢n cÃ´ng</option><option value="UNASSIGNED" ${customerOwnerFilter === 'UNASSIGNED' ? 'selected' : ''}>ChÆ°a phÃ¢n Sale</option>${teamOptions}${memberOptions}</select>`;
+    const memberOptions = members.map(person => `<option value="${person.role.toLowerCase()}:${escapeHtml(person.id)}" ${customerOwnerFilter === `${person.role.toLowerCase()}:${person.id}` ? 'selected' : ''}>${person.role === 'LEADER' ? 'Leader' : 'Sale'} · ${escapeHtml(person.name)}</option>`).join('');
+    return `<select id="customerOwnerFilter"><option value="ALL">Tất cả phân công</option><option value="UNASSIGNED" ${customerOwnerFilter === 'UNASSIGNED' ? 'selected' : ''}>Chưa phân Sale</option>${teamOptions}${memberOptions}</select>`;
   }
   if (currentAccount.role === 'SALE') return '';
   const members = currentAccount.role === 'ADMIN' ? activeStaff() : activeStaff().filter(person => person.teamId === currentAccount.teamId && (person.role === 'SALE' || person.id === currentAccount.leaderId));

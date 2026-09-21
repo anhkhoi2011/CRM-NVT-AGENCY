@@ -405,10 +405,10 @@
       requireRole(['ADMIN']);
       const target=String(input.target||'ALL').toUpperCase();
       const payload={type:String(input.type||'CUSTOM').toUpperCase(),target:['ALL','SALE','MANAGERS'].includes(target)?target:'ALL',title:String(input.title||'').trim(),content:String(input.content||'').trim(),host:String(input.host||'').trim(),meeting_time:input.meeting_time||null,meeting_link:String(input.meeting_link||'').trim()||null,remind_minutes:Number.isFinite(Number(input.remind_minutes))?Number(input.remind_minutes):15,effective_date:input.effective_date||null};
-      if(!payload.title||payload.title.length>200||!payload.content||payload.content.length>4000)throw Error('Nháº­p tiÃªu Ä‘á» vÃ  ná»™i dung há»£p lá»‡.');
+      if(!payload.title||payload.title.length>200||!payload.content||payload.content.length>4000)throw Error('Nhập tiêu đề và nội dung hợp lệ.');
       const response=await fetch(`${webhookApiBase()}/api/broadcast`,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json',Authorization:`Bearer ${serverSyncToken}`},body:JSON.stringify(payload)});
       let result={};try{result=await response.json();}catch{}
-      if(!response.ok||!result.ok)throw Error(result.error||`KhÃ´ng gá»­i Ä‘Æ°á»£c thÃ´ng bÃ¡o (HTTP ${response.status}).`);
+      if(!response.ok||!result.ok)throw Error(result.error||`Không gửi được thông báo (HTTP ${response.status}).`);
       state.notifications.unshift({id:makeRecordId('NT'),title:payload.title,text:`Telegram - ${payload.content}`,role:'ALL',at:stamp(),readBy:[]});
       audit('TELEGRAM_BROADCAST','NOTIFICATIONS',`${payload.title} - ${result.sent||0} nguoi nhan`);saveState();
       if(!await flushServerPersistence())throw Error('Telegram da gui nhung chua luu duoc lich su CRM.');

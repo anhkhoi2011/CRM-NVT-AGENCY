@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 // Chăm sóc dùng cùng state và giao dịch API với các màn hình CRM.
 function configuredCareGroups() {

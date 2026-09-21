@@ -20,6 +20,7 @@ const fs = require('node:fs');
 const fsp = require('node:fs/promises');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const zlib = require('node:zlib');
 const bcrypt = require('bcryptjs');
 const crmData = require('./crm-data.cjs');
 const { dbConfigured, dbQuery, dbHealth, pool } = require('./db.js');
@@ -959,7 +960,7 @@ async function serveStatic(request, response, urlPathname) {
     }
     return;
   }
-  if (!['/','/index.html','/crm.js','/crm.css','/crm-modern.css','/crm-boot.css','/logo.jpg','/login-background.jpg','/customer-journey.svg','/care-ui.js','/crm-runtime.html','/crm-runtime-api.js','/reference-view.js','/reference-crm.js','/nvt-mobile-auth.css','/desktop_login_demo.html','/customer_journey_demo.html','/team_tree_hierarchy_demo.html','/team-tree-hierarchy.css','/team-hierarchy-tree.svg','/team_tree_ui_demo.png','/team_tree_diagram_demo.png','/profile_form_demo.html','/profile-modal-redesign.svg','/data_page_demo.html','/data-page-redesign.svg','/mobile_login_fixed_demo.html','/mobile-login-redesign.svg','/mobile-auth-unified.svg','/mobile_admin_overview.html','/mobile-admin-overview.svg','/mobile-multitab-showcase.svg','/commission_tree_demo.html'].includes(decoded)) return sendJson(response,404,{error:'Không tìm thấy tài nguyên'});
+  if (!['/','/index.html','/crm.js','/crm.css','/crm-modern.css','/crm-boot.css','/logo.jpg','/login-background.jpg','/customer-journey.svg','/care-ui.js','/crm-runtime.html','/crm-runtime-api.js','/reference-view.js','/reference-crm.js','/nvt-mobile-auth.css','/mobile_login_fixed_demo.html','/mobile-login-redesign.svg','/mobile-auth-unified.svg','/mobile_admin_overview.html','/mobile-admin-overview.svg','/mobile-multitab-showcase.svg'].includes(decoded)) return sendJson(response,404,{error:'Không tìm thấy tài nguyên'});
 
   let relative = decoded === '/' ? '/index.html' : decoded;
   const absolute = path.resolve(REPO_ROOT, `.${path.posix.normalize(relative)}`);
@@ -978,12 +979,19 @@ async function serveStatic(request, response, urlPathname) {
     const extension = path.extname(absolute).toLowerCase();
     const body = await fsp.readFile(absolute);
     const hasVersion=Boolean(new URL(request.url, `http://${request.headers.host || 'localhost'}`).searchParams.get('v'));
-    response.writeHead(200, {
-      'Content-Type': MIME[extension] || 'application/octet-stream',
-      'Content-Length': body.length,
-      'Cache-Control': hasVersion ? 'public, max-age=31536000, immutable' : 'no-cache'
-    });
-    response.end(body);
+    const contentType=MIME[extension] || 'application/octet-stream';
+    const compressible=/^(text\/|application\/(javascript|json|xml)|image\/svg\+xml)/i.test(contentType);
+    const acceptsGzip=/\bgzip\b/i.test(String(request.headers['accept-encoding']||''));
+    const responseBody=compressible&&acceptsGzip&&body.length>1024?await new Promise((resolve,reject)=>zlib.gzip(body,{level:zlib.constants.Z_BEST_SPEED},(error,result)=>error?reject(error):resolve(result))):body;
+    const headers={
+      'Content-Type':contentType,
+      'Content-Length':responseBody.length,
+      'Cache-Control':hasVersion ? 'public, max-age=31536000, immutable' : 'no-cache',
+      'Vary':'Accept-Encoding'
+    };
+    if(responseBody!==body)headers['Content-Encoding']='gzip';
+    response.writeHead(200, headers);
+    response.end(responseBody);
   } catch {
     response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
     response.end('404 Không tìm thấy file');
@@ -1180,4 +1188,3 @@ function warnShadowed() {
 }
 
 // selfCheckHealth() được gọi trong callback của server.listen — gọi ở đây sẽ đua với bind.
-

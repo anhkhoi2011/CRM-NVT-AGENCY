@@ -27,7 +27,7 @@
       modal.querySelectorAll('[data-reference-delete-cancel]').forEach(button=>button.onclick=()=>close(false));
       modal.querySelector('[data-reference-delete-confirm]').onclick=()=>close(true);
     });
-  }  const money=v=>Number(v||0).toLocaleString('vi-VN')+' ₫';
+  }  const money=v=>Number(v||0).toLocaleString('vi-VN')+' VND';
   const text=(id,v)=>{const n=document.getElementById(id);if(n)n.textContent=v;};
   // Hien thi ten kem ID tai khoan, fallback ve id noi bo neu chua co accountId.
   const personWithId=id=>{const member=data?.members.find(m=>m.id===id);return member?`${member.name||'Chua dat ten'} - ID: ${member.accountId||member.id}`:'—';};
@@ -327,8 +327,8 @@
     if(data.user.role!=='ADMIN')return;editingCareId=id;
     const group=data.careGroups.find(g=>g.id===id),modal=q('#careGroupModal');
     q('#careGroupFieldSelect').innerHTML=data.fields.filter(f=>f.active!==false&&['SELECT','MULTI_SELECT'].includes(f.type)).map(f=>opt(f.id,f.label,group?.fieldId||'customerClass')).join('');
-    q('#careGroupNameInput').value=group?.name||'';modal.querySelector('h3').textContent=id?'Sửa mục chăm sóc':'Tạo mục chăm sóc';
-    if(!q('#refCareColor'))q('#careGroupNameInput').parentElement.insertAdjacentHTML('afterend',formField('Màu mục','<input id="refCareColor" type="color" value="#2563eb" style="width:64px;height:36px">'));
+    q('#careGroupNameInput').value=group?.name||'';modal.querySelector('h3').textContent=id?'Sua muc cham soc':'Tao muc cham soc';
+    if(!q('#refCareColor'))q('#careGroupNameInput').parentElement.insertAdjacentHTML('afterend',formField('Mau muc','<input id="refCareColor" type="color" value="#2563eb" style="width:64px;height:36px">'));
     q('#refCareColor').value=validColor(group?.color||'#2563eb');updateCareGroupOptions();qa('.care-value-checkbox').forEach(n=>n.checked=group?.values.includes(n.value)||false);updateCareSelectionSummary();
     modal.style.display='flex';modal.classList.add('open');modal.firstElementChild.style.maxHeight='92dvh';modal.firstElementChild.style.overflowY='auto';q('#careGroupNameInput').focus();
   }
@@ -403,15 +403,82 @@
     parents.forEach(([node,left,top])=>{node.scrollLeft=left;node.scrollTop=top;});
     bindReferenceDeleteButtons();
   };
-  renderCareView=function(){if(!data)return;renders.care();decorateCare();if(careKey)qa('#carePanelsContainer > div').forEach((p,i)=>p.hidden=['converted','hot','warm','cold'][i]!==careKey);};
-  window.filterCareGroup=function(key){careKey=key;renderCareView();const ids={converted:'g-conv',hot:'g-hot',warm:'g-warm',cold:'g-cold'};const panels=qa('#carePanelsContainer > div');panels.forEach((p,i)=>p.hidden=key && ['converted','hot','warm','cold'][i]!==key);};
+  if(!q('#referenceCareCompactStyles')){const style=document.createElement('style');style.id='referenceCareCompactStyles';style.textContent=`
+    #tab-care .analytics-grid{grid-template-columns:1fr!important;gap:8px!important;margin-bottom:14px!important;align-items:stretch!important}
+    #tab-care .analytics-grid>div{display:grid!important;grid-template-columns:minmax(0,1.6fr) auto minmax(190px,.8fr)!important;align-items:center!important;column-gap:18px!important;min-width:0!important;min-height:68px!important;padding:11px 16px!important;border-radius:9px!important;box-shadow:0 2px 8px rgba(15,23,42,.04)!important;box-sizing:border-box!important}
+    #tab-care .analytics-grid>div>div:first-child{min-width:0!important;margin:0!important}
+    #tab-care .analytics-grid>div>div:nth-child(2){margin:0!important;line-height:1!important}
+    #tab-care .analytics-grid>div>div:nth-child(3){margin:0!important;text-align:right!important;white-space:nowrap!important}
+    #tab-care .analytics-grid>div>div:first-child>span:first-child{display:block!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
+    #tab-care .analytics-grid>div:hover{transform:translateY(-1px);box-shadow:0 7px 16px rgba(15,23,42,.08)!important}
+    #carePanelsContainer{gap:9px!important}
+    #carePanelsContainer>[data-care-group][hidden]{display:none!important}
+    #carePanelsContainer>[data-care-group] [data-care-list][hidden]{display:none!important}
+    #carePanelsContainer>[data-care-group] [data-care-toggle]{transition:background .15s ease,border-color .15s ease}
+    #carePanelsContainer>[data-care-group] [data-care-toggle]:hover{background:#f8fbff!important}
+    #carePanelsContainer>[data-care-group].is-open{border-color:#93c5fd!important;box-shadow:0 5px 16px rgba(37,99,235,.08)!important}
+    #carePanelsContainer>[data-care-group].is-open [data-care-toggle]{background:#eff6ff!important;border-bottom-color:#bfdbfe!important}
+    #carePanelsContainer>[data-care-group] [data-care-chevron]{transition:transform .15s ease,background .15s ease}
+    #carePanelsContainer>[data-care-group].is-open [data-care-chevron]{transform:rotate(180deg);background:#dbeafe;color:#1d4ed8!important}
+    @media(max-width:640px){#tab-care .analytics-grid>div{grid-template-columns:minmax(0,1fr) auto!important;column-gap:10px!important;min-height:62px!important;padding:10px 12px!important}#tab-care .analytics-grid>div>div:nth-child(3){grid-column:1/-1;text-align:left!important;white-space:normal!important;font-size:10.5px!important;margin-top:-2px!important}}
+  `;document.head.appendChild(style);}
+  function renderCustomCareCards(){
+    const grid=q('#tab-care .analytics-grid');
+    if(!grid||!data)return;
+    qa('[data-custom-care-card]').forEach(card=>card.remove());
+    const groups=data.careGroups||[];
+    groups.forEach(group=>{
+      const list=data.customers.filter(customer=>{
+        const values=customer.customFields?.[group.fieldId];
+        return [].concat(values||'').some(value=>(group.values||[]).includes(value));
+      });
+      const card=document.createElement('div');
+      card.dataset.customCareCard='1';
+      card.dataset.careGroup=group.id;
+      card.style.cssText='background:var(--bg-surface);border:1px solid var(--border);border-top:3px solid '+validColor(group.color||'#64748b')+';border-radius:10px;padding:16px 18px;box-shadow:var(--shadow-sm);cursor:pointer;';
+      card.innerHTML='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px"><span style="font-size:13px;font-weight:600;color:var(--text-main)"></span><span style="color:'+validColor(group.color||'#64748b')+';font-size:15px">●</span></div><div style="font-size:30px;font-weight:800;font-family:var(--font-mono);color:var(--text-main);margin:6px 0 2px"></div><div style="font-size:11px;color:var(--text-muted)"></div>';
+      card.querySelector('span').textContent=group.name||'Mục chăm sóc';
+      card.querySelectorAll('div')[1].textContent=String(list.length);
+      card.querySelectorAll('div')[2].textContent='Phân loại: '+(group.values||[]).join(', ');
+      grid.appendChild(card);
+    });
+  }
+  function mountInlineCareLists(){
+    const grid=q('#tab-care .analytics-grid'),container=q('#carePanelsContainer');
+    if(!grid||!container)return;
+    qa('[data-care-inline-list]').forEach(list=>list.remove());
+    const defaultKeys=['g-conv','g-hot','g-warm','g-cold'];
+    qa('#tab-care .analytics-grid>div').forEach((card,index)=>{if(!card.dataset.careGroup&&defaultKeys[index])card.dataset.careGroup=defaultKeys[index];});
+    const panels=new Map(qa('#carePanelsContainer>[data-care-group]').map(panel=>[panel.dataset.careGroup,panel]));
+    qa('#carePanelsContainer>[data-care-group]').forEach(panel=>{panel.hidden=true;});
+    qa('#tab-care .analytics-grid>div[data-care-group]').forEach(card=>{
+      const key=card.dataset.careGroup,panel=panels.get(key),list=panel?.querySelector('[data-care-list]');
+      if(!list)return;
+      card.onclick=event=>{if(event.target.closest('[data-care-inline-list]'))return;window.filterCareGroup(key);};
+      if(careKey===key){
+        list.hidden=false;
+        list.dataset.careInlineList='1';
+        list.style.cssText='display:block;border-top:1px solid #dbe4ee;background:#fff;padding:0;margin:12px -16px -11px;';
+        card.appendChild(list);
+        card.classList.add('is-care-open');
+      }else card.classList.remove('is-care-open');
+    });
+  }
+  renderCareView=function(){if(!data)return;renders.care();renderCustomCareCards();decorateCare();const panels=qa('#carePanelsContainer > [data-care-group]');panels.forEach(panel=>{const key=panel.dataset.careGroup,open=Boolean(careKey&&key===careKey);panel.hidden=!open;panel.classList.toggle('is-open',open);const toggle=panel.querySelector('[data-care-toggle]');const list=panel.querySelector('[data-care-list]');if(toggle)toggle.setAttribute('aria-expanded',String(open));if(list)list.hidden=!open;});mountInlineCareLists();};
+  window.filterCareGroup=function(key){
+    const raw=String(key||'').trim();
+    const aliases={converted:'g-conv',conversion:'g-conv',conv:'g-conv',hot:'g-hot',warm:'g-warm',cold:'g-cold'};
+    const normalized=aliases[raw]||(raw.startsWith('g-')?raw:'g-'+raw);
+    careKey=careKey===normalized?'':normalized;
+    renderCareView();
+  };
   function dashboard() {
     const total=data.customers.length,connected=data.customers.filter(c=>!['NEW','LOST'].includes(c.status)).length;
     const today=data.customers.filter(c=>c.createdAt?.slice(0,10)===data.today).length;
     const revenue=data.financialEvents.reduce((sum,e)=>sum+Number(e.amount||0),0);
     const rentals=data.orders.filter(o=>o.status==='PAID'&&o.rentalMonths&&o.rentalEndsAt?.slice(0,10)>=data.today);
     text('dashTotalCust',total);text('dashCustConnected',`${connected} (${total?(connected/total*100).toFixed(1):0}%)`);text('dashCustPending',`${total-connected} (${total?((total-connected)/total*100).toFixed(1):0}%)`);
-    text('dashNewCustToday',today);text('dashCustTodayFoot','+'+today+' mới');text('dashCustWeekFoot',data.customers.filter(c=>c.createdAt?.slice(0,10)>=fromDay(7)).length+' data');text('dashPaidRevenue',money(revenue));text('dashFirstBuyCust',rentals.length);
+    text('dashNewCustToday',today);text('dashCustTodayFoot','+'+today+' má»›i');text('dashCustWeekFoot',data.customers.filter(c=>c.createdAt?.slice(0,10)>=fromDay(7)).length+' data');text('dashPaidRevenue',money(revenue));text('dashFirstBuyCust',rentals.length);
     if(q('#meterTotalCust'))q('#meterTotalCust').style.width=(total?connected/total*100:0)+'%';
   }
 
@@ -513,7 +580,7 @@
       }
       const recentHead=table.querySelector('thead tr');
       if(recentHead&&!recentHead.querySelector('[data-order-phone-column]')){
-        const customerHeader=Array.from(recentHead.cells).find(cell=>/KHÁCH HÀNG|KHÃCH HÃ€NG/i.test(cell.textContent||''));
+        const customerHeader=Array.from(recentHead.cells).find(cell=>/KHÁCH HÀNG|KHÁCH HÀNG/i.test(cell.textContent||''));
         if(customerHeader){const phoneHeader=document.createElement('th');phoneHeader.dataset.orderPhoneColumn='1';phoneHeader.textContent='SĐT KH';customerHeader.after(phoneHeader);}
       }
       Array.from(body.rows).forEach((row,index)=>{
@@ -623,7 +690,7 @@
     const orderTable=body.closest('table');
     const orderHead=orderTable?.querySelector('thead tr');
     if(orderHead&&!orderHead.querySelector('[data-order-phone-column]')){
-      const customerHeader=Array.from(orderHead.cells).find(cell=>/KHÁCH HÀNG|KHÃCH HÃ€NG/i.test(cell.textContent||''));
+      const customerHeader=Array.from(orderHead.cells).find(cell=>/KHÁCH HÀNG|KHÁCH HÀNG/i.test(cell.textContent||''));
       if(customerHeader){const phoneHeader=document.createElement('th');phoneHeader.dataset.orderPhoneColumn='1';phoneHeader.textContent='SĐT KH';customerHeader.after(phoneHeader);}
     }
     body.querySelectorAll('tr').forEach(row=>{
@@ -754,19 +821,19 @@
       if(role==='LEADER'&&current?.id)leaderList=[current];
       if(role==='SALE'&&current?.leaderId)leaderList=scoped.filter(m=>m.id===current.leaderId&&m.role==='LEADER');
       const initials=name=>String(name||'?').trim().split(/\s+/).slice(-2).map(part=>part[0]||'').join('').toUpperCase()||'?';
-      const nameOf=id=>scoped.find(m=>m.id===id)?.name||data.members.find(m=>m.id===id)?.name||'Ch0a phn';
+      const nameOf=id=>scoped.find(m=>m.id===id)?.name||data.members.find(m=>m.id===id)?.name||'Ch0a phn';
       const makeLeaderCard=leader=>{
         const sales=scoped.filter(m=>m.role==='SALE'&&(role==='SALE'?m.id===current?.id:m.leaderId===leader.id));
         const manager=managerList.find(m=>m.id===leader.managerId);
-        const detail=sales.length?sales.map(s=>'<div class="team-sale-row"><div class="team-sale-avatar">'+esc(initials(s.name))+'</div><div class="team-sale-info"><span class="team-sale-name">'+esc(s.name||'Ch0a c t00n')+'</span><span class="team-sale-phone">'+esc(s.phone||s.accountId||'Ch0a c thng tin')+'</span></div></div>').join(''):'<div class="team-hierarchy-empty">Ch0a c Sale trong team</div>';
-        return '<div class="team-leader-card"><button type="button" class="team-leader-toggle" aria-expanded="false"><span class="team-leader-main"><span class="team-leader-avatar">'+esc(initials(leader.name))+'</span><span class="team-leader-info"><span class="team-leader-name">'+esc('Team '+(leader.name||leader.teamId||'Ch0a phn'))+'</span><span class="team-leader-meta">Leader: '+esc(leader.name||'—')+' · '+sales.length+' Sale'+(manager?' · Qun l1: '+esc(manager.name):'')+'</span></span></span><span class="team-leader-chevron">+</span></button><div class="team-sale-list" hidden>'+detail+'</div></div>';
+        const detail=sales.length?sales.map(s=>'<div class="team-sale-row"><div class="team-sale-avatar">'+esc(initials(s.name))+'</div><div class="team-sale-info"><span class="team-sale-name">'+esc(s.name||'Ch0a c t00n')+'</span><span class="team-sale-phone">'+esc(s.phone||s.accountId||'Ch0a c thng tin')+'</span></div></div>').join(''):'<div class="team-hierarchy-empty">Ch0a c Sale trong team</div>';
+        return '<div class="team-leader-card"><button type="button" class="team-leader-toggle" aria-expanded="false"><span class="team-leader-main"><span class="team-leader-avatar">'+esc(initials(leader.name))+'</span><span class="team-leader-info"><span class="team-leader-name">'+esc('Team '+(leader.name||leader.teamId||'Ch0a phn'))+'</span><span class="team-leader-meta">Leader: '+esc(leader.name||'—')+' · '+sales.length+' Sale'+(manager?' · Qun l1: '+esc(manager.name):'')+'</span></span></span><span class="team-leader-chevron">+</span></button><div class="team-sale-list" hidden>'+detail+'</div></div>';
       };
-      const renderGroup=(manager,leaders)=>'<div class="team-manager-group">'+(manager?'<div class="team-manager-head">Qun l1: '+esc(manager.name||'—')+'</div>':'<div class="team-manager-head">Ch0a phn Manager</div>')+'<div class="team-leader-list">'+(leaders.length?leaders.map(makeLeaderCard).join(''):'<div class="team-hierarchy-empty">Ch0a c Leader</div>')+'</div></div>';
+      const renderGroup=(manager,leaders)=>'<div class="team-manager-group">'+(manager?'<div class="team-manager-head">Qun l1: '+esc(manager.name||'—')+'</div>':'<div class="team-manager-head">Ch0a phn Manager</div>')+'<div class="team-leader-list">'+(leaders.length?leaders.map(makeLeaderCard).join(''):'<div class="team-hierarchy-empty">Ch0a c Leader</div>')+'</div></div>';
       const groups=[];
       managerList.forEach(manager=>groups.push(renderGroup(manager,leaderList.filter(leader=>leader.managerId===manager.id))));
       const unassignedLeaders=leaderList.filter(leader=>!managerList.some(manager=>manager.id===leader.managerId));
       if(unassignedLeaders.length||!groups.length)groups.push(renderGroup(null,unassignedLeaders.length?unassignedLeaders:leaderList));
-      hierarchyOverview.innerHTML='<div class="team-hierarchy-head"><div><div class="team-hierarchy-title">C0y ng5</div><div class="team-hierarchy-subtitle">B1m vo Leader/Team  xem Sale ph trch</div></div></div>'+(groups.join('')||'<div class="team-hierarchy-empty">Ch0a c d0 liu 1i ng5</div>');
+      hierarchyOverview.innerHTML='<div class="team-hierarchy-head"><div><div class="team-hierarchy-title">C0y ng5</div><div class="team-hierarchy-subtitle">B1m vo Leader/Team  xem Sale ph trch</div></div></div>'+(groups.join('')||'<div class="team-hierarchy-empty">Ch0a c d0 liu 1i ng5</div>');
       hierarchyOverview.querySelectorAll('.team-leader-toggle').forEach(button=>{button.onclick=()=>{const detail=button.nextElementSibling,open=detail.hidden;detail.hidden=!open;button.setAttribute('aria-expanded',String(open));const icon=button.querySelector('.team-leader-chevron');if(icon)icon.textContent=open?'−':'+';};});
     }
     // Dynamic team hierarchy is rendered above this table.
@@ -1110,7 +1177,7 @@
               <input data-telegram-host value="Ban Quản Trị NVT Agency">
             </label>
             <label style="display:block;margin-top:12px;font-size:12.5px;font-weight:800;color:#1e335f">
-              Nội dung
+              Ná»™i dung
               <textarea required maxlength="4000" rows="4" data-telegram-content></textarea>
             </label>
             <div class="telegram-send-row"><div style="display:flex;justify-content:flex-end;gap:8px;width:100%">
@@ -1401,6 +1468,69 @@
   function syncWorkflowControls(){workflowPairs.forEach(([source,clone])=>{if(source.matches('input,select,textarea')){if(source.type==='file'){if(clone.files?.length)source.files=clone.files;}else{source.value=clone.value;if('checked'in source)source.checked=clone.checked;}}});}
   function drawWorkflow(){
     if(!workflowModal)return;const source=api.workflowRoot();if(!source){workflowModal.remove();workflowModal=null;workflowPairs=[];refresh(true);return;}
+    if(workflowModal.dataset.workflowKind==='customer'){
+      workflowModal.querySelector('.modal-card')?.classList.add('customer-profile-modal');
+      if(!q('#referenceCustomerModalStyles')){const style=document.createElement('style');style.id='referenceCustomerModalStyles';style.textContent=`
+        .customer-profile-modal{width:min(980px,calc(100vw - 24px))!important;height:min(94dvh,980px)!important;max-height:94dvh!important;overflow:hidden!important;border:1px solid #dbe4ee!important;border-radius:16px!important;background:#f8fafc!important;box-shadow:0 22px 60px rgba(15,23,42,.24)!important}
+        .customer-profile-modal>.modal-header{display:flex!important;align-items:center!important;min-height:58px!important;padding:14px 20px!important;background:#f1f5f9!important;border-bottom:1px solid #dbe4ee!important}
+        .customer-profile-modal>.modal-header h3{margin:0!important;color:#10213f!important;font-size:18px!important;font-weight:800!important;line-height:1.25!important}
+        .customer-profile-modal>.modal-body{display:block!important;min-height:0!important;padding:0!important;overflow:auto!important;background:#f8fafc!important}
+        .customer-profile-modal [data-workflow-body]{padding:18px 20px 24px!important;color:#17233b!important;font-family:Arial,"Segoe UI",sans-serif!important;font-size:13px!important}
+        .customer-profile-modal .section-label{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important;margin:18px 0 8px!important;color:#10213f!important;font-size:13px!important;font-weight:800!important;line-height:1.3!important}
+        .customer-profile-modal .section-label:first-child{margin-top:0!important}
+        .customer-profile-modal .detail-grid{display:grid!important;grid-template-columns:minmax(150px,.8fr) minmax(0,2fr)!important;gap:0 18px!important;margin:0!important;padding:4px 16px!important;border:1px solid #dbe4ee!important;border-radius:11px!important;background:#fff!important;box-shadow:0 2px 8px rgba(15,23,42,.035)!important}
+        .customer-profile-modal .detail-grid dt,.customer-profile-modal .detail-grid dd{min-width:0!important;margin:0!important;padding:9px 0!important;border-bottom:1px solid #edf1f5!important;line-height:1.35!important;overflow-wrap:anywhere!important}
+        .customer-profile-modal .detail-grid dt{color:#64748b!important;font-size:11.5px!important;font-weight:700!important}
+        .customer-profile-modal .detail-grid dd{color:#1e293b!important;font-size:12.5px!important;font-weight:600!important}
+        .customer-profile-modal .detail-grid dt:last-of-type,.customer-profile-modal .detail-grid dd:last-of-type{border-bottom:0!important}
+        .customer-profile-modal .detail-grid .status{display:inline-flex!important;align-items:center!important;padding:4px 9px!important;border-radius:999px!important;font-size:11px!important;font-weight:800!important}
+        .customer-profile-modal .form-grid,.customer-profile-modal .inline-form,.customer-profile-modal form{margin:0!important}
+        .customer-profile-modal .form-grid,.customer-profile-modal .custom-field-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:12px!important;padding:14px 16px!important;border:1px solid #dbe4ee!important;border-radius:11px!important;background:#fff!important;box-shadow:0 2px 8px rgba(15,23,42,.035)!important}
+        .customer-profile-modal .form-field{display:grid!important;gap:6px!important;min-width:0!important;margin:0!important;color:#475569!important;font-size:11.5px!important;font-weight:700!important;line-height:1.3!important}
+        .customer-profile-modal .form-field input,.customer-profile-modal .form-field select,.customer-profile-modal .form-field textarea,.customer-profile-modal .inline-form select{width:100%!important;min-height:39px!important;box-sizing:border-box!important;padding:8px 10px!important;border:1px solid #cbd5e1!important;border-radius:8px!important;background:#fff!important;color:#0f172a!important;font:600 12.5px/1.35 Arial,"Segoe UI",sans-serif!important;outline:none!important}
+        .customer-profile-modal .form-field textarea{min-height:82px!important;resize:vertical!important}
+        .customer-profile-modal .form-field input:focus,.customer-profile-modal .form-field select:focus,.customer-profile-modal .form-field textarea:focus,.customer-profile-modal .inline-form select:focus{border-color:#2563eb!important;box-shadow:0 0 0 3px rgba(37,99,235,.12)!important}
+        .customer-profile-modal .inline-form{display:flex!important;align-items:center!important;gap:10px!important;padding:12px 16px!important;border:1px solid #dbe4ee!important;border-radius:11px!important;background:#fff!important}
+        .customer-profile-modal .inline-form select{width:min(260px,100%)!important;flex:1 1 220px!important}
+        .customer-profile-modal .modal-actions,.customer-profile-modal .panel-actions{display:flex!important;align-items:center!important;gap:8px!important;flex-wrap:wrap!important;margin:12px 0 0!important;padding:0!important}
+        .customer-profile-modal .button{min-height:36px!important;padding:8px 13px!important;border-radius:8px!important;font-size:12px!important;font-weight:800!important}
+        .customer-profile-modal .button-primary{background:#2563eb!important;border-color:#2563eb!important;color:#fff!important;box-shadow:0 5px 12px rgba(37,99,235,.18)!important}
+        .customer-profile-modal .button-danger{background:#fff1f2!important;border-color:#fecdd3!important;color:#be123c!important}
+        .customer-profile-modal .custom-field-multi{grid-column:span 1!important;min-width:0!important;margin:0!important;padding:10px 12px!important;border:1px solid #bfdbfe!important;border-radius:9px!important;background:#eff6ff!important}
+        .customer-profile-modal .custom-field-multi legend{padding:0 4px!important;color:#1e40af!important;font-size:11.5px!important;font-weight:800!important}
+        .customer-profile-modal .custom-field-multi>div{display:flex!important;flex-wrap:wrap!important;gap:7px!important;margin-top:5px!important}
+        .customer-profile-modal .custom-field-multi>div>label{display:inline-flex!important;align-items:center!important;gap:5px!important;padding:4px 7px!important;border:1px solid #dbeafe!important;border-radius:7px!important;background:#fff!important;font-size:11px!important;font-weight:700!important;color:#334155!important;cursor:pointer!important}
+        .customer-profile-modal .custom-field-multi input{width:auto!important;min-height:auto!important;margin:0!important;accent-color:#2563eb!important}
+        .customer-profile-modal .timeline,.customer-profile-modal .purchase-list,.customer-profile-modal .follow-up-list{display:grid!important;gap:8px!important;margin:0!important}
+        .customer-profile-modal .timeline-item,.customer-profile-modal .purchase-row,.customer-profile-modal .follow-up-row,.customer-profile-modal .empty{display:block!important;width:100%!important;box-sizing:border-box!important;margin:0!important;padding:11px 13px!important;border:1px solid #dbe4ee!important;border-radius:9px!important;background:#fff!important;color:#1e293b!important;box-shadow:0 1px 5px rgba(15,23,42,.025)!important}
+        .customer-profile-modal .timeline-item b,.customer-profile-modal .purchase-row b,.customer-profile-modal .follow-up-row b,.customer-profile-modal .empty b{font-size:12px!important;color:#17233b!important}
+        .customer-profile-modal .timeline-item p,.customer-profile-modal .timeline-item small,.customer-profile-modal .purchase-row small,.customer-profile-modal .follow-up-row small,.customer-profile-modal .empty span{display:block!important;margin:4px 0 0!important;color:#64748b!important;font-size:11px!important;line-height:1.4!important}
+        .customer-profile-modal .purchase-row,.customer-profile-modal .follow-up-row{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px!important;text-align:left!important;cursor:pointer!important}
+        .customer-profile-modal .purchase-row:hover{border-color:#93c5fd!important;background:#f8fbff!important}
+        .customer-profile-modal .note-actions{display:flex!important;gap:6px!important;margin-top:8px!important}
+        .customer-profile-modal .duplicate-alert{margin:0 0 12px!important;padding:10px 12px!important;border:1px solid #fed7aa!important;border-radius:9px!important;background:#fff7ed!important;color:#9a3412!important}
+        .customer-profile-modal .duplicate-alert b,.customer-profile-modal .duplicate-alert span{display:block!important;font-size:11.5px!important;line-height:1.4!important}
+        .customer-profile-modal .customer-care-shortcuts{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;margin:12px 0 16px!important}
+        .customer-profile-modal .customer-care-shortcuts button{display:flex!important;align-items:center!important;justify-content:center!important;gap:6px!important;min-height:38px!important;padding:8px 12px!important;border:1px solid #bfdbfe!important;border-radius:8px!important;background:#eff6ff!important;color:#1d4ed8!important;font-size:12px!important;font-weight:800!important;cursor:pointer!important}
+        .customer-profile-modal .customer-care-shortcuts button:hover{background:#dbeafe!important;border-color:#93c5fd!important}
+        .customer-profile-modal>.modal-footer{position:relative!important;display:flex!important;align-items:center!important;justify-content:flex-end!important;gap:8px!important;min-height:58px!important;padding:10px 20px!important;border-top:1px solid #dbe4ee!important;background:#f1f5f9!important}
+        .customer-profile-modal>.modal-footer [data-workflow-notice]{margin-right:auto!important;color:#2563eb!important;font-size:11.5px!important;font-weight:700!important}
+        @media(max-width:640px){
+          .customer-profile-modal{width:calc(100vw - 12px)!important;height:calc(100dvh - 12px)!important;max-height:calc(100dvh - 12px)!important;border-radius:12px!important}
+          .customer-profile-modal [data-workflow-body]{padding:14px 12px 18px!important}
+          .customer-profile-modal .detail-grid{grid-template-columns:1fr!important;gap:0!important;padding:4px 12px!important}
+          .customer-profile-modal .detail-grid dt{padding:8px 0 2px!important;border-bottom:0!important}
+          .customer-profile-modal .detail-grid dd{padding:2px 0 8px!important}
+          .customer-profile-modal .form-grid,.customer-profile-modal .custom-field-grid{grid-template-columns:1fr!important;padding:12px!important}
+          .customer-profile-modal .custom-field-multi{grid-column:auto!important}
+          .customer-profile-modal .inline-form{align-items:stretch!important;flex-direction:column!important;padding:12px!important}
+          .customer-profile-modal .inline-form select{width:100%!important;flex-basis:auto!important}
+          .customer-profile-modal .customer-care-shortcuts{grid-template-columns:1fr!important}
+          .customer-profile-modal>.modal-footer{padding:9px 12px!important}
+          .customer-profile-modal>.modal-footer button{flex:1 1 0!important}
+        }
+      `;document.head.appendChild(style);}
+    }
     if(workflowModal.dataset.workflowKind==='profile'&&!q('#referenceProfileModernStyles')){const style=document.createElement('style');style.id='referenceProfileModernStyles';style.textContent='.profile-modal-card .modal-body{padding:0!important}.profile-modal-card .profile-panel{border:0!important;box-shadow:none!important;background:transparent!important}.profile-modal-card .profile-panel-body{max-width:none!important;padding:22px!important}.profile-modal-card .profile-hero{display:flex!important;align-items:center!important;gap:20px!important;padding:20px!important;margin:0 0 22px!important;border:1px solid var(--border)!important;border-radius:14px!important;background:linear-gradient(135deg,#f8fafc,#f1f5f9)!important}.profile-modal-card .profile-avatar-stage{position:relative!important;width:76px!important;height:76px!important}.profile-modal-card .profile-avatar-large{width:76px!important;height:76px!important;border-radius:50%!important;object-fit:cover!important}.profile-modal-card .profile-avatar-camera{display:grid!important;position:absolute!important;right:-4px!important;bottom:-3px!important;width:26px!important;height:26px!important;padding:0!important;border-radius:50%!important;background:#fff!important;color:#2563eb!important}.profile-modal-card .profile-role-row{display:flex!important;align-items:center!important;gap:8px!important;flex-wrap:wrap!important}.profile-modal-card .profile-fields{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:16px!important}.profile-modal-card .profile-fields .form-group{display:grid!important;gap:7px!important;margin:0!important;min-width:0!important;color:var(--text-muted)!important;font-size:11px!important;font-weight:700!important}.profile-modal-card .profile-fields .form-group>span{display:flex!important;align-items:center!important}.profile-modal-card .profile-input-wrap input{width:100%!important;min-height:42px!important;margin:0!important;padding:0 12px 0 34px!important}.profile-modal-card .profile-security-note{display:flex!important}.profile-modal-card .profile-actions{display:none!important}.profile-modal-card .modal-footer{justify-content:flex-end!important;gap:8px!important}.profile-modal-card .modal-footer [data-workflow-notice]{margin-right:auto!important}.profile-modal-card .modal-footer [data-workflow-profile-save]{order:2!important}@media(max-width:560px){.profile-modal-card .profile-panel-body{padding:16px!important}.profile-modal-card .profile-hero{align-items:flex-start!important;padding:16px!important;gap:14px!important}.profile-modal-card .profile-fields{grid-template-columns:1fr!important}.profile-modal-card .modal-footer{justify-content:stretch!important}.profile-modal-card .modal-footer [data-workflow-notice]{flex-basis:100%!important}.profile-modal-card .modal-footer button{flex:1!important}}';document.head.appendChild(style);}
     const body=workflowModal.querySelector('[data-workflow-body]'),copy=source.cloneNode(true);workflowMarkup=source.innerHTML;copy.className='';copy.removeAttribute('id');if(workflowModal.dataset.workflowKind==='profile'){const pageHead=copy.querySelector('.page-head');if(pageHead)pageHead.hidden=true;const innerTitle=copy.querySelector('.profile-hero-copy h2');if(innerTitle)innerTitle.hidden=true;}const title=source.ownerDocument.querySelector('#modalTitle')?.textContent||source.ownerDocument.querySelector('#drawerRoot h2')?.textContent||source.ownerDocument.querySelector('#content h1')?.textContent;if(title)workflowModal.querySelector('h3').textContent=title;
     const originals=[source,...source.querySelectorAll('*')],clones=[copy,...copy.querySelectorAll('*')];workflowPairs=originals.map((n,i)=>[n,clones[i]]);styleWorkflow(copy);if(workflowModal.dataset.workflowKind==='profile'){copy.querySelector('.profile-panel')?.style.setProperty('padding','0','important');copy.querySelector('.profile-panel-body')?.style.setProperty('padding','22px','important');copy.querySelector('.profile-hero')?.style.setProperty('display','flex','important');copy.querySelector('.profile-hero')?.style.setProperty('align-items','center','important');copy.querySelector('.profile-fields')?.style.setProperty('display','grid','important');copy.querySelector('.profile-fields')?.style.setProperty('grid-template-columns','repeat(2,minmax(0,1fr))','important');if(window.matchMedia('(max-width:560px)').matches){copy.querySelector('.profile-panel-body')?.style.setProperty('padding','16px','important');copy.querySelector('.profile-fields')?.style.setProperty('grid-template-columns','1fr','important');copy.querySelector('.profile-hero')?.style.setProperty('align-items','flex-start','important');}copy.querySelector('.profile-avatar-status')?.remove();const upload=copy.querySelector('.profile-upload-button');if(upload){upload.hidden=false;upload.removeAttribute('style');upload.className='button button-small profile-upload-button';upload.textContent='Đổi avatar';upload.style.cssText='display:inline-flex!important;align-items:center;justify-content:center;cursor:pointer;padding:9px 14px;border-radius:8px;background:#2563eb;color:#fff;font-weight:700;line-height:1.2';}const fileInput=copy.querySelector('#wf-profileAvatarInput');if(fileInput){fileInput.hidden=false;fileInput.classList.remove('is-hidden');fileInput.style.cssText='position:absolute;width:1px;height:1px;opacity:0;pointer-events:none';if(upload)upload.onclick=()=>fileInput?.click();}copy.querySelector('.profile-hero-copy')?.style.setProperty('display','block','important');copy.querySelector('.profile-hero-copy p')?.style.setProperty('margin','6px 0 12px','important');}
@@ -1411,6 +1541,18 @@
     }
     workflowPairs.forEach(([n,c],i)=>{c.dataset.workflowNode=i;if(n.matches('input,select,textarea')){if(n.type!=='file')c.value=n.value;c.checked=n.checked;c.disabled=n.disabled;}});
     body.replaceChildren(copy);
+    if(workflowModal.dataset.workflowKind==='customer'){
+      const detailGrid=body.querySelector('.detail-grid');
+      const appointmentButton=body.querySelector('#btnNewCustAppointment');
+      const noteInput=body.querySelector('#customerNote');
+      const shortcuts=document.createElement('div');
+      shortcuts.className='customer-care-shortcuts';
+      shortcuts.innerHTML='<button type="button" data-customer-care-note>✎ Thêm ghi chú Sale</button><button type="button" data-customer-care-appointment>📅 Tạo lịch hẹn</button>';
+      const insertTarget=detailGrid||body.firstElementChild;
+      insertTarget?.after(shortcuts);
+      shortcuts.querySelector('[data-customer-care-note]').onclick=()=>{noteInput?.focus();noteInput?.scrollIntoView({behavior:'smooth',block:'center'});};
+      shortcuts.querySelector('[data-customer-care-appointment]').onclick=()=>{if(appointmentButton){appointmentButton.scrollIntoView({behavior:'smooth',block:'center'});appointmentButton.focus();}};
+    }
     if(workflowModal.dataset.workflowKind==='profile'){
       // Thu gon khu vuc avatar: chi giu anh vuong va nut doi avatar.
       const profileHero=body.querySelector('.profile-hero');
@@ -1621,7 +1763,7 @@
       @media(max-width:820px){.brokerage-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.brokerage-toolbar{align-items:stretch}.brokerage-toolbar label{width:100%}}
     `;document.head.appendChild(style);
   }
-  const brokerageMoney=value=>Number(value||0).toLocaleString('vi-VN')+' đ';
+  const brokerageMoney=value=>Number(value||0).toLocaleString('vi-VN')+' VND';
   const brokerageRate=value=>(Number(value||0)*100).toLocaleString('vi-VN',{maximumFractionDigits:2})+'%';
   const brokerageProductType=order=>{const product=data.products.find(item=>item.id===order.productId)||{};const label=(product.category||order.productName||'').toLocaleLowerCase('vi-VN');return product.type==='RENTAL'||label.includes('chỉ báo')||label.includes('indicator')?'INDICATOR':label.includes('khóa học')||label.includes('khoa hoc')?'COURSE':'OTHER';};
   function brokerageSales(){const role=data.user.actualRole||data.user.role;if(role==='ADMIN')return data.members.filter(m=>m.role==='SALE'&&m.active!==false);if(role==='MANAGER')return (data.managerHierarchy?.members||[]).filter(m=>m.role==='SALE'&&m.active!==false);if(role==='LEADER')return data.members.filter(m=>m.role==='SALE'&&m.leaderId===data.user.leaderId&&m.active!==false);return data.members.filter(m=>m.role==='SALE'&&(m.id===data.user.saleId||m.id===data.user.id)&&m.active!==false);}
@@ -1800,7 +1942,7 @@
     const updateCard=(id,title,value,sub,deltaValue)=>{const valueNode=q(`#${id}`);if(!valueNode)return;valueNode.textContent=money(value);const card=valueNode.closest('.bento-card');if(!card)return;const titleNode=card.querySelector('div:first-child span:first-child');if(titleNode)titleNode.textContent=title;const footer=card.querySelector('div[style*="margin-top: 10px"]');if(footer){const parts=footer.querySelectorAll('span,b');if(parts[0])parts[0].textContent=sub||'';if(parts[1])parts[1].textContent='';}const chip=card.querySelector('div:first-child span:last-child');if(chip){chip.textContent=badge(deltaValue);chip.style.background=deltaValue>=0?'#dcfce7':'#fee2e2';chip.style.color=deltaValue>=0?'#15803d':'#b91c1c';}};
     updateCard('revStatSoldAmount','DOANH THU KHÓA HỌC',current.course,`${current.courseCount} khóa bán`,change(current.course,previous.course));
     updateCard('revStatRentingCust','DOANH THU THUÊ CHỈ BÁO',current.rental,`${current.rentalCustomers} khách đang thuê`,change(current.rental,previous.rental));
-    updateCard('revStatMrr','TỔNG DOANH THU',current.total,'',change(current.total,previous.total));
+    updateCard('revStatMrr','Tá»"NG DOANH THU',current.total,'',change(current.total,previous.total));
     updateCard('revStatAov','DOANH THU SAU THUẾ',current.afterTax,'',change(current.afterTax,previous.afterTax));
     text('revRentalCountFooter',`${current.rentalCustomers} khách`);
     text('revRentalAmountFooter',money(current.rental));
@@ -2121,6 +2263,5 @@
   // Không để màn hình chờ quay vô hạn khi iframe đăng nhập khởi tạo chậm/lỡ sự kiện load.
   const revealLoginFallback=()=>{if(data||!bootScreen)return;bootScreen.setAttribute('hidden','');frame.hidden=false;frame.style.display='block';frame.classList.add('is-login-visible');};
   bootFallbackTimer=setTimeout(revealLoginFallback,2500);
-  refreshTimer=setInterval(()=>refresh(),3000);frame.addEventListener('load',()=>refresh(true));
+  refreshTimer=setInterval(()=>{if(!document.hidden)refresh();},5000);frame.addEventListener('load',()=>refresh(true));
 })();
-
