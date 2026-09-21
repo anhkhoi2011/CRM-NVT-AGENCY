@@ -25,6 +25,7 @@ const crmData = require('./crm-data.cjs');
 const { dbConfigured, dbQuery, dbHealth, pool } = require('./db.js');
 const { provisionSystemAccounts } = require('./system-accounts.cjs');
 const { persistWebhook } = require('./webhook-store.cjs');
+const telegramBot = require('./telegram-bot.cjs');
 let nodemailer = null;
 try { nodemailer = require('nodemailer'); } catch { /* email optional until npm install */ }
 
@@ -841,6 +842,25 @@ async function handleWebhook(request, response, slug) {
   scheduleFlush();
   notifyInboxListeners(record);
 
+  if (record.status === 'NEW' && record.customerId) {
+    (async () => {
+      try {
+        const [custRows] = await pool.execute('SELECT * FROM customers WHERE id = ?', [record.customerId]);
+        if (custRows && custRows.length) {
+          const cust = custRows[0];
+          const [offerDocs] = await pool.query("SELECT body FROM crm_documents WHERE collection = 'dataOffers' AND JSON_EXTRACT(body, '$.customerId') = ?", [record.customerId]);
+          let offer = null;
+          if (offerDocs && offerDocs.length) {
+            offer = typeof offerDocs[0].body === 'string' ? JSON.parse(offerDocs[0].body) : offerDocs[0].body;
+          }
+          await telegramBot.notifyNewLead(cust, offer);
+        }
+      } catch (err) {
+        console.warn('[Telegram Bot] notify lead notice:', err.message);
+      }
+    })().catch(() => {});
+  }
+
   console.log(`[webhook] ${record.status} ${slug} · ${record.customer.name || '(không tên)'} · ${record.customer.phone || '(không sdt)'}`);
   sendJson(response, adapted.ok ? 200 : 422, {
     received: true,
@@ -983,6 +1003,79 @@ const server = http.createServer(async (request, response) => {
     if (pathname === '/api/session-context') return handleSessionContext(request, response);
     if (pathname === '/api/email/status') return handleEmailStatus(request, response);
     if (pathname === '/api/email/notify') return handleEmailNotify(request, response);
+    if (pathname === '/api/telegram/webhook') {
+      if (request.method === 'POST') {
+        try {
+          const buffer = await readBody(request);
+          const update = JSON.parse(buffer.toString('utf8') || '{}');
+          await telegramBot.handleTelegramUpdate(update);
+          return sendJson(response, 200, { ok: true });
+        } catch (err) {
+          console.warn('[Telegram Webhook] error:', err.message);
+          return sendJson(response, 200, { ok: false, error: err.message });
+        }
+      }
+      return sendJson(response, 405, { error: 'Chỉ chấp nhận POST' });
+    }
+    if (pathname === '/api/broadcast' && request.method === 'POST') {
+      const user = DEMO_MODE ? demoUserFromToken(request) : await authUser(request);
+      if (!user || user.role !== 'ADMIN') return sendJson(response, 403, { error: 'Chỉ Admin được gửi thông báo' }, corsHeaders(request));
+      const body = await readDbBody(request);
+      const sent = await telegramBot.sendBroadcastAnnouncement(body);
+      return sendJson(response, 200, { ok: true, sent }, corsHeaders(request));
+    }
+    if (pathname === '/api/appointments' && request.method === 'GET') {
+      const user = DEMO_MODE ? demoUserFromToken(request) : await authUser(request);
+      if (!user) return sendJson(response, 401, { error: 'Chưa đăng nhập' }, corsHeaders(request));
+      const customerId = url.searchParams.get('customerId') || '';
+      if (!customerId) return sendJson(response, 400, { error: 'Thiếu customerId' }, corsHeaders(request));
+      if (!dbConfigured) return sendJson(response, 200, { ok: true, appointments: [] }, corsHeaders(request));
+      try {
+        const rows = await dbQuery(
+          `SELECT a.*, u.name AS sale_name
+           FROM customer_appointments a
+           LEFT JOIN users u ON a.sale_id = u.id
+           WHERE a.customer_id = ?
+           ORDER BY a.appointment_time ASC`,
+          [customerId]
+        );
+        return sendJson(response, 200, { ok: true, appointments: rows }, corsHeaders(request));
+      } catch (err) {
+        return sendJson(response, 500, { error: err.message }, corsHeaders(request));
+      }
+    }
+    if (pathname === '/api/appointments' && request.method === 'POST') {
+      const user = DEMO_MODE ? demoUserFromToken(request) : await authUser(request);
+      if (!user) return sendJson(response, 401, { error: 'Chưa đăng nhập' }, corsHeaders(request));
+      const body = await readDbBody(request);
+      const { customerId, saleId, appointmentTime, type, note } = body;
+      if (!customerId || !appointmentTime) return sendJson(response, 400, { error: 'Thiếu thông tin lịch hẹn' }, corsHeaders(request));
+      const id = `APP-${Date.now()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+      const targetSaleId = saleId || user.id;
+      try {
+        await dbQuery(
+          `INSERT INTO customer_appointments (id, customer_id, sale_id, appointment_time, type, note, status)
+           VALUES (?, ?, ?, ?, ?, ?, 'SCHEDULED')`,
+          [id, customerId, targetSaleId, appointmentTime, type || 'CONSULTING', note || '']
+        );
+        return sendJson(response, 201, { ok: true, id }, corsHeaders(request));
+      } catch (err) {
+        return sendJson(response, 500, { error: err.message }, corsHeaders(request));
+      }
+    }
+    if (pathname.startsWith('/api/appointments/') && (request.method === 'PUT' || request.method === 'DELETE')) {
+      const user = DEMO_MODE ? demoUserFromToken(request) : await authUser(request);
+      if (!user) return sendJson(response, 401, { error: 'Chưa đăng nhập' }, corsHeaders(request));
+      const id = pathname.slice('/api/appointments/'.length);
+      if (request.method === 'DELETE') {
+        await dbQuery('DELETE FROM customer_appointments WHERE id = ?', [id]);
+        return sendJson(response, 200, { ok: true }, corsHeaders(request));
+      }
+      const body = await readDbBody(request);
+      const status = body.status || 'SCHEDULED';
+      await dbQuery('UPDATE customer_appointments SET status = ?, note = COALESCE(?, note) WHERE id = ?', [status, body.note || null, id]);
+      return sendJson(response, 200, { ok: true }, corsHeaders(request));
+    }
     if (pathname === '/api/db/health' || pathname === '/api/navigation-counts' || pathname.startsWith('/api/auth/') || pathname.startsWith('/api/users') || pathname.startsWith('/api/customers') || pathname.startsWith('/api/orders') || pathname.startsWith('/api/products') || pathname.startsWith('/api/settings') || pathname === '/api/state') return handleDbApi(request, response, pathname);
     if (pathname === '/api/health') return sendJson(response, 200, { ok: true, inbox: inbox.length, token: Boolean(WEBHOOK_TOKEN) });
 
@@ -1034,6 +1127,11 @@ server.listen(PORT, HOST, () => {
   console.log(`       -H "Content-Type: application/json" \\`);
   console.log(`       -d '{"Họ và tên":"Nguyễn Test","Số điện thoại":"0912345678","Email":"test@gmail.com"}'\n`);
   selfCheckHealth();
+  if (dbConfigured && !DEMO_MODE) {
+    setInterval(() => {
+      telegramBot.runTelegramScheduler().catch(err => console.warn('[Telegram Scheduler]', err.message));
+    }, 60000);
+  }
 });
 
 /* Tự soi lại chính mình qua đúng cái tên người dùng sẽ gõ: "localhost".

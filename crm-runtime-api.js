@@ -176,9 +176,10 @@
       },'customer');
     },
     async deleteCustomer(id) {
-      requireRole(['ADMIN']);
+      requireRole(['ADMIN','MANAGER']);
       return persist(() => {
         const customer = state.customers.find(item => item.id === id);
+        if (currentAccount.role==='MANAGER' && !scopedCustomers().some(item=>item.id===id)) throw Error('Data is outside the Manager scope.');
         if (!customer) throw Error('Data không còn tồn tại trên máy chủ.');
         state.customers = state.customers.filter(item => item.id !== id);
         state.dataOffers = state.dataOffers.filter(item => item.customerId !== id);
@@ -187,6 +188,16 @@
         audit('DELETE_CUSTOMER', id, customer.name);
         return {ok:true};
       },'delete-customer:'+id);
+    },
+    async deleteOrder(id) {
+      requireRole(['ADMIN']);
+      return persist(() => {
+        const order = state.orders.find(item => item.id === id);
+        if (!order) throw Error('Order no longer exists on server.');
+        state.orders = state.orders.filter(item => item.id !== id);
+        audit('DELETE_ORDER', id, order.code || id);
+        return {ok:true};
+      },'delete-order:'+id);
     },
     async createCare(input) {
       requireRole(['ADMIN']);
@@ -402,9 +413,16 @@
     },
     // Luu ty trong va trang thai nhan data cua Leader/Sale vao state phan phoi.
     async distributionWeight(kind,id,value) {
-      requireRole(['ADMIN']);
+      requireRole(['ADMIN','MANAGER']);
       const normalizedKind=String(kind||'').toUpperCase();
       const member=state.members.find(item=>item.id===id&&item.active!==false);
+      const managerRole=currentAccount.actualRole||currentAccount.role;
+      if(managerRole==='MANAGER'){
+        const leaderIds=new Set(state.members.filter(item=>item.role==='LEADER'&&item.managerId===currentAccount.id&&item.active!==false).map(item=>item.id));
+        const allowed=member?.id===currentAccount.id&&normalizedKind==='MANAGER'||member?.role==='LEADER'&&leaderIds.has(member.id)||member?.role==='SALE'&&(member.managerId===currentAccount.id||leaderIds.has(member.leaderId));
+        if(!allowed)throw Error('Manager chi duoc chinh ty trong Sale trong tuyen cua minh.');
+      }
+
       const weight=Math.max(1,Math.min(100,Math.round(Number(value)||1)));
       if(!member||!['LEADER','SALE','MANAGER'].includes(normalizedKind)||member.role!==normalizedKind)throw Error('Nhan su khong hop le de cai ty trong.');
       if(normalizedKind==='LEADER')state.leaderDistribution.weights[id]=weight;
@@ -431,9 +449,15 @@
       return {ok:true,count};
     },
     async distributionMember(kind,id,enabled) {
-      requireRole(['ADMIN']);
+      requireRole(['ADMIN','MANAGER']);
       const normalizedKind=String(kind||'').toUpperCase();
-      const member=state.members.find(item=>item.id===id&&item.active!==false);
+      const member=state.members.find(item=>item.id===id&&item.active!==false);      const managerRole=currentAccount.actualRole||currentAccount.role;
+      if(managerRole==='MANAGER'){
+        const leaderIds=new Set(state.members.filter(item=>item.role==='LEADER'&&item.managerId===currentAccount.id&&item.active!==false).map(item=>item.id));
+        const allowed=member?.id===currentAccount.id&&normalizedKind==='MANAGER'||member?.role==='LEADER'&&leaderIds.has(member.id)||member?.role==='SALE'&&(member.managerId===currentAccount.id||leaderIds.has(member.leaderId));
+        if(!allowed)throw Error('Manager chi duoc chinh ty trong Sale trong tuyen cua minh.');
+      }
+
       if(!member||!['LEADER','SALE','MANAGER'].includes(normalizedKind)||member.role!==normalizedKind)throw Error('Nhan su khong hop le de bat nhan data.');
       if(normalizedKind==='LEADER'){
         const ids=new Set(state.leaderDistribution.enabledLeaderIds||[]);enabled?ids.add(id):ids.delete(id);state.leaderDistribution.enabledLeaderIds=Array.from(ids);

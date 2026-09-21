@@ -14,7 +14,7 @@ const SCHEMA = [
 ];
 let prepared;
 function prepare() {
- if (!prepared) prepared = (async()=>{for(const sql of SCHEMA) await pool.query(sql);await ensureAccountCodeColumn();await ensureProductVatColumn();await seedDefaults();await seedProductCatalog();})().catch(e=>{prepared=null;throw e;});
+ if (!prepared) prepared = (async()=>{for(const sql of SCHEMA) await pool.query(sql);await ensureAccountCodeColumn();await ensureProductVatColumn();await ensureTelegramColumns();await ensureCustomerAppointmentsTable();await seedDefaults();await seedProductCatalog();})().catch(e=>{prepared=null;throw e;});
  return prepared;
 }
 async function ensureAccountCodeColumn(){
@@ -25,6 +25,32 @@ async function ensureAccountCodeColumn(){
 async function ensureProductVatColumn(){
  const [rows]=await pool.query("SELECT COUNT(*) AS total FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='products' AND column_name='vat_rate'");
  if(!Number(rows[0]?.total))await pool.query('ALTER TABLE products ADD COLUMN vat_rate DECIMAL(5,4) NOT NULL DEFAULT 0.1000 AFTER rental_months');
+}
+
+async function ensureTelegramColumns(){
+ const res=await pool.query("SELECT column_name FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='users' AND column_name IN ('telegram_chat_id','telegram_username')");
+ const cols=Array.isArray(res?.[0])?res[0]:[];
+ const existing=new Set(cols.map(c=>c?.column_name));
+ if(!existing.has('telegram_chat_id'))await pool.query('ALTER TABLE users ADD COLUMN telegram_chat_id VARCHAR(64) NULL AFTER active');
+ if(!existing.has('telegram_username'))await pool.query('ALTER TABLE users ADD COLUMN telegram_username VARCHAR(128) NULL AFTER telegram_chat_id');
+}
+
+async function ensureCustomerAppointmentsTable(){
+ await pool.query(`CREATE TABLE IF NOT EXISTS customer_appointments (
+  id VARCHAR(96) PRIMARY KEY,
+  customer_id VARCHAR(96) NOT NULL,
+  sale_id VARCHAR(96) NULL,
+  appointment_time DATETIME NOT NULL,
+  type VARCHAR(64) NOT NULL DEFAULT 'CONSULTING',
+  note TEXT NULL,
+  status VARCHAR(32) NOT NULL DEFAULT 'SCHEDULED',
+  reminded_at DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_customer (customer_id),
+  INDEX idx_sale (sale_id),
+  INDEX idx_time_status (appointment_time, status)
+ ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
 }
 
 async function seedProductCatalog(){
@@ -70,7 +96,7 @@ function parsed(value,fallback={}){if(typeof value==='string')return JSON.parse(
 function canonical(value){if(Array.isArray(value))return '['+value.map(canonical).join(',')+']';if(value&&typeof value==='object')return '{'+Object.keys(value).sort().map(k=>JSON.stringify(k)+':'+canonical(value[k])).join(',')+'}';return JSON.stringify(value);}
 function revision(value){return value===undefined?null:crypto.createHash('sha256').update(canonical(value)).digest('hex');}
 function timestamp(v){return v instanceof Date?v.toISOString().slice(0,19).replace('T',' '):v;}
-function userRow(r){return {id:r.id,accountId:r.account_code||'',phone:r.phone,email:r.email,name:r.name,role:r.role,teamId:r.team_id||'',leaderId:r.leader_id||null,active:!!r.active,createdAt:timestamp(r.created_at)};}
+function userRow(r){return {id:r.id,accountId:r.account_code||'',phone:r.phone,email:r.email,name:r.name,role:r.role,teamId:r.team_id||'',leaderId:r.leader_id||null,telegramChatId:r.telegram_chat_id||null,telegramUsername:r.telegram_username||null,active:!!r.active,createdAt:timestamp(r.created_at)};}
 function coreRow(key,r){
  if(key==='customers') {const j=parsed(r.custom_fields_json),meta=j.__crmMeta||((j.webhookSlug||j.webhookEventId)?{webhookSlug:j.webhookSlug,webhookEventId:j.webhookEventId}:{});return {...meta,id:r.id,name:r.name,phone:r.phone,email:r.email||'',source:r.source||'',campaign:r.campaign||'',websiteId:r.website_id||null,status:r.status,saleId:r.sale_id||null,leaderId:r.leader_id||null,teamId:r.team_id||null,note:r.note||'',customFields:j.__crmFields||(j.__crmMeta?{}:Object.fromEntries(Object.entries(j).filter(([key])=>!['webhookSlug','webhookEventId'].includes(key)))),createdAt:timestamp(r.created_at),updatedAt:timestamp(r.updated_at)};}
  if(key==='orders'){const j=parsed(r.items_json,[]);return {discount:0,refund:0,qty:1,unitPrice:Number(r.total_amount),subtotal:Number(r.total_amount),...(Array.isArray(j)?{}:j),id:r.id,code:r.code,customerId:r.customer_id,saleId:r.sale_id||null,leaderId:r.leader_id||null,teamId:r.team_id||null,total:Number(r.total_amount),status:r.status,items:Array.isArray(j)?j:j.items||[],note:r.note||'',createdAt:timestamp(r.created_at),updatedAt:timestamp(r.updated_at)};}
@@ -97,7 +123,7 @@ async function allData(c){
   const sourceUrl=website.sourceUrl||(website.domain?`https://${String(website.domain).replace(/^https?:\/\//,'').replace(/\/+$/,'')}/`:'');
   data.customers.set(id,{...customer,websiteId:customer.websiteId||website.id,landingPageName:customer.landingPageName||website.name||website.domain,landingPageUrl:customer.landingPageUrl||sourceUrl,landingPageDomain:customer.landingPageDomain||website.domain});
  }
- const [users]=await c.query('SELECT id,account_code,phone,email,name,role,team_id,leader_id,active,created_at FROM users');
+ const [users]=await c.query('SELECT id,account_code,phone,email,name,role,team_id,leader_id,telegram_chat_id,telegram_username,active,created_at FROM users');
  for(const u of users)if(!deleted.has(`members/${u.id}`))data.members.set(u.id,{...data.members.get(u.id),...userRow(u),loginEnabled:true,initials:data.members.get(u.id)?.initials||String(u.name).trim().split(/\s+/).slice(-2).map(x=>x[0]).join('').toUpperCase()});
  const [settings]=await c.query('SELECT setting_key,setting_value FROM system_settings');
  if(!data.settings.has('$')) {const row=settings.find(r=>r.setting_key==='crm');if(row)data.settings.set('$',parsed(row.setting_value));}
@@ -241,6 +267,7 @@ function authorize(user,key,old,next,data){
   return;
  }
  if(key==='orders'){
+  if(old&&!next)error(403,'Only Admin may delete orders');
   if(old&&next&&(Number(next.refund||0)!==Number(old.refund||0)||next.refundedAt!==old.refundedAt||next.refundReason!==old.refundReason||JSON.stringify(next.refundVouchers||[])!==JSON.stringify(old.refundVouchers||[])))error(403,'Chỉ Admin được tạo phiếu hoàn tiền');
   // createdAt là thời điểm gốc của đơn. Sale/Leader chỉ được sửa hoặc xóa trong 72 giờ đầu.
   if(old&&['SALE','LEADER'].includes(user.role)&&orderLockedForStaff(old))error(403,'\u0110\u01a1n \u0111\u00e3 kh\u00f3a ch\u1ec9nh s\u1eeda sau 3 ng\u00e0y');
@@ -307,17 +334,18 @@ async function project(c,key,id,r){
   if(!r){await c.execute("UPDATE customers SET status='ARCHIVED' WHERE id=?",[id]);return;}
   const {custom_fields_json,...details}=r;
   await c.execute(`INSERT INTO customers(id,name,phone,email,source,campaign,website_id,status,sale_id,leader_id,team_id,note,custom_fields_json,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE name=VALUES(name),phone=VALUES(phone),email=VALUES(email),source=VALUES(source),campaign=VALUES(campaign),website_id=VALUES(website_id),status=VALUES(status),sale_id=VALUES(sale_id),leader_id=VALUES(leader_id),team_id=VALUES(team_id),note=VALUES(note),custom_fields_json=VALUES(custom_fields_json)`,[id,r.name,r.phone,r.email||null,r.source||null,r.campaign||null,r.websiteId||null,r.status||'NEW',r.saleId||null,r.leaderId||null,r.teamId||null,r.note||null,JSON.stringify({__crmMeta:details,__crmFields:r.customFields||{}}),r.createdAt||new Date()]);
- }else if(key==='orders'){
-  if(!r){await c.execute("UPDATE orders SET status='CANCELLED' WHERE id=?",[id]);return;}
-  const {items_json,...details}=r;
-  await c.execute(`INSERT INTO orders(id,code,customer_id,sale_id,leader_id,team_id,total_amount,status,items_json,note,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE code=VALUES(code),customer_id=VALUES(customer_id),sale_id=VALUES(sale_id),leader_id=VALUES(leader_id),team_id=VALUES(team_id),total_amount=VALUES(total_amount),status=VALUES(status),items_json=VALUES(items_json),note=VALUES(note)`,[id,r.code,r.customerId,r.saleId||null,r.leaderId||null,r.teamId||null,r.total,r.status||'PENDING',JSON.stringify(details),r.note||null,r.createdAt||new Date()]);
- }else if(key==='products'){
-  if(!r){await c.execute('UPDATE products SET active=0 WHERE id=?',[id]);return;}
-  await c.execute(`INSERT INTO products(id,sku,name,category,price,type,rental_months,vat_rate,active,created_at) VALUES (?,?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE sku=VALUES(sku),name=VALUES(name),category=VALUES(category),price=VALUES(price),type=VALUES(type),rental_months=VALUES(rental_months),vat_rate=VALUES(vat_rate),active=VALUES(active)`,[id,r.sku||null,r.name,r.category||null,r.price,r.type,r.rentalMonths||null,Number.isFinite(Number(r.vatRate))?Number(r.vatRate):0.1,r.active===false?0:1,r.createdAt||new Date()]);
- }else if(key==='members'){
-  if(!r){await c.execute('UPDATE users SET active=0 WHERE id=?',[id]);return;}
-  await c.execute('UPDATE users SET name=?,role=?,team_id=?,leader_id=?,active=?,email=COALESCE(?,email) WHERE id=?',[r.name,r.role,r.teamId||null,r.leaderId||null,r.active===false?0:1,r.email||null,id]);
-  await c.execute('UPDATE users SET account_code=? WHERE id=?',[r.accountId||null,id]);
+  }else if(key==='orders'){
+   if(!r){await c.execute('DELETE FROM orders WHERE id=?',[id]);return;}
+   const {items_json,...details}=r;
+   await c.execute(`INSERT INTO orders(id,code,customer_id,sale_id,leader_id,team_id,total_amount,status,items_json,note,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE code=VALUES(code),customer_id=VALUES(customer_id),sale_id=VALUES(sale_id),leader_id=VALUES(leader_id),team_id=VALUES(team_id),total_amount=VALUES(total_amount),status=VALUES(status),items_json=VALUES(items_json),note=VALUES(note)`,[id,r.code,r.customerId,r.saleId||null,r.leaderId||null,r.teamId||null,r.total,r.status||'PENDING',JSON.stringify(details),r.note||null,r.createdAt||new Date()]);
+  }else if(key==='products'){
+   if(!r){await c.execute('UPDATE products SET active=0 WHERE id=?',[id]);return;}
+   await c.execute(`INSERT INTO products(id,sku,name,category,price,type,rental_months,vat_rate,active,created_at) VALUES (?,?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE sku=VALUES(sku),name=VALUES(name),category=VALUES(category),price=VALUES(price),type=VALUES(type),rental_months=VALUES(rental_months),vat_rate=VALUES(vat_rate),active=VALUES(active)`,[id,r.sku||null,r.name,r.category||null,r.price,r.type,r.rentalMonths||null,Number.isFinite(Number(r.vatRate))?Number(r.vatRate):0.1,r.active===false?0:1,r.createdAt||new Date()]);
+  }else if(key==='members'){
+   if(!r){await c.execute('UPDATE users SET active=0 WHERE id=?',[id]);return;}
+   await c.execute('UPDATE users SET name=?,role=?,team_id=?,leader_id=?,active=?,email=COALESCE(?,email) WHERE id=?',[r.name,r.role,r.teamId||null,r.leaderId||null,r.active===false?0:1,r.email||null,id]);
+   await c.execute('UPDATE users SET account_code=? WHERE id=?',[r.accountId||null,id]);
+   if(Object.hasOwn(r,'telegramChatId'))await c.execute('UPDATE users SET telegram_chat_id=?,telegram_username=? WHERE id=?',[r.telegramChatId||null,r.telegramUsername||null,id]);
  }else if(key==='settings')await c.execute("INSERT INTO system_settings(setting_key,setting_value) VALUES ('crm',?) ON DUPLICATE KEY UPDATE setting_value=VALUES(setting_value)",[JSON.stringify(r||{})]);
 }
 // Hết hạn được lưu trên server ngay ở lần đọc tiếp theo, kể cả Admin đã đóng trình duyệt.

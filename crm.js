@@ -2004,7 +2004,9 @@ function executiveDashboardView() {
   const newWeek = customerSeries.reduce((sum, item) => sum + item.value, 0);
   const rentalCount = activeRentals.length;
   const taxThisMonth = monthPaidOrders.reduce((sum, order) => sum + Number(order.vatAmount || 0), 0);
-  const actions = '<button class="button button-primary btn-primary" id="newOrderButton" type="button">+ Tạo đơn hàng mới</button>';
+  const actions = currentAccount.role === 'ADMIN'
+    ? '<button class="button button-secondary" id="btnAdminBroadcastTelegram" type="button">📢 Phát thông báo Bot</button> <button class="button button-primary btn-primary" id="newOrderButton" type="button">+ Tạo đơn hàng mới</button>'
+    : '<button class="button button-primary btn-primary" id="newOrderButton" type="button">+ Tạo đơn hàng mới</button>';
   const currentRangeOrders = scopedOrders();
   const execPaidOrders = currentRangeOrders.filter(o => o.status === 'PAID');
   const execSellOrders = execPaidOrders.filter(o => !/thuê|rent|thue|chỉ báo|indicator|bot|tool|vip/i.test(o.productName || o.product || ''));
@@ -2175,19 +2177,28 @@ async function quickAssignSale(customerId, saleId) {
   if (!['ADMIN', 'MANAGER', 'LEADER'].includes(currentAccount.role)) return false;
   const customer = customerById(customerId);
   if (!saleId) return clearManualRecipient(customer);
-  // Admin được chọn Sale ở toàn hệ thống; Leader/Manager vẫn bị giới hạn đúng Team được giao.
-  const sale = currentAccount.role === 'ADMIN'
-    ? activeStaff().find(p=>p.id===saleId&&p.role==='SALE')
-    : customer?.leaderId
-      ? teamRecipients(customer.leaderId, customer.teamId).find(p=>p.id===saleId)
-      : activeStaff().find(p=>p.id===saleId&&p.role==='SALE');
   const managerLeaders = currentAccount.role === 'MANAGER'
     ? activeStaff().filter(person => person.role === 'LEADER' && person.active !== false && person.managerId === currentAccount.id)
     : [];
+  const managerSaleIds = currentAccount.role === 'MANAGER' ? new Set(scopeSaleIds()) : new Set();
+  const managerTarget = currentAccount.role === 'MANAGER' && saleId === currentAccount.id && customer
+    ? { ...currentAccount, role: 'MANAGER', actualRole: 'MANAGER', managerRecipient: true, leaderId: customer.leaderId || null, teamId: customer.teamId || null }
+    : null;
+  const leaderTarget = currentAccount.role === 'LEADER' && saleId === currentAccount.leaderId
+    ? (() => { const person = activeStaff().find(item => item.id === currentAccount.leaderId && item.role === 'LEADER' && item.active !== false); return person ? { ...person, role: 'SALE', leaderId: person.id, teamId: person.teamId, teamLeaderRecipient: true } : null; })()
+    : null;
+  const sale = currentAccount.role === 'ADMIN'
+    ? activeStaff().find(p=>p.id===saleId&&p.role==='SALE')
+    : currentAccount.role === 'MANAGER'
+      ? (managerTarget || managerLeaders.find(p=>p.id===saleId) || activeStaff().find(p=>p.id===saleId&&p.role==='SALE'&&managerSaleIds.has(p.id)))
+      : (leaderTarget || (customer?.leaderId
+        ? teamRecipients(customer.leaderId, customer.teamId).find(p=>p.id===saleId)
+        : activeStaff().find(p=>p.id===saleId&&p.role==='SALE')));
   const inManagerScope = currentAccount.role === 'MANAGER'
-    && managerLeaders.some(leader => leader.id === customer?.leaderId && leader.teamId === customer?.teamId);
+    && scopedCustomers().some(item=>item.id===customer?.id)
+    && !!sale;
   const outsideScope = currentAccount.role === 'LEADER'
-    ? (customer?.leaderId !== currentAccount.leaderId || customer?.teamId !== currentAccount.teamId || sale?.leaderId !== currentAccount.leaderId || sale?.teamId !== currentAccount.teamId)
+    ? (customer?.leaderId !== currentAccount.leaderId || customer?.teamId !== currentAccount.teamId || (sale?.id !== currentAccount.leaderId && (sale?.leaderId !== currentAccount.leaderId || sale?.teamId !== currentAccount.teamId)))
     : currentAccount.role === 'MANAGER' && !inManagerScope;
   if (!customer || !sale || outsideScope) { toast('Sale hoac khach hang nam ngoai pham vi duoc giao'); render(); return false; }
   const pending = state.dataOffers.find(o => o.customerId === customer.id && o.status === 'PENDING');
@@ -2201,7 +2212,7 @@ async function quickAssignSale(customerId, saleId) {
 
 async function clearManualRecipient(customer) {
   const managerCanClear = currentAccount.role === 'MANAGER'
-    && activeStaff().some(person => person.role === 'LEADER' && person.active !== false && person.id === customer?.leaderId && person.managerId === currentAccount.id && person.teamId === customer?.teamId);
+    && scopedCustomers().some(item=>item.id===customer?.id);
   if (!customer || !['ADMIN','LEADER','MANAGER'].includes(currentAccount.role) || (currentAccount.role==='LEADER' && (customer.leaderId!==currentAccount.leaderId || customer.teamId!==currentAccount.teamId)) || (currentAccount.role==='MANAGER' && !managerCanClear)) return false;
   const before=assignmentSnapshot(customer);
   closeOpenCustomerTasks(customer,'UNASSIGNED');
@@ -3462,6 +3473,7 @@ function openCustomerDrawer(id) {
       <div class="section-label section-label-with-action">Sản phẩm & đơn hàng đã mua <button class="button button-small" type="button" data-new-customer-product="${escapeHtml(customer.id)}">+ Thêm sản phẩm</button></div><div class="purchase-list">${orders.map(order => `<button class="purchase-row" type="button" data-customer-order="${escapeHtml(order.id)}"><span><b>${escapeHtml(order.productName)}</b><small>${escapeHtml(order.code)} · SL ${order.qty} · ${escapeHtml(order.createdAt)}</small></span><span class="right"><b>${money(order.total)}</b>${statusBadge(order.status, 'order')}</span></button>`).join('') || '<div class="empty compact"><b>Chưa mua sản phẩm</b><span>Khách hàng chưa có đơn hàng nào.</span></div>'}</div>
       <div class="section-label">Ghi chú chăm sóc</div>${canUpdate ? `<form id="customerNoteForm"><label class="form-field">Ghi chú mới<textarea id="customerNote" rows="3" maxlength="2000" placeholder="Sale ghi nội dung trao đổi, nhu cầu hoặc lịch hẹn..."></textarea></label><div class="modal-actions"><button class="button button-primary" type="submit">Thêm ghi chú</button></div></form>` : ''}<div class="timeline note-timeline">${notes.map(note => `<div class="timeline-item"><b>${escapeHtml(note.author)} · ${escapeHtml(note.role)}</b><p>${escapeHtml(note.text)}</p><small>${escapeHtml(note.at)}</small><div class="note-actions"><button class="button button-small" type="button" data-edit-note="${escapeHtml(note.id)}">Sửa</button><button class="button button-small button-danger" type="button" data-delete-note="${escapeHtml(note.id)}">Xóa</button></div></div>`).join('') || '<div class="timeline-item"><b>Chưa có ghi chú</b><p>Nhập ghi chú để cả Team cùng theo dõi.</p><small>CRM</small></div>'}</div>
       <div class="section-label">Lịch chăm sóc</div>${canUpdate && customer.saleId ? `<form id="customerFollowUpForm"><div class="form-grid"><label class="form-field">Nội dung<input id="followUpType" maxlength="160" required placeholder="Gọi lại / gửi báo giá..."></label><label class="form-field">Hạn xử lý<input id="followUpDueAt" type="datetime-local" required value="2026-09-08T09:00"></label><label class="form-field">Ưu tiên<select id="followUpPriority"><option value="NORMAL">Thường</option><option value="HIGH">Cao</option></select></label></div><div class="modal-actions"><button class="button" type="submit">+ Thêm lịch chăm sóc</button></div></form>` : ''}<div class="follow-up-list">${followUps.map(task => `<div class="follow-up-row"><span><b>${escapeHtml(task.type)}</b><small>${escapeHtml(task.dueAt)} · ${escapeHtml(staffName(task.ownerId))}</small></span><span>${statusBadge(task.status, 'task')}${task.status !== 'DONE' && canUpdate ? `<button class="button button-small" type="button" data-complete-task="${escapeHtml(task.id)}">Hoàn tất</button>` : ''}</span></div>`).join('') || '<div class="empty compact"><b>Chưa có lịch chăm sóc</b><span>Tạo lịch mới ngay trong hồ sơ khách.</span></div>'}</div>
+      <div class="section-label section-label-with-action">📅 Lịch hẹn khách hàng (Bot nhắc tự động) ${canUpdate ? `<button class="button button-small button-primary" type="button" id="btnNewCustAppointment">+ Đặt lịch hẹn</button>` : ''}</div><div id="customerAppointmentsList" class="follow-up-list"><div class="empty compact"><b>Đang tải lịch hẹn...</b></div></div>
       ${currentAccount.role === 'ADMIN' && resubmissions.length ? `<div class="section-label">Lịch sử khách điền lại form</div><div class="timeline">${resubmissions.map(item => `<div class="timeline-item"><b>${item.registeredAccount ? 'DATA TRÙNG - DATA đã đăng ký TK' : 'DATA TRÙNG'}</b><p>${escapeHtml(item.source)} · ${escapeHtml(item.campaign || 'Không có campaign')} · giữ Sale ${escapeHtml(staffName(item.assignedSaleId))}</p><small>${escapeHtml(item.at)} · ${escapeHtml(item.intakeType)}</small></div>`).join('')}</div>` : ''}
       ${currentAccount.role === 'ADMIN' && assignmentHistory.length ? `<div class="section-label">Lịch sử phân công</div><div class="timeline">${assignmentHistory.map(item => `<div class="timeline-item"><b>${escapeHtml(item.toSaleName || item.toLeaderName || 'Thu hồi về Khách mới')}</b><p>${escapeHtml(item.reason)} · từ ${escapeHtml(item.fromSaleName || item.fromLeaderName || 'Khách mới')}</p><small>${escapeHtml(item.at)} · ${escapeHtml(item.actor)}</small></div>`).join('')}</div>` : ''}
       ${otherFieldHistory.length ? `<div class="section-label">Các thay đổi nghiệp vụ gần đây</div><div class="timeline">${otherFieldHistory.map(item => `<div class="timeline-item"><b>${escapeHtml(item.fieldLabel)}</b><p>${escapeHtml(String(customFieldValueLabel(state.customFieldDefinitions.find(field => field.id === item.fieldId), item.from) || 'Trống'))} → ${escapeHtml(String(customFieldValueLabel(state.customFieldDefinitions.find(field => field.id === item.fieldId), item.to) || 'Trống'))}</p><small>${escapeHtml(item.at)} · ${escapeHtml(item.actor)}</small></div>`).join('')}</div>` : ''}
@@ -3485,6 +3497,8 @@ function openCustomerDrawer(id) {
   $$('[data-complete-task]').forEach(button => button.onclick = () => completeTask(button.dataset.completeTask));
   $('[data-reassign-customer]')?.addEventListener('click', () => reassignCustomer(id, $('#customerAssignee').value));
   $('[data-revoke-customer]')?.addEventListener('click', () => revokeCustomer(id));
+  renderCustomerAppointments(id);
+  $('#btnNewCustAppointment')?.addEventListener('click', () => openNewAppointmentModal(id));
 }
 
 async function updateCustomer(id) {
@@ -3575,6 +3589,231 @@ function addCustomerFollowUp(id) {
   state.tasks.unshift({ id: `TSK-${Date.now()}-${customer.id}`, customerId: customer.id, customerName: customer.name, ownerId: customer.saleId, leaderId: customer.leaderId, teamId: customer.teamId, type: type.slice(0, 160), createdAt: stamp(), dueAt, slaBased: false, status: dueAt < stamp() ? 'OVERDUE' : 'OPEN', priority: $('#followUpPriority')?.value === 'HIGH' ? 'HIGH' : 'NORMAL' });
   audit('ADD_FOLLOW_UP', customer.id, `${type} · ${dueAt}`);
   saveState(); render(); openCustomerDrawer(id); toast('Đã thêm lịch chăm sóc');
+}
+
+const APPOINTMENT_TYPE_LABELS = {
+  DEPOSIT: '🎯 Chốt cọc / Deposit',
+  CONSULTING: '🗣️ Tư vấn chuyên sâu 1-1',
+  PAYMENT: '💵 Hẹn thanh toán',
+  COURSE: '🎓 Tư vấn Khóa học & Chỉ báo',
+  OTHER: '📌 Cuộc hẹn quan trọng'
+};
+
+async function renderCustomerAppointments(customerId) {
+  const container = $('#customerAppointmentsList');
+  if (!container) return;
+  try {
+    const res = await fetch(`${webhookApiBase()}/api/appointments?customerId=${encodeURIComponent(customerId)}`, {
+      headers: { Authorization: `Bearer ${serverSyncToken}` }
+    });
+    const data = await res.json();
+    const list = data.appointments || [];
+    if (!list.length) {
+      container.innerHTML = '<div class="empty compact"><b>Chưa có lịch hẹn nào</b><span>Bấm "+ Đặt lịch hẹn" để tạo, Bot Telegram sẽ tự động nhắc trước 15-30 phút.</span></div>';
+      return;
+    }
+    container.innerHTML = list.map(app => {
+      const typeLabel = APPOINTMENT_TYPE_LABELS[app.type] || app.type || 'Lịch hẹn';
+      const isScheduled = app.status === 'SCHEDULED';
+      const statusBadge = isScheduled ? '<span class="status status-pending">Đang chờ</span>' : app.status === 'COMPLETED' ? '<span class="status status-paid">Hoàn thành</span>' : '<span class="status status-cancelled">Đã hủy</span>';
+      const dt = app.appointment_time ? new Date(app.appointment_time).toLocaleString('vi-VN', { hour12: false }) : '';
+      return `<div class="follow-up-row" style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;background:var(--bg-card,#fff)">
+        <div>
+          <b>${escapeHtml(typeLabel)}</b> <span style="margin-left:6px;font-size:12px;color:var(--text-muted)">⏰ ${escapeHtml(dt)}</span>
+          ${app.note ? `<p style="margin:4px 0 2px;font-size:12.5px;color:var(--text-main)"><i>${escapeHtml(app.note)}</i></p>` : ''}
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px">Sale: <b>${escapeHtml(app.sale_name || 'Chưa gán')}</b> ${app.reminded_at ? '· <span style="color:#10b981">✓ Bot đã gửi nhắc nhở</span>' : ''}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+          ${statusBadge}
+          ${isScheduled ? `
+            <button class="button button-small" type="button" data-app-action="COMPLETE" data-app-id="${escapeHtml(app.id)}">✓ Xong</button>
+            <button class="button button-small button-danger" type="button" data-app-action="CANCEL" data-app-id="${escapeHtml(app.id)}">✕ Hủy</button>
+          ` : ''}
+        </div>
+      </div>`;
+    }).join('');
+
+    container.querySelectorAll('[data-app-action]').forEach(btn => {
+      btn.onclick = async () => {
+        const appId = btn.dataset.appId;
+        const action = btn.dataset.appAction;
+        const nextStatus = action === 'COMPLETE' ? 'COMPLETED' : 'CANCELLED';
+        btn.disabled = true;
+        try {
+          await fetch(`${webhookApiBase()}/api/appointments/${encodeURIComponent(appId)}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${serverSyncToken}` },
+            body: JSON.stringify({ status: nextStatus })
+          });
+          toast(action === 'COMPLETE' ? 'Đã hoàn thành lịch hẹn' : 'Đã hủy lịch hẹn');
+          renderCustomerAppointments(customerId);
+        } catch (err) {
+          toast('Lỗi cập nhật lịch hẹn');
+        }
+      };
+    });
+  } catch (err) {
+    container.innerHTML = '<div class="empty compact"><b>Không tải được lịch hẹn</b></div>';
+  }
+}
+
+function openNewAppointmentModal(customerId) {
+  const customer = customerById(customerId);
+  if (!customer) return;
+  const bodyHtml = `<form id="newAppointmentForm">
+    <div class="form-grid">
+      <label class="form-field">Khách hàng<input value="${escapeHtml(customer.name)} · ${escapeHtml(customer.phone)}" readonly style="background:var(--bg-subtle,#f1f5f9);font-weight:600"></label>
+      <label class="form-field">Mục đích cuộc hẹn
+        <select id="appTypeSelect" required>
+          <option value="CONSULTING">🗣️ Tư vấn chuyên sâu 1-1</option>
+          <option value="DEPOSIT">🎯 Chốt cọc / Deposit</option>
+          <option value="PAYMENT">💵 Hẹn thanh toán</option>
+          <option value="COURSE">🎓 Tư vấn Khóa học &amp; Chỉ báo</option>
+          <option value="OTHER">📌 Cuộc hẹn quan trọng khác</option>
+        </select>
+      </label>
+      <label class="form-field">Thời gian hẹn (Ngày &amp; Giờ)
+        <input type="datetime-local" id="appDateTime" required>
+      </label>
+      <label class="form-field">Ghi chú chuẩn bị
+        <textarea id="appNote" rows="3" placeholder="Nội dung cần trao đổi, tài liệu cần chuẩn bị..."></textarea>
+      </label>
+    </div>
+    <div class="credential-hint" style="margin-top:10px">🤖 <b>Bot Telegram</b> sẽ tự động gửi tin nhắn kèm đầy đủ thông tin nhắc nhở Sale trước giờ hẹn 15-30 phút.</div>
+    <div class="modal-actions" style="margin-top:16px;display:flex;justify-content:flex-end;gap:8px">
+      <button type="button" class="button button-secondary" data-close-modal>Hủy</button>
+      <button type="submit" class="button button-primary">✅ Lưu &amp; Bật nhắc Bot Telegram</button>
+    </div>
+  </form>`;
+
+  openModal('📅 Đặt lịch hẹn khách hàng · Bot nhắc tự động', bodyHtml);
+  $('[data-close-modal]')?.addEventListener('click', closeModal);
+
+  // Mặc định hẹn ngày mai lúc 09:00
+  const tmr = new Date(Date.now() + 24 * 3600000);
+  tmr.setHours(9, 0, 0, 0);
+  const pad = n => String(n).padStart(2, '0');
+  const defaultDt = `${tmr.getFullYear()}-${pad(tmr.getMonth() + 1)}-${pad(tmr.getDate())}T${pad(tmr.getHours())}:${pad(tmr.getMinutes())}`;
+  const dtInput = $('#appDateTime');
+  if (dtInput) dtInput.value = defaultDt;
+
+  $('#newAppointmentForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const type = $('#appTypeSelect').value;
+    const appointmentTime = $('#appDateTime').value;
+    const note = $('#appNote').value.trim();
+    if (!appointmentTime) { toast('Vui lòng chọn thời gian hẹn'); return; }
+
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+
+    try {
+      const res = await fetch(`${webhookApiBase()}/api/appointments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${serverSyncToken}` },
+        body: JSON.stringify({ customerId, appointmentTime, type, note, saleId: customer.saleId || currentAccount.id })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        closeModal();
+        toast('🎉 Đã đặt lịch hẹn! Bot Telegram sẽ tự động nhắc Sale trước 15-30 phút.');
+        renderCustomerAppointments(customerId);
+      } else {
+        toast('Lỗi: ' + (data.error || 'Không thể lưu lịch hẹn'));
+      }
+    } catch (err) {
+      toast('Lỗi kết nối máy chủ');
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+    }
+  });
+}
+
+function openAdminBroadcastModal() {
+  if (currentAccount.role !== 'ADMIN') { toast('Chỉ Admin được phát thông báo'); return; }
+  const bodyHtml = `<form id="adminBroadcastForm">
+    <div class="form-grid">
+      <label class="form-field">Loại thông báo
+        <select id="bcTypeSelect" required>
+          <option value="MEETING">📢 Lịch họp tổng Agency</option>
+          <option value="POLICY">📋 Quy trình / Quy chế làm việc mới</option>
+        </select>
+      </label>
+      <label class="form-field">Tiêu đề thông báo
+        <input id="bcTitle" required placeholder="VD: Họp tổng kết tuần và công bố thưởng KPI mới" maxlength="200">
+      </label>
+      <div id="bcMeetingFields">
+        <label class="form-field">Thời gian họp
+          <input type="datetime-local" id="bcMeetingTime">
+        </label>
+        <label class="form-field">Địa điểm / Link họp online
+          <input id="bcMeetingLink" placeholder="VD: Google Meet / Zoom link hoặc Phòng họp tầng 2">
+        </label>
+      </div>
+      <div id="bcPolicyFields" style="display:none">
+        <label class="form-field">Ngày bắt đầu áp dụng
+          <input type="date" id="bcEffectiveDate">
+        </label>
+      </div>
+      <label class="form-field">Người chủ trì / Ban hành
+        <input id="bcHost" value="${escapeHtml(currentAccount.name)}" placeholder="VD: Ban Giám Đốc NVT Agency">
+      </label>
+      <label class="form-field">Nội dung chi tiết
+        <textarea id="bcContent" rows="4" required placeholder="Nội dung tóm tắt cuộc họp hoặc nội dung quy trình mới..."></textarea>
+      </label>
+    </div>
+    <div class="credential-hint" style="margin-top:10px">⚡ Thông báo sẽ được <b>Bot Telegram NVT Agency</b> bắn trực tiếp tới toàn thể nhân viên (Sale, Leader, Manager) đã liên kết bot.</div>
+    <div class="modal-actions" style="margin-top:16px;display:flex;justify-content:flex-end;gap:8px">
+      <button type="button" class="button button-secondary" data-close-modal>Hủy</button>
+      <button type="submit" class="button button-primary">🚀 Bắn thông báo Telegram ngay</button>
+    </div>
+  </form>`;
+
+  openModal('📢 Phát thông báo Telegram toàn Agency', bodyHtml);
+  $('[data-close-modal]')?.addEventListener('click', closeModal);
+
+  $('#bcTypeSelect')?.addEventListener('change', (e) => {
+    const isMeeting = e.target.value === 'MEETING';
+    const mf = $('#bcMeetingFields');
+    const pf = $('#bcPolicyFields');
+    if (mf) mf.style.display = isMeeting ? 'block' : 'none';
+    if (pf) pf.style.display = isMeeting ? 'none' : 'block';
+  });
+
+  $('#adminBroadcastForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const type = $('#bcTypeSelect').value;
+    const title = $('#bcTitle').value.trim();
+    const content = $('#bcContent').value.trim();
+    const host = $('#bcHost').value.trim();
+    const meeting_time = $('#bcMeetingTime')?.value || null;
+    const meeting_link = $('#bcMeetingLink')?.value || null;
+    const effective_date = $('#bcEffectiveDate')?.value || null;
+
+    if (!title || !content) { toast('Vui lòng nhập tiêu đề và nội dung'); return; }
+
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    if (submitBtn) submitBtn.disabled = true;
+
+    try {
+      const res = await fetch(`${webhookApiBase()}/api/broadcast`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${serverSyncToken}` },
+        body: JSON.stringify({ type, title, content, host, meeting_time, meeting_link, effective_date })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        closeModal();
+        toast(`📢 Đã gửi thông báo thành công tới ${data.sent || 0} nhân sự qua Bot Telegram!`);
+      } else {
+        toast('Lỗi: ' + (data.error || 'Không thể gửi thông báo'));
+      }
+    } catch (err) {
+      toast('Lỗi kết nối máy chủ');
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+    }
+  });
 }
 
 function orderRentalEndsAt(createdAt, months) {
@@ -3925,11 +4164,12 @@ async function deleteCustomer(id) {
 }
 
 async function deleteOrder(id) {
-  const order = state.orders.find(item => item.id === id); const access = order && orderEditState(order);
-  if (!order || !access?.allowed || !canViewCustomer(customerById(order.customerId))) { toast('Đơn hàng đã khóa hoặc nằm ngoài phạm vi'); return; }
-  if (!window.confirm(`Xóa đơn ${order.code}?`)) return;
-  if (!await pushServerRecord('orders', 'DELETE', id, order)) { toast('Không thể xóa đơn hàng trên MySQL'); return; }
-  state.orders = state.orders.filter(item => item.id !== id); audit('DELETE_ORDER', id, order.code); saveState(); render();
+  if (currentAccount?.role !== 'ADMIN') { toast('FORBIDDEN \u00b7 ch\u1ec9 Admin \u0111\u01b0\u1ee3c x\u00f3a \u0111\u01a1n h\u00e0ng'); return; }
+  const order = state.orders.find(item => item.id === id);
+  if (!order || !canViewCustomer(customerById(order.customerId))) { toast('\u0110\u01a1n h\u00e0ng kh\u00f4ng c\u00f2n t\u1ed3n t\u1ea1i ho\u1eb7c n\u1eb1m ngo\u00e0i ph\u1ea1m vi'); return; }
+  if (!window.confirm(`X\u00f3a ${order.code}? \u0110\u01a1n s\u1ebd kh\u00f4ng c\u00f2n \u0111\u01b0\u1ee3c t\u00ednh trong th\u1ed1ng k\u00ea v\u00e0 doanh thu.`)) return;
+  if (!await pushServerRecord('orders', 'DELETE', id, order)) { toast('Kh\u00f4ng th\u1ec3 x\u00f3a \u0111\u01a1n h\u00e0ng tr\u00ean MySQL'); return; }
+  audit('DELETE_ORDER', id, order.code); saveState(); render(); toast('\u0110\u00e3 x\u00f3a \u0111\u01a1n h\u00e0ng v\u00e0 c\u1eadp nh\u1eadt th\u1ed1ng k\u00ea');
 }
 
 function newOrderModal(customerId = '') {
@@ -4715,6 +4955,7 @@ function bindViewActions() {
   $('#importCustomersButton')?.addEventListener('click', customerImportModal);
   $('#importCustomersSecondaryButton')?.addEventListener('click', customerImportModal);
   $('#newOrderButton')?.addEventListener('click', newOrderModal);
+  $('#btnAdminBroadcastTelegram')?.addEventListener('click', openAdminBroadcastModal);
   $('#profileAvatar')?.addEventListener('click', () => { if (currentAccount) navigate('profile'); });
   $('#profileForm')?.addEventListener('submit', event => { event.preventDefault(); const role=currentAccount.actualRole||currentAccount.role; const memberId=['ADMIN','MANAGER','MARKETING','ACCOUNTING'].includes(role)?currentAccount.id:(currentAccount.saleId||currentAccount.leaderId||currentAccount.id); const member = activeStaff().find(person => person.id === memberId); if (!member) { toast('Không tìm thấy hồ sơ để cập nhật'); return; } const name = $('#profileDisplayName').value.trim(), accountId = $('#profileAccountId')?.value.trim().toUpperCase() || '', email = $('#profileEmail')?.value.trim().toLowerCase() || '', phone = $('#profilePhone')?.value.replace(/\D/g, '') || ''; if (!name || !/^[A-Z0-9][A-Z0-9._-]{2,63}$/.test(accountId) || (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) || (phone && !/^\d{9,15}$/.test(phone))) { toast('Họ tên, ID, email hoặc số điện thoại không hợp lệ'); return; } member.name = name; member.accountId = accountId; member.email = email; member.phone = phone; currentAccount.name = name; currentAccount.accountId = accountId; currentAccount.email = email; currentAccount.phone = phone; currentAccount.initials = name.split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase(); member.initials = currentAccount.initials; saveState(); render(); toast('Đã lưu hồ sơ'); });
   $('#profileAvatarInput')?.addEventListener('change', event => {
