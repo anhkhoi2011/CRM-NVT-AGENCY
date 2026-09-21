@@ -959,6 +959,7 @@ function webhookIngestFields(item, website) {
 
 function ingestWebhookRecord(record) {
   if (!record || typeof record !== 'object') return 'ignored';
+  if (record.duplicate) return 'resubmission';
   if (record.persisted || record.customerId) return 'ignored'; // Khách đã được backend lưu; lấy qua API MySQL.
   if (record.status !== 'NEW') return 'ignored'; // INVALID đã bị server chặn ở 422
   if (!claimWebhookRecord(record.id)) return 'duplicate';
@@ -1018,7 +1019,8 @@ async function pullWebhookInbox(manual = false) {
       if (tally.resubmission) parts.push(`${tally.resubmission} trùng · ghi nhận điền lại form`);
       if (tally.pending) parts.push(`${tally.pending} chờ quy nguồn`);
       setWebhookTransport(live ? 'live' : 'polling', `Vừa nhận ${touched} data landing page lúc ${at}: ${parts.join(', ')}.`);
-      if (tally.created) toast(`${tally.created} khách landing page đã vào hàng chờ chia Leader`);
+      if (tally.resubmission) toast(`${tally.resubmission} data trùng đã được giữ Sale đang phụ trách`);
+      else if (tally.created) toast(`${tally.created} khách landing page đã vào hàng chờ chia Leader`);
       else if (manual) toast(`Đã đồng bộ ${touched} data landing page`);
     } else {
       setWebhookTransport(live ? 'live' : 'polling', `Đã kiểm tra inbox lúc ${at} — chưa có data mới từ landing page.`);

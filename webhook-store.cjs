@@ -54,6 +54,78 @@ async function sourceBySlug(connection, slug) {
   if (!domain && sourceUrl) try { domain = new URL(sourceUrl).hostname.toLowerCase(); } catch {}
   return { id: website.id, name: String(website.name || domain || 'Landing page'), domain, sourceUrl, campaign: String(website.campaignId || 'UNATTRIBUTED') };
 }
+function normalizePhone(value) {
+  let digits = String(value || '').replace(/\D/g, '');
+  if (digits.startsWith('84') && digits.length >= 11) digits = `0${digits.slice(2)}`;
+  return digits;
+}
+
+function phoneCandidates(value) {
+  const normalized = normalizePhone(value);
+  if (!normalized) return [];
+  const candidates = new Set([normalized, String(value || '').trim()]);
+  if (normalized.startsWith('0')) candidates.add(`84${normalized.slice(1)}`);
+  return [...candidates].filter(Boolean);
+}
+
+async function findExistingCustomer(connection, customer) {
+  const phones = phoneCandidates(customer?.phone);
+  const email = String(customer?.email || '').trim().toLowerCase();
+  if (!phones.length && !email) return null;
+  const clauses = [];
+  const values = [];
+  if (phones.length) {
+    clauses.push(`phone IN (${phones.map(() => '?').join(',')})`);
+    values.push(...phones);
+  }
+  if (email) {
+    clauses.push('LOWER(email) = ?');
+    values.push(email);
+  }
+  const [rows] = await connection.execute(
+    `SELECT id, name, phone, email, sale_id, leader_id, team_id, status FROM customers WHERE ${clauses.join(' OR ')} ORDER BY created_at ASC LIMIT 20`,
+    values
+  );
+  const normalized = normalizePhone(customer?.phone);
+  return (rows || []).find(row =>
+    (normalized && normalizePhone(row.phone) === normalized) ||
+    (email && String(row.email || '').trim().toLowerCase() === email)
+  ) || null;
+}
+
+async function recordDuplicate(connection, eventId, record, existing, sourceSnapshot) {
+  const at = record.receivedAt || new Date().toISOString().slice(0, 19).replace('T', ' ');
+  const resubmission = {
+    id: `RESUB-${eventId}`,
+    customerId: existing.id,
+    phone: normalizePhone(record.customer?.phone),
+    source: 'Landing page webhook',
+    campaign: sourceSnapshot?.campaign || '',
+    websiteId: sourceSnapshot?.websiteId || null,
+    previousSaleId: existing.sale_id || null,
+    assignedSaleId: existing.sale_id || null,
+    registeredAccount: false,
+    at,
+    intakeType: 'API',
+    duplicate: true
+  };
+  await connection.execute('INSERT INTO crm_documents(collection,id,body,deleted) VALUES (?,?,?,0) ON DUPLICATE KEY UPDATE body=VALUES(body),deleted=0', ['resubmissions', resubmission.id, JSON.stringify(resubmission)]);
+  if (existing.sale_id) {
+    const notification = {
+      id: `NT-DUP-${eventId}`,
+      role: 'OWN',
+      saleId: existing.sale_id,
+      leaderId: existing.leader_id || null,
+      teamId: existing.team_id || null,
+      title: 'DATA TRUNG - giu Sale phu trach',
+      text: `${existing.name || record.customer?.name || 'Khach hang'} · ${record.customer?.phone || ''}`,
+      at,
+      readBy: []
+    };
+    await connection.execute('INSERT INTO crm_documents(collection,id,body,deleted) VALUES (?,?,?,0) ON DUPLICATE KEY UPDATE body=VALUES(body),deleted=0', ['notifications', notification.id, JSON.stringify(notification)]);
+  }
+}
+
 async function persistWebhook(record) {
   await ensureSchema();
   await crmData.prepare();
@@ -68,8 +140,17 @@ async function persistWebhook(record) {
     await connection.execute('INSERT INTO webhook_events (id, dedupe_key, payload_json) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE id = id', [record.id, record.dedupeKey, JSON.stringify(storedRecord)]);
     const [rows] = await connection.execute('SELECT id FROM webhook_events WHERE dedupe_key = ?', [record.dedupeKey]);
     const eventId = rows[0].id;
+    const replay = eventId !== record.id;
     const customerId = `CUS-${eventId}`;
-    if (record.status === 'NEW') {
+    if (record.status === 'NEW' && !replay) {
+      const existing = await findExistingCustomer(connection, record.customer);
+      if (existing) {
+        await recordDuplicate(connection, eventId, record, existing, sourceSnapshot);
+        const duplicateRecord = { ...storedRecord, duplicate: true, duplicateCustomerId: existing.id, ownerSaleId: existing.sale_id || null };
+        await connection.execute('UPDATE webhook_events SET payload_json = ? WHERE id = ?', [JSON.stringify(duplicateRecord), eventId]);
+        await connection.commit();
+        return { eventId, customerId: existing.id, duplicate: true, replay: false, ownerSaleId: existing.sale_id || null, source: sourceSnapshot };
+      }
       // Lưu ảnh chụp nguồn cùng khách; replay không ghi đè phân công/trạng thái cũ.
       const referenceAmount = extractReferenceAmount(record.raw);
       const meta = { webhookSlug: record.slug, webhookEventId: eventId };
@@ -82,9 +163,9 @@ async function persistWebhook(record) {
         website ? `Data từ ${website.sourceUrl || website.domain}` : 'Data landing page chưa gắn nguồn',
         JSON.stringify({ __crmMeta: meta, __crmFields: {} }), record.receivedAt]);
     }
-    if (record.status === 'NEW') await crmData.distributeAutomatic(connection);
+    if (record.status === 'NEW' && !replay) await crmData.distributeAutomatic(connection);
     await connection.commit();
-    return { eventId, customerId: record.status === 'NEW' ? customerId : null, source: sourceSnapshot };
+    return { eventId, customerId: record.status === 'NEW' ? customerId : null, duplicate: replay, replay, source: sourceSnapshot };
   } catch (error) {
     await connection.rollback();
     throw error;

@@ -836,6 +836,9 @@ async function handleWebhook(request, response, slug) {
     const saved = await persistWebhook(record);
     record.customerId = saved.customerId;
     record.source = saved.source || null;
+    record.duplicate = Boolean(saved.duplicate);
+    record.replay = Boolean(saved.replay);
+    record.ownerSaleId = saved.ownerSaleId || null;
     record.persisted = true;
   } catch (error) {
     console.error('[webhook-mysql]', error.message);
@@ -847,7 +850,7 @@ async function handleWebhook(request, response, slug) {
   scheduleFlush();
   notifyInboxListeners(record);
 
-  if (record.status === 'NEW' && record.customerId) {
+  if (record.status === 'NEW' && record.customerId && !record.duplicate) {
     (async () => {
       try {
         const [custRows] = await pool.execute('SELECT * FROM customers WHERE id = ?', [record.customerId]);
@@ -871,7 +874,10 @@ async function handleWebhook(request, response, slug) {
     received: true,
     id: record.id,
     status: record.status,
-    problems: record.problems
+    problems: record.problems,
+    duplicate: Boolean(record.duplicate),
+    customerId: record.customerId || null,
+    ownerSaleId: record.ownerSaleId || null
   });
 }
 

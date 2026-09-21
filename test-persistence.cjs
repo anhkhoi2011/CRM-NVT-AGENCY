@@ -11,6 +11,7 @@ function fixture(){
   if(sql.startsWith('INSERT INTO webhook_events')){if(!db.webhookEvents.some(e=>e.dedupe===v[1]))db.webhookEvents.push({id:v[0],dedupe:v[1]});return [{}];}
   if(sql.includes('FROM webhook_events WHERE dedupe_key'))return [db.webhookEvents.filter(e=>e.dedupe===v[0])];
   if(sql.includes("FROM crm_documents WHERE collection='websites'"))return [db.docs.filter(d=>d.collection==='websites'&&!d.deleted)];
+  if(sql.startsWith('SELECT id, name, phone, email, sale_id, leader_id, team_id, status FROM customers'))return [db.customers.filter(row=>v.includes(row.phone)||(!row.email?false:v.includes(row.email)) )];
   if(sql.startsWith('INSERT INTO customers (')){
    if(!db.customers.some(row=>row.id===v[0]))upsert('customers',['id','name','phone','email','source','campaign','website_id','status','note','custom_fields_json','created_at'],[v[0],v[1],v[2],v[3],'Landing Page',v[4],v[5],'NEW',v[6],v[7],v[8]]);
    return [{}];
@@ -401,7 +402,7 @@ async function automaticFixture(mode='ROUND_ROBIN',leaderWeight=1) {
  ]);
  return f;
 }
-function landingRecord(n) {return {id:'WHE-'+n,dedupeKey:'dedupe-'+n,status:'NEW',slug:'DS-UNKNOWN',receivedAt:'2026-09-14 22:02:00',customer:{name:'Customer '+n,phone:'0900000000'}};}
+function landingRecord(n) {return {id:'WHE-'+n,dedupeKey:'dedupe-'+n,status:'NEW',slug:'DS-UNKNOWN',receivedAt:'2026-09-14 22:02:00',customer:{name:'Customer '+n,phone:'0900000'+String(n).padStart(3,'0')}};}
 function recipientCounts(snapshot) {
  return Object.fromEntries(['lead','s1','s2','s3','s4'].map(id=>[id,snapshot.state.customers.filter(c=>c.saleId===id).length+snapshot.state.dataOffers.filter(o=>o.saleId===id&&o.status==='PENDING').length]));
 }

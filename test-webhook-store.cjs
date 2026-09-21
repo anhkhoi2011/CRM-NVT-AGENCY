@@ -15,6 +15,7 @@ function fixture(failCustomer = false, websites = [{ id: 'WEB-TEST', name: 'Hoan
       if (sql.includes('FROM crm_write_lock')) return [[{id:1}]];
       if (sql.startsWith('INSERT INTO webhook_events')) { if (!events.has(values[1])) events.set(values[1], values[0]); }
       if (sql.includes("FROM crm_documents WHERE collection='websites'")) return [websites.map(item => ({ id: item.id, body: JSON.stringify(item) }))];
+      if (sql.startsWith('SELECT id, name, phone, email, sale_id, leader_id, team_id, status FROM customers')) return [[...customers.values()].map(values => ({ id: values[0], name: values[1], phone: values[2], email: values[3], sale_id: values[11] || null, leader_id: values[12] || null, team_id: values[13] || null, status: values[7] }))];
       if (sql.startsWith('SELECT id')) return [[{ id: events.get(values[0]) }]];
       if (sql.startsWith('INSERT INTO customers')) {
         if (failCustomer) throw new Error('Database unavailable');
@@ -36,7 +37,7 @@ test('Lưu khách trước commit và giữ ID khi landing gửi lại', async (
   const retry = await f.persistWebhook({ ...record, id: 'WHE-2' });
   assert.equal(first.customerId, retry.customerId);
   assert.equal(f.customers.size, 1);
-  assert.deepEqual(f.calls, ['begin', 'assign', 'commit', 'release', 'begin', 'assign', 'commit', 'release']);
+  assert.deepEqual(f.calls, ['begin', 'assign', 'commit', 'release', 'begin', 'commit', 'release']);
 });
 test('Lỗi ghi khách phải rollback, không báo thành công', async () => {
   const f = fixture(true);
@@ -51,6 +52,16 @@ test('Payload không hợp lệ vẫn có sự kiện gốc, không tạo khách
   assert.equal(f.customers.size, 0);
 });
 
+test('Duplicate phone keeps the existing owner and skips automatic assignment', async () => {
+  const f = fixture();
+  f.customers.set('EXISTING', ['EXISTING', 'Existing customer', '0912345678', 'old@example.com', null, null, null, 'NEW', null, null, null, 'SALE-OLD', 'LEAD-OLD', 'TEAM-OLD']);
+  const duplicate = await f.persistWebhook({ ...record, id: 'WHE-DUP', dedupeKey: 'different-payload', customer: { name: 'Changed name', phone: '0912345678', email: 'new@example.com' } });
+  assert.equal(duplicate.duplicate, true);
+  assert.equal(duplicate.customerId, 'EXISTING');
+  assert.equal(duplicate.ownerSaleId, 'SALE-OLD');
+  assert.equal(f.customers.size, 1);
+  assert.equal(f.calls.includes('assign'), false);
+});
 test('Webhook maps website, campaign and source URL into MySQL customer', async () => {
   const f = fixture();
   const result = await f.persistWebhook(record);
