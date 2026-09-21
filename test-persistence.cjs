@@ -122,6 +122,13 @@ function frontend(){
  const context={document,window:{addEventListener(){},matchMedia(){return {matches:false};},location:{protocol:'http:',origin:'http://localhost:4173',hostname:'localhost'},confirm:()=>true},location:{protocol:'http:',origin:'http://localhost:4173',hostname:'localhost'},localStorage:store,sessionStorage:store,navigator:{},crypto:require('node:crypto').webcrypto,structuredClone,console,URL,Blob,Intl,TextEncoder,confirm:()=>true,setTimeout:()=>1,clearTimeout(){},setInterval:()=>1,clearInterval(){},fetch:async()=>({ok:false,json:async()=>({error:'offline'})})};
  vm.createContext(context);vm.runInContext(fs.readFileSync('crm.js','utf8'),context);return context;
 }
+test('Khach hang tong chi hien mot dong cho moi so dien thoai va uu tien Sale dang phu trach', () => {
+ const c=frontend();
+ vm.runInContext(`currentAccount={id:'admin',role:'ADMIN',scope:'ALL'};state=initialState();state.members=[{id:'sale-old',name:'Sale dang phu trach',role:'SALE',active:true,teamId:'T'},{id:'sale-new',name:'Sale moi',role:'SALE',active:true,teamId:'T'}];state.customers=[{id:'old',name:'Khach cu',phone:'0912345678',saleId:'sale-old',saleAcceptedAt:'2026-09-21 10:00',status:'NEW',createdAt:'2026-09-20 10:00',updatedAt:'2026-09-21 10:00',customFields:{}},{id:'new',name:'Khach trung',phone:'+84912345678',saleId:null,status:'NEW',createdAt:'2026-09-21 11:00',updatedAt:'2026-09-21 11:00',customFields:{}}];state.dataOffers=[];STAFF=state.members;`,c);
+ const html=vm.runInContext('customersView()',c);
+ assert.equal((html.match(/data-open-customer=/g)||[]).length,1);
+ assert.match(html,/Sale dang phu trach/);
+});
 test('Frontend khởi tạo form đăng nhập không truy cập tài khoản mẫu đã xóa',async()=>{const c=frontend();await c.initialize();assert.equal(vm.runInContext('state.members.length',c),0);});
 test('Frontend lỗi mạng giữ requestId và bản nháp để retry',async()=>{
  const c=frontend();vm.runInContext("currentAccount={id:'admin',role:'ADMIN'};serverSyncToken='token';applyServerSnapshot({state:initialState(),versions:{}});state.notes.push({id:'n1',text:'Bản nháp'});",c);

@@ -2378,6 +2378,28 @@ function updateCustomerCustomFields(customerId) {
   saveState(); render(); openCustomerDrawer(customerId); toast(`Đã lưu ${result.changes} thay đổi; lịch sử Level được giữ nguyên`);
 }
 
+function uniqueCustomerRows(customers) {
+  const groups = new Map();
+  const activeSaleIds = new Set(activeStaff().filter(member => member.role === 'SALE').map(member => member.id));
+  const score = customer => {
+    const pending = state.dataOffers.some(offer => offer.customerId === customer.id && offer.status === 'PENDING');
+    const activeSale = activeSaleIds.has(customer.saleId);
+    return (customer.status === 'ARCHIVED' ? 0 : 1000000000000)
+      + (pending ? 100000000 : 0)
+      + (activeSale ? 10000000 : 0)
+      + (customer.saleAcceptedAt ? 1000000 : 0)
+      + (customer.saleId ? 100000 : 0)
+      + (Date.parse(String(customer.updatedAt || customer.createdAt || '').replace(' ', 'T')) || 0);
+  };
+  for (const customer of customers || []) {
+    const phone = normalizeCustomerPhone(customer.phone);
+    const key = phone ? `phone:${phone}` : `id:${customer.id}`;
+    const previous = groups.get(key);
+    if (!previous || score(customer) > score(previous)) groups.set(key, customer);
+  }
+  return [...groups.values()];
+}
+
 function customerSearchText(customer) {
   const sourceText = currentAccount.role === 'ADMIN' ? `${customer.source}${customer.campaign}${customerLandingName(customer)}` : '';
   return `${customer.name}${customer.phone}${customer.email}${customer.id}${sourceText}${customer.note}${Object.values(customer.customFields || {}).flat().join('')}`;
@@ -2411,7 +2433,7 @@ function matchesCustomerOwnerFilter(customer) {
 
 function customersView() {
   const query = normalize(globalQuery);
-  const customers = scopedCustomers().filter(customer => customerStatusFilter === 'ALL' || customer.status === customerStatusFilter).filter(matchesCustomerOwnerFilter).filter(customer => !query || normalize(customerSearchText(customer)).includes(query)).sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));
+  const customers = uniqueCustomerRows(scopedCustomers()).filter(customer => customerStatusFilter === 'ALL' || customer.status === customerStatusFilter).filter(matchesCustomerOwnerFilter).filter(customer => !query || normalize(customerSearchText(customer)).includes(query)).sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));
   const importButton = currentAccount.role === 'ADMIN' ? '<button class="button" id="importCustomersButton" type="button">Kết nối / nhập data</button>' : '';
   const fieldButton = currentAccount.role === 'ADMIN' ? '<button class="button" id="manageCustomerFieldsButton" type="button">Quản lý cột</button>' : '';
   const createButton = `${currentAccount.role !== 'SALE' ? '<button class="button" id="exportCustomersButton" type="button">Xuất CSV</button>' : ''}${fieldButton}${importButton}<button class="button button-primary" id="newCustomerButton" type="button">+ Thêm khách hàng</button>`;
@@ -5162,7 +5184,7 @@ function assertCanExport() {
 function exportCustomers() {
   if (!assertCanExport()) return;
   const query = normalize(globalQuery);
-  const rows = scopedCustomers().filter(customer => customerStatusFilter === 'ALL' || customer.status === customerStatusFilter).filter(matchesCustomerOwnerFilter).filter(customer => !query || normalize(customerSearchText(customer)).includes(query));
+  const rows = uniqueCustomerRows(scopedCustomers()).filter(customer => customerStatusFilter === 'ALL' || customer.status === customerStatusFilter).filter(matchesCustomerOwnerFilter).filter(customer => !query || normalize(customerSearchText(customer)).includes(query));
   const fields = activeCustomFields();
   const sourceHeaders = currentAccount.role === 'ADMIN' ? ['Nguồn', 'Campaign', 'Landing page', 'Tên miền'] : [];
   const headers = ['Mã CRM', 'Họ tên', 'SĐT', 'Email', ...sourceHeaders, 'Trạng thái', 'Team', 'Leader', 'Sale', ...fields.map(field => field.label), 'Ghi chú mới nhất', 'Ngày tạo'];
