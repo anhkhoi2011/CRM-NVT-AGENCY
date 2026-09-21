@@ -3058,13 +3058,11 @@ function attendanceCalendarHtml(accountId) {
 }
 
 function attendanceView() {
-  if (['LEADER', 'MANAGER'].includes(currentAccount.actualRole || currentAccount.role)) return accessDeniedView('Vai trò này không sử dụng điểm danh.');
-  if (currentAccount.role === 'LEADER' && state.settings.leaderAttendanceRequired === false) return accessDeniedView('Admin đã tắt điểm danh bắt buộc cho Leader.');
   const today = dayIso(0);
   const rows = state.attendance.filter(item => item.date === today && activeStaff().some(person => person.id === item.accountId && person.role === 'SALE') && (currentAccount.role === 'ADMIN' || item.teamId === currentAccount.teamId)).sort((a, b) => a.at.localeCompare(b.at));
   if (currentAccount.role !== 'ADMIN') {
     const myAccountId = attendanceAccountId();
-    const mine = rows.find(item => item.accountId === myAccountId);
+    const mine = state.attendance.find(item => item.accountId === myAccountId && item.date === today);
     return pageHead('Điểm danh', '', mine ? '' : '<button class="button button-primary" id="checkInButton">Điểm danh hôm nay</button>') +
       `<section class="panel"><div class="panel-body">${mine ? `<div class="kpi"><strong>${escapeHtml(mine.at.slice(11))}</strong><small>${mine.late ? `Đi muộn ${mine.lateMinutes || 0} phút` : 'Đúng giờ'} · ${mine.ipValid ? 'Đúng wifi' : 'Ngoài wifi'} · IP ${escapeHtml(mine.ip)}</small></div>` : '<div class="empty"><b>Chưa điểm danh</b><span>Bấm nút Điểm danh hôm nay ở góc phải trên.</span></div>'}</div></section>` +
       `<section class="panel" style="margin-top:14px"><div class="panel-head"><div><div class="panel-title">Lịch điểm danh 3 tháng</div><div class="panel-sub">Sau ${escapeHtml(state.settings.attendanceDeadline || '09:00')} sẽ bị gắn nhãn Đi muộn · Cuối tuần tô xám</div></div></div><div class="panel-body" style="padding:0">${attendanceCalendarHtml(myAccountId)}</div></section>`;
@@ -3787,64 +3785,112 @@ function openAdminBroadcastModal() {
   };
 
   const bodyHtml = `<form id="adminBroadcastForm">
-    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;margin-bottom:14px">
-      <label style="font-weight:700;font-size:13px;display:block;margin-bottom:6px;color:#334155">
-        💡 Chọn mẫu thông báo gợi ý sẵn (Admin chỉ cần chọn là điền tự động):
-      </label>
-      <select id="bcPresetSelect" style="width:100%;padding:8px 12px;border-radius:8px;border:1.5px solid #cbd5e1;font-weight:600;font-size:13px;color:#1e293b;background:#ffffff">
-        <option value="">-- Tự nhập nội dung thủ công --</option>
-        <option value="meeting_weekly">🎯 Lịch họp tổng kết tuần & Review KPI</option>
-        <option value="reward_fast">🎁 Thưởng nóng chốt cọc trong 2h</option>
-        <option value="honor_bestseller">⭐ Vinh danh Best Seller bứt phá</option>
-        <option value="stale_warning">⚠️ Cảnh báo data nóng tồn quá 12h</option>
-        <option value="morning_motivation">🔥 Động viên bão đơn đầu ngày</option>
-        <option value="emergency_meet">🚨 Họp khẩn cấp Cấp Quản Lý</option>
-        <option value="policy_sla">📋 Quy định chuẩn tiếp cận khách (SLA 5p)</option>
-      </select>
+    <!-- 6 Mẫu thông báo gợi ý sẵn với màu sắc và viền riêng biệt -->
+    <div style="margin-bottom:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span style="font-weight:700;font-size:12px;color:#334155;text-transform:uppercase">
+          💡 Chọn mẫu gợi ý để tự động điền form:
+        </span>
+        <button type="button" id="btnBcCustom" style="background:none;border:none;color:#7c3aed;font-size:12px;font-weight:600;cursor:pointer">
+          ✏️ Tự soạn tự do
+        </button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:8px">
+        <button type="button" class="bc-tpl-btn" data-tpl="meeting_weekly" style="padding:8px 10px;text-align:left;border-radius:10px;border:2px solid #bfdbfe;background:#eff6ff;cursor:pointer;transition:all 0.2s">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span>📅</span><span style="font-size:10px;background:#dbeafe;color:#1d4ed8;padding:2px 5px;border-radius:4px;font-weight:700">Lịch họp</span>
+          </div>
+          <div style="font-weight:700;font-size:12px;color:#1e3a8a;margin-top:4px">Họp tổng tuần</div>
+          <div style="font-size:10px;color:#3b82f6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Tổng kết & KPI</div>
+        </button>
+
+        <button type="button" class="bc-tpl-btn" data-tpl="reward_fast" style="padding:8px 10px;text-align:left;border-radius:10px;border:2px solid #a7f3d0;background:#ecfdf5;cursor:pointer;transition:all 0.2s">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span>⚡</span><span style="font-size:10px;background:#d1fae5;color:#047857;padding:2px 5px;border-radius:4px;font-weight:700">Thưởng nóng</span>
+          </div>
+          <div style="font-weight:700;font-size:12px;color:#064e3b;margin-top:4px">Thưởng cọc 2h</div>
+          <div style="font-size:10px;color:#059669;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">+500k tiền mặt</div>
+        </button>
+
+        <button type="button" class="bc-tpl-btn" data-tpl="honor_bestseller" style="padding:8px 10px;text-align:left;border-radius:10px;border:2px solid #fde68a;background:#fffbeb;cursor:pointer;transition:all 0.2s">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span>🏆</span><span style="font-size:10px;background:#fef3c7;color:#b45309;padding:2px 5px;border-radius:4px;font-weight:700">Vinh danh</span>
+          </div>
+          <div style="font-weight:700;font-size:12px;color:#78350f;margin-top:4px">Best Seller</div>
+          <div style="font-size:10px;color:#d97706;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Bão đơn tuần</div>
+        </button>
+
+        <button type="button" class="bc-tpl-btn" data-tpl="stale_warning" style="padding:8px 10px;text-align:left;border-radius:10px;border:2px solid #fed7aa;background:#fff7ed;cursor:pointer;transition:all 0.2s">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span>⚠️</span><span style="font-size:10px;background:#ffedd5;color:#c2410c;padding:2px 5px;border-radius:4px;font-weight:700">Cảnh báo</span>
+          </div>
+          <div style="font-weight:700;font-size:12px;color:#7c2d12;margin-top:4px">Data tồn 12h</div>
+          <div style="font-size:10px;color:#ea580c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Thu hồi sau 24h</div>
+        </button>
+
+        <button type="button" class="bc-tpl-btn" data-tpl="morning_motivation" style="padding:8px 10px;text-align:left;border-radius:10px;border:2px solid #e9d5ff;background:#faf5ff;cursor:pointer;transition:all 0.2s">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span>🚀</span><span style="font-size:10px;background:#f3e8ff;color:#7e22ce;padding:2px 5px;border-radius:4px;font-weight:700">Động viên</span>
+          </div>
+          <div style="font-weight:700;font-size:12px;color:#581c87;margin-top:4px">Chào ngày mới</div>
+          <div style="font-size:10px;color:#9333ea;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Mục tiêu 5p</div>
+        </button>
+
+        <button type="button" class="bc-tpl-btn" data-tpl="emergency_meet" style="padding:8px 10px;text-align:left;border-radius:10px;border:2px solid #fecdd3;background:#fff1f2;cursor:pointer;transition:all 0.2s">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span>🚨</span><span style="font-size:10px;background:#ffe4e6;color:#be123c;padding:2px 5px;border-radius:4px;font-weight:700">Khẩn cấp</span>
+          </div>
+          <div style="font-weight:700;font-size:12px;color:#881337;margin-top:4px">Họp khẩn cấp</div>
+          <div style="font-size:10px;color:#e11d48;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Leader & Manager</div>
+        </button>
+      </div>
     </div>
 
-    <div class="form-grid">
-      <label class="form-field">Loại thông báo
-        <select id="bcTypeSelect" required>
-          <option value="MEETING">📢 Lịch họp tổng Agency</option>
-          <option value="POLICY">📋 Quy trình / Quy chế làm việc mới</option>
-          <option value="REWARD">🎁 Thưởng nóng & Vinh danh</option>
-          <option value="WARNING">⚠️ Cảnh báo tiến độ & Data tồn</option>
-          <option value="MOTIVATION">🔥 Động viên & Mục tiêu ngày</option>
-        </select>
-      </label>
-      <label class="form-field">Gửi tới đối tượng
-        <select id="bcTargetSelect" required>
-          <option value="ALL">👥 Toàn thể nhân sự Agency (Sale + Leader + Manager)</option>
-          <option value="SALE">💼 Chỉ Đội ngũ Sales / Tư vấn</option>
-          <option value="MANAGERS">🎖️ Chỉ Cấp Quản Lý (Leader & Manager)</option>
-        </select>
-      </label>
-      <label class="form-field" style="grid-column:1/-1">Tiêu đề thông báo
-        <input id="bcTitle" required placeholder="VD: Họp tổng kết tuần và công bố thưởng KPI mới" maxlength="200">
-      </label>
-      <div id="bcMeetingFields" style="grid-column:1/-1">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-          <label class="form-field">Thời gian họp
-            <input type="datetime-local" id="bcMeetingTime">
-          </label>
-          <label class="form-field">Địa điểm / Link họp
-            <input id="bcMeetingLink" placeholder="VD: Google Meet / Zoom hoặc Phòng họp tầng 2">
-          </label>
+    <!-- Hộp form cấu hình (Đã loại bỏ dropdown Loại thông báo dư thừa) -->
+    <div id="bcFormBox" style="border:2px solid #93c5fd;border-radius:12px;padding:14px;background:#ffffff;margin-bottom:12px;transition:border-color 0.2s">
+      <input type="hidden" id="bcTypeSelect" value="MEETING">
+
+      <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid #f1f5f9;margin-bottom:12px;gap:10px">
+        <div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:11px;color:#64748b;font-weight:600">Đang chọn:</span>
+          <span id="bcActiveBadge" style="padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700;background:#dbeafe;color:#1e40af;border:1px solid #bfdbfe">
+            📅 Họp tổng tuần
+          </span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <label style="font-size:12px;font-weight:700;color:#334155;white-space:nowrap">Gửi tới:</label>
+          <select id="bcTargetSelect" style="padding:5px 10px;border-radius:6px;border:1.5px solid #cbd5e1;font-weight:700;font-size:12px;color:#1e293b;background:#f8fafc">
+            <option value="ALL">🌐 Toàn thể Agency (Sale + Leader + Manager)</option>
+            <option value="SALE">💼 Chỉ Đội ngũ Sales / Tư vấn</option>
+            <option value="MANAGERS">🎖️ Chỉ Cấp Quản Lý (Leader & Manager)</option>
+          </select>
         </div>
       </div>
-      <div id="bcPolicyFields" style="display:none;grid-column:1/-1">
-        <label class="form-field">Ngày bắt đầu áp dụng
-          <input type="date" id="bcEffectiveDate">
+
+      <div class="form-grid">
+        <label class="form-field" style="grid-column:1/-1">Tiêu đề thông báo
+          <input id="bcTitle" required placeholder="VD: Họp tổng kết tuần và công bố thưởng KPI mới" maxlength="200">
+        </label>
+        <div id="bcMeetingFields" style="grid-column:1/-1">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px">
+            <label class="form-field" style="margin:0">Thời gian họp
+              <input type="datetime-local" id="bcMeetingTime">
+            </label>
+            <label class="form-field" style="margin:0">Địa điểm / Link họp
+              <input id="bcMeetingLink" placeholder="VD: Google Meet / Zoom hoặc Phòng họp tầng 2">
+            </label>
+          </div>
+        </div>
+        <label class="form-field" style="grid-column:1/-1">Người chủ trì / Ban hành
+          <input id="bcHost" value="${escapeHtml(currentAccount.name)}" placeholder="VD: Ban Giám Đốc NVT Agency">
+        </label>
+        <label class="form-field" style="grid-column:1/-1">Nội dung chi tiết
+          <textarea id="bcContent" rows="4" required placeholder="Nhập nội dung chi tiết thông báo..."></textarea>
         </label>
       </div>
-      <label class="form-field" style="grid-column:1/-1">Người chủ trì / Ban hành
-        <input id="bcHost" value="${escapeHtml(currentAccount.name)}" placeholder="VD: Ban Giám Đốc NVT Agency">
-      </label>
-      <label class="form-field" style="grid-column:1/-1">Nội dung chi tiết
-        <textarea id="bcContent" rows="5" required placeholder="Nhập nội dung chi tiết hoặc chọn mẫu gợi ý phía trên..."></textarea>
-      </label>
     </div>
+
     <div class="credential-hint" style="margin-top:10px">⚡ Thông báo sẽ được <b>Bot Telegram NVT Agency</b> phát tức thì tới từng nhân viên theo nhóm đối tượng đã chọn.</div>
     <div class="modal-actions" style="margin-top:16px;display:flex;justify-content:flex-end;gap:8px">
       <button type="button" class="button button-secondary" data-close-modal>Hủy</button>
@@ -3855,38 +3901,76 @@ function openAdminBroadcastModal() {
   openModal('📢 Phát thông báo Telegram toàn Agency', bodyHtml);
   $('[data-close-modal]')?.addEventListener('click', closeModal);
 
-  const typeSelect = $('#bcTypeSelect');
+  const typeInput = $('#bcTypeSelect');
   const targetSelect = $('#bcTargetSelect');
   const titleInput = $('#bcTitle');
   const hostInput = $('#bcHost');
   const contentInput = $('#bcContent');
   const meetingFields = $('#bcMeetingFields');
   const meetingLink = $('#bcMeetingLink');
-  const policyFields = $('#bcPolicyFields');
+  const formBox = $('#bcFormBox');
+  const activeBadge = $('#bcActiveBadge');
 
-  const updateTypeView = (t) => {
-    if (meetingFields) meetingFields.style.display = (t === 'MEETING') ? 'block' : 'none';
-    if (policyFields) policyFields.style.display = (t === 'POLICY') ? 'block' : 'none';
+  const tplStyles = {
+    meeting_weekly: { border: '#93c5fd', badgeBg: '#dbeafe', badgeColor: '#1e40af', badgeBorder: '#bfdbfe', label: '📅 Họp tổng tuần' },
+    reward_fast: { border: '#86efac', badgeBg: '#dcfce7', badgeColor: '#166534', badgeBorder: '#bbf7d0', label: '⚡ Thưởng cọc 2h' },
+    honor_bestseller: { border: '#fde047', badgeBg: '#fef9c3', badgeColor: '#854d0e', badgeBorder: '#fef08a', label: '🏆 Best Seller' },
+    stale_warning: { border: '#fdba74', badgeBg: '#ffedd5', badgeColor: '#9a3412', badgeBorder: '#fed7aa', label: '⚠️ Data tồn 12h' },
+    morning_motivation: { border: '#d8b4fe', badgeBg: '#f3e8ff', badgeColor: '#6b21a8', badgeBorder: '#e9d5ff', label: '🚀 Chào ngày mới' },
+    emergency_meet: { border: '#fda4af', badgeBg: '#ffe4e6', badgeColor: '#9f1239', badgeBorder: '#fecdd3', label: '🚨 Họp khẩn cấp' }
   };
 
-  typeSelect?.addEventListener('change', (e) => updateTypeView(e.target.value));
-
-  $('#bcPresetSelect')?.addEventListener('change', (e) => {
-    const key = e.target.value;
-    if (!key || !templates[key]) return;
+  const applyTemplate = (key) => {
     const tpl = templates[key];
-    if (typeSelect) typeSelect.value = tpl.type;
+    if (!tpl) return;
+    if (typeInput) typeInput.value = tpl.type;
     if (targetSelect) targetSelect.value = tpl.target;
     if (titleInput) titleInput.value = tpl.title;
     if (hostInput) hostInput.value = tpl.host || currentAccount.name;
     if (contentInput) contentInput.value = tpl.content;
     if (tpl.meeting_link && meetingLink) meetingLink.value = tpl.meeting_link;
-    updateTypeView(tpl.type);
+
+    if (meetingFields) meetingFields.style.display = (tpl.type === 'MEETING') ? 'block' : 'none';
+
+    const st = tplStyles[key];
+    if (st && formBox) formBox.style.borderColor = st.border;
+    if (st && activeBadge) {
+      activeBadge.textContent = st.label;
+      activeBadge.style.background = st.badgeBg;
+      activeBadge.style.color = st.badgeColor;
+      activeBadge.style.borderColor = st.badgeBorder;
+    }
+
+    document.querySelectorAll('.bc-tpl-btn').forEach(btn => {
+      btn.style.boxShadow = btn.dataset.tpl === key ? '0 0 0 2px #7c3aed' : 'none';
+    });
+  };
+
+  document.querySelectorAll('.bc-tpl-btn').forEach(btn => {
+    btn.addEventListener('click', () => applyTemplate(btn.dataset.tpl));
   });
+
+  $('#btnBcCustom')?.addEventListener('click', () => {
+    if (titleInput) titleInput.value = '';
+    if (contentInput) contentInput.value = '';
+    if (meetingFields) meetingFields.style.display = 'none';
+    if (formBox) formBox.style.borderColor = '#cbd5e1';
+    if (activeBadge) {
+      activeBadge.textContent = '✏️ Tự soạn tự do';
+      activeBadge.style.background = '#f1f5f9';
+      activeBadge.style.color = '#475569';
+      activeBadge.style.borderColor = '#cbd5e1';
+    }
+    document.querySelectorAll('.bc-tpl-btn').forEach(btn => btn.style.boxShadow = 'none');
+    titleInput?.focus();
+  });
+
+  // Chọn mẫu đầu tiên mặc định
+  applyTemplate('meeting_weekly');
 
   $('#adminBroadcastForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const type = typeSelect?.value || 'MEETING';
+    const type = typeInput?.value || 'MEETING';
     const target = targetSelect?.value || 'ALL';
     const title = titleInput?.value.trim() || '';
     const content = contentInput?.value.trim() || '';
@@ -4275,9 +4359,10 @@ async function deleteCustomer(id) {
 }
 
 async function deleteOrder(id) {
-  if (currentAccount?.role !== 'ADMIN') { toast('FORBIDDEN \u00b7 ch\u1ec9 Admin \u0111\u01b0\u1ee3c x\u00f3a \u0111\u01a1n h\u00e0ng'); return; }
   const order = state.orders.find(item => item.id === id);
   if (!order || !canViewCustomer(customerById(order.customerId))) { toast('\u0110\u01a1n h\u00e0ng kh\u00f4ng c\u00f2n t\u1ed3n t\u1ea1i ho\u1eb7c n\u1eb1m ngo\u00e0i ph\u1ea1m vi'); return; }
+  const access = orderEditState(order);
+  if (!access.allowed) { toast('\u0110\u01a1n h\u00e0ng ch\u1ec9 \u0111\u01b0\u1ee3c x\u00f3a trong 3 ng\u00e0y \u0111\u1ea7u'); return; }
   if (!window.confirm(`X\u00f3a ${order.code}? \u0110\u01a1n s\u1ebd kh\u00f4ng c\u00f2n \u0111\u01b0\u1ee3c t\u00ednh trong th\u1ed1ng k\u00ea v\u00e0 doanh thu.`)) return;
   if (!await pushServerRecord('orders', 'DELETE', id, order)) { toast('Kh\u00f4ng th\u1ec3 x\u00f3a \u0111\u01a1n h\u00e0ng tr\u00ean MySQL'); return; }
   audit('DELETE_ORDER', id, order.code); saveState(); render(); toast('\u0110\u00e3 x\u00f3a \u0111\u01a1n h\u00e0ng v\u00e0 c\u1eadp nh\u1eadt th\u1ed1ng k\u00ea');

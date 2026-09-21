@@ -193,98 +193,141 @@
 
           <div class="p-5 space-y-5">
 
-            <!-- Preset Templates Selector -->
+            <!-- Preset Templates Selector (Tailored Colors & Borders matching content) -->
             <div>
-              <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center justify-between">
-                <span>💡 BẤM CHỌN MẪU GỢI Ý SẴN (AUTO FILL FORM)</span>
-                <span class="text-[11px] text-blue-600 font-normal">Click để điền ngay ⚡</span>
-              </label>
-              <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
-                <button type="button" onclick="loadTemplate('meeting_weekly')" class="p-2.5 text-left rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/60 transition group active:scale-98 bg-slate-50">
-                  <span class="text-sm">📅</span>
-                  <strong class="block text-xs text-slate-800 group-hover:text-blue-700 mt-1">Họp tổng tuần</strong>
-                  <span class="block text-[10px] text-slate-500 line-clamp-1">Tổng kết số &amp; trao thưởng</span>
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                  <span>💡</span> BẤM CHỌN MẪU GỢI Ý ĐỂ ĐIỀN FORM TỰ ĐỘNG
+                </span>
+                <button type="button" onclick="resetToCustom()" class="text-[11px] font-semibold text-purple-600 hover:text-purple-800 flex items-center gap-1 hover:underline">
+                  <span>✏️</span> Tự soạn tự do
                 </button>
-                <button type="button" onclick="loadTemplate('reward_fast')" class="p-2.5 text-left rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/60 transition group active:scale-98 bg-slate-50">
-                  <span class="text-sm">⚡</span>
-                  <strong class="block text-xs text-slate-800 group-hover:text-emerald-700 mt-1">Thưởng nóng cọc</strong>
-                  <span class="block text-[10px] text-slate-500 line-clamp-1">+5% hoa hồng trong 2h</span>
+              </div>
+
+              <!-- 6 Preset Cards with distinct colors & borders -->
+              <div class="grid grid-cols-2 md:grid-cols-3 gap-2.5">
+                <!-- 1. Họp tổng tuần (Blue/Indigo) -->
+                <button type="button" id="btnTpl_meeting_weekly" onclick="loadTemplate('meeting_weekly')" class="tpl-card p-3 text-left rounded-xl border-2 border-blue-200 bg-blue-50/60 hover:bg-blue-100/70 hover:border-blue-400 transition group active:scale-95 shadow-xs relative">
+                  <div class="flex items-center justify-between">
+                    <span class="text-base">📅</span>
+                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 border border-blue-200">Lịch họp</span>
+                  </div>
+                  <strong class="block text-xs font-bold text-blue-950 mt-1.5 leading-snug">Họp tổng tuần</strong>
+                  <span class="block text-[10px] text-blue-700/80 font-medium line-clamp-1 mt-0.5">Tổng kết số &amp; trao thưởng</span>
                 </button>
-                <button type="button" onclick="loadTemplate('honor_bestseller')" class="p-2.5 text-left rounded-xl border border-slate-200 hover:border-amber-500 hover:bg-amber-50/60 transition group active:scale-98 bg-slate-50">
-                  <span class="text-sm">🏆</span>
-                  <strong class="block text-xs text-slate-800 group-hover:text-amber-700 mt-1">Vinh danh Best Seller</strong>
-                  <span class="block text-[10px] text-slate-500 line-clamp-1">Khen thưởng bão đơn tuần</span>
+
+                <!-- 2. Thưởng nóng cọc (Emerald Green) -->
+                <button type="button" id="btnTpl_reward_fast" onclick="loadTemplate('reward_fast')" class="tpl-card p-3 text-left rounded-xl border-2 border-emerald-200 bg-emerald-50/60 hover:bg-emerald-100/70 hover:border-emerald-400 transition group active:scale-95 shadow-xs relative">
+                  <div class="flex items-center justify-between">
+                    <span class="text-base">⚡</span>
+                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 border border-emerald-200">Thưởng nóng</span>
+                  </div>
+                  <strong class="block text-xs font-bold text-emerald-950 mt-1.5 leading-snug">Thưởng nóng cọc</strong>
+                  <span class="block text-[10px] text-emerald-700/80 font-medium line-clamp-1 mt-0.5">+5% hoa hồng trong 2h</span>
                 </button>
-                <button type="button" onclick="loadTemplate('stale_warning')" class="p-2.5 text-left rounded-xl border border-slate-200 hover:border-rose-500 hover:bg-rose-50/60 transition group active:scale-98 bg-slate-50">
-                  <span class="text-sm">⚠️</span>
-                  <strong class="block text-xs text-slate-800 group-hover:text-rose-700 mt-1">Nhắc xử lý data tồn</strong>
-                  <span class="block text-[10px] text-slate-500 line-clamp-1">Yêu cầu dứt điểm trước 18h</span>
+
+                <!-- 3. Vinh danh Best Seller (Amber/Gold) -->
+                <button type="button" id="btnTpl_honor_bestseller" onclick="loadTemplate('honor_bestseller')" class="tpl-card p-3 text-left rounded-xl border-2 border-amber-300 bg-amber-50/70 hover:bg-amber-100/80 hover:border-amber-400 transition group active:scale-95 shadow-xs relative">
+                  <div class="flex items-center justify-between">
+                    <span class="text-base">🏆</span>
+                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-200 text-amber-900 border border-amber-300">Vinh danh</span>
+                  </div>
+                  <strong class="block text-xs font-bold text-amber-950 mt-1.5 leading-snug">Vinh danh Best Seller</strong>
+                  <span class="block text-[10px] text-amber-800/80 font-medium line-clamp-1 mt-0.5">Khen thưởng bão đơn tuần</span>
                 </button>
-                <button type="button" onclick="loadTemplate('morning_motivation')" class="p-2.5 text-left rounded-xl border border-slate-200 hover:border-purple-500 hover:bg-purple-50/60 transition group active:scale-98 bg-slate-50">
-                  <span class="text-sm">🚀</span>
-                  <strong class="block text-xs text-slate-800 group-hover:text-purple-700 mt-1">Động viên bão đơn</strong>
-                  <span class="block text-[10px] text-slate-500 line-clamp-1">Khí thế bứt phá đầu tuần</span>
+
+                <!-- 4. Nhắc xử lý data tồn (Orange Alert) -->
+                <button type="button" id="btnTpl_stale_warning" onclick="loadTemplate('stale_warning')" class="tpl-card p-3 text-left rounded-xl border-2 border-orange-300 bg-orange-50/60 hover:bg-orange-100/70 hover:border-orange-400 transition group active:scale-95 shadow-xs relative">
+                  <div class="flex items-center justify-between">
+                    <span class="text-base">⚠️</span>
+                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-orange-200 text-orange-900 border border-orange-300">Cảnh báo data</span>
+                  </div>
+                  <strong class="block text-xs font-bold text-orange-950 mt-1.5 leading-snug">Nhắc xử lý data tồn</strong>
+                  <span class="block text-[10px] text-orange-800/80 font-medium line-clamp-1 mt-0.5">Yêu cầu dứt điểm trước 18h</span>
                 </button>
-                <button type="button" onclick="loadTemplate('emergency_meet')" class="p-2.5 text-left rounded-xl border border-slate-200 hover:border-red-500 hover:bg-red-50/60 transition group active:scale-98 bg-slate-50">
-                  <span class="text-sm">🚨</span>
-                  <strong class="block text-xs text-slate-800 group-hover:text-red-700 mt-1">Họp khẩn cấp</strong>
-                  <span class="block text-[10px] text-slate-500 line-clamp-1">Họp Leader &amp; Sale gấp</span>
+
+                <!-- 5. Động viên bão đơn (Purple/Violet) -->
+                <button type="button" id="btnTpl_morning_motivation" onclick="loadTemplate('morning_motivation')" class="tpl-card p-3 text-left rounded-xl border-2 border-purple-200 bg-purple-50/60 hover:bg-purple-100/70 hover:border-purple-400 transition group active:scale-95 shadow-xs relative">
+                  <div class="flex items-center justify-between">
+                    <span class="text-base">🚀</span>
+                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 border border-purple-200">Động viên</span>
+                  </div>
+                  <strong class="block text-xs font-bold text-purple-950 mt-1.5 leading-snug">Động viên bão đơn</strong>
+                  <span class="block text-[10px] text-purple-700/80 font-medium line-clamp-1 mt-0.5">Khí thế bứt phá đầu tuần</span>
+                </button>
+
+                <!-- 6. Họp khẩn cấp (Rose/Red) -->
+                <button type="button" id="btnTpl_emergency_meet" onclick="loadTemplate('emergency_meet')" class="tpl-card p-3 text-left rounded-xl border-2 border-rose-300 bg-rose-50/70 hover:bg-rose-100/80 hover:border-rose-400 transition group active:scale-95 shadow-xs relative">
+                  <div class="flex items-center justify-between">
+                    <span class="text-base">🚨</span>
+                    <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-200 text-rose-900 border border-rose-300">Khẩn cấp</span>
+                  </div>
+                  <strong class="block text-xs font-bold text-rose-950 mt-1.5 leading-snug">Họp khẩn cấp</strong>
+                  <span class="block text-[10px] text-rose-800/80 font-medium line-clamp-1 mt-0.5">Họp Leader &amp; Sale gấp</span>
                 </button>
               </div>
             </div>
 
-            <!-- Form Edit & Config -->
-            <div class="border border-slate-200 rounded-xl p-4 bg-slate-50/50 space-y-3 text-xs">
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label class="font-bold text-slate-700 block mb-1">Loại thông báo</label>
-                  <select id="noticeType" onchange="updateNoticeFields()" class="w-full bg-white border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-purple-500 outline-none">
-                    <option value="MEETING">📅 Lịch họp tổng Agency</option>
-                    <option value="POLICY">📋 Quy trình / Chính sách mới</option>
-                    <option value="HONOR">🏆 Vinh danh &amp; Khen thưởng</option>
-                    <option value="REMINDER">⚠️ Nhắc nhở kỷ luật &amp; Data</option>
-                  </select>
+            <!-- Form Edit & Config (Removed redundant 'Loại thông báo' dropdown!) -->
+            <div id="noticeFormBox" class="border-2 border-blue-300 rounded-2xl p-4 bg-white shadow-xs space-y-3.5 text-xs transition-all duration-200">
+              
+              <!-- Hidden input for type -->
+              <input type="hidden" id="noticeType" value="MEETING">
+
+              <!-- Top Row: Active Status Indicator + Target Audience Selector -->
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-slate-100">
+                <div class="flex items-center gap-2">
+                  <span class="text-slate-500 font-medium text-[11px]">Đang chọn:</span>
+                  <div id="activeNoticeBadge" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-100 text-blue-800 border border-blue-200 shadow-2xs">
+                    <span>📅</span> Họp tổng tuần
+                  </div>
                 </div>
-                <div>
-                  <label class="font-bold text-slate-700 block mb-1">Đối tượng nhận tin</label>
-                  <select id="noticeTarget" class="w-full bg-white border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-purple-500 outline-none">
-                    <option value="ALL">🌐 Toàn bộ Agency (Admin, Manager, Leader, Sale)</option>
-                    <option value="SALE">👤 Toàn bộ nhân viên Sale</option>
-                    <option value="MANAGERS">👔 Chỉ Ban Quản Lý (Leader &amp; Manager)</option>
+
+                <div class="flex items-center gap-2">
+                  <label class="font-bold text-slate-700 whitespace-nowrap">Đối tượng nhận:</label>
+                  <select id="noticeTarget" class="bg-slate-50 border border-slate-300 rounded-lg py-1.5 px-2.5 font-bold text-slate-800 text-xs focus:ring-2 focus:ring-purple-500 outline-none">
+                    <option value="ALL">🌐 Toàn bộ Agency (Sale + Leader + Manager)</option>
+                    <option value="SALE">💼 Chỉ Đội ngũ Sales / Tư vấn</option>
+                    <option value="MANAGERS">🎖️ Chỉ Ban Quản Lý (Leader &amp; Manager)</option>
                   </select>
                 </div>
               </div>
 
+              <!-- Tiêu đề thông báo -->
               <div>
-                <label class="font-bold text-slate-700 block mb-1">Tiêu đề thông báo</label>
-                <input id="noticeTitle" type="text" value="Họp tổng kết tuần &amp; Trao thưởng Top 1 Doanh số" class="w-full bg-white border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-purple-500 outline-none font-semibold text-slate-900">
+                <label class="font-bold text-slate-700 block mb-1 flex items-center justify-between">
+                  <span>Tiêu đề thông báo</span>
+                  <span class="text-[10px] text-slate-400 font-normal">Hiển thị đậm trên Telegram</span>
+                </label>
+                <input id="noticeTitle" type="text" value="Họp tổng kết tuần &amp; Trao thưởng Top 1 Doanh số" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-purple-500 focus:bg-white outline-none font-bold text-slate-900">
               </div>
 
-              <div id="fieldMeeting" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <!-- Trường thời gian & link họp (chỉ hiện khi loại là lịch họp) -->
+              <div id="fieldMeeting" class="grid grid-cols-1 md:grid-cols-2 gap-3 p-2.5 rounded-xl bg-blue-50/60 border border-blue-200">
                 <div>
-                  <label class="font-bold text-slate-700 block mb-1">Thời gian diễn ra</label>
-                  <input id="noticeTime" type="text" value="16:30 chiều nay" class="w-full bg-white border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-purple-500 outline-none">
+                  <label class="font-bold text-blue-900 block mb-1">⏰ Thời gian diễn ra</label>
+                  <input id="noticeTime" type="text" value="16:30 chiều nay" class="w-full bg-white border border-blue-200 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none font-semibold text-slate-900">
                 </div>
                 <div>
-                  <label class="font-bold text-slate-700 block mb-1">Địa điểm / Link họp</label>
-                  <input id="noticeLink" type="text" value="meet.google.com/nvt-agency-meet" class="w-full bg-white border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-purple-500 outline-none">
+                  <label class="font-bold text-blue-900 block mb-1">📍 Địa điểm / Link họp</label>
+                  <input id="noticeLink" type="text" value="meet.google.com/nvt-agency-meet" class="w-full bg-white border border-blue-200 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none font-semibold text-slate-900">
                 </div>
               </div>
 
               <div>
                 <label class="font-bold text-slate-700 block mb-1">Người chủ trì / Ban hành</label>
-                <input id="noticeHost" type="text" value="Ban Giám Đốc NVT Agency" class="w-full bg-white border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-purple-500 outline-none">
+                <input id="noticeHost" type="text" value="Ban Giám Đốc NVT Agency" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-purple-500 focus:bg-white outline-none">
               </div>
 
               <div>
                 <label class="font-bold text-slate-700 block mb-1">Nội dung chi tiết thông báo</label>
-                <textarea id="noticeContent" rows="3" class="w-full bg-white border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-purple-500 outline-none text-slate-800 leading-relaxed">Toàn bộ nhân sự Sale và Leader có mặt đúng giờ để tổng kết kết quả kinh doanh tuần qua và nhận thưởng nóng cho các cá nhân xuất sắc.</textarea>
+                <textarea id="noticeContent" rows="3" class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-purple-500 focus:bg-white outline-none text-slate-800 leading-relaxed font-normal">Toàn bộ nhân sự Sale và Leader có mặt đúng giờ để tổng kết kết quả kinh doanh tuần qua, phổ biến mục tiêu tuần mới và trao thưởng nóng cho các cá nhân xuất sắc.</textarea>
               </div>
 
               <!-- Action button -->
-              <div class="pt-2 flex items-center justify-between">
-                <span class="text-[11px] text-slate-500">Tin nhắn sẽ được đẩy qua Webhook Telegram của Bot 🚀</span>
-                <button type="button" onclick="sendAdminBroadcastFromStudio()" class="px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center gap-1.5 active:scale-95">
+              <div class="pt-2 flex flex-col sm:flex-row items-center justify-between gap-2 border-t border-slate-100">
+                <span class="text-[11px] text-slate-500">⚡ Tin nhắn sẽ được Bot tự động phát đến Telegram cá nhân</span>
+                <button type="button" onclick="sendAdminBroadcastFromStudio()" class="w-full sm:w-auto px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center justify-center gap-2 active:scale-95">
                   <span>🚀</span> BẮN THÔNG BÁO TELEGRAM NGAY
                 </button>
               </div>
@@ -395,10 +438,15 @@
       }
     }
 
-    // Kho mẫu thông báo gợi ý sẵn
-    const TEMPLATES = {
+    // Kho mẫu thông báo gợi ý sẵn (phối màu và viền theo từng nội dung)
+    const TPL_META = {
       meeting_weekly: {
         type: 'MEETING',
+        target: 'ALL',
+        badge: '<span>📅</span> Họp tổng tuần',
+        badgeClass: 'bg-blue-100 text-blue-800 border-blue-300',
+        formBorder: 'border-blue-400',
+        btnRing: 'ring-2 ring-blue-500 border-blue-500 shadow-md bg-blue-100/70',
         title: 'Họp tổng kết tuần & Trao thưởng Top 1 Doanh số',
         time: '16:30 chiều nay',
         link: 'meet.google.com/nvt-agency-meet',
@@ -407,6 +455,11 @@
       },
       reward_fast: {
         type: 'POLICY',
+        target: 'SALE',
+        badge: '<span>⚡</span> Thưởng nóng cọc',
+        badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+        formBorder: 'border-emerald-400',
+        btnRing: 'ring-2 ring-emerald-500 border-emerald-500 shadow-md bg-emerald-100/70',
         title: 'Chính sách thưởng nóng: Chốt cọc trong vòng 2 giờ!',
         time: '',
         link: '',
@@ -415,6 +468,11 @@
       },
       honor_bestseller: {
         type: 'HONOR',
+        target: 'ALL',
+        badge: '<span>🏆</span> Vinh danh Best Seller',
+        badgeClass: 'bg-amber-100 text-amber-900 border-amber-300',
+        formBorder: 'border-amber-400',
+        btnRing: 'ring-2 ring-amber-500 border-amber-500 shadow-md bg-amber-100/70',
         title: 'VINH DANH BEST SELLER TUẦN: BÙNG NỔ 120 TRIỆU DOANH SỐ!',
         time: '',
         link: '',
@@ -423,6 +481,11 @@
       },
       stale_warning: {
         type: 'REMINDER',
+        target: 'SALE',
+        badge: '<span>⚠️</span> Nhắc xử lý data tồn',
+        badgeClass: 'bg-orange-100 text-orange-900 border-orange-300',
+        formBorder: 'border-orange-400',
+        btnRing: 'ring-2 ring-orange-500 border-orange-500 shadow-md bg-orange-100/70',
         title: 'CẢNH BÁO: XỬ LÝ DỨT ĐIỂM DATA NÓNG TỒN ĐỌNG TRƯỚC 18H00',
         time: 'Trước 18:00 hôm nay',
         link: '',
@@ -431,6 +494,11 @@
       },
       morning_motivation: {
         type: 'HONOR',
+        target: 'ALL',
+        badge: '<span>🚀</span> Động viên bão đơn',
+        badgeClass: 'bg-purple-100 text-purple-800 border-purple-300',
+        formBorder: 'border-purple-400',
+        btnRing: 'ring-2 ring-purple-500 border-purple-500 shadow-md bg-purple-100/70',
         title: 'CHÚC TOÀN THỂ NVT AGENCY TUẦN MỚI BÃO ĐƠN & BỨT PHÁ!',
         time: '',
         link: '',
@@ -439,6 +507,11 @@
       },
       emergency_meet: {
         type: 'MEETING',
+        target: 'MANAGERS',
+        badge: '<span>🚨</span> Họp khẩn cấp',
+        badgeClass: 'bg-rose-100 text-rose-900 border-rose-300',
+        formBorder: 'border-rose-400',
+        btnRing: 'ring-2 ring-rose-500 border-rose-500 shadow-md bg-rose-100/70',
         title: 'HỌP KHẨN CẤP: TRIỂN KHAI CHIẾN DỊCH QUẢNG CÁO MỚI',
         time: '14:00 hôm nay (Bắt buộc)',
         link: 'meet.google.com/nvt-khan-cap',
@@ -447,26 +520,75 @@
       }
     };
 
+    function clearActiveButtons() {
+      document.querySelectorAll('.tpl-card').forEach(btn => {
+        btn.classList.remove('ring-2', 'ring-blue-500', 'ring-emerald-500', 'ring-amber-500', 'ring-orange-500', 'ring-purple-500', 'ring-rose-500', 'border-blue-500', 'border-emerald-500', 'border-amber-500', 'border-orange-500', 'border-purple-500', 'border-rose-500', 'shadow-md', 'bg-blue-100/70', 'bg-emerald-100/70', 'bg-amber-100/70', 'bg-orange-100/70', 'bg-purple-100/70', 'bg-rose-100/70');
+      });
+      const formBox = document.getElementById('noticeFormBox');
+      if (formBox) {
+        formBox.classList.remove('border-blue-400', 'border-emerald-400', 'border-amber-400', 'border-orange-400', 'border-purple-400', 'border-rose-400', 'border-slate-300');
+      }
+    }
+
     function loadTemplate(key) {
-      const t = TEMPLATES[key];
+      const t = TPL_META[key];
       if (!t) return;
+      clearActiveButtons();
+
+      const btn = document.getElementById('btnTpl_' + key);
+      if (btn && t.btnRing) {
+        btn.className += ' ' + t.btnRing;
+      }
+
+      const formBox = document.getElementById('noticeFormBox');
+      if (formBox && t.formBorder) {
+        formBox.classList.add(t.formBorder);
+      }
+
+      const badge = document.getElementById('activeNoticeBadge');
+      if (badge) {
+        badge.innerHTML = t.badge;
+        badge.className = `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border shadow-2xs ${t.badgeClass}`;
+      }
+
       document.getElementById('noticeType').value = t.type;
+      if (t.target && document.getElementById('noticeTarget')) {
+        document.getElementById('noticeTarget').value = t.target;
+      }
       document.getElementById('noticeTitle').value = t.title;
-      document.getElementById('noticeTime').value = t.time || 'Ngay lập tức';
+      document.getElementById('noticeTime').value = t.time || '';
       document.getElementById('noticeLink').value = t.link || '';
       document.getElementById('noticeHost').value = t.host;
       document.getElementById('noticeContent').value = t.content;
+
       updateNoticeFields();
+    }
+
+    function resetToCustom() {
+      clearActiveButtons();
+      const formBox = document.getElementById('noticeFormBox');
+      if (formBox) formBox.classList.add('border-slate-300');
+
+      const badge = document.getElementById('activeNoticeBadge');
+      if (badge) {
+        badge.innerHTML = '<span>✏️</span> Tự soạn nội dung';
+        badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border shadow-2xs bg-slate-100 text-slate-700 border-slate-300';
+      }
+
+      document.getElementById('noticeTitle').value = '';
+      document.getElementById('noticeTime').value = '';
+      document.getElementById('noticeLink').value = '';
+      document.getElementById('noticeContent').value = '';
+      document.getElementById('fieldMeeting').style.display = 'none';
+      document.getElementById('noticeType').value = 'POLICY';
+      document.getElementById('noticeTitle').focus();
     }
 
     function updateNoticeFields() {
       const type = document.getElementById('noticeType').value;
       const fieldMeeting = document.getElementById('fieldMeeting');
-      if (type === 'MEETING') {
-        fieldMeeting.style.display = 'grid';
-      } else {
-        fieldMeeting.style.display = 'none';
-      }
+      if (!fieldMeeting) return;
+      fieldMeeting.style.display = (type === 'MEETING') ? 'grid' : 'none';
     }
 
     function sendAdminBroadcastFromStudio() {
@@ -729,6 +851,11 @@
     function resetDemo() {
       location.reload();
     }
+
+    // Khởi tạo mặc định mẫu đầu tiên với viền và màu sắc tương ứng
+    window.addEventListener('DOMContentLoaded', () => {
+      loadTemplate('meeting_weekly');
+    });
   </script>
 </body>
 </html>

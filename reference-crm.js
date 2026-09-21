@@ -629,6 +629,14 @@
       row.querySelectorAll('td').forEach((cell,i)=>{const walker=document.createTreeWalker(cell,NodeFilter.SHOW_TEXT);const texts=[];let node;while(node=walker.nextNode())if(node.textContent.trim()&&!node.parentElement.closest('button,svg,a'))texts.push(node);const value=values[i],teamMember=body.closest('#tab-team')&&i===0&&typeof value==='string'?data?.members.find(member=>value.startsWith(member.name)):null,relatedMember=body.closest('#tab-team')&&i===3&&typeof value==='string'?data?.members.find(member=>member.name===value):null,displayValue=teamMember?{primary:`${teamMember.name||'Chua dat ten'} - ID: ${teamMember.accountId||teamMember.id}`,secondary:teamMember.phone||'Chua co so dien thoai'}:relatedMember?personWithId(relatedMember.id):value;if(texts.length){if(displayValue&&typeof displayValue==='object'){texts[0].textContent=displayValue.primary??'';if(texts[1])texts[1].textContent=displayValue.secondary??'';texts.slice(2).forEach(n=>n.textContent='');}else{texts[0].textContent=displayValue??'';texts.slice(1).forEach(n=>n.textContent='');}}else if(!cell.querySelector('button,input,svg'))cell.textContent=displayValue??'';cell.querySelectorAll('[title]').forEach(n=>n.removeAttribute('title'));});row.removeAttribute('onclick');body.appendChild(row);
     });
   }
+  function orderDeleteAllowed(order) {
+    const role=data?.user?.actualRole||data?.user?.role;
+    if(role==='ADMIN')return true;
+    if(!['MANAGER','LEADER','SALE'].includes(role))return false;
+    const raw=String(order?.createdAt||'').trim();
+    const created=Date.parse(raw.includes('T')?raw:`${raw.replace(' ','T')}+07:00`);
+    return Number.isFinite(created)&&Date.now()-created<3*24*60*60*1000;
+  }
   function drawOrders() {
     const grossCollected=o=>{const total=Math.max(0,Number(o.total||0)),paid=Number(o.amountPaid);if(o.status==='DEPOSIT')return Math.min(total,Math.max(0,Number(o.depositAmount||0)));if(Number.isFinite(paid)&&paid>0){const subtotal=Math.max(0,Number(o.subtotal||0)),vat=Math.max(0,Number(o.vatAmount||0)),legacyNetPayment=['PAID','COURSE_GRANTED','REFUNDED'].includes(o.status)&&!o.depositAt&&subtotal>0&&paid<subtotal;return Math.min(total,paid+(legacyNetPayment?vat:0));}if(['PAID','COURSE_GRANTED','REFUNDED'].includes(o.status)){const refund=Math.max(0,Number(o.refund||0));return Math.min(total,refund||total);}return 0;};
     const netCollected=o=>Math.max(0,grossCollected(o)-Math.max(0,Number(o.refund||0)));
@@ -653,7 +661,7 @@
     text('orderAllCountBadge',rows.length);
     const body=q('#ordersMainTableBody');
     if(!body)return;
-    body.innerHTML=rows.map(order=>{const customer=(data.customers||[]).find(item=>item.id===order.customerId),rental=isRental(order),term=rental?(Number(order.rentalMonths||0)+' tháng'+(order.rentalEndsAt?' · đến '+fmtDate(order.rentalEndsAt):'')):'Vĩnh viễn';return '<tr data-order-group="'+(rental?'rent':'sale')+'" data-order-status="'+esc(paymentStatus(order))+'"><td><b style="font-family:var(--font-mono);color:#2563eb">'+esc(internalCode(order.code||order.id))+'</b></td><td><span class="chip '+(rental?'chip-warm':'chip-orange')+'">'+(rental?'CHO THUÊ CHỈ BÁO':'BÊN BÁN')+'</span></td><td><b>'+esc(order.customerName||customer?.name||'—')+'</b><small>'+esc(customer?.phone||'')+'</small></td><td><b>'+esc(order.productName||'—')+'</b><small>'+esc(order.sku||'')+'</small></td><td><span class="chip chip-warm">'+esc(term)+'</span></td><td>'+esc(person(order.saleId))+'</td><td><b>'+money(order.subtotal)+'</b></td><td>'+money(order.vatAmount)+'</td><td><b style="color:#059669">'+money(netCollected(order))+'</b></td><td><span class="chip '+(['PAID','COURSE_GRANTED'].includes(order.status)?'chip-green':'chip-warm')+'">'+esc(paymentStatus(order))+'</span></td><td style="text-align:right"><button type="button" class="btn-action btn-secondary" data-order-detail="'+esc(order.id)+'">Chi tiết</button>'+(((data.user.actualRole||data.user.role)==='ADMIN')?' <button type="button" class="btn-action btn-danger" data-order-delete="'+esc(order.id)+'">X\u00f3a</button>':'')+'</td></tr>';}).join('')||'<tr><td colspan="11"><div class="empty"><b>Chưa có đơn hàng</b></div></td></tr>';
+    body.innerHTML=rows.map(order=>{const customer=(data.customers||[]).find(item=>item.id===order.customerId),rental=isRental(order),term=rental?(Number(order.rentalMonths||0)+' tháng'+(order.rentalEndsAt?' · đến '+fmtDate(order.rentalEndsAt):'')):'Vĩnh viễn';return '<tr data-order-group="'+(rental?'rent':'sale')+'" data-order-status="'+esc(paymentStatus(order))+'"><td><b style="font-family:var(--font-mono);color:#2563eb">'+esc(internalCode(order.code||order.id))+'</b></td><td><span class="chip '+(rental?'chip-warm':'chip-orange')+'">'+(rental?'CHO THUÊ CHỈ BÁO':'BÊN BÁN')+'</span></td><td><b>'+esc(order.customerName||customer?.name||'—')+'</b><small>'+esc(customer?.phone||'')+'</small></td><td><b>'+esc(order.productName||'—')+'</b><small>'+esc(order.sku||'')+'</small></td><td><span class="chip chip-warm">'+esc(term)+'</span></td><td>'+esc(person(order.saleId))+'</td><td><b>'+money(order.subtotal)+'</b></td><td>'+money(order.vatAmount)+'</td><td><b style="color:#059669">'+money(netCollected(order))+'</b></td><td><span class="chip '+(['PAID','COURSE_GRANTED'].includes(order.status)?'chip-green':'chip-warm')+'">'+esc(paymentStatus(order))+'</span></td><td style="text-align:right"><button type="button" class="btn-action btn-secondary" data-order-detail="'+esc(order.id)+'">Chi tiết</button>'+(orderDeleteAllowed(order)?' <button type="button" class="btn-action btn-danger" data-order-delete="'+esc(order.id)+'">X\u00f3a</button>':'')+'</td></tr>';}).join('')||'<tr><td colspan="11"><div class="empty"><b>Chưa có đơn hàng</b></div></td></tr>';
     // Tách SĐT khách thành một cột riêng và chỉ hiển thị mã đơn rút gọn.
     const orderTable=body.closest('table');
     const orderHead=orderTable?.querySelector('thead tr');
@@ -678,7 +686,7 @@
     const emptyCell=body.querySelector('tr td[colspan]');
     if(emptyCell)emptyCell.colSpan=12;
     body.querySelectorAll('[data-order-detail]').forEach(button=>button.onclick=()=>workflow('order',button.dataset.orderDetail));
-    body.querySelectorAll('[data-order-delete]').forEach(button=>button.onclick=()=>{const order=data.orders.find(item=>item.id===button.dataset.orderDelete);if(!order||!confirm('X\u00f3a \u0111\u01a1n '+(order.code||order.id)+'? \u0110\u01a1n s\u1ebd kh\u00f4ng c\u00f2n \u0111\u01b0\u1ee3c t\u00ednh trong th\u1ed1ng k\u00ea v\u00e0 doanh thu.'))return;run(()=>api.deleteOrder(order.id),()=>referenceNotice('\u0110\u00e3 x\u00f3a \u0111\u01a1n '+(order.code||order.id)+' th\u00e0nh c\u00f4ng.'));});
+    body.querySelectorAll('[data-order-delete]').forEach(button=>button.onclick=()=>{const order=data.orders.find(item=>item.id===button.dataset.orderDelete);if(!order||!orderDeleteAllowed(order)){referenceNotice('Đơn hàng chỉ được xóa trong 3 ngày đầu.','error');return;}if(!confirm('Xóa đơn '+(order.code||order.id)+'?'))return;run(()=>api.deleteOrder(order.id),()=>referenceNotice('Đã xóa đơn '+(order.code||order.id)+' thành công.'));});
     if(rows.length)filterOrdersCombined();else text('orderCountSummary','0 đơn hàng');
   }
   renderOrdersTable=drawOrders;
@@ -1000,8 +1008,8 @@
   const featureActions=new Map();
   const roleTools={
     ADMIN:null,
-    MANAGER:new Set(['customer','newCustomer','customers','pool','order','editOrder','newOrder','orders','revenue','reports','password','profile']),
-    LEADER:new Set(['customer','newCustomer','customers','pool','order','editOrder','newOrder','orders','revenue','reports','password','profile']),
+    MANAGER:new Set(['customer','newCustomer','customers','pool','order','editOrder','newOrder','orders','attendance','revenue','reports','password','profile']),
+    LEADER:new Set(['customer','newCustomer','customers','pool','order','editOrder','newOrder','orders','attendance','revenue','reports','password','profile']),
     SALE:new Set(['customer','newCustomer','customers','accept','order','editOrder','newOrder','orders','attendance','revenue','password','profile'])
   };
   function featureMenu(tab,items){
@@ -1098,10 +1106,10 @@
   function attendance(){
     const role=data.user.actualRole||data.user.role;
     const attendanceTab=q('#tab-attendance');
-    if(!['ADMIN','SALE'].includes(role)){attendanceTab?.classList.remove('active');return;}
+    if(!['ADMIN','MANAGER','LEADER','SALE'].includes(role)){attendanceTab?.classList.remove('active');return;}
     const attendancePanels=Array.from(attendanceTab?.querySelectorAll('.table-container')||[]);
-    if(role==='SALE'){
-      // Sale chi thay nut diem danh va ket qua cua chinh minh.
+    if(role!=='ADMIN'){
+      // Moi vai tro van hanh tu diem danh va chi xem ket qua cua chinh minh.
       attendancePanels.forEach(panel=>{panel.hidden=true;panel.style.setProperty('display','none','important');});
       let status=attendanceTab?.querySelector('#referenceSaleAttendance');
       if(!status){status=document.createElement('div');status.id='referenceSaleAttendance';status.className='table-container';status.style.cssText='padding:20px 24px;max-width:620px';attendanceTab?.appendChild(status);}
