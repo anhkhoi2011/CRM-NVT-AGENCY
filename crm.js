@@ -3823,12 +3823,12 @@ function openAdminBroadcastModal() {
           <div style="font-size:10px;color:#d97706;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Bão đơn tuần</div>
         </button>
 
-        <button type="button" class="bc-tpl-btn" data-tpl="stale_warning" style="padding:8px 10px;text-align:left;border-radius:10px;border:2px solid #fed7aa;background:#fff7ed;cursor:pointer;transition:all 0.2s">
+        <button type="button" class="bc-tpl-btn" data-tpl="stale_warning" style="padding:8px 10px;text-align:left;border-radius:10px;border:2px solid #fca5a5;background:#fef2f2;cursor:pointer;transition:all 0.2s">
           <div style="display:flex;justify-content:space-between;align-items:center">
-            <span>⚠️</span><span style="font-size:10px;background:#ffedd5;color:#c2410c;padding:2px 5px;border-radius:4px;font-weight:700">Cảnh báo</span>
+            <span>⚠️</span><span style="font-size:10px;background:#dc2626;color:#ffffff;padding:2px 6px;border-radius:4px;font-weight:700">Cảnh báo</span>
           </div>
-          <div style="font-weight:700;font-size:12px;color:#7c2d12;margin-top:4px">Data tồn 12h</div>
-          <div style="font-size:10px;color:#ea580c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Thu hồi sau 24h</div>
+          <div style="font-weight:800;font-size:12px;color:#7f1d1d;margin-top:4px">Data tồn 12h</div>
+          <div style="font-size:10px;color:#b91c1c;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Yêu cầu xử lý ngay</div>
         </button>
 
         <button type="button" class="bc-tpl-btn" data-tpl="morning_motivation" style="padding:8px 10px;text-align:left;border-radius:10px;border:2px solid #e9d5ff;background:#faf5ff;cursor:pointer;transition:all 0.2s">
@@ -3839,12 +3839,12 @@ function openAdminBroadcastModal() {
           <div style="font-size:10px;color:#9333ea;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Mục tiêu 5p</div>
         </button>
 
-        <button type="button" class="bc-tpl-btn" data-tpl="emergency_meet" style="padding:8px 10px;text-align:left;border-radius:10px;border:2px solid #fecdd3;background:#fff1f2;cursor:pointer;transition:all 0.2s">
+        <button type="button" class="bc-tpl-btn" data-tpl="emergency_meet" style="padding:8px 10px;text-align:left;border-radius:10px;border:2px solid #ef4444;background:#fef2f2;cursor:pointer;transition:all 0.2s">
           <div style="display:flex;justify-content:space-between;align-items:center">
-            <span>🚨</span><span style="font-size:10px;background:#ffe4e6;color:#be123c;padding:2px 5px;border-radius:4px;font-weight:700">Khẩn cấp</span>
+            <span>🚨</span><span style="font-size:10px;background:#dc2626;color:#ffffff;padding:2px 6px;border-radius:4px;font-weight:700">Khẩn cấp</span>
           </div>
-          <div style="font-weight:700;font-size:12px;color:#881337;margin-top:4px">Họp khẩn cấp</div>
-          <div style="font-size:10px;color:#e11d48;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Leader & Manager</div>
+          <div style="font-weight:800;font-size:12px;color:#7f1d1d;margin-top:4px">Họp khẩn cấp</div>
+          <div style="font-size:10px;color:#b91c1c;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Leader & Sale gấp</div>
         </button>
       </div>
     </div>
@@ -3927,9 +3927,9 @@ function openAdminBroadcastModal() {
     meeting_weekly: { border: '#93c5fd', badgeBg: '#dbeafe', badgeColor: '#1e40af', badgeBorder: '#bfdbfe', label: '📅 Họp tổng tuần' },
     reward_fast: { border: '#86efac', badgeBg: '#dcfce7', badgeColor: '#166534', badgeBorder: '#bbf7d0', label: '⚡ Thưởng cọc 2h' },
     honor_bestseller: { border: '#fde047', badgeBg: '#fef9c3', badgeColor: '#854d0e', badgeBorder: '#fef08a', label: '🏆 Best Seller' },
-    stale_warning: { border: '#fdba74', badgeBg: '#ffedd5', badgeColor: '#9a3412', badgeBorder: '#fed7aa', label: '⚠️ Data tồn 12h' },
+    stale_warning: { border: '#ef4444', badgeBg: '#dc2626', badgeColor: '#ffffff', badgeBorder: '#b91c1c', label: '⚠️ Data tồn 12h' },
     morning_motivation: { border: '#d8b4fe', badgeBg: '#f3e8ff', badgeColor: '#6b21a8', badgeBorder: '#e9d5ff', label: '🚀 Chào ngày mới' },
-    emergency_meet: { border: '#fda4af', badgeBg: '#ffe4e6', badgeColor: '#9f1239', badgeBorder: '#fecdd3', label: '🚨 Họp khẩn cấp' }
+    emergency_meet: { border: '#ef4444', badgeBg: '#dc2626', badgeColor: '#ffffff', badgeBorder: '#b91c1c', label: '🚨 Họp khẩn cấp' }
   };
 
   const applyTemplate = (key) => {

@@ -274,7 +274,7 @@ function authorize(user,key,old,next,data){
   if(next){const product=data.products.get(next.productId);if(!product||(product.active===false&&old?.productId!==product.id)||!Number.isInteger(next.qty)||next.qty<1||next.qty>10||Number(next.unitPrice)!==Number(product.price)||Number(next.subtotal)!==Number(product.price)*next.qty)error(400,'Sản phẩm, số lượng hoặc đơn giá không khớp danh mục MySQL');}
   if(next&&old&&!sameExcept(old,next,['productId','productName','sku','qty','unitPrice','subtotal','vatRate','vatAmount','total','discount','updatedAt','items','note','paymentMode','depositAmount','balanceDue','billing','paymentMethod','rentalMonths','rentalEndsAt']))error(403,'Chỉ Admin xác nhận thanh toán hoặc chuyển đơn');
   if(next&&!old&&(next.status!=='PENDING'||next.saleId!==data.customers.get(next.customerId)?.saleId||next.leaderId!==data.customers.get(next.customerId)?.leaderId||next.teamId!==data.customers.get(next.customerId)?.teamId))error(403,'Đơn mới không hợp lệ');
-  if(old&&old.status!=='PENDING')error(403,'Đơn đã thanh toán không được sửa');
+  if(next&&old&&old.status!=='PENDING')error(403,'Đơn đã thanh toán không được sửa');
   return;
  }
  if(key==='attendance'){if(!old&&next&&next.accountId===user.id&&next.date===new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Ho_Chi_Minh'}))return;error(403,'Không được sửa điểm danh');}
