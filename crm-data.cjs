@@ -267,10 +267,9 @@ function authorize(user,key,old,next,data){
   return;
  }
  if(key==='orders'){
-  if(old&&!next)error(403,'Only Admin may delete orders');
   if(old&&next&&(Number(next.refund||0)!==Number(old.refund||0)||next.refundedAt!==old.refundedAt||next.refundReason!==old.refundReason||JSON.stringify(next.refundVouchers||[])!==JSON.stringify(old.refundVouchers||[])))error(403,'Chỉ Admin được tạo phiếu hoàn tiền');
   // createdAt là thời điểm gốc của đơn. Sale/Leader chỉ được sửa hoặc xóa trong 72 giờ đầu.
-  if(old&&['SALE','LEADER'].includes(user.role)&&orderLockedForStaff(old))error(403,'\u0110\u01a1n \u0111\u00e3 kh\u00f3a ch\u1ec9nh s\u1eeda sau 3 ng\u00e0y');
+  if(old&&['SALE','LEADER'].includes(user.role)&&orderLockedForStaff(old))error(403,'\u0110\u01a1n h\u00e0ng ch\u1ec9 \u0111\u01b0\u1ee3c x\u00f3a ho\u1eb7c ch\u1ec9nh s\u1eeda trong 3 ng\u00e0y \u0111\u1ea7u');
   if(!customerScope(user,old||next)||!customerScope(user,data.customers.get(r.customerId)))error(403,'Đơn ngoài phạm vi');
   if(next){const product=data.products.get(next.productId);if(!product||(product.active===false&&old?.productId!==product.id)||!Number.isInteger(next.qty)||next.qty<1||next.qty>10||Number(next.unitPrice)!==Number(product.price)||Number(next.subtotal)!==Number(product.price)*next.qty)error(400,'Sản phẩm, số lượng hoặc đơn giá không khớp danh mục MySQL');}
   if(next&&old&&!sameExcept(old,next,['productId','productName','sku','qty','unitPrice','subtotal','vatRate','vatAmount','total','discount','updatedAt','items','note','paymentMode','depositAmount','balanceDue','billing','paymentMethod','rentalMonths','rentalEndsAt']))error(403,'Chỉ Admin xác nhận thanh toán hoặc chuyển đơn');

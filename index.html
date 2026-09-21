@@ -2137,6 +2137,9 @@
                 <option value="UNASSIGNED">Chưa phân Sale</option>
                 <option value="ASSIGNED">Đã phân Sale</option>
               </select>
+              <select id="custOwnerFilter" class="btn-secondary" aria-label="Xem khach theo nhan su" style="height: 38px; padding: 0 12px; border-radius: 8px; font-size: 12.5px; min-width: 190px;">
+                <option value="ALL">Xem theo nhan su</option>
+              </select>
             </div>
             <div style="font-size: 12px; color: var(--text-muted); font-weight: 700;">
               <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981; margin-right: 6px;"></span>
@@ -2333,6 +2336,10 @@
                 <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; background: var(--bg-subtle); border-radius: 8px; border-left: 3px solid #8b5cf6;">
                   <span style="font-size: 12.5px; font-weight: 600; color: var(--text-main);">7 ngày gần nhất</span>
                   <b style="font-family: var(--font-mono); font-size: 15px; color: #7c3aed;" id="dataStat7Days">0 data</b>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; background: var(--bg-subtle); border-radius: 8px; border-left: 3px solid #ea580c;">
+                  <span style="font-size: 12.5px; font-weight: 600; color: var(--text-main);">30 ng?y g?n nh?t</span>
+                  <b style="font-family: var(--font-mono); font-size: 15px; color: #ea580c;" id="dataStat30Days">0 data</b>
                 </div>
               </div>
             </div>
@@ -4582,8 +4589,8 @@
   </div>
 </div>
 
-<script src="reference-view.js?v=20260917-delete-sync-1"></script>
-<script src="reference-crm.js?v=20260921-telegram-bot-appointments-1"></script>
+<script src="reference-view.js?v=20260921-customer-owner-filter-1"></script>
+<script src="reference-crm.js?v=20260921-data-stats-30d-1"></script>
 
 </body>
 </html>

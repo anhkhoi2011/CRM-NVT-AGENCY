@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Demo Trực Quan: Bot Telegram & Lịch Hẹn CRM NVT Agency</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    .telegram-bg {
+      background-color: #0e1621;
+      background-image: radial-gradient(#17212b 1px, transparent 1px);
+      background-size: 16px 16px;
+    }
+    .msg-in {
+      background: #182533;
+      border-radius: 12px 12px 12px 2px;
+    }
+    .msg-out {
+      background: #2b5278;
+      border-radius: 12px 12px 2px 12px;
+    }
+    .scrollbar-thin::-webkit-scrollbar {
+      width: 5px;
+    }
+    .scrollbar-thin::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.2);
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased p-4 md:p-6 min-h-screen">
+
+  <div class="max-w-6xl mx-auto">
+    <!-- Header -->
+    <header class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="px-2.5 py-1 text-xs font-bold rounded-full bg-blue-100 text-blue-700">MÔ PHỎNG THỰC TẾ TRÊN MÁY</span>
+          <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-700">Đã nâng cấp mẫu Admin</span>
+        </div>
+        <h1 class="text-xl md:text-2xl font-black text-slate-900 mt-1">Bot Thông Báo CRM NVT Agency &amp; Trung Tâm Admin</h1>
+        <p class="text-sm text-slate-500">Mô phỏng tương tác 2 chiều: Thao tác trên Web CRM &harr; Nhận tin nhắn thông báo tức thì trên Telegram</p>
+      </div>
+
+      <!-- Quick Action Simulation Buttons -->
+      <div class="flex flex-wrap items-center gap-2">
+        <button onclick="simNewLead()" class="px-3.5 py-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-semibold text-xs rounded-xl shadow-sm transition flex items-center gap-1.5 active:scale-95">
+          <span>🔥</span> Giả lập Lead mới về
+        </button>
+        <button onclick="simMorningCheckin()" class="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-xl shadow-sm transition flex items-center gap-1.5 active:scale-95">
+          <span>⏰</span> Báo điểm danh 09:00
+        </button>
+        <button onclick="simStaleLead()" class="px-3.5 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold text-xs rounded-xl shadow-sm transition flex items-center gap-1.5 active:scale-95">
+          <span>🚨</span> Cảnh báo 12h
+        </button>
+        <button onclick="resetDemo()" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition">
+          ↺ Đặt lại
+        </button>
+      </div>
+    </header>
+
+    <!-- Main 2-Column Showcase -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+      <!-- LEFT: Web CRM Mockup with 2 Tabs (7 Cols) -->
+      <div class="lg:col-span-7 space-y-4">
+
+        <!-- Navigation Tabs for Left Column -->
+        <div class="bg-white p-1.5 rounded-2xl shadow-xs border border-slate-200 flex gap-2">
+          <button id="tabBtnCustomer" onclick="switchLeftTab('customer')" class="flex-1 py-2.5 px-4 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2 bg-blue-600 text-white shadow-xs">
+            <span>👤</span> Hồ sơ khách &amp; Lịch hẹn
+          </button>
+          <button id="tabBtnAdminNotice" onclick="switchLeftTab('adminNotice')" class="flex-1 py-2.5 px-4 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700">
+            <span>📢</span> Cài thông báo Admin <span class="bg-amber-400 text-slate-900 text-[10px] px-1.5 py-0.5 rounded-full font-black">Gợi ý sẵn</span>
+          </button>
+        </div>
+
+        <!-- TAB CONTENT 1: Customer Drawer & Appointments -->
+        <div id="leftTabCustomer" class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+          <div class="border-b border-slate-100 px-5 py-4 flex items-center justify-between bg-slate-50/50">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-orange-100 text-orange-600 font-black flex items-center justify-center text-sm">
+                ĐK
+              </div>
+              <div>
+                <h2 class="font-bold text-slate-900 text-base">Đoàn Kim Ngân · 0938.882.119</h2>
+                <div class="text-xs text-slate-500 flex items-center gap-2">
+                  <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+                  <span>Khách tiềm năng · Khóa học &amp; Chỉ báo Trading</span>
+                </div>
+              </div>
+            </div>
+            <span class="px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-50 text-blue-600 border border-blue-200">Sale: Trần Quốc Toản</span>
+          </div>
+
+          <div class="p-5 space-y-6">
+
+            <!-- Customer Appointments Block -->
+            <div class="border border-slate-200 rounded-xl p-4 bg-slate-50/40">
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                  <span class="text-base">📅</span>
+                  <h3 class="font-bold text-slate-900 text-sm">Lịch hẹn khách hàng (Bot nhắc tự động)</h3>
+                </div>
+                <button onclick="openAppointmentModal()" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg shadow-sm transition active:scale-95 flex items-center gap-1">
+                  <span>+</span> Đặt lịch hẹn
+                </button>
+              </div>
+
+              <!-- Appointment List Container -->
+              <div id="crmAppointmentsList" class="space-y-2">
+                <div class="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between shadow-2xs hover:border-blue-300 transition">
+                  <div class="space-y-0.5">
+                    <div class="flex items-center gap-2">
+                      <span class="font-bold text-xs text-slate-900">🎯 Chốt cọc / Deposit</span>
+                      <span class="text-xs text-slate-500 font-medium">⏰ 10:30 · Ngày mai</span>
+                      <span class="px-2 py-0.5 text-[10px] font-bold rounded bg-amber-100 text-amber-800">Đang chờ</span>
+                    </div>
+                    <p class="text-xs text-slate-600"><i>Hẹn gọi lại tư vấn gói chỉ báo VIP và chuyển khoản cọc 50%.</i></p>
+                    <div class="text-[11px] text-slate-400">Sale phụ trách: <b>Trần Quốc Toản</b> · <span class="text-emerald-600 font-semibold">✓ Đã lập lịch nhắc Telegram</span></div>
+                  </div>
+                  <div class="flex items-center gap-1.5">
+                    <button onclick="completeAppointment(this)" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold rounded-lg border border-emerald-200 transition">
+                      ✓ Xong
+                    </button>
+                    <button onclick="cancelAppointment(this)" class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold rounded-lg border border-rose-200 transition">
+                      ✕ Hủy
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Appointment Form Modal Simulation -->
+              <div id="appointmentModal" class="hidden mt-3 p-4 bg-white border border-blue-300 rounded-xl shadow-md">
+                <div class="flex items-center justify-between pb-2 mb-3 border-b border-slate-100">
+                  <strong class="text-xs font-bold text-blue-700">TẠO LỊCH HẸN MỚI CHO SALE</strong>
+                  <button onclick="closeAppointmentModal()" class="text-slate-400 hover:text-slate-600 text-sm">&times;</button>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs mb-3">
+                  <div>
+                    <label class="font-semibold text-slate-700 block mb-1">Mục đích hẹn</label>
+                    <select id="inputAppType" class="w-full border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                      <option value="🗣️ Tư vấn chuyên sâu 1-1">🗣️ Tư vấn chuyên sâu 1-1</option>
+                      <option value="🎯 Chốt cọc / Deposit" selected>🎯 Chốt cọc / Deposit</option>
+                      <option value="💵 Hẹn thanh toán">💵 Hẹn thanh toán</option>
+                      <option value="🎓 Tư vấn Khóa học & Chỉ báo">🎓 Tư vấn Khóa học &amp; Chỉ báo</option>
+                      <option value="📌 Khác">📌 Khác</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="font-semibold text-slate-700 block mb-1">Thời gian hẹn</label>
+                    <input id="inputAppTime" type="text" value="14:00 · 22/09/2026" class="w-full border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                  </div>
+                  <div class="md:col-span-2">
+                    <label class="font-semibold text-slate-700 block mb-1">Ghi chú chuẩn bị</label>
+                    <input id="inputAppNote" type="text" placeholder="VD: Khách muốn xem trước demo chỉ báo RSI trên TradingView..." class="w-full border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none">
+                  </div>
+                </div>
+                <div class="flex justify-end gap-2">
+                  <button onclick="closeAppointmentModal()" class="px-3 py-1.5 text-xs text-slate-600 font-semibold hover:bg-slate-100 rounded-lg">Hủy</button>
+                  <button onclick="submitNewAppointment()" class="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-sm">
+                    ✅ Lưu &amp; Bật nhắc Bot Telegram
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="border border-slate-200 rounded-xl p-4 bg-slate-50/20">
+              <div class="flex items-center gap-2 mb-2 font-bold text-slate-800 text-xs">
+                <span>📝</span> Ghi chú tư vấn gần nhất
+              </div>
+              <p class="text-xs text-slate-600 bg-white p-2.5 rounded-lg border border-slate-200">
+                <i>"Khách đã vào xem chỉ báo trading, phản hồi rất tích cực. Đang chờ lương về để chốt học khóa Pro."</i>
+              </p>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- TAB CONTENT 2: Admin Notification Studio with Preset Templates -->
+        <div id="leftTabAdminNotice" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+          <div class="border-b border-slate-100 px-5 py-4 bg-gradient-to-r from-purple-50 to-indigo-50 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <span class="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center font-bold text-sm shadow-xs">📢</span>
+              <div>
+                <h2 class="font-black text-slate-900 text-base">Trung Tâm Thông Báo Telegram Cho Admin</h2>
+                <p class="text-xs text-slate-500">Chọn mẫu gợi ý sẵn hoặc chỉnh sửa nội dung trước khi bắn tin nhắn</p>
+              </div>
+            </div>
+            <span class="px-2.5 py-1 text-[11px] font-black rounded-lg bg-purple-100 text-purple-800 border border-purple-200">ADMIN STUDIO</span>
+          </div>
+
+          <div class="p-5 space-y-5">
+
+            <!-- Preset Templates Selector -->
+            <div>
+              <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center justify-between">
+                <span>💡 BẤM CHỌN MẪU GỢI Ý SẴN (AUTO FILL FORM)</span>
+                <span class="text-[11px] text-blue-600 font-normal">Click để điền ngay ⚡</span>
+              </label>
+              <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+                <button type="button" onclick="loadTemplate('meeting_weekly')" class="p-2.5 text-left rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/60 transition group active:scale-98 bg-slate-50">
+                  <span class="text-sm">📅</span>
+                  <strong class="block text-xs text-slate-800 group-hover:text-blue-700 mt-1">Họp tổng tuần</strong>
+                  <span class="block text-[10px] text-slate-500 line-clamp-1">Tổng kết số &amp; trao thưởng</span>
+                </button>
+                <button type="button" onclick="loadTemplate('reward_fast')" class="p-2.5 text-left rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/60 transition group active:scale-98 bg-slate-50">
+                  <span class="text-sm">⚡</span>
+                  <strong class="block text-xs text-slate-800 group-hover:text-emerald-700 mt-1">Thưởng nóng cọc</strong>
+                  <span class="block text-[10px] text-slate-500 line-clamp-1">+5% hoa hồng trong 2h</span>
+                </button>
+                <button type="button" onclick="loadTemplate('honor_bestseller')" class="p-2.5 text-left rounded-xl border border-slate-200 hover:border-amber-500 hover:bg-amber-50/60 transition group active:scale-98 bg-slate-50">
+                  <span class="text-sm">🏆</span>
+                  <strong class="block text-xs text-slate-800 group-hover:text-amber-700 mt-1">Vinh danh Best Seller</strong>
+                  <span class="block text-[10px] text-slate-500 line-clamp-1">Khen thưởng bão đơn tuần</span>
+                </button>
+                <button type="button" onclick="loadTemplate('stale_warning')" class="p-2.5 text-left rounded-xl border border-slate-200 hover:border-rose-500 hover:bg-rose-50/60 transition group active:scale-98 bg-slate-50">
+                  <span class="text-sm">⚠️</span>
+                  <strong class="block text-xs text-slate-800 group-hover:text-rose-700 mt-1">Nhắc xử lý data tồn</strong>
+                  <span class="block text-[10px] text-slate-500 line-clamp-1">Yêu cầu dứt điểm trước 18h</span>
+                </button>
+                <button type="button" onclick="loadTemplate('morning_motivation')" class="p-2.5 text-left rounded-xl border border-slate-200 hover:border-purple-500 hover:bg-purple-50/60 transition group active:scale-98 bg-slate-50">
+                  <span class="text-sm">🚀</span>
+                  <strong class="block text-xs text-slate-800 group-hover:text-purple-700 mt-1">Động viên bão đơn</strong>
+                  <span class="block text-[10px] text-slate-500 line-clamp-1">Khí thế bứt phá đầu tuần</span>
+                </button>
+                <button type="button" onclick="loadTemplate('emergency_meet')" class="p-2.5 text-left rounded-xl border border-slate-200 hover:border-red-500 hover:bg-red-50/60 transition group active:scale-98 bg-slate-50">
+                  <span class="text-sm">🚨</span>
+                  <strong class="block text-xs text-slate-800 group-hover:text-red-700 mt-1">Họp khẩn cấp</strong>
+                  <span class="block text-[10px] text-slate-500 line-clamp-1">Họp Leader &amp; Sale gấp</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Form Edit & Config -->
+            <div class="border border-slate-200 rounded-xl p-4 bg-slate-50/50 space-y-3 text-xs">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label class="font-bold text-slate-700 block mb-1">Loại thông báo</label>
+                  <select id="noticeType" onchange="updateNoticeFields()" class="w-full bg-white border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-purple-500 outline-none">
+                    <option value="MEETING">📅 Lịch họp tổng Agency</option>
+                    <option value="POLICY">📋 Quy trình / Chính sách mới</option>
+                    <option value="HONOR">🏆 Vinh danh &amp; Khen thưởng</option>
+                    <option value="REMINDER">⚠️ Nhắc nhở kỷ luật &amp; Data</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="font-bold text-slate-700 block mb-1">Đối tượng nhận tin</label>
+                  <select id="noticeTarget" class="w-full bg-white border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-purple-500 outline-none">
+                    <option value="ALL">🌐 Toàn bộ Agency (Admin, Manager, Leader, Sale)</option>
+                    <option value="SALE">👤 Toàn bộ nhân viên Sale</option>
+                    <option value="MANAGERS">👔 Chỉ Ban Quản Lý (Leader &amp; Manager)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label class="font-bold text-slate-700 block mb-1">Tiêu đề thông báo</label>
+                <input id="noticeTitle" type="text" value="Họp tổng kết tuần &amp; Trao thưởng Top 1 Doanh số" class="w-full bg-white border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-purple-500 outline-none font-semibold text-slate-900">
+              </div>
+
+              <div id="fieldMeeting" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label class="font-bold text-slate-700 block mb-1">Thời gian diễn ra</label>
+                  <input id="noticeTime" type="text" value="16:30 chiều nay" class="w-full bg-white border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-purple-500 outline-none">
+                </div>
+                <div>
+                  <label class="font-bold text-slate-700 block mb-1">Địa điểm / Link họp</label>
+                  <input id="noticeLink" type="text" value="meet.google.com/nvt-agency-meet" class="w-full bg-white border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-purple-500 outline-none">
+                </div>
+              </div>
+
+              <div>
+                <label class="font-bold text-slate-700 block mb-1">Người chủ trì / Ban hành</label>
+                <input id="noticeHost" type="text" value="Ban Giám Đốc NVT Agency" class="w-full bg-white border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-purple-500 outline-none">
+              </div>
+
+              <div>
+                <label class="font-bold text-slate-700 block mb-1">Nội dung chi tiết thông báo</label>
+                <textarea id="noticeContent" rows="3" class="w-full bg-white border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-purple-500 outline-none text-slate-800 leading-relaxed">Toàn bộ nhân sự Sale và Leader có mặt đúng giờ để tổng kết kết quả kinh doanh tuần qua và nhận thưởng nóng cho các cá nhân xuất sắc.</textarea>
+              </div>
+
+              <!-- Action button -->
+              <div class="pt-2 flex items-center justify-between">
+                <span class="text-[11px] text-slate-500">Tin nhắn sẽ được đẩy qua Webhook Telegram của Bot 🚀</span>
+                <button type="button" onclick="sendAdminBroadcastFromStudio()" class="px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center gap-1.5 active:scale-95">
+                  <span>🚀</span> BẮN THÔNG BÁO TELEGRAM NGAY
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+      <!-- RIGHT: Interactive Telegram App Mockup (5 Cols) -->
+      <div class="lg:col-span-5">
+        <div class="bg-[#17212b] rounded-3xl shadow-xl border border-slate-700 overflow-hidden flex flex-col h-[670px]">
+          
+          <!-- Telegram Topbar -->
+          <div class="bg-[#242f3d] px-4 py-3 border-b border-slate-700/60 flex items-center justify-between text-white">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-cyan-400 flex items-center justify-center font-black text-sm shadow">
+                NVT
+              </div>
+              <div>
+                <h3 class="font-bold text-sm leading-tight">HeThongCRM_BOT</h3>
+                <div class="text-[11px] text-cyan-400 font-medium">@HeThongCRMNVT_BOT · bot</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span class="text-[10px] text-slate-300">Live</span>
+            </div>
+          </div>
+
+          <!-- Telegram Message Feed Container -->
+          <div id="telegramFeed" class="flex-1 telegram-bg p-4 overflow-y-auto space-y-3.5 scrollbar-thin text-xs text-slate-200">
+
+            <!-- System Welcome Message -->
+            <div class="msg-in p-3 max-w-[90%] space-y-1.5 shadow-sm border border-slate-700/40">
+              <div class="font-bold text-cyan-400 flex items-center gap-1">
+                <span>🤖</span> CHÀO MỪNG BẠN ĐẾN VỚI BOT CRM NVT AGENCY!
+              </div>
+              <p class="text-slate-300 leading-relaxed">
+                Hệ thống sẽ gửi thông báo <b>Data mới Realtime</b>, nhắc nhở <b>Lịch hẹn khách hàng</b> và điểm danh trực tiếp qua đây.
+              </p>
+              <div class="p-2 bg-slate-900/60 rounded border border-slate-700/50 text-[11px] text-amber-300">
+                👉 Gửi Số điện thoại hoặc Email đăng ký trên CRM của bạn để kết nối:
+              </div>
+            </div>
+
+            <!-- User Auth Response -->
+            <div class="msg-out p-2.5 max-w-[80%] ml-auto text-white shadow-sm space-y-0.5">
+              <div>0988123456</div>
+              <div class="text-[10px] text-blue-200 text-right">08:58 ✓✓</div>
+            </div>
+
+            <!-- Bot Confirmed Message -->
+            <div class="msg-in p-3 max-w-[90%] space-y-1.5 shadow-sm border border-slate-700/40">
+              <div class="font-bold text-emerald-400">🎉 XÁC THỰC THÀNH CÔNG!</div>
+              <p class="text-slate-300">
+                Xin chào <b>Trần Quốc Toản</b>!<br>
+                • Chức vụ: <code>SALE</code><br>
+                • Team: <code>TEAM-ALPHA</code><br>
+                • SĐT: <code>0988123456</code>
+              </p>
+              <div class="text-[11px] text-slate-400 border-t border-slate-700/50 pt-1 mt-1">
+                ✅ Bạn đã kết nối thành công với CRM NVT Agency. Mọi data nóng sẽ được gửi tới đây! 🚀
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Telegram Input Bar -->
+          <div class="bg-[#17212b] p-3 border-t border-slate-700/60 flex items-center gap-2">
+            <input id="tgInput" type="text" placeholder="Gõ lệnh /start, /me, /help..." class="flex-1 bg-[#242f3d] text-white text-xs px-3.5 py-2.5 rounded-full border border-slate-600 focus:outline-none focus:border-cyan-400">
+            <button onclick="sendTgMessage()" class="w-9 h-9 rounded-full bg-cyan-500 hover:bg-cyan-600 text-white flex items-center justify-center font-bold text-sm shadow transition active:scale-95">
+              ➤
+            </button>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Interactive JavaScript -->
+  <script>
+    const feed = document.getElementById('telegramFeed');
+
+    function scrollBottom() {
+      feed.scrollTop = feed.scrollHeight;
+    }
+
+    function switchLeftTab(tab) {
+      const btnCust = document.getElementById('tabBtnCustomer');
+      const btnNotice = document.getElementById('tabBtnAdminNotice');
+      const viewCust = document.getElementById('leftTabCustomer');
+      const viewNotice = document.getElementById('leftTabAdminNotice');
+
+      if (tab === 'customer') {
+        btnCust.className = "flex-1 py-2.5 px-4 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2 bg-blue-600 text-white shadow-xs";
+        btnNotice.className = "flex-1 py-2.5 px-4 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700";
+        viewCust.classList.remove('hidden');
+        viewNotice.classList.add('hidden');
+      } else {
+        btnNotice.className = "flex-1 py-2.5 px-4 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2 bg-purple-600 text-white shadow-xs";
+        btnCust.className = "flex-1 py-2.5 px-4 rounded-xl font-bold text-xs transition flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700";
+        viewNotice.classList.remove('hidden');
+        viewCust.classList.add('hidden');
+      }
+    }
+
+    // Kho mẫu thông báo gợi ý sẵn
+    const TEMPLATES = {
+      meeting_weekly: {
+        type: 'MEETING',
+        title: 'Họp tổng kết tuần & Trao thưởng Top 1 Doanh số',
+        time: '16:30 chiều nay',
+        link: 'meet.google.com/nvt-agency-meet',
+        host: 'Ban Giám Đốc NVT Agency',
+        content: 'Toàn bộ nhân sự Sale và Leader có mặt đúng giờ để tổng kết kết quả kinh doanh tuần qua, phổ biến mục tiêu tuần mới và trao thưởng nóng cho các cá nhân xuất sắc.'
+      },
+      reward_fast: {
+        type: 'POLICY',
+        title: 'Chính sách thưởng nóng: Chốt cọc trong vòng 2 giờ!',
+        time: '',
+        link: '',
+        host: 'Ban Quản Trị NVT Agency',
+        content: 'Từ hôm nay, bất kỳ đơn hàng nào được Sale tiếp nhận và chốt cọc thành công trong vòng 2 tiếng sẽ được nhận THƯỞNG NÓNG 500.000 VNĐ + cộng thêm 5% hoa hồng trực tiếp!'
+      },
+      honor_bestseller: {
+        type: 'HONOR',
+        title: 'VINH DANH BEST SELLER TUẦN: BÙNG NỔ 120 TRIỆU DOANH SỐ!',
+        time: '',
+        link: '',
+        host: 'Ban Giám Đốc & Khối Kinh Doanh',
+        content: 'Nhiệt liệt biểu dương chiến binh xuất sắc đã cán mốc doanh số ấn tượng nhất tuần qua. Tinh thần kỷ luật và bám sát khách hàng của bạn là tấm gương cho toàn Agency noi theo! 🔥'
+      },
+      stale_warning: {
+        type: 'REMINDER',
+        title: 'CẢNH BÁO: XỬ LÝ DỨT ĐIỂM DATA NÓNG TỒN ĐỌNG TRƯỚC 18H00',
+        time: 'Trước 18:00 hôm nay',
+        link: '',
+        host: 'Bộ Phận Vận Hành & Trưởng Nhóm Sale',
+        content: 'Hiện tại hệ thống phát hiện vẫn còn một số data nhận từ sáng chưa được cập nhật cuộc gọi hoặc ghi chú. Yêu cầu toàn bộ Sale liên hệ ngay trước 18h00 để tránh hệ thống tự động thu hồi về hàng chờ.'
+      },
+      morning_motivation: {
+        type: 'HONOR',
+        title: 'CHÚC TOÀN THỂ NVT AGENCY TUẦN MỚI BÃO ĐƠN & BỨT PHÁ!',
+        time: '',
+        link: '',
+        host: 'Ban Lãnh Đạo Agency',
+        content: 'Thị trường đang có những tín hiệu rất đẹp, data khách hàng quan tâm khóa học và chỉ báo đang đổ về liên tục. Chúc anh em Sale tuần này bội thu doanh số và đạt mốc thưởng cao nhất! 🚀'
+      },
+      emergency_meet: {
+        type: 'MEETING',
+        title: 'HỌP KHẨN CẤP: TRIỂN KHAI CHIẾN DỊCH QUẢNG CÁO MỚI',
+        time: '14:00 hôm nay (Bắt buộc)',
+        link: 'meet.google.com/nvt-khan-cap',
+        host: 'CEO & Marketing Director',
+        content: 'Họp khẩn toàn bộ Leader và Sale để cập nhật kịch bản chốt đơn cho luồng data mới từ TikTok và Google Ads.'
+      }
+    };
+
+    function loadTemplate(key) {
+      const t = TEMPLATES[key];
+      if (!t) return;
+      document.getElementById('noticeType').value = t.type;
+      document.getElementById('noticeTitle').value = t.title;
+      document.getElementById('noticeTime').value = t.time || 'Ngay lập tức';
+      document.getElementById('noticeLink').value = t.link || '';
+      document.getElementById('noticeHost').value = t.host;
+      document.getElementById('noticeContent').value = t.content;
+      updateNoticeFields();
+    }
+
+    function updateNoticeFields() {
+      const type = document.getElementById('noticeType').value;
+      const fieldMeeting = document.getElementById('fieldMeeting');
+      if (type === 'MEETING') {
+        fieldMeeting.style.display = 'grid';
+      } else {
+        fieldMeeting.style.display = 'none';
+      }
+    }
+
+    function sendAdminBroadcastFromStudio() {
+      const type = document.getElementById('noticeType').value;
+      const target = document.getElementById('noticeTarget').value;
+      const title = document.getElementById('noticeTitle').value.trim();
+      const time = document.getElementById('noticeTime').value.trim();
+      const link = document.getElementById('noticeLink').value.trim();
+      const host = document.getElementById('noticeHost').value.trim();
+      const content = document.getElementById('noticeContent').value.trim();
+
+      if (!title || !content) {
+        alert('Vui lòng điền tiêu đề và nội dung thông báo!');
+        return;
+      }
+
+      let icon = '📢';
+      let headerColor = 'text-indigo-300';
+      let borderStyle = 'border-indigo-500/40 bg-[#1e2337]';
+
+      if (type === 'POLICY') {
+        icon = '📋'; headerColor = 'text-cyan-300'; borderStyle = 'border-cyan-500/40 bg-[#162a36]';
+      } else if (type === 'HONOR') {
+        icon = '🏆'; headerColor = 'text-amber-300'; borderStyle = 'border-amber-500/40 bg-[#282119]';
+      } else if (type === 'REMINDER') {
+        icon = '⚠️'; headerColor = 'text-rose-300'; borderStyle = 'border-rose-500/40 bg-[#2b181b]';
+      }
+
+      const targetLabel = target === 'ALL' ? 'Toàn bộ Agency' : target === 'SALE' ? 'Team Sale' : 'Ban Quản Lý';
+
+      const html = `
+        <div class="msg-in p-3.5 max-w-[92%] space-y-2 shadow-sm border ${borderStyle} animate-fade-in">
+          <div class="font-bold ${headerColor} flex items-center justify-between">
+            <span class="flex items-center gap-1.5">${icon} ${title}</span>
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">${targetLabel}</span>
+          </div>
+          <div class="text-slate-300 space-y-0.5 leading-relaxed">
+            ${time && type === 'MEETING' ? `• <b>Thời gian:</b> ⏰ ${time}<br>` : ''}
+            ${link && type === 'MEETING' ? `• <b>Link họp / Địa điểm:</b> 📍 <a href="#" class="text-cyan-400 underline">${link}</a><br>` : ''}
+            • <b>Ban hành bởi:</b> ${host}
+          </div>
+          <div class="p-2 bg-slate-900/60 rounded border border-slate-700/50 text-[11px] text-slate-200 whitespace-pre-line">
+            ${content}
+          </div>
+          <div class="text-[10px] text-slate-400 text-right pt-0.5">
+            Bắn bởi Admin · Vừa xong
+          </div>
+        </div>
+      `;
+
+      feed.insertAdjacentHTML('beforeend', html);
+      scrollBottom();
+    }
+
+    function simNewLead() {
+      const time = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+      const leadId = 'lead_' + Date.now();
+      const html = `
+        <div id="${leadId}" class="msg-in p-3 max-w-[92%] space-y-2 shadow-sm border border-slate-700/40 animate-fade-in">
+          <div class="font-bold text-amber-400 flex items-center gap-1.5">
+            <span>🎓</span> KHÁCH QUAN TÂM KHÓA HỌC &amp; CHỈ BÁO TRADING!
+          </div>
+          <div class="text-slate-300 space-y-0.5 leading-relaxed">
+            • <b>Khách hàng:</b> Nguyễn Văn An<br>
+            • <b>Nguồn Form:</b> Landing Page Khóa Học<br>
+            • <b>Chiến dịch:</b> FB-COURSE-INDICATOR-09<br>
+            • <b>Nhu cầu:</b> <i>Cần cài đặt chỉ báo RSI &amp; tư vấn tham gia khóa 1-1</i><br>
+            • <b>Thời gian:</b> ${time} hôm nay
+          </div>
+          <div class="pt-1.5">
+            <button id="btn_${leadId}" onclick="acceptLead('${leadId}', 'Nguyễn Văn An', '0912.345.678')" class="w-full py-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-bold rounded-xl shadow transition flex items-center justify-center gap-1.5 active:scale-98">
+              <span>📥</span> BẤM NHẬN DATA &amp; XỬ LÝ
+            </button>
+          </div>
+        </div>
+      `;
+      feed.insertAdjacentHTML('beforeend', html);
+      scrollBottom();
+    }
+
+    function acceptLead(msgId, name, phone) {
+      const card = document.getElementById(msgId);
+      const time = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+      card.innerHTML = `
+        <div class="font-bold text-emerald-400 flex items-center gap-1.5">
+          <span>✅</span> ĐÃ TIẾP NHẬN DATA THÀNH CÔNG!
+        </div>
+        <div class="text-slate-300 space-y-1">
+          • <b>Khách hàng:</b> ${name}<br>
+          • 📞 <b>Số điện thoại:</b> <code class="text-amber-300 font-bold bg-slate-900/80 px-1.5 py-0.5 rounded text-xs">${phone}</code><br>
+          • <b>Thời điểm tiếp nhận:</b> ${time}<br>
+          • 👤 <b>Sale phụ trách:</b> Trần Quốc Toản
+        </div>
+        <div class="p-2 bg-emerald-950/40 rounded border border-emerald-700/50 text-[11px] text-emerald-300 flex items-center justify-between">
+          <span>👉 Đã lưu vào CRM! Bấm để gọi ngay:</span>
+          <a href="tel:${phone}" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded text-[10px]">GỌI NGAY</a>
+        </div>
+      `;
+      scrollBottom();
+    }
+
+    function simMorningCheckin() {
+      const html = `
+        <div id="checkinCard" class="msg-in p-3 max-w-[90%] space-y-2 shadow-sm border border-slate-700/40 animate-fade-in">
+          <div class="font-bold text-blue-400 flex items-center gap-1.5">
+            <span>⏰</span> THÔNG BÁO ĐIỂM DANH ĐẦU NGÀY (09:00 - 09:15)
+          </div>
+          <p class="text-slate-300">
+            Chào buổi sáng <b>Trần Quốc Toản</b>! Chúc bạn ngày mới bùng nổ doanh số.<br>
+            Vui lòng bấm nút bên dưới để hoàn tất điểm danh ca làm việc:
+          </p>
+          <div class="pt-1">
+            <button onclick="confirmCheckin()" class="w-full py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold rounded-xl shadow transition flex items-center justify-center gap-1.5 active:scale-98">
+              <span>✅</span> BẤM ĐIỂM DANH NGAY
+            </button>
+          </div>
+        </div>
+      `;
+      feed.insertAdjacentHTML('beforeend', html);
+      scrollBottom();
+    }
+
+    function confirmCheckin() {
+      const card = document.getElementById('checkinCard');
+      const time = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+      card.innerHTML = `
+        <div class="font-bold text-emerald-400 flex items-center gap-1">
+          <span>✅</span> BẠN ĐÃ ĐIỂM DANH THÀNH CÔNG LÚC ${time}!
+        </div>
+        <p class="text-slate-300 mt-1">
+          Chúc bạn ngày mới tràn đầy năng lượng và bão số chốt đơn cùng NVT Agency! 🚀
+        </p>
+      `;
+    }
+
+    function simStaleLead() {
+      const html = `
+        <div class="msg-in p-3 max-w-[90%] space-y-1.5 shadow-sm border border-rose-900/60 bg-rose-950/20">
+          <div class="font-bold text-rose-400 flex items-center gap-1.5">
+            <span>🚨</span> CẢNH BÁO: DATA NÓNG CHƯA XỬ LÝ QUÁ 12 TIẾNG!
+          </div>
+          <div class="text-slate-300 space-y-0.5">
+            • <b>Khách hàng:</b> Vũ Hoàng Lâm - <code>0977.112.334</code><br>
+            • <b>Sale phụ trách:</b> Trần Quốc Toản<br>
+            • <b>Thời điểm nhận:</b> 21:00 hôm qua<br>
+            • <b>Tình trạng:</b> Chưa cập nhật tiến độ / ghi chú sau 12 giờ!
+          </div>
+          <div class="text-[11px] text-rose-300 border-t border-rose-800/40 pt-1 mt-1">
+            ⚠️ <i>Yêu cầu kiểm tra và liên hệ chăm sóc ngay để tránh nguội data!</i>
+          </div>
+        </div>
+      `;
+      feed.insertAdjacentHTML('beforeend', html);
+      scrollBottom();
+    }
+
+    function triggerAppointmentTelegramReminder(type, time, note) {
+      const html = `
+        <div class="msg-in p-3 max-w-[90%] space-y-2 shadow-sm border border-amber-500/40 bg-slate-900/90 animate-fade-in">
+          <div class="font-bold text-amber-400 flex items-center gap-1.5">
+            <span>⏰</span> NHẮC HẸN KHÁCH HÀNG SẮP DIỄN RA!
+          </div>
+          <div class="text-slate-300 space-y-0.5 leading-relaxed">
+            • <b>Khách hàng:</b> Đoàn Kim Ngân - <code>0938.882.119</code><br>
+            • <b>Mục đích hẹn:</b> <b class="text-amber-300">${type}</b><br>
+            • <b>Thời gian hẹn:</b> ⏰ <b>${time}</b><br>
+            • <b>Sale phụ trách:</b> Trần Quốc Toản<br>
+            ${note ? `• <b>Ghi chú:</b> <i>${note}</i><br>` : ''}
+          </div>
+          <div class="text-[11px] text-cyan-300 border-t border-slate-700 pt-1 mt-1">
+            👉 <i>Vui lòng chuẩn bị tài liệu và chủ động liên hệ đúng giờ để chốt giao dịch thành công!</i> 🚀
+          </div>
+        </div>
+      `;
+      feed.insertAdjacentHTML('beforeend', html);
+      scrollBottom();
+    }
+
+    function openAppointmentModal() {
+      document.getElementById('appointmentModal').classList.remove('hidden');
+    }
+
+    function closeAppointmentModal() {
+      document.getElementById('appointmentModal').classList.add('hidden');
+    }
+
+    function submitNewAppointment() {
+      const type = document.getElementById('inputAppType').value;
+      const time = document.getElementById('inputAppTime').value;
+      const note = document.getElementById('inputAppNote').value || 'Đã hẹn trước với khách';
+
+      const list = document.getElementById('crmAppointmentsList');
+      const newCard = document.createElement('div');
+      newCard.className = "p-3 bg-white border border-blue-300 rounded-xl flex items-center justify-between shadow-xs animate-fade-in";
+      newCard.innerHTML = `
+        <div class="space-y-0.5">
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-xs text-slate-900">${type}</span>
+            <span class="text-xs text-blue-600 font-medium">⏰ ${time}</span>
+            <span class="px-2 py-0.5 text-[10px] font-bold rounded bg-blue-100 text-blue-800">Mới tạo</span>
+          </div>
+          <p class="text-xs text-slate-600"><i>${note}</i></p>
+          <div class="text-[11px] text-slate-400">Sale phụ trách: <b>Trần Quốc Toản</b> · <span class="text-emerald-600 font-semibold">✓ Đã lên lịch Bot nhắc</span></div>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <button onclick="completeAppointment(this)" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold rounded-lg border border-emerald-200 transition">
+            ✓ Xong
+          </button>
+          <button onclick="cancelAppointment(this)" class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold rounded-lg border border-rose-200 transition">
+            ✕ Hủy
+          </button>
+        </div>
+      `;
+      list.prepend(newCard);
+      closeAppointmentModal();
+      triggerAppointmentTelegramReminder(type, time, note);
+    }
+
+    function completeAppointment(btn) {
+      btn.parentElement.innerHTML = '<span class="px-2 py-1 text-xs font-bold rounded bg-emerald-100 text-emerald-800">Đã hoàn thành</span>';
+    }
+
+    function cancelAppointment(btn) {
+      btn.parentElement.innerHTML = '<span class="px-2 py-1 text-xs font-bold rounded bg-slate-100 text-slate-600">Đã hủy</span>';
+    }
+
+    function sendTgMessage() {
+      const input = document.getElementById('tgInput');
+      const val = input.value.trim();
+      if (!val) return;
+
+      const userHtml = `
+        <div class="msg-out p-2.5 max-w-[80%] ml-auto text-white shadow-sm space-y-0.5">
+          <div>${val}</div>
+          <div class="text-[10px] text-blue-200 text-right">Bây giờ ✓✓</div>
+        </div>
+      `;
+      feed.insertAdjacentHTML('beforeend', userHtml);
+      input.value = '';
+      scrollBottom();
+
+      setTimeout(() => {
+        let reply = '';
+        if (val === '/me') {
+          reply = `👤 <b>THÔNG TIN TÀI KHOẢN:</b><br>• Họ tên: <b>Trần Quốc Toản</b><br>• Quyền: <code>SALE</code><br>• Team: <code>TEAM-ALPHA</code><br>• Đã liên kết: <code>0988123456</code>`;
+        } else if (val === '/help') {
+          reply = `📖 <b>LỆNH HỖ TRỢ:</b><br>• /start - Bắt đầu & liên kết<br>• /me - Xem tài khoản của tôi<br>• /huylienket - Hủy liên kết đổi máy`;
+        } else {
+          reply = `🤖 Bot đã ghi nhận tin nhắn. Các thao tác nhận data và điểm danh chỉ cần bấm nút trực tiếp trên tin nhắn bot gửi!`;
+        }
+        feed.insertAdjacentHTML('beforeend', `
+          <div class="msg-in p-3 max-w-[90%] text-slate-300 shadow-sm border border-slate-700/40">
+            ${reply}
+          </div>
+        `);
+        scrollBottom();
+      }, 500);
+    }
+
+    function resetDemo() {
+      location.reload();
+    }
+  </script>
+</body>
+</html>

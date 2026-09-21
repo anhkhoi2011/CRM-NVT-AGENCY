@@ -3731,61 +3731,166 @@ function openNewAppointmentModal(customerId) {
 
 function openAdminBroadcastModal() {
   if (currentAccount.role !== 'ADMIN') { toast('Chỉ Admin được phát thông báo'); return; }
+
+  const templates = {
+    meeting_weekly: {
+      type: 'MEETING',
+      target: 'ALL',
+      title: 'Họp tổng kết tuần & Đánh giá hiệu suất KPI',
+      host: 'Ban Giám Đốc NVT Agency',
+      meeting_link: 'Phòng họp Tầng 2 & Google Meet: meet.google.com/nvt-agency',
+      content: '1. Đánh giá doanh số tuần qua.\n2. Tuyên dương cá nhân bứt phá.\n3. Tháo gỡ khó khăn về data nóng và chốt cọc hợp đồng.\n4. Đề ra mục tiêu tuần mới.'
+    },
+    reward_fast: {
+      type: 'REWARD',
+      target: 'SALE',
+      title: 'Chính sách thưởng nóng: Chốt cọc trong 2h kể từ lúc nhận data',
+      host: 'Ban Giám Đốc NVT Agency',
+      content: '🔥 Thưởng nóng ngay 500.000 VNĐ tiền mặt cho mỗi hợp đồng cọc thành công trong vòng 2 giờ kể từ khi bấm nhận data!\n⚡ Áp dụng cho toàn bộ Sales chốt cọc trong ngày hôm nay. Anh em tăng tốc bám sát khách hàng!'
+    },
+    honor_bestseller: {
+      type: 'REWARD',
+      target: 'ALL',
+      title: 'Vinh danh Best Seller tuần - Bứt phá doanh số ấn tượng',
+      host: 'Ban Giám Đốc NVT Agency',
+      content: '🎉 Xin chúc mừng bạn Nguyễn Văn A (Team Bão Đơn) đã xuất sắc cán mốc doanh thu 150 triệu trong tuần này!\n👏 Toàn Agency cùng gửi lời chúc mừng và lấy đó làm động lực thi đua bứt phá mục tiêu tháng!'
+    },
+    stale_warning: {
+      type: 'WARNING',
+      target: 'SALE',
+      title: 'Cảnh báo nghiêm khắc: Xử lý data nóng tồn đọng quá hạn',
+      host: 'Trưởng Phòng Kinh Doanh',
+      content: '⚠️ Hiện tại hệ thống ghi nhận một số data nóng đã nhận quá 12h nhưng chưa có cập nhật ghi chú hoặc lịch hẹn chăm sóc.\n👉 Yêu cầu các bạn Sales khẩn trương gọi điện liên hệ hoặc phân phối lại. Sau 24h hệ thống sẽ tự động thu hồi về kho chung!'
+    },
+    morning_motivation: {
+      type: 'MOTIVATION',
+      target: 'ALL',
+      title: 'Chào ngày mới - Tốc độ bám khách tạo ra bão đơn',
+      host: 'Ban Quản Trị NVT Agency',
+      content: '☀️ Chào buổi sáng toàn thể anh em NVT Agency! Hôm nay dự kiến có hơn 50+ data khách hàng nóng đổ về từ các chiến dịch.\n🎯 Mục tiêu hôm nay: 100% data được tiếp cận trong 5 phút đầu tiên. Chúc cả nhà ngày mới bão đơn!'
+    },
+    emergency_meet: {
+      type: 'MEETING',
+      target: 'MANAGERS',
+      title: 'Họp khẩn cấp Cấp Quản Lý: Điều phối nguồn data & Tối ưu chuyển đổi',
+      host: 'Ban Giám Đốc NVT Agency',
+      meeting_link: 'Phòng họp VIP Tầng 3',
+      content: 'Họp khẩn các Leader/Manager để rà soát tỷ lệ phản hồi data nóng của từng team và điều chỉnh tỷ trọng phân phối tự động.'
+    },
+    policy_sla: {
+      type: 'POLICY',
+      target: 'SALE',
+      title: 'Quy định chuẩn thời gian tiếp cận khách hàng (SLA 5 phút)',
+      host: 'Ban Quản Trị NVT Agency',
+      content: 'Quy định mới bắt buộc: Tất cả data khách hàng phân phối về Telegram cá nhân phải được gọi điện lần 1 trong vòng 5-15 phút. Nếu quá hạn không liên hệ, hệ thống sẽ hạ điểm uy tín nhận data của Sale.'
+    }
+  };
+
   const bodyHtml = `<form id="adminBroadcastForm">
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px;margin-bottom:14px">
+      <label style="font-weight:700;font-size:13px;display:block;margin-bottom:6px;color:#334155">
+        💡 Chọn mẫu thông báo gợi ý sẵn (Admin chỉ cần chọn là điền tự động):
+      </label>
+      <select id="bcPresetSelect" style="width:100%;padding:8px 12px;border-radius:8px;border:1.5px solid #cbd5e1;font-weight:600;font-size:13px;color:#1e293b;background:#ffffff">
+        <option value="">-- Tự nhập nội dung thủ công --</option>
+        <option value="meeting_weekly">🎯 Lịch họp tổng kết tuần & Review KPI</option>
+        <option value="reward_fast">🎁 Thưởng nóng chốt cọc trong 2h</option>
+        <option value="honor_bestseller">⭐ Vinh danh Best Seller bứt phá</option>
+        <option value="stale_warning">⚠️ Cảnh báo data nóng tồn quá 12h</option>
+        <option value="morning_motivation">🔥 Động viên bão đơn đầu ngày</option>
+        <option value="emergency_meet">🚨 Họp khẩn cấp Cấp Quản Lý</option>
+        <option value="policy_sla">📋 Quy định chuẩn tiếp cận khách (SLA 5p)</option>
+      </select>
+    </div>
+
     <div class="form-grid">
       <label class="form-field">Loại thông báo
         <select id="bcTypeSelect" required>
           <option value="MEETING">📢 Lịch họp tổng Agency</option>
           <option value="POLICY">📋 Quy trình / Quy chế làm việc mới</option>
+          <option value="REWARD">🎁 Thưởng nóng & Vinh danh</option>
+          <option value="WARNING">⚠️ Cảnh báo tiến độ & Data tồn</option>
+          <option value="MOTIVATION">🔥 Động viên & Mục tiêu ngày</option>
         </select>
       </label>
-      <label class="form-field">Tiêu đề thông báo
+      <label class="form-field">Gửi tới đối tượng
+        <select id="bcTargetSelect" required>
+          <option value="ALL">👥 Toàn thể nhân sự Agency (Sale + Leader + Manager)</option>
+          <option value="SALE">💼 Chỉ Đội ngũ Sales / Tư vấn</option>
+          <option value="MANAGERS">🎖️ Chỉ Cấp Quản Lý (Leader & Manager)</option>
+        </select>
+      </label>
+      <label class="form-field" style="grid-column:1/-1">Tiêu đề thông báo
         <input id="bcTitle" required placeholder="VD: Họp tổng kết tuần và công bố thưởng KPI mới" maxlength="200">
       </label>
-      <div id="bcMeetingFields">
-        <label class="form-field">Thời gian họp
-          <input type="datetime-local" id="bcMeetingTime">
-        </label>
-        <label class="form-field">Địa điểm / Link họp online
-          <input id="bcMeetingLink" placeholder="VD: Google Meet / Zoom link hoặc Phòng họp tầng 2">
-        </label>
+      <div id="bcMeetingFields" style="grid-column:1/-1">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <label class="form-field">Thời gian họp
+            <input type="datetime-local" id="bcMeetingTime">
+          </label>
+          <label class="form-field">Địa điểm / Link họp
+            <input id="bcMeetingLink" placeholder="VD: Google Meet / Zoom hoặc Phòng họp tầng 2">
+          </label>
+        </div>
       </div>
-      <div id="bcPolicyFields" style="display:none">
+      <div id="bcPolicyFields" style="display:none;grid-column:1/-1">
         <label class="form-field">Ngày bắt đầu áp dụng
           <input type="date" id="bcEffectiveDate">
         </label>
       </div>
-      <label class="form-field">Người chủ trì / Ban hành
+      <label class="form-field" style="grid-column:1/-1">Người chủ trì / Ban hành
         <input id="bcHost" value="${escapeHtml(currentAccount.name)}" placeholder="VD: Ban Giám Đốc NVT Agency">
       </label>
-      <label class="form-field">Nội dung chi tiết
-        <textarea id="bcContent" rows="4" required placeholder="Nội dung tóm tắt cuộc họp hoặc nội dung quy trình mới..."></textarea>
+      <label class="form-field" style="grid-column:1/-1">Nội dung chi tiết
+        <textarea id="bcContent" rows="5" required placeholder="Nhập nội dung chi tiết hoặc chọn mẫu gợi ý phía trên..."></textarea>
       </label>
     </div>
-    <div class="credential-hint" style="margin-top:10px">⚡ Thông báo sẽ được <b>Bot Telegram NVT Agency</b> bắn trực tiếp tới toàn thể nhân viên (Sale, Leader, Manager) đã liên kết bot.</div>
+    <div class="credential-hint" style="margin-top:10px">⚡ Thông báo sẽ được <b>Bot Telegram NVT Agency</b> phát tức thì tới từng nhân viên theo nhóm đối tượng đã chọn.</div>
     <div class="modal-actions" style="margin-top:16px;display:flex;justify-content:flex-end;gap:8px">
       <button type="button" class="button button-secondary" data-close-modal>Hủy</button>
-      <button type="submit" class="button button-primary">🚀 Bắn thông báo Telegram ngay</button>
+      <button type="submit" class="button button-primary" style="background:#7c3aed;color:#fff">🚀 Bắn thông báo Telegram ngay</button>
     </div>
   </form>`;
 
   openModal('📢 Phát thông báo Telegram toàn Agency', bodyHtml);
   $('[data-close-modal]')?.addEventListener('click', closeModal);
 
-  $('#bcTypeSelect')?.addEventListener('change', (e) => {
-    const isMeeting = e.target.value === 'MEETING';
-    const mf = $('#bcMeetingFields');
-    const pf = $('#bcPolicyFields');
-    if (mf) mf.style.display = isMeeting ? 'block' : 'none';
-    if (pf) pf.style.display = isMeeting ? 'none' : 'block';
+  const typeSelect = $('#bcTypeSelect');
+  const targetSelect = $('#bcTargetSelect');
+  const titleInput = $('#bcTitle');
+  const hostInput = $('#bcHost');
+  const contentInput = $('#bcContent');
+  const meetingFields = $('#bcMeetingFields');
+  const meetingLink = $('#bcMeetingLink');
+  const policyFields = $('#bcPolicyFields');
+
+  const updateTypeView = (t) => {
+    if (meetingFields) meetingFields.style.display = (t === 'MEETING') ? 'block' : 'none';
+    if (policyFields) policyFields.style.display = (t === 'POLICY') ? 'block' : 'none';
+  };
+
+  typeSelect?.addEventListener('change', (e) => updateTypeView(e.target.value));
+
+  $('#bcPresetSelect')?.addEventListener('change', (e) => {
+    const key = e.target.value;
+    if (!key || !templates[key]) return;
+    const tpl = templates[key];
+    if (typeSelect) typeSelect.value = tpl.type;
+    if (targetSelect) targetSelect.value = tpl.target;
+    if (titleInput) titleInput.value = tpl.title;
+    if (hostInput) hostInput.value = tpl.host || currentAccount.name;
+    if (contentInput) contentInput.value = tpl.content;
+    if (tpl.meeting_link && meetingLink) meetingLink.value = tpl.meeting_link;
+    updateTypeView(tpl.type);
   });
 
   $('#adminBroadcastForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const type = $('#bcTypeSelect').value;
-    const title = $('#bcTitle').value.trim();
-    const content = $('#bcContent').value.trim();
-    const host = $('#bcHost').value.trim();
+    const type = typeSelect?.value || 'MEETING';
+    const target = targetSelect?.value || 'ALL';
+    const title = titleInput?.value.trim() || '';
+    const content = contentInput?.value.trim() || '';
+    const host = hostInput?.value.trim() || '';
     const meeting_time = $('#bcMeetingTime')?.value || null;
     const meeting_link = $('#bcMeetingLink')?.value || null;
     const effective_date = $('#bcEffectiveDate')?.value || null;
@@ -3793,13 +3898,16 @@ function openAdminBroadcastModal() {
     if (!title || !content) { toast('Vui lòng nhập tiêu đề và nội dung'); return; }
 
     const submitBtn = e.target.querySelector('button[type="submit"]');
-    if (submitBtn) submitBtn.disabled = true;
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = '⏳ Đang bắn thông báo Telegram...';
+    }
 
     try {
       const res = await fetch(`${webhookApiBase()}/api/broadcast`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${serverSyncToken}` },
-        body: JSON.stringify({ type, title, content, host, meeting_time, meeting_link, effective_date })
+        body: JSON.stringify({ type, target, title, content, host, meeting_time, meeting_link, effective_date })
       });
       const data = await res.json();
       if (data.ok) {
@@ -3811,7 +3919,10 @@ function openAdminBroadcastModal() {
     } catch (err) {
       toast('Lỗi kết nối máy chủ');
     } finally {
-      if (submitBtn) submitBtn.disabled = false;
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '🚀 Bắn thông báo Telegram ngay';
+      }
     }
   });
 }

@@ -73,7 +73,7 @@
     openWorkflow,workflowRoot,workflowEvent,
     exportData(kind,start,end){requireRole(['ADMIN','LEADER','MARKETING','ACCOUNTING']);const methods={customers:exportCustomers,orders:exportOrders,revenue:exportRevenue,marketing:exportMarketing,team:exportTeam,reports:exportFullReport};if(!methods[kind])throw Error('Loại xuất không hợp lệ.');if(start&&end){customDateStart=start;customDateEnd=end;datePreset='CUSTOM';}methods[kind]();},
     async attendanceSettings(input){requireRole(['ADMIN']);return persist(()=>{const time=cleanClockTime(input.deadline,'');if(!time)throw Error('Giờ vào làm không hợp lệ.');state.settings.attendanceIp=String(input.ip||'').slice(0,200);state.settings.attendanceDeadline=time;state.settings.acceptTimeoutHours=24;return {ok:true};},'attendance-settings');},
-    async checkIn(){requireRole(['ADMIN','SALE']);return persist(()=>{checkInToday();return {ok:true};},'check-in');},
+    async checkIn(){requireRole(['ADMIN','MANAGER','LEADER','SALE']);return persist(()=>{checkInToday();return {ok:true};},'check-in');},
     async saveBrokerageMetric(metric){
       requireRole(['ADMIN']);
       return persist(()=>{
@@ -190,10 +190,17 @@
       },'delete-customer:'+id);
     },
     async deleteOrder(id) {
-      requireRole(['ADMIN']);
+      requireRole(['ADMIN','MANAGER','LEADER','SALE']);
       return persist(() => {
         const order = state.orders.find(item => item.id === id);
         if (!order) throw Error('Order no longer exists on server.');
+        if (currentAccount.role !== 'ADMIN') {
+          const created = Date.parse(`${String(order.createdAt || '').replace(' ', 'T')}+07:00`);
+          if (!Number.isFinite(created) || Date.now() - created >= 3 * 24 * 60 * 60 * 1000) {
+            throw Error('Đơn hàng chỉ được xóa trong 3 ngày đầu.');
+          }
+          if (!canViewCustomer(customerById(order.customerId))) throw Error('Đơn hàng nằm ngoài phạm vi được giao.');
+        }
         state.orders = state.orders.filter(item => item.id !== id);
         audit('DELETE_ORDER', id, order.code || id);
         return {ok:true};
@@ -418,6 +425,7 @@
       const member=state.members.find(item=>item.id===id&&item.active!==false);
       const managerRole=currentAccount.actualRole||currentAccount.role;
       if(managerRole==='MANAGER'){
+        if(normalizedKind!=='SALE')throw Error('Manager chi duoc chinh ty trong Sale trong tuyen cua minh.');
         const leaderIds=new Set(state.members.filter(item=>item.role==='LEADER'&&item.managerId===currentAccount.id&&item.active!==false).map(item=>item.id));
         const allowed=member?.id===currentAccount.id&&normalizedKind==='MANAGER'||member?.role==='LEADER'&&leaderIds.has(member.id)||member?.role==='SALE'&&(member.managerId===currentAccount.id||leaderIds.has(member.leaderId));
         if(!allowed)throw Error('Manager chi duoc chinh ty trong Sale trong tuyen cua minh.');
@@ -451,8 +459,10 @@
     async distributionMember(kind,id,enabled) {
       requireRole(['ADMIN','MANAGER']);
       const normalizedKind=String(kind||'').toUpperCase();
-      const member=state.members.find(item=>item.id===id&&item.active!==false);      const managerRole=currentAccount.actualRole||currentAccount.role;
+      const member=state.members.find(item=>item.id===id&&item.active!==false);
+      const managerRole=currentAccount.actualRole||currentAccount.role;
       if(managerRole==='MANAGER'){
+        if(normalizedKind!=='SALE')throw Error('Manager chi duoc chinh ty trong Sale trong tuyen cua minh.');
         const leaderIds=new Set(state.members.filter(item=>item.role==='LEADER'&&item.managerId===currentAccount.id&&item.active!==false).map(item=>item.id));
         const allowed=member?.id===currentAccount.id&&normalizedKind==='MANAGER'||member?.role==='LEADER'&&leaderIds.has(member.id)||member?.role==='SALE'&&(member.managerId===currentAccount.id||leaderIds.has(member.leaderId));
         if(!allowed)throw Error('Manager chi duoc chinh ty trong Sale trong tuyen cua minh.');

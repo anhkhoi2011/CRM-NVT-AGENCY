@@ -17,12 +17,14 @@ let appState = { customers: [], orders: [], careGroups: [] };
     const searchVal = (document.getElementById('custSearchInput')?.value || '').toLowerCase();
     const statusVal = document.getElementById('custStatusFilter')?.value || 'ALL';
     const assignVal = document.getElementById('custAssignFilter')?.value || 'ALL';
+    const ownerVal = document.getElementById('custOwnerFilter')?.value || 'ALL';
 
     const filtered = appState.customers.filter(c => {
       const matchText = (c.name + ' ' + c.phone + ' ' + c.level + ' ' + c.note).toLowerCase().includes(searchVal);
       const matchStatus = statusVal === 'ALL' || c.status === statusVal;
-      const matchAssign = assignVal === 'ALL' || (assignVal === 'UNASSIGNED' ? c.sale.includes('Chưa phân') : !c.sale.includes('Chưa phân'));
-      return matchText && matchStatus && matchAssign;
+      const matchAssign = assignVal === 'ALL' || (assignVal === 'UNASSIGNED' ? !c.saleId : Boolean(c.saleId));
+      const matchOwner = ownerVal === 'ALL' || c.saleId === ownerVal || c.leaderId === ownerVal || c.managerId === ownerVal;
+      return matchText && matchStatus && matchAssign && matchOwner;
     });
 
     document.getElementById('custCountText').innerText = `${filtered.length} khách · 5 cột nghiệp vụ`;
@@ -186,6 +188,7 @@ let appState = { customers: [], orders: [], careGroups: [] };
     if (document.getElementById('dataStatToday')) document.getElementById('dataStatToday').innerText = `${todayCount} data`;
     if (document.getElementById('dataStat3Days')) document.getElementById('dataStat3Days').innerText = `${queueList.length} data`;
     if (document.getElementById('dataStat7Days')) document.getElementById('dataStat7Days').innerText = `${queueList.length} data`;
+    if (document.getElementById('dataStat30Days')) document.getElementById('dataStat30Days').innerText = `${queueList.length} data`;
 
     if (!queueList.length) {
       tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 40px; color: var(--text-muted); font-size: 13px;">Không có data mới nào đang chờ xử lý</td></tr>`;

@@ -481,30 +481,40 @@ async function sendMorningCheckinAlert() {
 }
 
 /**
- * Tính năng 4 & 5: Admin phát thông báo cuộc họp hoặc quy trình mới
+ * Tính năng 4 & 5: Admin phát thông báo cuộc họp, quy trình, thưởng nóng, động viên
  */
 async function sendBroadcastAnnouncement(announcement) {
   try {
-    const staff = await dbQuery(`SELECT telegram_chat_id FROM users WHERE active = 1 AND telegram_chat_id IS NOT NULL`);
+    let roleFilter = '';
+    if (announcement.target === 'SALE') {
+      roleFilter = ` AND role = 'SALE'`;
+    } else if (announcement.target === 'MANAGERS') {
+      roleFilter = ` AND role IN ('ADMIN', 'MANAGER', 'LEADER')`;
+    }
+
+    const staff = await dbQuery(`SELECT telegram_chat_id FROM users WHERE active = 1 AND telegram_chat_id IS NOT NULL${roleFilter}`);
     const chatIds = staff.map(s => s.telegram_chat_id).filter(Boolean);
     if (chatIds.length === 0) return 0;
 
-    let text = '';
-    if (announcement.type === 'MEETING') {
-      text = `📢 <b>THÔNG BÁO LỊCH HỌP TỔNG TOÀN AGENCY</b>\n\n` +
-        `• <b>Cuộc họp:</b> 🎯 <b>${escapeHtml(announcement.title)}</b>\n` +
-        (announcement.meeting_time ? `• <b>Thời gian:</b> ⏰ <b>${formatDateTimeVN(announcement.meeting_time)}</b>\n` : '') +
-        (announcement.meeting_link ? `• <b>Địa điểm / Link họp:</b> 📍 <a href="${escapeHtml(announcement.meeting_link)}">${escapeHtml(announcement.meeting_link)}</a>\n` : '') +
-        `• <b>Người chủ trì:</b> ${escapeHtml(announcement.host || 'Ban Quản Trị')}\n\n` +
-        `📝 <b>Nội dung:</b>\n${escapeHtml(announcement.content || '')}`;
-    } else {
-      text = `📋 <b>CẬP NHẬT QUY TRÌNH LÀM VIỆC MỚI</b>\n\n` +
-        `• <b>Tiêu đề:</b> 🎯 <b>${escapeHtml(announcement.title)}</b>\n` +
-        `• <b>Ban hành bởi:</b> ${escapeHtml(announcement.host || 'Ban Quản Trị')}\n` +
-        (announcement.effective_date ? `• <b>Ngày áp dụng:</b> ${formatDateTimeVN(announcement.effective_date)}\n` : '') +
-        `\n📑 <b>Tóm tắt quy trình:</b>\n${escapeHtml(announcement.content || '')}\n\n` +
-        `👉 <i>Vui lòng đọc kỹ và nghiêm túc áp dụng vào công việc!</i>`;
-    }
+    let header = '📢 <b>THÔNG BÁO TỪ BAN QUẢN TRỊ NVT AGENCY</b>';
+    if (announcement.type === 'MEETING') header = '📢 <b>THÔNG BÁO LỊCH HỌP AGENCY</b>';
+    else if (announcement.type === 'POLICY') header = '📋 <b>CẬP NHẬT QUY TRÌNH LÀM VIỆC MỚI</b>';
+    else if (announcement.type === 'REWARD') header = '🎁 <b>CHÍNH SÁCH THƯỞNG NÓNG & VINH DANH</b>';
+    else if (announcement.type === 'WARNING') header = '⚠️ <b>CẢNH BÁO TIẾN ĐỘ & XỬ LÝ DATA</b>';
+    else if (announcement.type === 'MOTIVATION') header = '🔥 <b>THÔNG ĐIỆP ĐỘNG VIÊN & MỤC TIÊU</b>';
+
+    const targetLabel = announcement.target === 'SALE' ? 'Đội ngũ Sales / Tư vấn' :
+      announcement.target === 'MANAGERS' ? 'Leader & Quản lý' : 'Toàn thể Agency';
+
+    let text = `${header}\n\n` +
+      `• <b>Tiêu đề:</b> 🎯 <b>${escapeHtml(announcement.title || '')}</b>\n` +
+      `• <b>Gửi tới:</b> 👥 <b>${escapeHtml(targetLabel)}</b>\n` +
+      (announcement.meeting_time ? `• <b>Thời gian:</b> ⏰ <b>${formatDateTimeVN(announcement.meeting_time)}</b>\n` : '') +
+      (announcement.meeting_link ? `• <b>Địa điểm / Link:</b> 📍 <a href="${escapeHtml(announcement.meeting_link)}">${escapeHtml(announcement.meeting_link)}</a>\n` : '') +
+      (announcement.effective_date ? `• <b>Ngày áp dụng:</b> 📅 ${formatDateTimeVN(announcement.effective_date)}\n` : '') +
+      `• <b>Người gửi:</b> ✍️ ${escapeHtml(announcement.host || 'Ban Quản Trị')}\n\n` +
+      `📝 <b>Nội dung chi tiết:</b>\n${escapeHtml(announcement.content || '')}\n\n` +
+      `👉 <i>Thông báo tự động phát từ hệ thống CRM NVT Agency!</i>`;
 
     let sent = 0;
     for (const cid of chatIds) {

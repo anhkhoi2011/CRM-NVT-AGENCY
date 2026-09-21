@@ -217,7 +217,7 @@
   }
   function project() {
     appState={customers:data.customers.slice().sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||''))||a.id.localeCompare(b.id)).map(c=>({
-      id:c.id,saleId:c.saleId||null,leaderId:c.leaderId||null,name:esc(c.name),phone:esc(c.phone),createdAt:fmtDate(c.createdAt),source:esc(data.websites.find(w=>w.id===c.websiteId)?.name||c.landingPageName||c.source||''),leader:esc(person(c.leaderId)),sale:esc(person(c.saleId)),level:esc(fieldOptions('customerLevel').find(o=>o.value===c.customFields?.customerLevel)?.label||c.customFields?.customerLevel||''),customerClass:esc(c.customFields?.customerClass||''),customerLevel:esc(c.customFields?.customerLevel||''),documentStatus:esc(c.customFields?.documentStatus||''),result:esc(c.customFields?.result||''),callStatus:esc(c.customFields?.callStatus||''),docStatus:esc(c.customFields?.documentStatus||''),careResult:esc(c.customFields?.result||''),status:c.status,note:esc(c.note),...Object.fromEntries(data.fields.filter(f=>!['customerClass','customerLevel','callStatus','documentStatus','result'].includes(f.id)).map(f=>[f.id,Array.isArray(c.customFields?.[f.id])?c.customFields[f.id].map(esc):esc(c.customFields?.[f.id]||'')]))
+      id:c.id,saleId:c.saleId||null,leaderId:c.leaderId||null,managerId:c.managerId||null,name:esc(c.name),phone:esc(c.phone),createdAt:fmtDate(c.createdAt),source:esc(data.websites.find(w=>w.id===c.websiteId)?.name||c.landingPageName||c.source||''),leader:esc(person(c.leaderId)),sale:esc(person(c.saleId)),level:esc(fieldOptions('customerLevel').find(o=>o.value===c.customFields?.customerLevel)?.label||c.customFields?.customerLevel||''),customerClass:esc(c.customFields?.customerClass||''),customerLevel:esc(c.customFields?.customerLevel||''),documentStatus:esc(c.customFields?.documentStatus||''),result:esc(c.customFields?.result||''),callStatus:esc(c.customFields?.callStatus||''),docStatus:esc(c.customFields?.documentStatus||''),careResult:esc(c.customFields?.result||''),status:c.status,note:esc(c.note),...Object.fromEntries(data.fields.filter(f=>!['customerClass','customerLevel','callStatus','documentStatus','result'].includes(f.id)).map(f=>[f.id,Array.isArray(c.customFields?.[f.id])?c.customFields[f.id].map(esc):esc(c.customFields?.[f.id]||'')]))
     })),orders:data.orders.map(o=>({id:o.id,code:esc(o.code),customerName:esc(o.customerName),phone:esc(data.customers.find(c=>c.id===o.customerId)?.phone||''),product:esc(o.productName),sale:esc(person(o.saleId)),leader:esc(person(o.leaderId)),total:o.total,status:o.status,rentalExpiry:o.rentalMonths?fmtDate(o.rentalEndsAt):'Vĩnh viễn'})),careGroups:(data.careGroups||[]).map(g=>({...g,name:esc(g.name),field:g.fieldId,values:g.values.map(esc)}))};
     appState.customers.forEach(c=>{const original=data.customers.find(item=>item.id===c.id);data.fields.forEach(f=>{const value=original.customFields?.[f.id];c[f.id]=Array.isArray(value)?value.map(esc):esc(value||'');});});
   }
@@ -380,6 +380,21 @@
       };
     });
   }
+  function syncCustomerOwnerFilter(){
+    const select=q('#custOwnerFilter');
+    if(!select||!data)return;
+    const role=data.user?.actualRole||data.user?.role,currentId=data.user.id,all=data.members||[];
+    const leaders=role==='ADMIN'?all.filter(m=>m.active!==false&&m.role==='LEADER'):role==='MANAGER'?all.filter(m=>m.active!==false&&m.role==='LEADER'&&m.managerId===currentId):role==='LEADER'?all.filter(m=>m.active!==false&&m.role==='LEADER'&&m.id===currentId):[];
+    const leaderIds=new Set(leaders.map(m=>m.id));
+    const managers=role==='ADMIN'?all.filter(m=>m.active!==false&&m.role==='MANAGER'):role==='MANAGER'?all.filter(m=>m.active!==false&&m.role==='MANAGER'&&m.id===currentId):[];
+    const sales=all.filter(m=>m.active!==false&&m.role==='SALE'&&(role==='ADMIN'||role==='MANAGER'&&(m.managerId===currentId||leaderIds.has(m.leaderId))||role==='LEADER'&&leaderIds.has(m.leaderId)));
+    const previous=select.value;
+    const option=(value,label)=>'<option value="'+esc(value)+'">'+esc(label)+'</option>';
+    const group=(label,items)=>items.length?'<optgroup label="'+esc(label)+'">'+items.slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'vi')).map(m=>option(m.id,(m.name||'Chua dat ten')+' - '+(m.accountId||m.phone||m.id))).join('')+'</optgroup>':'';
+    select.innerHTML=option('ALL','Xem theo nhan su')+group('Manager',managers)+group('Leader',leaders)+group('Sale',sales);
+    select.value=[...select.options].some(item=>item.value===previous)?previous:'ALL';
+    select.onchange=()=>renderCustomerTable();
+  }
   renderCustomerTable=function(){
     if(!data)return;
     // Lưu cả cuộn ngang của bảng và cuộn dọc của trang trước khi thay các dòng.
@@ -418,7 +433,7 @@
     renderDataQueuePagination(table,filtered.length);
     text('sidebarDataBadge',filtered.length);text('dataTabCountBadge',filtered.length);
   }
-  renderDataQueue=function(){if(!data)return;renders.queue();const pool=data.customers.filter(c=>!c.saleId);text('sidebarDataBadge',pool.length);text('dataTabCountBadge',pool.length);text('dataStatToday',data.customers.filter(c=>c.createdAt?.slice(0,10)===data.today).length+' data');[3,7].forEach(n=>text('dataStat'+n+'Days',data.customers.filter(c=>c.createdAt?.slice(0,10)>=fromDay(n)).length+' data'));};
+  renderDataQueue=function(){if(!data)return;renders.queue();const pool=data.customers.filter(c=>!c.saleId);text('sidebarDataBadge',pool.length);text('dataTabCountBadge',pool.length);text('dataStatToday',data.customers.filter(c=>c.createdAt?.slice(0,10)===data.today).length+' data');[3,7,30].forEach(n=>text('dataStat'+n+'Days',data.customers.filter(c=>c.createdAt?.slice(0,10)>=fromDay(n)).length+' data'));};
   function renderPendingHierarchy(goal, source, rows, pendingOffers) {
     const members=data.members.filter(m=>m.active!==false), byId=id=>members.find(m=>m.id===id);
     const stateFor=c=>pendingOffers.some(o=>o.customerId===c.id)?'\u0043h\u1edd Sale nh\u1eadn':!c.leaderId?'\u0043h\u01b0a ph\u00e2n Leader':!c.saleId?'\u0043h\u01b0a ph\u00e2n Sale':!c.saleAcceptedAt?'\u0043h\u1edd nh\u1eadn data':'\u0043h\u01b0a c\u1eadp nh\u1eadt x\u1eed l\u00fd';
@@ -1460,8 +1475,24 @@
   qa('#tab-customers button').filter(b=>b.textContent.trim()==='Quản lý cột').forEach(b=>b.onclick=fieldManager);
   function renderDistributionWeights(){
     const host=q('#dataSubViewSales');
-    if(!host||!data||((data.user?.actualRole||data.user?.role)!=='ADMIN'))return;
-    const members=(data.members||[]).filter(m=>m.active!==false&&['MANAGER','LEADER','SALE'].includes(m.role));
+    const role=data.user?.actualRole||data.user?.role;
+    if(!host||!data||!['ADMIN','MANAGER'].includes(role))return;
+    const scopedMembers=role==='MANAGER'?(data.managerHierarchy?.members||data.members||[]):(data.members||[]);
+    const allMembers=role==='MANAGER'
+      ? [...scopedMembers.filter(m=>m.id!==data.user.id), data.user]
+      : scopedMembers;
+    const managerLeaders=role==='MANAGER'
+      ? allMembers.filter(m=>m.active!==false&&m.role==='LEADER'&&m.managerId===data.user.id)
+      : [];
+    const managerLeaderIds=new Set(managerLeaders.map(m=>m.id));
+    const members=(role==='MANAGER'
+      ? allMembers.filter(m=>m.active!==false&&(
+          m.id===data.user.id ||
+          managerLeaderIds.has(m.id) ||
+          (m.role==='SALE'&&(m.managerId===data.user.id||managerLeaderIds.has(m.leaderId)))
+        ))
+      : allMembers
+    ).filter(m=>m.active!==false&&['MANAGER','LEADER','SALE'].includes(m.role));
     const managers=members.filter(m=>m.role==='MANAGER').sort((a,b)=>String(a.name).localeCompare(String(b.name),'vi'));
     const leaders=members.filter(m=>m.role==='LEADER').sort((a,b)=>String(a.name).localeCompare(String(b.name),'vi'));
     const sales=members.filter(m=>m.role==='SALE').sort((a,b)=>String(a.name).localeCompare(String(b.name),'vi'));
@@ -1477,7 +1508,10 @@
       const weight=isLeader?(data.leaderDistribution?.weights?.[member.id]||1):(config?.weights?.[member.id]||1);
       const enabled=isLeader?enabledLeaders.has(member.id):(config?.managerDistributionInitialized!==true&&isManager?true:(Array.isArray(config?.enabledSaleIds)?config.enabledSaleIds.includes(member.id):true));
       const load=(data.customers||[]).filter(c=>isManager?c.managerId===member.id:c[isLeader?'leaderId':'saleId']===member.id).length;
-      const controls='<label>Ty trong <input type="number" min="1" max="100" value="'+weight+'" data-ref-distribution-weight="'+kind+':'+esc(member.id)+'"></label><label class="distribution-check"><input type="checkbox" '+(enabled?'checked':'')+' data-ref-distribution-member="'+kind+':'+esc(member.id)+'"><span>'+(enabled?'Dang nhan':'Tam tat')+'</span></label>';
+      const canEdit=role==='ADMIN'||(role==='MANAGER'&&kind==='SALE'&&(member.managerId===data.user.id||managerLeaderIds.has(member.leaderId)));
+      const controls=canEdit
+        ? '<label>Ty trong <input type="number" min="1" max="100" value="'+weight+'" data-ref-distribution-weight="'+kind+':'+esc(member.id)+'"></label><label class="distribution-check"><input type="checkbox" '+(enabled?'checked':'')+' data-ref-distribution-member="'+kind+':'+esc(member.id)+'"><span>'+(enabled?'Dang nhan':'Tam tat')+'</span></label>'
+        : '<span class="distribution-readonly">Chi xem</span>';
       return '<div class="distribution-person-row level-'+level+'"><div class="distribution-person-main"><span class="distribution-avatar">'+esc(initials(member))+'</span><span><b>'+esc(member.name||'Chua dat ten')+'</b><small>'+esc(kind)+' · '+esc(member.teamId||'Chua gan Team')+' · '+load+' khach</small></span></div><div class="distribution-person-controls">'+controls+'</div></div>';
     };
     const block=(title,sub,html)=>'<section class="distribution-tree-block"><div class="distribution-tree-head"><b>'+esc(title)+'</b><small>'+esc(sub)+'</small></div>'+html+'</section>';
@@ -1506,7 +1540,7 @@
       #tab-data.data-scope-limited #dataQueueTableBody td{padding:11px 14px}
       #tab-data.data-scope-limited #dataQueueTableBody td:nth-child(2),#tab-data.data-scope-limited #dataQueueTableBody td:nth-child(3){white-space:nowrap}
       #tab-data.data-scope-limited #dataQueueTableBody td small{display:block;margin-top:3px;color:var(--text-muted);font-size:10.5px}
-      #tab-data.data-scope-limited .quick-sale-select{min-width:150px;max-width:190px;padding:7px 10px;border:1.5px solid #e58a00;border-radius:8px;background:#fff;color:var(--text-main);font:inherit;font-size:12px;font-weight:600;box-shadow:0 1px 2px rgba(15,23,42,.04)}#tab-data.data-scope-limited .quick-sale-select:focus{border-color:#c46f00;box-shadow:0 0 0 3px rgba(234,137,0,.14)}#tab-data.data-scope-limited .data-owner-label{display:inline-flex;align-items:center;min-height:30px;padding:6px 10px;border-radius:8px;background:#fff7ed;color:#9a3412;font-weight:700;white-space:nowrap}#tab-data.data-scope-limited .data-type-badge,#tab-data.data-scope-limited .data-status-badge{display:inline-flex;align-items:center;gap:6px;min-height:26px;padding:5px 9px;border-radius:7px;font-size:11px;font-weight:700;white-space:nowrap}#tab-data.data-scope-limited .data-type-badge:before,#tab-data.data-scope-limited .data-status-badge:before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor}#tab-data.data-scope-limited .data-type-new{background:#fef3c7;color:#d97706}#tab-data.data-scope-limited .data-type-return{background:#fee2e2;color:#dc2626}#tab-data.data-scope-limited .data-type-retry{background:#dbeafe;color:#2563eb}#tab-data.data-scope-limited .data-status-waiting{background:#fef3c7;color:#d97706}#tab-data.data-scope-limited .data-status-accepted{background:#dcfce7;color:#15803d}#tab-data.data-scope-limited .data-status-unassigned{background:#f1f5f9;color:#64748b}#tab-data.data-scope-limited .data-status-expired{background:#fee2e2;color:#dc2626}
+      #tab-data.data-scope-limited .quick-sale-select{min-width:150px;max-width:190px;padding:7px 10px;border:1.5px solid #e58a00;border-radius:8px;background:#fff;color:var(--text-main);font:inherit;font-size:12px;font-weight:600;box-shadow:0 1px 2px rgba(15,23,42,.04)}#tab-data.data-scope-limited .quick-sale-select:focus{border-color:#c46f00;box-shadow:0 0 0 3px rgba(234,137,0,.14)}#tab-data.data-scope-limited .data-owner-label{display:inline-flex;align-items:center;min-height:30px;padding:6px 10px;border-radius:8px;background:#fff7ed;color:#9a3412;font-weight:700;white-space:nowrap}#tab-data.data-scope-limited .data-type-badge,#tab-data.data-scope-limited .data-status-badge{display:inline-flex;align-items:center;gap:6px;min-height:26px;padding:5px 9px;border-radius:7px;font-size:11px;font-weight:700;white-space:nowrap}#tab-data.data-scope-limited .data-type-badge:before,#tab-data.data-scope-limited .data-status-badge:before{content:\"\";width:5px;height:5px;border-radius:50%;background:currentColor}#tab-data.data-scope-limited .data-type-new{background:#fef3c7;color:#d97706}#tab-data.data-scope-limited .data-type-return{background:#fee2e2;color:#dc2626}#tab-data.data-scope-limited .data-type-retry{background:#dbeafe;color:#2563eb}#tab-data.data-scope-limited .data-status-waiting{background:#fef3c7;color:#d97706}#tab-data.data-scope-limited .data-status-accepted{background:#dcfce7;color:#15803d}#tab-data.data-scope-limited .data-status-unassigned{background:#f1f5f9;color:#64748b}#tab-data.data-scope-limited .data-status-expired{background:#fee2e2;color:#dc2626}
       @media(max-width:760px){#tab-data.data-scope-limited #dataSubViewQueue>.table-container{overflow:hidden}#tab-data.data-scope-limited .data-queue-filterbar{display:grid!important;grid-template-columns:1fr!important}#tab-data.data-scope-limited .data-queue-filterbar input,#tab-data.data-scope-limited .data-queue-filterbar select{width:100%;box-sizing:border-box}#tab-data.data-scope-limited .table-responsive{overflow-x:auto}#tab-data.data-scope-limited .modern-table{min-width:760px}}
     `;document.head.appendChild(style);}
     tab.classList.toggle('data-scope-limited',!['ADMIN','MANAGER'].includes(role));
@@ -1521,7 +1555,7 @@
     const salesLabel=q('#dataTabSalesBtn');if(salesLabel)salesLabel.textContent='Chỉnh sửa tỷ trọng';
     const legacyButton=q('#dataTabLeadersBtn');if(legacyButton){legacyButton.hidden=true;legacyButton.style.setProperty('display','none','important');}
     const autoLabel=q('#dataTabAutoBtn');if(autoLabel)autoLabel.textContent='Chia Data';
-    if(role==='ADMIN')renderDistributionWeights();
+    if(['ADMIN','MANAGER'].includes(role))renderDistributionWeights();
     const title=tab.querySelector('.headline-row h1');if(title)title.textContent=role==='SALE'?'Data m\u1edbi h\u00f4m nay':role==='ADMIN'?'Data M\u1edbi':'Data';
     const queueTitle=tab.querySelector('#dataSubViewQueue .table-head-bar b');if(queueTitle)queueTitle.textContent=role==='SALE'?'Data m\u1edbi h\u00f4m nay':role==='ADMIN'?'Data M\u1edbi':'Data ch\u01b0a x\u1eed l\u00fd';
     const queueSubtitle=tab.querySelector('#dataSubViewQueue .table-head-bar b + div');if(queueSubtitle){queueSubtitle.textContent='';queueSubtitle.hidden=true;}
@@ -1619,6 +1653,7 @@
     text('dataStatToday',countSince(1)+' data');
     text('dataStat3Days',countSince(3)+' data');
     text('dataStat7Days',countSince(7)+' data');
+    text('dataStat30Days',countSince(30)+' data');
     const query=String(q('#dataQueueSearch')?.value||'').trim().toLowerCase(),sourceFilter=String(q('#dataQueueSourceFilter')?.value||''),rawType=String(q('#dataQueueTypeFilter')?.value||'');
     const typeFilter=rawType==='Data mới'?'DATA MỚI':rawType==='Data trả về'?'DATA TRẢ VỀ':rawType==='Điền lại form'||rawType==='Data điền lại form'?'DATA ĐIỀN LẠI FORM':rawType;
     const filtered=rows.filter(row=>{const c=row.customer,name=String(c.name||'').toLowerCase(),phone=String(c.phone||'').toLowerCase(),source=sourceNameFor(c);return (!query||name.includes(query)||phone.includes(query))&&(!sourceFilter||source===sourceFilter)&&(!typeFilter||row.type===typeFilter);}).sort((a,b)=>String(b.at||'').localeCompare(String(a.at||''))||String(a.customer.id).localeCompare(String(b.customer.id)));
@@ -1644,7 +1679,7 @@
   const ordinaryQueue=renderDataQueue;renderDataQueue=function(){
     const role=data?.user?.actualRole||data?.user?.role;
     // Admin uses only the full Data table to prevent the legacy table flashing on reload.
-    if(['ADMIN','MANAGER'].includes(role)){
+    if(role==='ADMIN'){
       renderAdminDataQueueTable();
       bindReferenceDeleteButtons();
       return;
@@ -1673,6 +1708,7 @@
       text('dataStatToday',assigned.today+' data');
       text('dataStat3Days',assigned.threeDays+' data');
       text('dataStat7Days',assigned.sevenDays+' data');
+      text('dataStat30Days',(assigned.thirtyDays??data.customers.filter(c=>c.createdAt?.slice(0,10)>=fromDay(30)).length)+' data');
     }
     if(role!=='ADMIN')normalizeSaleDataTable();
     removeDataActionColumn();
@@ -1703,12 +1739,16 @@
     const filtered=rows.filter(row=>!filter||row.type===filter).sort((a,b)=>String(b.at||'').localeCompare(String(a.at||''))||String(a.customer.id).localeCompare(String(b.customer.id)));
     // Leader chỉ được chọn Sale đang thuộc đúng Team/Leader của mình.
     // Leader va Manager duoc chon Sale trong pham vi he thong duoc Admin giao.
+    text('dataStatToday',countSince(1)+' data');
+    text('dataStat3Days',countSince(3)+' data');
+    text('dataStat7Days',countSince(7)+' data');
+    text('dataStat30Days',countSince(30)+' data');
     const canAssign=['LEADER','MANAGER'].includes(role);
     const staff=canAssign?(role==='LEADER'
       ? [{...(members.find(m=>m.id===currentId&&m.role==='LEADER'&&m.active!==false)||{}),leaderId:currentId},...members.filter(m=>m.role==='SALE'&&m.active!==false&&leaderIds.has(m.leaderId))]
-      : [members.find(m=>m.id===currentId&&m.role==='MANAGER'&&m.active!==false),...members.filter(m=>(m.role==='LEADER'&&m.managerId===currentId)||(m.role==='SALE'&&m.managerId===currentId)).filter(m=>m.active!==false)])
+      : [members.find(m=>m.id===currentId&&m.role==='MANAGER'&&m.active!==false),...members.filter(m=>(m.role==='LEADER'&&m.managerId===currentId)||(m.role==='SALE'&&(m.managerId===currentId||leaderIds.has(m.leaderId)))).filter(m=>m.active!==false)])
         .filter(Boolean).filter((member,index,list)=>list.findIndex(item=>item.id===member.id)===index).sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'vi')):[];
-    if(!q('#referenceDataTablePolish')){const style=document.createElement('style');style.id='referenceDataTablePolish';style.textContent='#tab-data.data-scope-limited .data-row-index{display:inline-grid;place-items:center;min-width:28px;height:28px;border-radius:8px;background:#f1f5f9;color:#334155;font-size:12px}#tab-data.data-scope-limited #dataQueueTableBody tr:hover{background:#fffaf4}#tab-data.data-scope-limited #dataQueueTableBody td:nth-child(3) b{display:block;color:#0f172a;font-size:12px}#tab-data.data-scope-limited .data-phone{white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--text-main);font-weight:600}#tab-data.data-scope-limited #dataQueueTableBody td:nth-child(5){min-width:175px}#tab-data.data-scope-limited .scoped-reassign-button{white-space:nowrap;background:#2563eb;color:#fff;border:1px solid #2563eb}#tab-data.data-scope-limited .scoped-reassign-button:hover{background:#1d4ed8;border-color:#1d4ed8}#tab-data.data-scope-limited .scoped-reassign-button:disabled{opacity:.55;cursor:wait}';document.head.appendChild(style)}
+    if(!q('#referenceDataTablePolish')){const style=document.createElement('style');style.id='referenceDataTablePolish';style.textContent='#tab-data.data-scope-limited .data-row-index{display:inline-grid;place-items:center;min-width:28px;height:28px;border-radius:8px;background:#f1f5f9;color:#334155;font-size:12px}#tab-data.data-scope-limited #dataQueueTableBody tr:hover{background:#fffaf4}#tab-data.data-scope-limited #dataQueueTableBody td:nth-child(3) b{display:block;color:#0f172a;font-size:12px}#tab-data.data-scope-limited .data-phone{white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--text-main);font-weight:600}#tab-data.data-scope-limited #dataQueueTableBody td:nth-child(5){min-width:175px}#tab-data.data-scope-limited .scoped-reassign-button{white-space:nowrap;background:#2563eb;color:#fff;border:1px solid #2563eb}#tab-data.data-scope-limited .scoped-reassign-button:hover{background:#1d4ed8;border-color:#1d4ed8}#tab-data.data-scope-limited .scoped-reassign-button:disabled{opacity:.55;cursor:wait}#tab-data.data-scope-admin .quick-sale-select{min-width:170px;max-width:220px;min-height:34px;padding:7px 10px;border:1.5px solid #e58a00;border-radius:8px;background:#fff;color:var(--text-main);font:inherit;font-size:12px;font-weight:600;box-shadow:0 1px 2px rgba(15,23,42,.05);outline:0}#tab-data.data-scope-admin .quick-sale-select:hover{border-color:#c46f00}#tab-data.data-scope-admin .quick-sale-select:focus{border-color:#c46f00;box-shadow:0 0 0 3px rgba(234,137,0,.16)}#tab-data.data-scope-admin .data-type-badge,#tab-data.data-scope-admin .data-status-badge{display:inline-flex;align-items:center;gap:6px;min-height:26px;padding:5px 9px;border-radius:7px;font-size:11px;font-weight:700;white-space:nowrap}#tab-data.data-scope-admin .data-type-badge:before,#tab-data.data-scope-admin .data-status-badge:before{content:\'\';width:5px;height:5px;border-radius:50%;background:currentColor}#tab-data.data-scope-admin .data-type-new{background:#fef3c7;color:#d97706}#tab-data.data-scope-admin .data-type-return{background:#fee2e2;color:#dc2626}#tab-data.data-scope-admin .data-type-retry{background:#dbeafe;color:#2563eb}#tab-data.data-scope-admin .data-status-waiting{background:#fef3c7;color:#d97706}#tab-data.data-scope-admin .data-status-accepted{background:#dcfce7;color:#15803d}#tab-data.data-scope-admin .data-status-unassigned{background:#f1f5f9;color:#64748b}#tab-data.data-scope-admin .data-status-expired{background:#fee2e2;color:#dc2626}#tab-data.data-scope-admin #dataQueueTableBody td:nth-child(2) b{display:block;font-weight:800;line-height:1.35}#tab-data.data-scope-admin #dataQueueTableBody td:nth-child(2) small{display:block;margin-top:3px;color:var(--text-muted);font-size:10.5px;line-height:1.25}';document.head.appendChild(style)}
     const head=table.querySelector('thead tr');if(head)head.innerHTML=['TH\u1ee8 T\u1ef0','NG\u00c0Y DATA','KH\u00c1CH H\u00c0NG','S\u1ed0 \u0110I\u1ec6N THO\u1ea0I','LO\u1ea0I DATA','SALE NH\u1eacN','TR\u1ea0NG TH\u00c1I','THAO T\u00c1C'].map(label=>'<th>'+label+'</th>').join('');
     body.innerHTML=filtered.map((row,index)=>{const c=row.customer,sale=members.find(m=>m.id===c.saleId||m.id===row.offer?.saleId),saleName=sale?.name||'Ch\u01b0a ch\u1ecdn Sale';const status=row.offer?.status==='PENDING'?'Ch\u1edd Sale nh\u1eadn':row.offer?.status==='EXPIRED'&&!c.saleId?'Data Sale kh\u00f4ng nh\u1eadn':c.saleId?'Sale \u0111\u00e3 nh\u1eadn':'Ch\u01b0a ch\u1ecdn Sale';const typeClass=row.type==='DATA TR\u1ea2 V\u1ec0'?'data-type-return':row.type==='DATA \u0110I\u1ec0N L\u1ea0I FORM'?'data-type-retry':'data-type-new';const statusClass=status==='Sale \u0111\u00e3 nh\u1eadn'?'data-status-accepted':status==='Data Sale kh\u00f4ng nh\u1eadn'?'data-status-expired':status==='Ch\u01b0a ch\u1ecdn Sale'?'data-status-unassigned':'data-status-waiting';const rowStaff=staff.filter(m=>m.leaderId===c.leaderId&&m.teamId===c.teamId),saleCell=canAssign&&rowStaff.length?'<select class="quick-sale-select" data-leader-sale="'+esc(c.id)+'" aria-label="Ch\u1ecdn Sale cho '+esc(c.name)+'"><option value="">\u2014 Ch\u01b0a ch\u1ecdn Sale \u2014</option>'+rowStaff.map(m=>'<option value="'+esc(m.id)+'" '+(m.id===c.saleId||m.id===row.offer?.saleId?'selected':'')+'>'+esc(m.name)+'</option>').join('')+'</select>':'<span class="data-owner-label">'+esc(saleName)+'</span>';return '<tr><td><b>#'+(index+1)+'</b></td><td><b>'+esc(fmtDate(String(row.at||c.createdAt||'').slice(0,10)))+'</b><small>'+esc(String(row.at||c.createdAt||'').slice(11,16))+'</small></td><td><b>'+esc(c.name)+'</b></td><td><span class="data-phone">'+esc(c.phone||'—')+'</span></td><td><span class="data-type-badge '+typeClass+'">'+row.type+'</span></td><td>'+saleCell+'</td><td><span class="data-status-badge '+statusClass+'">'+esc(status)+'</span></td><td>'+(canAssign?'<button type="button" class="btn-action btn-primary scoped-reassign-button" data-scoped-reassign="'+esc(c.id)+'">Phân lại</button>':'—')+'</td></tr>';}).join('')||'<tr><td colspan="8"><div class="empty"><b>Kh\u00f4ng c\u00f3 data ch\u01b0a x\u1eed l\u00fd</b></div></td></tr>';
     if(canAssign)body.querySelectorAll('[data-leader-sale]').forEach(select=>select.onchange=()=>{if(select.value)select.dataset.pendingSale=select.value;});body.querySelectorAll('[data-scoped-reassign]').forEach(button=>button.onclick=async()=>{const row=button.closest('tr'),select=row?.querySelector('[data-leader-sale]'),saleId=select?.value||'',sale=staff.find(member=>member.id===saleId),customer=data.customers.find(item=>item.id===button.dataset.scopedReassign);if(!saleId){referenceNotice('Hãy chọn Sale trước khi phân lại.');select?.focus();return;}button.disabled=true;try{const result=await run(()=>api.assign(button.dataset.scopedReassign,saleId));if(result!==null)referenceNotice('Đã phân lại data '+(customer?.name||'')+' thành công cho Sale '+(sale?.name||'')+'.');}finally{button.disabled=false;}});
