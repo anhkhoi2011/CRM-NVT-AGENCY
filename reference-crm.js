@@ -332,11 +332,25 @@
     q('#refCareColor').value=validColor(group?.color||'#2563eb');updateCareGroupOptions();qa('.care-value-checkbox').forEach(n=>n.checked=group?.values.includes(n.value)||false);updateCareSelectionSummary();
     modal.style.display='flex';modal.classList.add('open');modal.firstElementChild.style.maxHeight='92dvh';modal.firstElementChild.style.overflowY='auto';q('#careGroupNameInput').focus();
   }
-  function decorateCare() {
-    qa('#carePanelsContainer > div').slice(4).forEach((panel,i)=>{const group=data.careGroups[i];if(!group)return;const bar=panel.firstElementChild.lastElementChild;
-      if(data.user.role==='ADMIN')for(const [label,action] of [['Sửa',()=>openCareEditor(group.id)],['Xóa',()=>{if(confirm('Xóa mục chăm sóc? Khách hàng vẫn được giữ nguyên.'))run(()=>api.removeCare(group.id));}]]){const b=document.createElement('button');b.type='button';b.className='btn-secondary';b.textContent=label;b.style.cssText='padding:4px 10px;font-size:11px;border-radius:6px';b.onclick=action;bar.appendChild(b);}
-      panel.firstElementChild.style.borderLeft='4px solid '+validColor(group.color);
-    });
+  function careAdminButton(label,title,action,disabled=false,danger=false){
+    const button=document.createElement('button');button.type='button';button.textContent=label;button.title=title;button.setAttribute('aria-label',title);button.className='btn-secondary';button.disabled=disabled;
+    button.style.cssText='padding:4px 8px;font-size:11px;line-height:1;border-radius:6px;min-width:28px;'+(danger?'color:#b91c1c;border-color:#fecaca;background:#fef2f2;':'');
+    button.onclick=event=>{event.preventDefault();event.stopPropagation();action();};return button;
+  }
+  function reorderCareGroup(id,direction){
+    if(data.user.role!=='ADMIN')return;
+    const groups=data.careGroups||[],index=groups.findIndex(group=>group.id===id),next=index+(direction==='up'?-1:1);if(index<0||next<0||next>=groups.length)return;
+    const ids=groups.map(group=>group.id);[ids[index],ids[next]]=[ids[next],ids[index]];
+    run(()=>api.reorderCare(ids),()=>referenceNotice('Đã cập nhật thứ tự mục chăm sóc.'));
+  }
+  function addCareAdminControls(host,group,index){
+    if(data.user.role!=='ADMIN'||host.querySelector('[data-care-admin-controls]'))return;
+    const controls=document.createElement('span');controls.dataset.careAdminControls='1';controls.style.cssText='display:inline-flex;align-items:center;gap:4px;margin-left:auto;flex-shrink:0;';
+    controls.append(careAdminButton('↑','Đưa mục lên',()=>reorderCareGroup(group.id,'up'),index===0),careAdminButton('↓','Đưa mục xuống',()=>reorderCareGroup(group.id,'down'),index===data.careGroups.length-1),careAdminButton('Sửa','Sửa mục chăm sóc',()=>openCareEditor(group.id)),careAdminButton('Xóa','Xóa mục chăm sóc',()=>{if(confirm('Xóa mục chăm sóc? Khách hàng vẫn được giữ nguyên.'))run(()=>api.removeCare(group.id),()=>referenceNotice('Đã xóa mục chăm sóc.'));},false,true));
+    host.appendChild(controls);
+  }
+  function decorateCare(){
+    qa('#carePanelsContainer > div').slice(4).forEach((panel,i)=>{const group=data.careGroups[i];if(!group)return;const bar=panel.firstElementChild.lastElementChild;addCareAdminControls(bar,group,i);panel.firstElementChild.style.borderLeft='4px solid '+validColor(group.color);});
   }
   const websiteCard=q('#tab-websites input[readonly]')?.closest('.widget-box'),websiteTemplate=websiteCard?.cloneNode(true),websiteContainer=websiteCard?.parentElement;
   function websiteEditor(id=null) {
@@ -423,24 +437,13 @@
     @media(max-width:640px){#tab-care .analytics-grid>div{grid-template-columns:minmax(0,1fr) auto!important;column-gap:10px!important;min-height:62px!important;padding:10px 12px!important}#tab-care .analytics-grid>div>div:nth-child(3){grid-column:1/-1;text-align:left!important;white-space:normal!important;font-size:10.5px!important;margin-top:-2px!important}}
   `;document.head.appendChild(style);}
   function renderCustomCareCards(){
-    const grid=q('#tab-care .analytics-grid');
-    if(!grid||!data)return;
-    qa('[data-custom-care-card]').forEach(card=>card.remove());
-    const groups=data.careGroups||[];
-    groups.forEach(group=>{
-      const list=data.customers.filter(customer=>{
-        const values=customer.customFields?.[group.fieldId];
-        return [].concat(values||'').some(value=>(group.values||[]).includes(value));
-      });
-      const card=document.createElement('div');
-      card.dataset.customCareCard='1';
-      card.dataset.careGroup=group.id;
-      card.style.cssText='background:var(--bg-surface);border:1px solid var(--border);border-top:3px solid '+validColor(group.color||'#64748b')+';border-radius:10px;padding:16px 18px;box-shadow:var(--shadow-sm);cursor:pointer;';
-      card.innerHTML='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px"><span style="font-size:13px;font-weight:600;color:var(--text-main)"></span><span style="color:'+validColor(group.color||'#64748b')+';font-size:15px">●</span></div><div style="font-size:30px;font-weight:800;font-family:var(--font-mono);color:var(--text-main);margin:6px 0 2px"></div><div style="font-size:11px;color:var(--text-muted)"></div>';
-      card.querySelector('span').textContent=group.name||'Mục chăm sóc';
-      card.querySelectorAll('div')[1].textContent=String(list.length);
-      card.querySelectorAll('div')[2].textContent='Phân loại: '+(group.values||[]).join(', ');
-      grid.appendChild(card);
+    const grid=q('#tab-care .analytics-grid');if(!grid||!data)return;qa('[data-custom-care-card]').forEach(card=>card.remove());
+    const groups=data.careGroups||[];groups.forEach((group,index)=>{
+      const list=data.customers.filter(customer=>{const values=customer.customFields?.[group.fieldId];return [].concat(values||'').some(value=>(group.values||[]).includes(value));});
+      const card=document.createElement('div');card.dataset.customCareCard='1';card.dataset.careGroup=group.id;card.style.cssText='background:var(--bg-surface);border:1px solid var(--border);border-top:3px solid '+validColor(group.color||'#64748b')+';border-radius:10px;padding:16px 18px;box-shadow:var(--shadow-sm);cursor:pointer;';
+      card.innerHTML='<div data-care-card-head style="display:flex;align-items:flex-start;gap:8px"><span style="font-size:13px;font-weight:600;color:var(--text-main);min-width:0"></span><span style="color:'+validColor(group.color||'#64748b')+';font-size:15px">●</span></div><div style="font-size:30px;font-weight:800;font-family:var(--font-mono);color:var(--text-main);margin:6px 0 2px"></div><div style="font-size:11px;color:var(--text-muted)"></div>';
+      card.querySelector('span').textContent=group.name||'Mục chăm sóc';card.querySelectorAll('div')[1].textContent=String(list.length);card.querySelectorAll('div')[2].textContent='Phân loại: '+(group.values||[]).join(', ');
+      addCareAdminControls(card.querySelector('[data-care-card-head]'),group,index);grid.appendChild(card);
     });
   }
   function mountInlineCareLists(){

@@ -306,6 +306,16 @@
         state.careGroups=(state.careGroups||[]).filter(g=>g.id!==group.id).concat(group);return {id:group.id};
       },'care:'+ (id||'new'));
     },
+    async reorderCare(orderIds) {
+      requireRole(['ADMIN']);return persist(()=>{
+        const groups=[...(state.careGroups||[])], ids=Array.isArray(orderIds)?orderIds.map(String):[];
+        if(ids.length!==groups.length||new Set(ids).size!==groups.length||groups.some(group=>!ids.includes(String(group.id)))) throw Error('Thứ tự mục chăm sóc không hợp lệ.');
+        const byId=new Map(groups.map(group=>[String(group.id),group]));
+        state.careGroups=ids.map(id=>byId.get(id));
+        audit('REORDER_CARE_GROUPS','order',state.careGroups.map(group=>group.name).join(' '));
+        return {ok:true};
+      },'care-reorder');
+    },
     async removeCare(id) {requireRole(['ADMIN']);return persist(()=>{state.careGroups=(state.careGroups||[]).filter(g=>g.id!==id);return {ok:true};},'remove-care:'+id);},
     async saveWebsite(id,input) {
       requireRole(['ADMIN']);return persist(()=>{

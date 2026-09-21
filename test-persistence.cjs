@@ -585,6 +585,14 @@ test('Reference product retry returns original ID without duplicate products',as
 });
 
 function referenceBridge(){const c=frontend();vm.runInContext(fs.readFileSync('crm-runtime-api.js','utf8'),c);vm.runInContext(`currentAccount={id:'admin',name:'Admin',role:'ADMIN',scope:'ALL'};serverStateLoaded=true;state=initialState();state.websites=[];flushServerPersistence=async()=>true;`,c);return c;}
+test('Reference care reorder persists for Admin and denies non-admin',async()=>{
+ const c=frontend();vm.runInContext(fs.readFileSync('crm-runtime-api.js','utf8'),c);
+ vm.runInContext(`currentAccount={id:'admin',role:'ADMIN'};serverStateLoaded=true;state=initialState();state.careGroups=[{id:'a',name:'A',fieldId:'customerClass',values:['Premium']},{id:'b',name:'B',fieldId:'customerClass',values:['Whale']}];flushServerPersistence=async()=>true;`,c);
+ await c.window.crmApi.reorderCare(['b','a']);
+ assert.deepEqual(vm.runInContext('state.careGroups.map(group=>group.id)',c),['b','a']);
+ vm.runInContext(`currentAccount={id:'sale',role:'SALE'}`,c);
+ await assert.rejects(()=>c.window.crmApi.reorderCare(['a','b']),/không có quyền/);
+});
 test('Reference fields preserve option keys, record edits, protect Level and care references',async()=>{
  const c=referenceBridge(),api=c.window.crmApi;
  vm.runInContext(`state.customers=[{id:'c',name:'Customer',phone:'0900000011',customFields:{},status:'NEW'}]`,c);
