@@ -505,6 +505,13 @@ test('Care renderer uses server field options, escapes labels, and recalculates 
  vm.runInContext(`state.customers[0].customFields.customerClass='Whale'`,c);
  assert.equal(vm.runInContext('careMembers(state.careGroups[0]).length',c),0);
 });
+test('Admin co the sua xoa va doi thu tu muc cham soc', async () => {
+ const c=frontend();vm.runInContext(fs.readFileSync('care-ui.js','utf8'),c);
+ vm.runInContext(`currentAccount={id:'admin',role:'ADMIN',scope:'ALL'};state=initialState();state.careGroups=[{id:'a',name:'A',fieldId:'customerClass',values:['Premium'],color:'#2563eb'},{id:'b',name:'B',fieldId:'customerClass',values:['Whale'],color:'#2563eb'}];saveState=()=>{};render=()=>{};flushServerPersistence=async()=>true;`,c);
+ await vm.runInContext(`moveCareGroup('b','up')`,c);
+ assert.equal(JSON.stringify(vm.runInContext('state.careGroups.map(group=>group.id)',c)),JSON.stringify(['b','a']));
+ const html=vm.runInContext('careView()',c);assert.match(html,/data-edit-care="b"/);assert.match(html,/data-delete-care="a"/);assert.match(html,/data-move-care="b"/);
+});
 test('Care configuration persists through store and rejects Sale modifications',async()=>{
  const f=fixture();const groups=[{id:'cg',name:'Ưu tiên',fieldId:'customerClass',values:['Premium'],color:'#2563eb'}];
  await f.api.write(admin,'care-create',[{key:'careGroups',id:'$',base:null,value:groups}]);

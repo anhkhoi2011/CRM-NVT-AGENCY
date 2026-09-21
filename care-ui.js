@@ -16,11 +16,27 @@ function careView() {
   const groups = configuredCareGroups();
   const actions = admin ? '<button class="button" id="manageCustomerFieldsButton">Quản lý phân loại</button><button class="button button-primary" id="newCareGroupButton">+ Tạo mục chăm sóc</button>' : '';
   const tabs = currentAccount.role === 'LEADER' ? `<div class="segmented"><button class="segment ${window.__nvtCareTab !== 'TEAM' ? 'active' : ''}" data-care-tab="MINE">Của tôi</button><button class="segment ${window.__nvtCareTab === 'TEAM' ? 'active' : ''}" data-care-tab="TEAM">Cả team</button></div>` : '';
-  return pageHead('Chăm sóc khách', '', actions) + tabs + `<div class="care-panels">${groups.map(group => {
+  return pageHead('Chăm sóc khách', '', actions) + tabs + `<div class="care-panels">${groups.map((group, index) => {
     const members = careMembers(group);
     const field = state.customFieldDefinitions.find(item => item.id === group.fieldId);
-    return `<section class="panel"><div class="panel-head"><div class="panel-title" style="color:${escapeHtml(/^#[a-f0-9]{6}$/i.test(group.color) ? group.color : '#2563eb')}">${escapeHtml(group.name)} <span class="status">${number(members.length)}</span></div>${admin ? `<div class="panel-actions"><button class="button button-small" data-edit-care="${escapeHtml(group.id)}">Sửa</button><button class="button button-small button-danger" data-delete-care="${escapeHtml(group.id)}">Xóa mục</button></div>` : ''}</div><div class="panel-body">${members.map(customer => `<div class="care-customer-row"><div><b>${escapeHtml(customer.name)}</b><small>${escapeHtml(customer.phone || '')} · ${escapeHtml(staffName(customer.saleId))}</small></div><div>${field ? customFieldTableControl(field, customer) : ''}</div><button class="button button-small" data-open-customer="${escapeHtml(customer.id)}">Chi tiết</button></div>`).join('') || '<div class="empty"><b>Chưa có khách phù hợp</b></div>'}</div></section>`;
+    return `<section class="panel"><div class="panel-head"><div class="panel-title" style="color:${escapeHtml(/^#[a-f0-9]{6}$/i.test(group.color) ? group.color : '#2563eb')}">${escapeHtml(group.name)} <span class="status">${number(members.length)}</span></div>${admin ? `<div class="panel-actions"><button class="button button-small" data-move-care="${escapeHtml(group.id)}" data-direction="up" aria-label="Đưa mục lên" title="Đưa mục lên" ${index === 0 ? 'disabled' : ''}>↑</button><button class="button button-small" data-move-care="${escapeHtml(group.id)}" data-direction="down" aria-label="Đưa mục xuống" title="Đưa mục xuống" ${index === groups.length - 1 ? 'disabled' : ''}>↓</button><button class="button button-small" data-edit-care="${escapeHtml(group.id)}">Sửa</button><button class="button button-small button-danger" data-delete-care="${escapeHtml(group.id)}">Xóa mục</button></div>` : ''}</div><div class="panel-body">${members.map(customer => `<div class="care-customer-row"><div><b>${escapeHtml(customer.name)}</b><small>${escapeHtml(customer.phone || '')} · ${escapeHtml(staffName(customer.saleId))}</small></div><div>${field ? customFieldTableControl(field, customer) : ''}</div><button class="button button-small" data-open-customer="${escapeHtml(customer.id)}">Chi tiết</button></div>`).join('') || '<div class="empty"><b>Chưa có khách phù hợp</b></div>'}</div></section>`;
   }).join('') || '<section class="panel"><div class="empty"><b>Chưa có mục chăm sóc</b><span>Admin có thể tạo mục và chọn phân loại để khách tự xuất hiện trong mục đó.</span></div></section>'}</div>`;
+}
+async function moveCareGroup(id, direction) {
+  if (currentAccount?.role !== 'ADMIN') return;
+  const groups = [...configuredCareGroups()];
+  const index = groups.findIndex(group => group.id === id);
+  const nextIndex = index + (direction === 'up' ? -1 : 1);
+  if (index < 0 || nextIndex < 0 || nextIndex >= groups.length) return;
+  [groups[index], groups[nextIndex]] = [groups[nextIndex], groups[index]];
+  state.careGroups = groups;
+  saveState();
+  if (await flushServerPersistence()) {
+    render();
+    toast('Đã cập nhật thứ tự mục chăm sóc');
+  } else {
+    toast('Chưa lưu được thứ tự. Giữ thay đổi để thử lại.');
+  }
 }
 function careGroupEditor(id) {
   if (currentAccount?.role !== 'ADMIN') return;
@@ -64,6 +80,7 @@ window.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('click', async event => {
     const target = event.target.closest?.('button'); if (!target) return;
     if (target.id === 'newCareGroupButton') careGroupEditor();
+    if (target.dataset.moveCare && currentAccount?.role === 'ADMIN') await moveCareGroup(target.dataset.moveCare, target.dataset.direction);
     if (target.dataset.editCare) careGroupEditor(target.dataset.editCare);
     if (target.dataset.careTab) { window.__nvtCareTab = target.dataset.careTab; render(); }
     if (target.dataset.deleteCare && currentAccount?.role === 'ADMIN' && confirm('Xóa mục chăm sóc này? Các khách hàng vẫn được giữ nguyên.')) {
