@@ -1532,20 +1532,75 @@ function refreshTaskStatuses() {
 
 function scopeSaleIds() {
   if (!currentAccount) return [];
-  if (currentAccount.actualRole === 'MANAGER') {
-    const leaderIds = new Set(activeStaff().filter(person => person.role === 'LEADER' && person.managerId === currentAccount.id).map(person => person.id));
-    return activeStaff().filter(person => person.role === 'SALE' && (person.managerId === currentAccount.id || leaderIds.has(person.leaderId))).map(person => person.id);
+  if (effectivePermissionRole() === 'MANAGER') {
+    const scope = managerScope();
+    return scope.sales.map(person => person.id);
   }
   if (currentAccount.scope === 'ALL') return activeStaff().filter(person => person.role === 'SALE').map(person => person.id);
   if (currentAccount.scope === 'TEAM') return activeStaff().filter(person => person.role === 'SALE' && person.teamId === currentAccount.teamId && person.leaderId === currentAccount.leaderId).map(person => person.id);
   return [currentAccount.saleId];
 }
 
+function effectivePermissionRole() {
+  if (!currentAccount) return '';
+  if (currentAccount.actualRole === 'MANAGER') return 'MANAGER';
+  // Manager được hydrate thành role Leader để dùng giao diện Team. Nếu một
+  // snapshot cũ thiếu actualRole, nhận diện lại từ bản ghi nhân sự thật.
+  const manager = STAFF.find(person => person.role === 'MANAGER' && (
+    person.id === currentAccount.id ||
+    (currentAccount.accountId && person.accountId === currentAccount.accountId)
+  ));
+  return manager ? 'MANAGER' : currentAccount.role;
+}
+
+/* Manager có thể đăng nhập bằng bản ghi tài khoản đã hydrate lại role hiển thị
+   thành LEADER. Luôn tìm lại bản ghi Manager thật trước khi dựng phạm vi quyền. */
+function managerScope() {
+  if (!currentAccount || effectivePermissionRole() !== 'MANAGER') {
+    return { manager: null, leaders: [], sales: [], leaderIds: new Set(), saleIds: new Set() };
+  }
+  const manager = activeStaff().find(person => person.role === 'MANAGER' && (
+    person.id === currentAccount.id ||
+    (currentAccount.accountId && person.accountId === currentAccount.accountId)
+  )) || (currentAccount.id ? { ...currentAccount, role: 'MANAGER' } : null);
+  const managerId = manager?.id || currentAccount.id;
+  const leaders = activeStaff().filter(person => person.role === 'LEADER' && person.managerId === managerId);
+  const leaderIds = new Set(leaders.map(person => person.id));
+  const sales = activeStaff().filter(person => person.role === 'SALE' && (
+    person.managerId === managerId || leaderIds.has(person.leaderId)
+  ));
+  return { manager, leaders, sales, leaderIds, saleIds: new Set(sales.map(person => person.id)) };
+}
+
+function managerAssignmentRecipients() {
+  const scope = managerScope();
+  if (!scope.manager) return [];
+  return [
+    { ...scope.manager, role: 'MANAGER', actualRole: 'MANAGER', managerRecipient: true },
+    ...scope.leaders,
+    ...scope.sales
+  ];
+}
+
+function managerCanAccessCustomer(customer) {
+  if (!customer || effectivePermissionRole() !== 'MANAGER') return false;
+  const scope = managerScope();
+  const managerId = scope.manager?.id || currentAccount.id;
+  const leader = activeStaff().find(person => person.role === 'LEADER' && person.id === customer.leaderId);
+  const sale = activeStaff().find(person => person.role === 'SALE' && person.id === customer.saleId);
+  return customer.managerId === managerId
+    || customer.ownerId === managerId
+    || scope.leaderIds.has(customer.leaderId)
+    || scope.saleIds.has(customer.saleId)
+    || leader?.managerId === managerId
+    || sale?.managerId === managerId
+    || scope.leaderIds.has(sale?.leaderId);
+}
+
 function scopedCustomers() {
   const saleIds = scopeSaleIds();
-  if (currentAccount?.actualRole === 'MANAGER') {
-    const leaderIds = new Set(activeStaff().filter(person => person.role === 'LEADER' && person.managerId === currentAccount.id).map(person => person.id));
-    return state.customers.filter(customer => customer.managerId === currentAccount.id || customer.ownerId === currentAccount.id || leaderIds.has(customer.leaderId) || saleIds.includes(customer.saleId));
+  if (effectivePermissionRole() === 'MANAGER') {
+    return state.customers.filter(managerCanAccessCustomer);
   }
   if (currentAccount.scope === 'ALL') return state.customers;
   if (currentAccount.scope === 'TEAM') return state.customers.filter(customer => customer.teamId === currentAccount.teamId && customer.leaderId === currentAccount.leaderId);
@@ -2102,7 +2157,8 @@ function transactionsTable(events, showReconciliation = false) {
 }
 
 function canUpdateCustomer(customer) {
-  return !!customer && (currentAccount.role === 'ADMIN' || (currentAccount.role === 'MANAGER' && scopedCustomers().includes(customer)) || (currentAccount.role === 'LEADER' && state.settings.leaderCanUpdate && customer.teamId === currentAccount.teamId && customer.leaderId === currentAccount.leaderId) || (currentAccount.role === 'SALE' && customer.saleId === currentAccount.saleId));
+  const permissionRole = effectivePermissionRole();
+  return !!customer && (permissionRole === 'ADMIN' || (permissionRole === 'MANAGER' && scopedCustomers().includes(customer)) || (permissionRole === 'LEADER' && state.settings.leaderCanUpdate && customer.teamId === currentAccount.teamId && customer.leaderId === currentAccount.leaderId) || (permissionRole === 'SALE' && customer.saleId === currentAccount.saleId));
 }
 
 function activeCustomFields(tableOnly = false) {
@@ -2159,49 +2215,78 @@ function quickStatusControl(customer) {
 // Chọn Sale trong bảng, giữ hiển thị lời mời đang chờ nhận.
 function quickSaleControl(customer) {
   const pending = state.dataOffers.find(o => o.customerId === customer.id && o.status === 'PENDING');
-  const selectedId = customer.saleId || pending?.saleId || '';
-  const managerLeaders = currentAccount.role === 'MANAGER'
-    ? activeStaff().filter(person => person.role === 'LEADER' && person.active !== false && person.managerId === currentAccount.id)
-    : [];
-  const managerCanAssign = currentAccount.role === 'MANAGER'
-    && managerLeaders.some(leader => leader.id === customer.leaderId && leader.teamId === customer.teamId);
-  const canAssign = currentAccount.role === 'ADMIN'
-    || (currentAccount.role === 'LEADER' && customer.leaderId === currentAccount.leaderId && customer.teamId === currentAccount.teamId)
+  const selectedId = customer.saleId || pending?.saleId || customer.leaderId || customer.managerId || '';
+  const permissionRole = effectivePermissionRole();
+  const managerCanAssign = permissionRole === 'MANAGER'
+    && scopedCustomers().some(item => item.id === customer.id);
+  const canAssign = permissionRole === 'ADMIN'
+    || (permissionRole === 'LEADER' && customer.leaderId === currentAccount.leaderId && customer.teamId === currentAccount.teamId)
     || managerCanAssign;
   if (!canAssign) return customer.saleId ? `<b>${escapeHtml(staffName(customer.saleId))}</b>` : '<span class="status status-pending">Chưa phân Sale</span>';
-  const sales = customer.leaderId
-    ? teamRecipients(customer.leaderId, customer.teamId)
-    : activeStaff().filter(p=>p.role==='SALE');
-  return `<select class="quick-sale-select" data-quick-sale="${escapeHtml(customer.id)}" aria-label="Sale phụ trách của ${escapeHtml(customer.name)}" ${sales.length ? '' : 'disabled'}><option value="" ${selectedId ? '' : 'selected'}>${sales.length ? '— Chưa chọn Sale —' : 'Chưa có Sale trong Team'}</option>${selectedId && !sales.some(sale => sale.id === selectedId) ? `<option value="${escapeHtml(selectedId)}" selected disabled>${escapeHtml(staffName(selectedId))}</option>` : ''}${sales.map(sale => `<option value="${escapeHtml(sale.id)}" ${selectedId === sale.id ? 'selected' : ''}>${escapeHtml(sale.name)}${sale.teamLeaderRecipient ? ' (Leader)' : ''}</option>`).join('')}</select>${pending && !customer.saleId ? '<div class="cell-sub">Chờ Sale nhận data</div>' : ''}`;
+  const recipients = permissionRole === 'ADMIN'
+    ? activeStaff().filter(person => person.active !== false && ['MANAGER', 'LEADER', 'SALE'].includes(person.role))
+    : permissionRole === 'MANAGER'
+      ? managerAssignmentRecipients()
+      : customer.leaderId
+        ? teamRecipients(customer.leaderId, customer.teamId)
+        : activeStaff().filter(p=>p.role==='SALE');
+  const recipientLabel = recipient => recipient.managerRecipient || recipient.actualRole === 'MANAGER' || recipient.role === 'MANAGER'
+    ? ' (Manager)'
+    : recipient.teamLeaderRecipient || recipient.role === 'LEADER'
+      ? ' (Leader)'
+      : '';
+  return `<select class="quick-sale-select" data-quick-sale="${escapeHtml(customer.id)}" aria-label="Người phụ trách của ${escapeHtml(customer.name)}" ${recipients.length ? '' : 'disabled'}><option value="" ${selectedId ? '' : 'selected'}>${recipients.length ? '— Chưa chọn người phụ trách —' : 'Chưa có người trong tuyến'}</option>${selectedId && !recipients.some(recipient => recipient.id === selectedId) ? `<option value="${escapeHtml(selectedId)}" selected disabled>${escapeHtml(staffName(selectedId))}</option>` : ''}${recipients.map(recipient => `<option value="${escapeHtml(recipient.id)}" ${selectedId === recipient.id ? 'selected' : ''}>${escapeHtml(recipient.name)}${recipientLabel(recipient)}</option>`).join('')}</select>${pending && !customer.saleId ? '<div class="cell-sub">Chờ Sale nhận data</div>' : ''}`;
 }
 
 async function quickAssignSale(customerId, saleId) {
-  if (!['ADMIN', 'MANAGER', 'LEADER'].includes(currentAccount.role)) return false;
+  const permissionRole = effectivePermissionRole();
+  if (!['ADMIN', 'MANAGER', 'LEADER'].includes(permissionRole)) return false;
   const customer = customerById(customerId);
   if (!saleId) return clearManualRecipient(customer);
-  const managerLeaders = currentAccount.role === 'MANAGER'
-    ? activeStaff().filter(person => person.role === 'LEADER' && person.active !== false && person.managerId === currentAccount.id)
-    : [];
-  const managerSaleIds = currentAccount.role === 'MANAGER' ? new Set(scopeSaleIds()) : new Set();
-  const managerTarget = currentAccount.role === 'MANAGER' && saleId === currentAccount.id && customer
-    ? { ...currentAccount, role: 'MANAGER', actualRole: 'MANAGER', managerRecipient: true, leaderId: customer.leaderId || null, teamId: customer.teamId || null }
+  const managerScopeData = permissionRole === 'MANAGER' ? managerScope() : null;
+  const managerLeaders = managerScopeData?.leaders || [];
+  const managerSaleIds = managerScopeData?.saleIds || new Set();
+  const managerId = managerScopeData?.manager?.id || currentAccount.id;
+  const managerTarget = permissionRole === 'MANAGER' && saleId === managerId && customer
+    ? { ...(managerScopeData?.manager || currentAccount), role: 'MANAGER', actualRole: 'MANAGER', managerRecipient: true, leaderId: customer.leaderId || null, teamId: customer.teamId || null }
     : null;
-  const leaderTarget = currentAccount.role === 'LEADER' && saleId === currentAccount.leaderId
+  const leaderTarget = permissionRole === 'LEADER' && saleId === currentAccount.leaderId
     ? (() => { const person = activeStaff().find(item => item.id === currentAccount.leaderId && item.role === 'LEADER' && item.active !== false); return person ? { ...person, role: 'SALE', leaderId: person.id, teamId: person.teamId, teamLeaderRecipient: true } : null; })()
     : null;
-  const sale = currentAccount.role === 'ADMIN'
-    ? activeStaff().find(p=>p.id===saleId&&p.role==='SALE')
-    : currentAccount.role === 'MANAGER'
-      ? (managerTarget || managerLeaders.find(p=>p.id===saleId) || activeStaff().find(p=>p.id===saleId&&p.role==='SALE'&&managerSaleIds.has(p.id)))
-      : (leaderTarget || (customer?.leaderId
-        ? teamRecipients(customer.leaderId, customer.teamId).find(p=>p.id===saleId)
-        : activeStaff().find(p=>p.id===saleId&&p.role==='SALE')));
-  const inManagerScope = currentAccount.role === 'MANAGER'
-    && scopedCustomers().some(item=>item.id===customer?.id)
+  const adminTarget = permissionRole === 'ADMIN'
+    ? (() => {
+        const person = activeStaff().find(item => item.id === saleId && item.active !== false && ['MANAGER', 'LEADER', 'SALE'].includes(item.role));
+        if (!person) return null;
+        if (person.role !== 'MANAGER') return person;
+        const leader = customer?.leaderId
+          ? activeStaff().find(item => item.id === customer.leaderId && item.role === 'LEADER' && item.managerId === person.id && item.active !== false)
+          : null;
+        return { ...person, managerRecipient: true, leaderId: leader?.id || null, teamId: leader?.teamId || null };
+      })()
+    : null;
+  const managerLeaderTarget = permissionRole === 'MANAGER'
+    ? managerLeaders.find(person => person.id === saleId)
+      || (customer?.leaderId === saleId && managerCanAccessCustomer(customer)
+        ? activeStaff().find(person => person.id === saleId && person.role === 'LEADER' && person.active !== false)
+        : null)
+    : null;
+  const managerSaleTarget = permissionRole === 'MANAGER'
+    ? activeStaff().find(person => person.id === saleId && person.role === 'SALE' && managerSaleIds.has(person.id))
+      || (customer?.saleId === saleId && managerCanAccessCustomer(customer)
+        ? activeStaff().find(person => person.id === saleId && person.role === 'SALE' && person.active !== false)
+        : null)
+    : null;
+  const sale = adminTarget || managerTarget || leaderTarget || (permissionRole === 'MANAGER'
+    ? (managerLeaderTarget || managerSaleTarget)
+    : (customer?.leaderId
+      ? teamRecipients(customer.leaderId, customer.teamId).find(p=>p.id===saleId)
+      : activeStaff().find(p=>p.id===saleId&&p.role==='SALE')));
+  const inManagerScope = permissionRole === 'MANAGER'
+    && managerCanAccessCustomer(customer)
     && !!sale;
-  const outsideScope = currentAccount.role === 'LEADER'
+  const outsideScope = permissionRole === 'LEADER'
     ? (customer?.leaderId !== currentAccount.leaderId || customer?.teamId !== currentAccount.teamId || (sale?.id !== currentAccount.leaderId && (sale?.leaderId !== currentAccount.leaderId || sale?.teamId !== currentAccount.teamId)))
-    : currentAccount.role === 'MANAGER' && !inManagerScope;
+    : permissionRole === 'MANAGER' && !inManagerScope;
   if (!customer || !sale || outsideScope) { toast('Sale hoac khach hang nam ngoai pham vi duoc giao'); render(); return false; }
   const pending = state.dataOffers.find(o => o.customerId === customer.id && o.status === 'PENDING');
   if (customer.saleId === sale.id || (pending?.saleId === sale.id && Date.parse(String(pending.offeredAt).replace(' ', 'T') + '+07:00') + offerDeadlineMs() > Date.now())) return true;
@@ -2213,9 +2298,10 @@ async function quickAssignSale(customerId, saleId) {
 }
 
 async function clearManualRecipient(customer) {
-  const managerCanClear = currentAccount.role === 'MANAGER'
+  const permissionRole = effectivePermissionRole();
+  const managerCanClear = permissionRole === 'MANAGER'
     && scopedCustomers().some(item=>item.id===customer?.id);
-  if (!customer || !['ADMIN','LEADER','MANAGER'].includes(currentAccount.role) || (currentAccount.role==='LEADER' && (customer.leaderId!==currentAccount.leaderId || customer.teamId!==currentAccount.teamId)) || (currentAccount.role==='MANAGER' && !managerCanClear)) return false;
+  if (!customer || !['ADMIN','LEADER','MANAGER'].includes(permissionRole) || (permissionRole==='LEADER' && (customer.leaderId!==currentAccount.leaderId || customer.teamId!==currentAccount.teamId)) || (permissionRole==='MANAGER' && !managerCanClear)) return false;
   const before=assignmentSnapshot(customer);
   closeOpenCustomerTasks(customer,'UNASSIGNED');
   state.dataOffers.forEach(o=>{if(o.customerId===customer.id&&o.status==='PENDING'){o.status='EXPIRED';o.resolvedAt=stamp();}});
@@ -2296,6 +2382,14 @@ function customerSearchText(customer) {
 }
 
 function customerOwnerOptions() {
+  if (effectivePermissionRole() === 'MANAGER') {
+    const scope = managerScope();
+    const teams = Array.from(new Set(scope.leaders.map(person => person.teamId))).sort();
+    const members = [...scope.leaders, ...scope.sales];
+    const teamOptions = teams.map(teamId => `<option value="team:${escapeHtml(teamId)}" ${customerOwnerFilter === `team:${teamId}` ? 'selected' : ''}>Team ${escapeHtml(teamId)}</option>`).join('');
+    const memberOptions = members.map(person => `<option value="${person.role.toLowerCase()}:${escapeHtml(person.id)}" ${customerOwnerFilter === `${person.role.toLowerCase()}:${person.id}` ? 'selected' : ''}>${person.role === 'LEADER' ? 'Leader' : 'Sale'} Â· ${escapeHtml(person.name)}</option>`).join('');
+    return `<select id="customerOwnerFilter"><option value="ALL">Táº¥t cáº£ phÃ¢n cÃ´ng</option><option value="UNASSIGNED" ${customerOwnerFilter === 'UNASSIGNED' ? 'selected' : ''}>ChÆ°a phÃ¢n Sale</option>${teamOptions}${memberOptions}</select>`;
+  }
   if (currentAccount.role === 'SALE') return '';
   const members = currentAccount.role === 'ADMIN' ? activeStaff() : activeStaff().filter(person => person.teamId === currentAccount.teamId && (person.role === 'SALE' || person.id === currentAccount.leaderId));
   const teamOptions = currentAccount.role === 'ADMIN' ? Array.from(new Set(STAFF.map(person => person.teamId))).sort().map(teamId => `<option value="team:${escapeHtml(teamId)}" ${customerOwnerFilter === `team:${teamId}` ? 'selected' : ''}>Team ${escapeHtml(teamId)}</option>`).join('') : '';
@@ -3456,6 +3550,8 @@ function openCustomerDrawer(id) {
   const assignmentHistory = state.assignmentHistory.filter(item => item.customerId === id).sort((a, b) => b.at.localeCompare(a.at));
   const assignmentTargets = currentAccount.role === 'ADMIN'
     ? assignmentCandidates({ leaderId: null })
+    : effectivePermissionRole() === 'MANAGER'
+      ? managerAssignmentRecipients()
     : currentAccount.role === 'LEADER'
       ? assignmentCandidates({ leaderId: currentAccount.leaderId, teamId: currentAccount.teamId })
       : [];
@@ -4514,6 +4610,7 @@ function offerOrAssignSale(customer, target, reason, source, previous, direct = 
   customer.saleAcceptedAt = null;
   customer.leaderId = target.leaderId;
   customer.teamId = target.teamId;
+  customer.managerId = target.managerId || null;
   state.dataOffers.unshift({ id: `OFR-${Date.now()}-${customer.id}`, customerId: customer.id, saleId: target.id, leaderId: target.leaderId, teamId: target.teamId, offeredAt: stamp(), status: 'PENDING', resolvedAt: '', source });
   state.notifications.unshift({ id: `NT-OFFER-${Date.now()}-${customer.id}`, role: 'OWN', saleId: target.id, title: 'Có data chờ bạn nhận', text: `${customer.name} · nhận trong ${hours} giờ`, at: stamp(), readBy: [] });
   queueEmailNotification(
@@ -4606,6 +4703,8 @@ function applyCustomerAssignment(customer, target, reason, source = 'MANUAL', di
   }
   const previous = assignmentSnapshot(customer);
   if (target.managerRecipient) {
+    closeOpenCustomerTasks(customer, 'REASSIGNED');
+    state.dataOffers.forEach(o => { if (o.customerId === customer.id && o.status === 'PENDING') { o.status = 'EXPIRED'; o.resolvedAt = stamp(); } });
     customer.saleId = null;
     customer.leaderId = target.leaderId;
     customer.teamId = target.teamId;
@@ -4622,6 +4721,7 @@ function applyCustomerAssignment(customer, target, reason, source = 'MANUAL', di
     customer.saleId = null;
     customer.leaderId = target.id;
     customer.teamId = target.teamId;
+    customer.managerId = target.managerId || null;
     state.notifications.unshift({ id: `NT-${Date.now()}-${customer.id}`, role: 'LEADER', leaderId: target.id, teamId: target.teamId, title: 'Khách mới trong Team', text: `${customer.name} · ${customerLandingName(customer)}`, at: stamp(), readBy: [] });
     queueEmailNotification(
       [target.email],
@@ -4783,6 +4883,7 @@ function closeOpenCustomerTasks(customer, resolution) {
 }
 
 function reassignCustomer(id, targetId) {
+  if (effectivePermissionRole() === 'MANAGER') { quickAssignSale(id, targetId); return; }
   if (!['ADMIN', 'LEADER'].includes(currentAccount.role)) { toast('FORBIDDEN · không có quyền phân khách'); return; }
   const customer = customerById(id);
   if (!canViewCustomer(customer)) { toast('NOT_FOUND · khách hàng nằm ngoài phạm vi'); return; }
@@ -4814,6 +4915,7 @@ function reassignCustomer(id, targetId) {
 }
 
 function revokeCustomer(id) {
+  if (effectivePermissionRole() === 'MANAGER') { quickAssignSale(id, ''); return; }
   if (!['ADMIN', 'LEADER'].includes(currentAccount.role)) { toast('FORBIDDEN · không có quyền thu hồi khách'); return; }
   const customer = customerById(id);
   if (!canViewCustomer(customer)) { toast('NOT_FOUND · khách hàng nằm ngoài phạm vi'); return; }

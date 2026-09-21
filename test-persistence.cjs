@@ -710,6 +710,17 @@ test('Manager ghi khách được giao nhưng không thể sửa khách ngoài h
  const lead=a.state.members.find(x=>x.id==='outside');await assert.rejects(f.api.write(m,'manager-grant',[change('members',{...lead,managerId:'mgr'},a.versions['members/outside'])]),e=>e.status===403);
  await assert.rejects(f.api.write(m,'manager-paid',[change('orders',{...order,status:'PAID'})]),e=>e.status===403);
 });
+test('Manager phân lại được sang Leader và Sale ở mọi Team thuộc tuyến của mình',async()=>{
+ const f=await managerFixture(),m={id:'mgr',role:'MANAGER'},r=await f.api.read(m);
+ const source=r.state.customers.find(c=>c.id==='c1');
+ const toLeader={...source,saleId:null,leaderId:'lead2',teamId:'B',updatedAt:'2026-09-21 19:00',note:'Manager phân lại cho Leader B'};
+ await f.api.write(m,'manager-reassign-leader',[change('customers',toLeader,r.versions['customers/c1'])]);
+ const afterLeader=await f.api.read(m);assert.equal(afterLeader.state.customers.find(c=>c.id==='c1').leaderId,'lead2');
+ const saleSource=afterLeader.state.customers.find(c=>c.id==='c1');
+ const offer={id:'offer-manager-reassign',customerId:'c1',saleId:'sale2',leaderId:'lead2',teamId:'B',offeredAt:'2026-09-21 19:01',status:'PENDING',resolvedAt:'',source:'MANUAL'};
+ await f.api.write(m,'manager-reassign-sale',[change('customers',{...saleSource,saleId:null,leaderId:'lead2',teamId:'B',managerId:'mgr',updatedAt:'2026-09-21 19:01'},afterLeader.versions['customers/c1']),change('dataOffers',offer)]);
+ const afterSale=await f.api.read(m);assert.equal(afterSale.state.dataOffers.find(o=>o.id===offer.id).saleId,'sale2');
+});
 test('Manager cài tỷ trọng đúng Leader, từ chối khóa ngoài phạm vi và giữ nguyên cấu hình đội khác',async()=>{
  const f=await managerFixture(),m={id:'mgr',role:'MANAGER'},r=await f.api.read(m);
  await f.api.write(m,'manager-weight',[{key:'saleDistributionByLeader',id:'$',base:r.versions['saleDistributionByLeader/$'],value:{...r.state.saleDistributionByLeader,lead:{weights:{sale:2}}}}]);
@@ -733,6 +744,14 @@ test('Manager runtime dùng giao diện Leader và chỉ chọn được Team đ
  vm.runInContext(`state.members[1].managerId=null;currentAccount=hydrateSessionAccount(currentAccount)`,c);assert.equal(vm.runInContext('currentAccount.leaderId',c),null);
 });
 
+test('Manager runtime phÃ¢n cho chÃ­nh mÃ¬nh khi phiÃªn hydrate thiáº¿u actualRole',async()=>{
+ const c=frontend();
+ vm.runInContext(`state.members=[{id:'m',accountId:'MANAGER-DEMO',name:'Manager',role:'MANAGER',active:true},{id:'l2',name:'Leader 2',role:'LEADER',managerId:'m',teamId:'B',active:true}];state.customers=[{id:'c',name:'KhÃ¡ch',phone:'0900000000',managerId:'m',leaderId:'l2',teamId:'B',saleId:null,createdAt:'2026-09-21 10:00',updatedAt:'2026-09-21 10:00'}];STAFF=state.members;currentAccount={id:'m',accountId:'MANAGER-DEMO',role:'LEADER',leaderId:'l2',teamId:'B'};serverStateLoaded=true;renderPreservingCustomerScroll=()=>{};flushServerPersistence=async()=>true;`,c);
+ assert.equal(await c.quickAssignSale('c','m'),true);
+ assert.equal(vm.runInContext('effectivePermissionRole()',c),'MANAGER');
+ assert.equal(vm.runInContext("state.customers[0].managerId",c),'m');
+});
+
  test('Manager giữ đúng ID bản thân cho hồ sơ và điểm danh khi chọn một Leader',()=>{
  const c=referenceBridge();vm.runInContext(`state.members=[{id:'m',name:'Manager',initials:'M',role:'MANAGER',active:true},{id:'l',name:'Leader khác',role:'LEADER',teamId:'T',managerId:'m',active:true}];currentAccount=hydrateSessionAccount({id:'m',name:'Manager',role:'MANAGER'});`,c);
  vm.runInContext('STAFF=state.members',c);assert.equal(vm.runInContext('attendanceAccountId()',c),'m');const html=vm.runInContext('profileView()',c);assert.ok(html.includes('value="Manager"'));assert.ok(!html.includes('value="Leader khác"'));
@@ -742,6 +761,21 @@ test('Manager không chuyển ghi chú đội khác vào khách của mình đ�
  const f=await managerFixture(),m={id:'mgr',role:'MANAGER'};
  await f.api.write(admin,'outside-note',[change('notes',{id:'n-out',customerId:'c-out',text:'Ngoài phạm vi'})]);const a=await f.api.read(admin);
  await assert.rejects(f.api.write(m,'steal-note',[change('notes',{id:'n-out',customerId:'c1',text:'Chuyển về đội mình'},a.versions['notes/n-out'])]),e=>e.status===403);
+});
+
+test('Manager UI hiá»ƒn Ä‘á»§ ngÆ°á»i nháº­n trong toÃ n tuyáº¿n vÃ  cho phÃ©p cáº­p nháº­t data',async()=>{
+ const c=frontend();
+ vm.runInContext(`state.members=[
+  {id:'m',accountId:'MANAGER-DEMO',name:'Manager',role:'MANAGER',active:true},
+  {id:'l1',name:'Leader 1',role:'LEADER',managerId:'m',teamId:'A',active:true},
+  {id:'l2',name:'Leader 2',role:'LEADER',managerId:'m',teamId:'B',active:true},
+  {id:'s1',name:'Sale 1',role:'SALE',leaderId:'l1',managerId:'m',teamId:'A',active:true},
+  {id:'s2',name:'Sale 2',role:'SALE',leaderId:'l2',managerId:'m',teamId:'B',active:true},
+  {id:'out',name:'Ngoai tuyen',role:'SALE',leaderId:'lo',managerId:'other',teamId:'X',active:true}
+ ];STAFF=state.members;state.customers=[{id:'c-ui',name:'Khach UI',phone:'0900000000',managerId:'m',leaderId:'l2',teamId:'B',saleId:null,status:'NEW',createdAt:'2026-09-21 10:00',updatedAt:'2026-09-21 10:00',note:'',customFields:{}}];currentAccount={id:'m',accountId:'MANAGER-DEMO',role:'LEADER',leaderId:'l2',teamId:'B'};`,c);
+ const html=vm.runInContext('quickSaleControl(state.customers[0])',c);
+ assert.match(html,/value="m"/);assert.match(html,/value="l1"/);assert.match(html,/value="s2"/);assert.doesNotMatch(html,/value="out"/);
+ assert.equal(vm.runInContext('canUpdateCustomer(state.customers[0])',c),true);
 });
 
 // Hang cho Sale phai dung cung tap du lieu cho badge va danh sach.

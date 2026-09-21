@@ -174,9 +174,17 @@ function authorizeManager(user,key,old,next,data){
  }
  if(key==='orders'&&old&&!managerOwns(user,old,data))error(403,'Đơn ngoài hệ thống');
  if(key==='dataOffers'&&next&&(!ids.includes(next.leaderId)||!([...data.members.values()].some(m=>m.id===next.saleId&&m.role==='SALE'&&m.leaderId===next.leaderId&&m.teamId===customer.teamId))))error(403,'Lời mời ngoài Team');
- const leader=leaders.find(l=>l.id===customer.leaderId);
- if(!leader)return;
- return authorize({...user,role:'LEADER',id:leader.id,teamId:leader.teamId,leaderId:leader.id},key,old,next,data);
+ // Đơn hàng vẫn giữ các giới hạn riêng của Leader/Sale (ví dụ không tự xác
+ // nhận thanh toán). Chỉ các thao tác Data mới dùng toàn bộ tuyến Manager.
+ if(key==='orders'){
+  const leader=leaders.find(l=>l.id===customer.leaderId);
+  if(!leader)return;
+  return authorize({...user,role:'LEADER',id:leader.id,teamId:leader.teamId,leaderId:leader.id},key,old,next,data);
+ }
+ // Manager có toàn quyền trong các Leader/Sale trực thuộc. Không chuyển tiếp
+ // sang quyền Leader cũ của data, vì thao tác phân lại có thể đổi sang Team
+ // khác nhưng vẫn nằm trong cùng tuyến Manager.
+ return;
 }
 function customerScope(user,r){return !!r&&(user.role==='ADMIN'||(user.role==='SALE'&&r.saleId===user.id)||(user.role==='LEADER'&&((!!user.teamId&&r.teamId===user.teamId)||r.leaderId===user.id)));}
 function pendingOffer(data,user,id){return [...data.dataOffers.values()].find(o=>o.customerId===id&&o.saleId===user.id&&o.status==='PENDING'&&Date.parse(String(o.offeredAt).replace(' ','T')+'+07:00')+24*3600000>Date.now());}
