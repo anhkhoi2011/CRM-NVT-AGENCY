@@ -357,22 +357,12 @@ async function notifyNewLead(customer, offer = null) {
     // Nếu đã có Sale cụ thể được gán hoặc trong offer
     const targetSaleId = customer.sale_id || customer.saleId || offer?.saleId;
     if (targetSaleId) {
-      const sales = await dbQuery('SELECT telegram_chat_id FROM users WHERE id = ? AND active = 1', [targetSaleId]);
+      const sales = await dbQuery("SELECT telegram_chat_id FROM users WHERE id = ? AND role = 'SALE' AND active = 1 AND telegram_chat_id IS NOT NULL", [targetSaleId]);
       if (sales[0]?.telegram_chat_id) targetChatIds.push(sales[0].telegram_chat_id);
     }
 
     // Nếu chưa có Sale hoặc cần báo thêm Leader
-    const leaderId = customer.leader_id || customer.leaderId || offer?.leaderId;
-    if (leaderId) {
-      const leaders = await dbQuery('SELECT telegram_chat_id FROM users WHERE id = ? AND active = 1', [leaderId]);
-      if (leaders[0]?.telegram_chat_id) targetChatIds.push(leaders[0].telegram_chat_id);
-    }
-
-    // Nếu hoàn toàn chưa có Sale nào phụ trách, bắn cho toàn bộ Sale đang trực trong Team hoặc Admin
-    if (targetChatIds.length === 0) {
-      const fallbackUsers = await dbQuery(`SELECT telegram_chat_id FROM users WHERE role IN ('ADMIN', 'LEADER', 'SALE') AND active = 1 AND telegram_chat_id IS NOT NULL`);
-      targetChatIds = fallbackUsers.map(u => u.telegram_chat_id);
-    }
+    if (!targetSaleId) return;
 
     targetChatIds = [...new Set(targetChatIds.filter(Boolean))];
     if (targetChatIds.length === 0) return;

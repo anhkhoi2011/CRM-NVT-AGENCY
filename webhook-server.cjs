@@ -857,10 +857,7 @@ async function handleWebhook(request, response, slug) {
         if (custRows && custRows.length) {
           const cust = custRows[0];
           const [offerDocs] = await pool.query("SELECT body FROM crm_documents WHERE collection = 'dataOffers' AND JSON_EXTRACT(body, '$.customerId') = ?", [record.customerId]);
-          let offer = null;
-          if (offerDocs && offerDocs.length) {
-            offer = typeof offerDocs[0].body === 'string' ? JSON.parse(offerDocs[0].body) : offerDocs[0].body;
-          }
+          const offer = (offerDocs || []).map(row => typeof row.body === 'string' ? JSON.parse(row.body) : row.body).find(item => item && item.status === 'PENDING') || null;
           await telegramBot.notifyNewLead(cust, offer);
         }
       } catch (err) {
