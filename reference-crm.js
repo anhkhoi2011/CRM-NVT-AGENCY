@@ -216,8 +216,8 @@
     finally{working=false;}
   }
   function project() {
-    appState={customers:data.customers.slice().sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||''))||a.id.localeCompare(b.id)).map(c=>({
-      id:c.id,saleId:c.saleId||null,leaderId:c.leaderId||null,managerId:c.managerId||null,name:esc(c.name),phone:esc(c.phone),createdAt:fmtDate(c.createdAt),source:esc(data.websites.find(w=>w.id===c.websiteId)?.name||c.landingPageName||c.source||''),leader:esc(person(c.leaderId)),sale:esc(person(c.saleId)),level:esc(fieldOptions('customerLevel').find(o=>o.value===c.customFields?.customerLevel)?.label||c.customFields?.customerLevel||''),customerClass:esc(c.customFields?.customerClass||''),customerLevel:esc(c.customFields?.customerLevel||''),documentStatus:esc(c.customFields?.documentStatus||''),result:esc(c.customFields?.result||''),callStatus:esc(c.customFields?.callStatus||''),docStatus:esc(c.customFields?.documentStatus||''),careResult:esc(c.customFields?.result||''),status:c.status,note:esc(c.note),...Object.fromEntries(data.fields.filter(f=>!['customerClass','customerLevel','callStatus','documentStatus','result'].includes(f.id)).map(f=>[f.id,Array.isArray(c.customFields?.[f.id])?c.customFields[f.id].map(esc):esc(c.customFields?.[f.id]||'')]))
+    appState={members:data.members,customers:data.customers.slice().sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||''))||a.id.localeCompare(b.id)).map(c=>({
+      id:c.id,ownerId:c.ownerId||null,saleId:c.saleId||null,leaderId:c.leaderId||null,managerId:c.managerId||null,name:esc(c.name),phone:esc(c.phone),createdAt:fmtDate(c.createdAt),source:esc(data.websites.find(w=>w.id===c.websiteId)?.name||c.landingPageName||c.source||''),leader:esc(person(c.leaderId)),sale:esc(person(c.saleId)),level:esc(fieldOptions('customerLevel').find(o=>o.value===c.customFields?.customerLevel)?.label||c.customFields?.customerLevel||''),customerClass:esc(c.customFields?.customerClass||''),customerLevel:esc(c.customFields?.customerLevel||''),documentStatus:esc(c.customFields?.documentStatus||''),result:esc(c.customFields?.result||''),callStatus:esc(c.customFields?.callStatus||''),docStatus:esc(c.customFields?.documentStatus||''),careResult:esc(c.customFields?.result||''),status:c.status,note:esc(c.note),...Object.fromEntries(data.fields.filter(f=>!['customerClass','customerLevel','callStatus','documentStatus','result'].includes(f.id)).map(f=>[f.id,Array.isArray(c.customFields?.[f.id])?c.customFields[f.id].map(esc):esc(c.customFields?.[f.id]||'')]))
     })),orders:data.orders.map(o=>({id:o.id,code:esc(o.code),customerName:esc(o.customerName),phone:esc(data.customers.find(c=>c.id===o.customerId)?.phone||''),product:esc(o.productName),sale:esc(person(o.saleId)),leader:esc(person(o.leaderId)),total:o.total,status:o.status,rentalExpiry:o.rentalMonths?fmtDate(o.rentalEndsAt):'Vĩnh viễn'})),careGroups:(data.careGroups||[]).map(g=>({...g,name:esc(g.name),field:g.fieldId,values:g.values.map(esc)}))};
     appState.customers.forEach(c=>{const original=data.customers.find(item=>item.id===c.id);data.fields.forEach(f=>{const value=original.customFields?.[f.id];c[f.id]=Array.isArray(value)?value.map(esc):esc(value||'');});});
   }
@@ -387,7 +387,7 @@
     const leaders=role==='ADMIN'?all.filter(m=>m.active!==false&&m.role==='LEADER'):role==='MANAGER'?all.filter(m=>m.active!==false&&m.role==='LEADER'&&m.managerId===currentId):role==='LEADER'?all.filter(m=>m.active!==false&&m.role==='LEADER'&&m.id===currentId):[];
     const leaderIds=new Set(leaders.map(m=>m.id));
     const managers=role==='ADMIN'?all.filter(m=>m.active!==false&&m.role==='MANAGER'):role==='MANAGER'?all.filter(m=>m.active!==false&&m.role==='MANAGER'&&m.id===currentId):[];
-    const sales=all.filter(m=>m.active!==false&&m.role==='SALE'&&(role==='ADMIN'||role==='MANAGER'&&(m.managerId===currentId||leaderIds.has(m.leaderId))||role==='LEADER'&&leaderIds.has(m.leaderId)));
+    const sales=all.filter(m=>m.active!==false&&m.role==='SALE'&&(role==='ADMIN'||role==='MANAGER'&&(m.managerId===currentId||m.leaderId===currentId||leaderIds.has(m.leaderId))||role==='LEADER'&&leaderIds.has(m.leaderId)));
     const previous=select.value;
     const option=(value,label)=>'<option value="'+esc(value)+'">'+esc(label)+'</option>';
     const group=(label,items)=>items.length?'<optgroup label="'+esc(label)+'">'+items.slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'vi')).map(m=>option(m.id,(m.name||'Chua dat ten')+' - '+(m.accountId||m.phone||m.id))).join('')+'</optgroup>':'';
@@ -399,7 +399,7 @@
     if(!data)return;
     // Lưu cả cuộn ngang của bảng và cuộn dọc của trang trước khi thay các dòng.
     const parents=[];for(let node=q('#customerTableBody')?.parentElement;node;node=node.parentElement)parents.push([node,node.scrollLeft,node.scrollTop]);
-    renders.customers();fillCustomerOptions();dashboard();
+    syncCustomerOwnerFilter();renders.customers();fillCustomerOptions();dashboard();
     parents.forEach(([node,left,top])=>{node.scrollLeft=left;node.scrollTop=top;});
     bindReferenceDeleteButtons();
   };
@@ -840,15 +840,521 @@
     const foot=(i,values)=>cards[i]?.querySelectorAll('.kpi-foot-stat .value').forEach((n,j)=>n.textContent=values[j]);
     foot(1,[paidOrders.length+' đơn',target?money(target):'Chưa đặt',target?progress.toFixed(1)+'%':'—']);
     foot(2,[assignedCustomers.length+' khách',(scopedCustomers.length-assignedCustomers.length)+' khách',assignedCustomers.length?(calledCustomers.length/assignedCustomers.length*100).toFixed(1)+'%':'—']);
+  }
+  renderOrdersTable=drawOrders;
+  filterOrdersDate=()=>drawOrders();
+  // Dùng các lớp của mẫu cho form mới, giữ nguyên bố cục trang sản phẩm.
+  function productModal(id=null) {
+    if(data.user.role!=='ADMIN')return;
+    const p=data.products.find(p=>p.id===id)||{name:'',sku:'',category:'',price:0,type:'SALE',vatRate:0.1,active:true};
+    q('#referenceProductModal')?.remove();
+    const modal=document.createElement('div');modal.id='referenceProductModal';modal.className='modal-overlay open';
+    modal.innerHTML=`<form id="referenceProductForm" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="referenceProductTitle" style="max-height:92dvh;overflow-y:auto;width:min(600px,calc(100vw - 24px))">
+      <div class="modal-header"><h3 id="referenceProductTitle">${id?'Sửa':'Thêm'} sản phẩm</h3><button type="button" class="modal-close-btn" data-product-close aria-label="Đóng">×</button></div>
+      <div class="modal-body"><div class="grid-2-col" style="grid-template-columns:repeat(auto-fit,minmax(min(210px,100%),1fr));gap:16px">
+      <div class="form-group"><label for="refProductName">Tên sản phẩm *</label><input id="refProductName" name="name" required maxlength="200" value="${esc(p.name)}"></div>
+      <div class="form-group"><label for="refProductSku">Mã SKU</label><input id="refProductSku" name="sku" maxlength="60" value="${esc(p.sku)}"></div>
+      <div class="form-group"><label for="refProductType">Loại sản phẩm</label><select id="refProductType" name="type">${opt('SALE','Bên Bán',p.type)+opt('RENTAL','Bên Thuê',p.type)}</select></div>
+      <div class="form-group"><label for="refProductMonths">Gói thuê</label><select id="refProductMonths" name="rentalMonths">${opt('','Chọn gói')+[1,3,6,12].map(n=>opt(String(n),n+' tháng',String(p.rentalMonths))).join('')}</select></div>
+      <div class="form-group"><label for="refProductCategory">Danh mục *</label><input id="refProductCategory" name="category" list="refProductCategories" required maxlength="100" value="${esc(p.category)}"><datalist id="refProductCategories">${(data.productCategories||[]).map(c=>opt(c,c)).join('')}</datalist></div>
+      <div class="form-group"><label for="refProductPrice">Đơn giá chưa VAT *</label><input id="refProductPrice" name="price" type="number" required min="0" step="1" value="${esc(p.price)}"></div>
+      <div class="form-group"><label for="refProductVat">VAT (%)</label><input id="refProductVat" name="vatRate" type="number" required min="0" max="100" step="0.01" value="${esc(Number(p.vatRate ?? 0.1)*100)}" placeholder="10"></div>
+      <div class="form-group"><label for="refProductActive">Trạng thái</label><select id="refProductActive" name="active">${opt('true','Hoạt động',String(p.active!==false))+opt('false','Tạm dừng',String(p.active!==false))}</select></div>
+      </div><p id="refProductError" role="alert" style="color:var(--red,#dc2626)"></p></div>
+      <div class="modal-footer"><button type="button" class="btn-action btn-secondary" data-product-close>Hủy</button><button type="submit" class="btn-action btn-primary">Lưu sản phẩm</button></div></form>`;
+    document.body.appendChild(modal);
+    modal.querySelectorAll('[data-product-close]').forEach(n=>n.onclick=()=>{if(!working){modal.remove();refresh(true);}});
+    const sync=()=>{q('#refProductMonths').disabled=q('#refProductType').value!=='RENTAL';q('#refProductMonths').required=!q('#refProductMonths').disabled;};q('#refProductType').onchange=sync;sync();
+    q('#referenceProductForm').onsubmit=async event=>{
+      event.preventDefault();if(working)return;working=true;
+      const form=event.currentTarget,input=Object.fromEntries(new FormData(form));input.active=input.active==='true';
+      const controls=Array.from(form.elements);controls.forEach(n=>n.disabled=true);text('refProductError','');
+      try{await api.saveProduct(id,input);modal.remove();refresh(true);}
+      catch(error){text('refProductError',error.message||'Chưa lưu được sản phẩm.');}
+      finally{working=false;controls.forEach(n=>n.disabled=false);if(modal.isConnected)sync();}
+    };
+    q('#refProductName').focus();
+  }
+  function catalog(){
+    const body=q('#tab-products tbody');
+    table(body,data.products.map(p=>[p.name,p.sku,p.type==='RENTAL'?'Bên Thuê':'Bên Bán',p.type==='RENTAL'?p.rentalMonths+' tháng':'Vĩnh viễn',money(p.price),(Number(p.vatRate??.1)*100).toFixed(2).replace(/\.00$/,'')+'% ('+money(Math.round(p.price*Number(p.vatRate??.1)))+')',p.active===false?'Tạm dừng':p.type==='RENTAL'?'Đang cho thuê':'Đang bán','']));
+    Array.from(body.rows).forEach((row,i)=>{const p=data.products[i],button=row.querySelector('button');if(button){button.removeAttribute('onclick');button.onclick=()=>productModal(p.id);button.disabled=data.user.role!=='ADMIN';}const chip=row.cells[6]?.querySelector('.chip');if(chip)chip.className='chip '+(p.active===false?'chip-warm':'chip-green');});
+    const buttons=qa('#tab-products .headline-row button');buttons.forEach(n=>n.removeAttribute('onclick'));
+    buttons[1].onclick=()=>productModal();buttons[1].disabled=data.user.role!=='ADMIN';
+    buttons[0].onclick=()=>{q('#referencePriceModal')?.remove();const modal=document.createElement('div');modal.id='referencePriceModal';modal.className='modal-overlay open';modal.innerHTML=`<div class="modal-card" role="dialog" aria-modal="true" aria-label="Biểu giá" style="max-height:92dvh;overflow:auto;width:min(800px,calc(100vw - 24px))"><div class="modal-header"><h3>Biểu giá sản phẩm</h3><button class="modal-close-btn" aria-label="Đóng">×</button></div><div class="modal-body table-responsive"><table class="modern-table"><thead><tr><th>Sản phẩm</th><th>Gói</th><th>Chưa VAT</th><th>Gồm VAT</th></tr></thead><tbody>${data.products.filter(p=>p.active!==false).map(p=>'<tr><td>'+esc(p.name)+'</td><td>'+(p.type==='RENTAL'?p.rentalMonths+' tháng':'Vĩnh viễn')+'</td><td>'+money(p.price)+'</td><td>'+money(Number(p.price)+Math.round(p.price*Number(p.vatRate??.1)))+'</td></tr>').join('')}</tbody></table></div></div>`;document.body.appendChild(modal);modal.querySelector('button').onclick=()=>{modal.remove();refresh(true);};};
+    const cards=qa('#tab-products .bento-card'),sale=data.products.filter(p=>p.type!=='RENTAL'),rental=data.products.filter(p=>p.type==='RENTAL');
+    const stats=[['TỔNG SẢN PHẨM',data.products.length+' sản phẩm','Danh mục hiện tại'],['BÊN BÁN',sale.length+' sản phẩm','Khóa học & sản phẩm bán'],['BÊN THUÊ',rental.length+' sản phẩm','Chỉ báo & công cụ cho thuê'],['ĐANG HOẠT ĐỘNG',data.products.filter(p=>p.active!==false).length+' sản phẩm',data.products.filter(p=>p.active===false).length+' tạm dừng']];
+    cards.forEach((card,i)=>Array.from(card.children).forEach((n,j)=>n.textContent=stats[i]?.[j]||''));
+  }
+  function memberEditor(id=null) {
+    if(data.user.role!=='ADMIN')return;const m=data.members.concat(data.registeredAccounts).find(m=>m.id===id)||{name:'',email:'',phone:'',role:'LEADER',teamId:''};
+    const protectedRole=!['SALE','LEADER','MANAGER','UNASSIGNED'].includes(m.role),role=m.role==='UNASSIGNED'?'SALE':m.role;
+    const modal=editor(id?'Cập nhật thành viên':'Thêm thành viên',formField('Họ tên',`<input id="refMemberName" required maxlength="160" value="${esc(m.name)}">`)+formField('ID tài khoản',`<input id="refMemberAccountId" maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9._-]{2,63}" value="${esc(m.accountId||'')}">`)+formField('Số điện thoại',`<input id="refMemberPhone" type="tel" maxlength="20" value="${esc(m.phone)}">`)+formField('Email',`<input id="refMemberEmail" type="email" maxlength="254" value="${esc(m.email)}">`)+formField('Chức vụ',`<select id="refMemberRole" ${protectedRole?'disabled':''}>${(protectedRole?[role]:['MANAGER','LEADER','SALE']).map(r=>opt(r,r,role)).join('')}</select>`)+formField('Team (tự động theo Leader)',`<input id="refMemberTeam" maxlength="20" readonly ${protectedRole?'disabled':''} value="${esc(m.teamId)}">`)+formField('Leader trực tiếp',`<select id="refMemberLeader">${opt('','Không áp dụng')+data.members.filter(l=>['LEADER','MANAGER'].includes(l.role)&&l.active!==false&&l.id!==id).map(l=>opt(l.id,l.name+' · '+(l.role==='MANAGER'?'MANAGER':l.teamId),m.leaderId)).join('')}</select>`)+formField('Manager quản lý (Admin phân công)',`<select id="refMemberManager">${opt('','Chưa giao Manager')+data.members.filter(m=>m.role==='MANAGER'&&m.active!==false&&m.id!==id).map(x=>opt(x.id,x.name,m.managerId)).join('')}</select>`),()=>api.saveMember(id,{name:q('#refMemberName').value,accountId:q('#refMemberAccountId').value,phone:q('#refMemberPhone').value,email:q('#refMemberEmail').value,role:q('#refMemberRole').value,teamId:q('#refMemberTeam').value,leaderId:q('#refMemberLeader').value,managerId:q('#refMemberManager').value}));
+    const memberModal=modal.querySelector('.modal-card'),memberBody=modal.querySelector('.modal-body');
+    memberModal?.classList.add('member-editor-modal');memberBody?.classList.add('member-editor-body');
+    if(memberBody){
+      const style=document.createElement('style');style.textContent='.member-editor-modal{width:min(620px,calc(100vw - 24px))!important;max-height:92dvh!important}.member-editor-body{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px!important;padding:16px!important}.member-editor-body .form-group{margin:0!important;min-width:0}.member-editor-body>[data-editor-error]{grid-column:1/-1;margin:0}.member-editor-body input,.member-editor-body select{min-height:40px;padding:9px 11px}.member-editor-body .form-group label{font-size:11px}.member-editor-modal .modal-footer{padding:12px 16px}@media(max-width:560px){.member-editor-body{grid-template-columns:1fr!important;padding:13px!important;gap:10px!important}}';memberBody.appendChild(style);
+      const field=id=>document.getElementById(id)?.closest('.form-group');
+      if(role==='MANAGER')field('refMemberTeam')?.setAttribute('hidden','');
+      if(role!=='SALE')field('refMemberLeader')?.setAttribute('hidden','');
+      if(role!=='LEADER')field('refMemberManager')?.setAttribute('hidden','');
+    }
+    const sync=()=>{const memberRole=q('#refMemberRole').value,sale=memberRole==='SALE',leader=memberRole==='LEADER';q('#refMemberLeader').disabled=!sale;q('#refMemberLeader').required=sale;q('#refMemberTeam').required=!protectedRole&&memberRole!=='MANAGER';q('#refMemberTeam').disabled=protectedRole||memberRole==='MANAGER';q('#refMemberTeam').readOnly=memberRole!=='MANAGER';if(memberRole==='LEADER'&&!q('#refMemberTeam').value.trim())q('#refMemberTeam').value=teamIdFromName(q('#refMemberName').value);q('#refMemberManager').disabled=!leader;q('#refMemberTeam').closest('.form-group').hidden=memberRole==='MANAGER';q('#refMemberLeader').closest('.form-group').hidden=!sale;q('#refMemberManager').closest('.form-group').hidden=!leader;};q('#refMemberRole').onchange=sync;q('#refMemberName').oninput=()=>{if(['LEADER','SALE'].includes(q('#refMemberRole').value)&&!q('#refMemberTeam').dataset.manual)q('#refMemberTeam').value=teamIdFromName(q('#refMemberName').value);};q('#refMemberLeader').onchange=()=>{const l=data.members.find(m=>m.id===q('#refMemberLeader').value);if(l){if(l.role==='LEADER')q('#refMemberTeam').value=l.teamId;q('#refMemberTeam').dataset.manual='leader';}};sync();
+  }
+  function passwordEditor(id){editor('Đặt lại mật khẩu',formField('Mật khẩu mới','<input id="refPassword" type="password" required minlength="8" autocomplete="new-password">')+formField('Nhập lại mật khẩu','<input id="refPasswordConfirm" type="password" required autocomplete="new-password">'),()=>api.resetPassword(id,q('#refPassword').value,q('#refPasswordConfirm').value));}
+  // Render cay doi ngu theo thu tu Manager -> Leader -> Sale.
+  // Khoi nay chi thay phan hien thi, khong thay doi du lieu hay quyen truy cap.
+  function renderTeamHierarchyV6(){
+    const host=q('#teamHierarchyOverview');if(!host||!data?.user)return;
+    const role=data.user.actualRole||data.user.role,all=data.managerHierarchy?.members||data.members||[],members=all.filter(m=>m.active!==false&&['MANAGER','LEADER','SALE'].includes(m.role)),current=members.find(m=>m.id===data.user.id)||data.user,customers=data.managerHierarchy?.customers||data.customers||[];
+    const initials=n=>String(n||'?').trim().split(/\s+/).slice(-2).map(x=>x[0]||'').join('').toUpperCase()||'?';
+    const list=(title,rows)=>'<div class="customer-sub-panel"><div class="customer-panel-title">'+esc(title)+' ('+rows.length+')</div>'+(rows.length?rows.map(c=>'<div class="customer-item-row" data-team-customer="'+esc(c.id)+'" role="button" tabindex="0"><div class="cust-left"><div class="cust-dot"></div><div><span class="cust-name">'+esc(c.name||'Chua dat ten')+'</span><span class="cust-phone"> · '+esc(c.phone||'')+'</span></div></div><span class="cust-meta-badge">'+esc(c.status||'MOI')+'</span></div>').join(''):'<div style="font-size:12px;color:#94a3b8;padding:6px 0">Chua co khach hang</div>')+'</div>';
+    const sales=l=>members.filter(m=>m.role==='SALE'&&m.leaderId===l.id),managerSales=m=>members.filter(s=>s.role==='SALE'&&(s.managerId===m.id||s.leaderId===m.id)),person=(m,k,rows)=>'<div class="sub-branch-item"><div class="branch-card-box"><div class="branch-card-header" data-toggle-id="'+esc(k+'-'+m.id)+'"><div class="tree-node-info"><div class="avatar-circle avatar-'+k+'">'+esc(initials(m.name))+'</div><div class="node-title-group"><div class="node-name-row"><span class="node-main-name">'+esc(m.name||'Chua dat ten')+' ('+k+')</span><span class="node-role-pill pill-'+k+'">'+k.toUpperCase()+'</span></div><span class="node-meta-desc">'+rows.length+' khach cua '+k+'</span></div></div><div class="btn-toggle-round">+</div></div><div id="'+esc(k+'-'+m.id)+'" hidden>'+list('Khach cua '+k,rows)+'</div></div></div>';
+    const leaders=members.filter(m=>m.role==='LEADER'&&(role==='ADMIN'||role==='MANAGER'&&m.managerId===current.id||role==='LEADER'&&m.id===current.id||role==='SALE'&&m.id===current.leaderId)),managers=members.filter(m=>m.role==='MANAGER'&&(role==='ADMIN'||role==='MANAGER'&&m.id===current.id));
+    const leaderNode=l=>{const own=customers.filter(c=>(c.leaderId===l.id||c.ownerId===l.id||c.saleId===l.id)&&!c.saleId),children=sales(l).map(s=>person(s,'sale',customers.filter(c=>c.saleId===s.id))).join('');return '<div class="tree-branch-node"><div class="branch-card-box"><div class="branch-card-header" data-toggle-id="group-'+esc(l.id)+'"><div class="tree-node-info"><div class="avatar-circle avatar-leader">'+esc(initials(l.name))+'</div><div class="node-title-group"><div class="node-name-row"><span class="node-main-name">'+esc(l.name||'Chua dat ten')+' (leader)</span><span class="node-role-pill pill-leader">LEADER</span></div><span class="node-meta-desc">'+sales(l).length+' Sale truc thuoc</span></div></div><div class="btn-toggle-round">+</div></div><div id="group-'+esc(l.id)+'" class="leader-sub-tree" hidden>'+person(l,'leader',own)+(children||'<div class="team-hierarchy-empty">Chua co Sale truc thuoc</div>')+'</div></div></div>';};
+    const managerNode=m=>{const ls=leaders.filter(l=>l.managerId===m.id),directSales=managerSales(m),own=customers.filter(c=>c.managerId===m.id||c.ownerId===m.id),saleCount=directSales.length+ls.reduce((n,l)=>n+sales(l).length,0),directSaleNodes=directSales.map(s=>person(s,'sale',customers.filter(c=>c.saleId===s.id))).join('');return '<div class="tree-root-container"><div class="tree-root-header" data-toggle-id="root-'+esc(m.id)+'"><div class="tree-node-info"><div class="avatar-circle avatar-manager">M</div><div class="node-title-group"><div class="node-name-row"><span class="node-main-name" style="font-size:16px">Team '+esc(m.name||'Chua dat ten')+' (manager)</span><span class="node-role-pill pill-manager">MANAGER</span></div><span class="node-meta-desc">'+ls.length+' Leader · '+saleCount+' Sale</span></div></div><div class="btn-toggle-round">+</div></div><div id="root-'+esc(m.id)+'" class="tree-body-branches" hidden>'+person(m,'manager',own)+directSaleNodes+ls.map(leaderNode).join('')+'</div></div>';};
+    const roots=managers.map(managerNode),orphan=leaders.filter(l=>!l.managerId||!managers.some(m=>m.id===l.managerId));
+    orphan.forEach(l=>{const own=customers.filter(c=>(c.leaderId===l.id||c.ownerId===l.id||c.saleId===l.id)&&!c.saleId),children=sales(l).map(s=>person(s,'sale',customers.filter(c=>c.saleId===s.id))).join('');roots.push('<div class="tree-root-container"><div class="tree-root-header" data-toggle-id="orphan-'+esc(l.id)+'"><div class="tree-node-info"><div class="avatar-circle avatar-leader">'+esc(initials(l.name))+'</div><div class="node-title-group"><div class="node-name-row"><span class="node-main-name" style="font-size:16px">Team '+esc(l.name||l.teamId||'Chua dat ten')+' (leader)</span><span class="node-role-pill pill-leader">LEADER</span></div><span class="node-meta-desc">'+sales(l).length+' Sale · '+own.length+' khach</span></div></div><div class="btn-toggle-round">+</div></div><div id="orphan-'+esc(l.id)+'" class="tree-body-branches" hidden>'+person(l,'leader',own)+children+'</div></div>');});
+    host.innerHTML=roots.join('')||'<div class="team-hierarchy-empty">Chua co du lieu doi ngu</div>';
+    host.querySelectorAll('[data-toggle-id]').forEach(h=>h.onclick=e=>{e.preventDefault();e.stopPropagation();const n=document.getElementById(h.dataset.toggleId);if(!n)return;const open=n.hidden;n.hidden=!open;const i=h.querySelector('.btn-toggle-round');if(i)i.textContent=open?'−':'+';});
+    host.querySelectorAll('[data-team-customer]').forEach(row=>{const open=()=>workflow('customer',row.dataset.teamCustomer);row.onclick=e=>{e.stopPropagation();open();};row.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open();}};});
+  }
+
+  function team(){
+    const bodies=qa('#tab-team tbody'),role=data.user.actualRole||data.user.role;
+    const pendingPanel=bodies[0]?.closest('.table-container');
+    if(pendingPanel){
+      const isAdmin=role==='ADMIN';
+      pendingPanel.hidden=!isAdmin;
+      pendingPanel.style.setProperty('display',isAdmin?'':'none','important');
+    }
+    const pending=role==='ADMIN'?data.registeredAccounts.filter(m=>m.role==='UNASSIGNED'):[];
+    const availableMembers=data.managerHierarchy?.members||data.members;
+    const members=availableMembers.filter(m=>m.active!==false&&(role==='ADMIN'||role==='MANAGER'?role==='ADMIN'||['LEADER','SALE'].includes(m.role):m.id===data.user.leaderId||m.role==='SALE'&&m.leaderId===data.user.leaderId)).sort((a,b)=>({ADMIN:0,MANAGER:1,LEADER:2,SALE:3}[a.role]??3)-({ADMIN:0,MANAGER:1,LEADER:2,SALE:3}[b.role]??3));
+    const hierarchyOverview=q('#teamHierarchyOverview');
+    if(hierarchyOverview){
+      if(!q('#teamHierarchyStyles')){
+        const style=document.createElement('style');
+        style.id='teamHierarchyStyles';
+        style.textContent='.team-hierarchy-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}.team-hierarchy-title{font-size:15px;color:var(--text-main);font-weight:800}.team-hierarchy-subtitle{margin-top:3px;font-size:11.5px;color:var(--text-muted)}.team-manager-group{border-top:1px solid var(--border);padding-top:14px;margin-top:14px}.team-manager-group:first-of-type{border-top:0;padding-top:0;margin-top:0}.team-manager-head{display:flex;align-items:center;gap:8px;margin-bottom:10px;color:var(--text-main);font-size:12px;font-weight:800}.team-manager-head:before{content:"";width:8px;height:8px;border-radius:50%;background:#2563eb;flex:0 0 auto}.team-leader-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px}.team-leader-card{border:1px solid var(--border);border-radius:10px;background:var(--bg-subtle);overflow:hidden}.team-leader-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer}.team-leader-toggle:hover{background:rgba(37,99,235,.05)}.team-leader-main{display:flex;align-items:center;gap:10px;min-width:0}.team-leader-avatar,.team-sale-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#dbeafe;color:#1d4ed8;font-weight:900;font-size:13px;flex:0 0 auto}.team-leader-info{min-width:0}.team-leader-name{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:800;color:var(--text-main)}.team-leader-meta{display:block;margin-top:3px;font-size:11px;color:var(--text-muted)}.team-leader-chevron{font-size:18px;line-height:1;color:#64748b;flex:0 0 auto}.team-sale-list{border-top:1px solid var(--border);padding:6px 10px 9px;background:var(--bg-surface)}.team-sale-row{display:flex;align-items:center;gap:9px;padding:8px 4px}.team-sale-avatar{width:28px;height:28px;font-size:11px;background:#dcfce7;color:#15803d}.team-sale-info{min-width:0}.team-sale-name{display:block;font-size:12px;font-weight:700;color:var(--text-main)}.team-sale-phone{display:block;margin-top:2px;font-size:10.5px;color:var(--text-muted)}.team-hierarchy-empty{padding:16px 8px;color:var(--text-muted);font-size:12px;text-align:center}.team-hierarchy-more{font-size:11px;color:var(--text-muted);margin-top:2px}';
+        document.head.appendChild(style);
+      }
+      const current=data.members.find(m=>m.id===data.user.id)||data.user;
+      const scopeSource=(data.managerHierarchy?.members||data.members||[]).filter(m=>m.active!==false);
+      const scopedIds=new Set(scopeSource.map(m=>m.id));
+      if(current?.id&&!scopedIds.has(current.id)&&current.active!==false)scopeSource.push(current);
+      const scoped=scopeSource.filter(m=>['MANAGER','LEADER','SALE'].includes(m.role));
+      const managerList=(role==='ADMIN'?scoped:role==='MANAGER'?[current,...scoped.filter(m=>m.id!==current?.id&&m.role==='MANAGER')]:scoped.filter(m=>m.role==='MANAGER')).filter((m,i,a)=>m?.id&&a.findIndex(x=>x.id===m.id)===i);
+      let leaderList=scoped.filter(m=>m.role==='LEADER');
+      if(role==='LEADER'&&current?.id)leaderList=[current];
+      if(role==='SALE'&&current?.leaderId)leaderList=scoped.filter(m=>m.id===current.leaderId&&m.role==='LEADER');
+      const initials=name=>String(name||'?').trim().split(/\s+/).slice(-2).map(part=>part[0]||'').join('').toUpperCase()||'?';
+      const nameOf=id=>scoped.find(m=>m.id===id)?.name||data.members.find(m=>m.id===id)?.name||'Ch 0a ph n';
+      const makeLeaderCard=leader=>{
+        const sales=scoped.filter(m=>m.role==='SALE'&&(role==='SALE'?m.id===current?.id:m.leaderId===leader.id));
+        const manager=managerList.find(m=>m.id===leader.managerId);
+        const detail=sales.length?sales.map(s=>'<div class="team-sale-row"><div class="team-sale-avatar">'+esc(initials(s.name))+'</div><div class="team-sale-info"><span class="team-sale-name">'+esc(s.name||'Ch 0a c  t 00n')+'</span><span class="team-sale-phone">'+esc(s.phone||s.accountId||'Ch 0a c  th ng tin')+'</span></div></div>').join(''):'<div class="team-hierarchy-empty">Ch 0a c  Sale trong team</div>';
+        return '<div class="team-leader-card"><button type="button" class="team-leader-toggle" aria-expanded="false"><span class="team-leader-main"><span class="team-leader-avatar">'+esc(initials(leader.name))+'</span><span class="team-leader-info"><span class="team-leader-name">'+esc('Team '+(leader.name||leader.teamId||'Ch 0a ph n'))+'</span><span class="team-leader-meta">Leader: '+esc(leader.name||'—')+' · '+sales.length+' Sale'+(manager?' · Qu n l 1: '+esc(manager.name):'')+'</span></span></span><span class="team-leader-chevron">+</span></button><div class="team-sale-list" hidden>'+detail+'</div></div>';
+      };
+      const renderGroup=(manager,leaders)=>'<div class="team-manager-group">'+(manager?'<div class="team-manager-head">Qu n l 1: '+esc(manager.name||'—')+'</div>':'<div class="team-manager-head">Ch 0a ph n Manager</div>')+'<div class="team-leader-list">'+(leaders.length?leaders.map(makeLeaderCard).join(''):'<div class="team-hierarchy-empty">Ch 0a c  Leader</div>')+'</div></div>';
+      const groups=[];
+      managerList.forEach(manager=>groups.push(renderGroup(manager,leaderList.filter(leader=>leader.managerId===manager.id))));
+      const unassignedLeaders=leaderList.filter(leader=>!managerList.some(manager=>manager.id===leader.managerId));
+      if(unassignedLeaders.length||!groups.length)groups.push(renderGroup(null,unassignedLeaders.length?unassignedLeaders:leaderList));
+      hierarchyOverview.innerHTML='<div class="team-hierarchy-head"><div><div class="team-hierarchy-title">C 0y ng 5</div><div class="team-hierarchy-subtitle">B 1m v o Leader/Team    xem Sale ph  tr ch</div></div></div>'+(groups.join('')||'<div class="team-hierarchy-empty">Ch 0a c  d 0 li u  1 i ng 5</div>');
+      hierarchyOverview.querySelectorAll('.team-leader-toggle').forEach(button=>{button.onclick=()=>{const detail=button.nextElementSibling,open=detail.hidden;detail.hidden=!open;button.setAttribute('aria-expanded',String(open));const icon=button.querySelector('.team-leader-chevron');if(icon)icon.textContent=open?'−':'+';};});
+    }
+    // Dynamic team hierarchy is rendered above this table.
+    if(hierarchyOverview){
+      const hierarchyCurrent=data.members.find(m=>m.id===data.user.id)||data.user;
+      const hierarchySource=(data.managerHierarchy?.members||data.members||[]).filter(m=>m.active!==false);
+      if(hierarchyCurrent?.id&&!hierarchySource.some(m=>m.id===hierarchyCurrent.id)&&hierarchyCurrent.active!==false)hierarchySource.push(hierarchyCurrent);
+      const hierarchyMembers=hierarchySource.filter(m=>['MANAGER','LEADER','SALE'].includes(m.role));
+      const hierarchyManagers=(role==='ADMIN'?hierarchyMembers.filter(m=>m.role==='MANAGER'):role==='MANAGER'?[hierarchyCurrent,...hierarchyMembers.filter(m=>m.role==='MANAGER'&&m.id!==hierarchyCurrent?.id)]:[]).filter((m,i,a)=>m?.id&&a.findIndex(x=>x.id===m.id)===i);
+      let hierarchyLeaders=hierarchyMembers.filter(m=>m.role==='LEADER');
+      if(role==='LEADER'&&hierarchyCurrent?.id)hierarchyLeaders=[hierarchyCurrent];
+      if(role==='SALE'&&hierarchyCurrent?.leaderId)hierarchyLeaders=hierarchyMembers.filter(m=>m.id===hierarchyCurrent.leaderId&&m.role==='LEADER');
+      const initials=name=>String(name||'?').trim().split(/\s+/).slice(-2).map(part=>part[0]||'').join('').toUpperCase()||'?';
+      const displayTeamName=member=>{
+        if(member?.role==='MANAGER')return 'Team '+(member.name||member.teamId||'Chua phan')+' (manager)';
+        const leader=hierarchyMembers.find(m=>m.role==='LEADER'&&(member.role==='LEADER'?m.id===member.id:m.id===member.leaderId));
+        if(leader)return 'Team '+(leader.name||leader.teamId||'Chua phan')+' (leader)';
+        return member?.teamId?'Team '+member.teamId:'Chua phan Team';
+      };
+      const leaderCard=leader=>{
+        const sales=hierarchyMembers.filter(m=>m.role==='SALE'&&(role==='SALE'?m.id===hierarchyCurrent?.id:m.leaderId===leader.id));
+        const manager=hierarchyManagers.find(m=>m.id===leader.managerId);
+        const saleRows=sales.length?sales.map(s=>'<div class="team-sale-row"><div class="team-sale-avatar">'+esc(initials(s.name))+'</div><div class="team-sale-info"><span class="team-sale-name">'+esc(s.name||'Ch&#432;a c&#243; t&#234;n')+'</span><span class="team-sale-phone">'+esc(s.phone||s.accountId||'Ch&#432;a c&#243; th&#244;ng tin')+'</span></div></div>').join(''):'<div class="team-hierarchy-empty">Ch&#432;a c&#243; Sale trong team</div>';
+        return '<div class="team-leader-card"><button type="button" class="team-leader-toggle" aria-expanded="false"><span class="team-leader-main"><span class="team-leader-avatar">'+esc(initials(leader.name))+'</span><span class="team-leader-info"><span class="team-leader-name">'+esc(displayTeamName(leader))+'</span><span class="team-leader-meta">Leader: '+esc(leader.name||'Chua phan')+' &middot; '+sales.length+' Sale'+(manager?' &middot; Qu&#7843;n l&#253;: '+esc(manager.name):'')+'</span></span></span><span class="team-leader-chevron">+</span></button><div class="team-sale-list" hidden>'+saleRows+'</div></div>';
+      };
+      const hierarchyGroups=[];
+      hierarchyManagers.forEach(manager=>hierarchyGroups.push('<div class="team-manager-group"><div class="team-manager-head">'+esc(displayTeamName(manager))+'</div><div class="team-leader-list">'+(hierarchyLeaders.filter(leader=>leader.managerId===manager.id).map(leaderCard).join('')||'<div class="team-hierarchy-empty">Ch&#432;a c&#243; Leader</div>')+'</div></div>'));
+      const unassignedLeaders=hierarchyLeaders.filter(leader=>!hierarchyManagers.some(manager=>manager.id===leader.managerId));
+      if(unassignedLeaders.length||!hierarchyGroups.length)hierarchyGroups.push('<div class="team-manager-group"><div class="team-manager-head">Ch&#432;a ph&#226;n Manager</div><div class="team-leader-list">'+(unassignedLeaders.length?unassignedLeaders.map(leaderCard).join(''):'<div class="team-hierarchy-empty">Ch&#432;a c&#243; d&#7919; li&#7879;u &#273;&#7897;i ng&#361;</div>')+'</div></div>');
+      hierarchyOverview.innerHTML='<div class="team-hierarchy-head"><div><div class="team-hierarchy-title">C&#226;y ng&#361; &#273;&#7897;i ng&#361;</div><div class="team-hierarchy-subtitle">B&#7845;m v&#224;o Leader/Team &#273;&#7875; xem c&#225;c Sale ph&#7909; tr&#225;ch</div></div></div>'+hierarchyGroups.join('');
+      hierarchyOverview.querySelectorAll('.team-leader-toggle').forEach(button=>button.onclick=()=>{
+        const detail=button.nextElementSibling;
+        const open=detail.hidden;
+        detail.hidden=!open;
+        button.setAttribute('aria-expanded',String(open));
+      });
+    }
+    // Dat lai cay hien thi sau khoi render cu de dam bao Manager/Leader luon dung cap.
+    renderTeamHierarchyV6();
+    const start=q('#teamStartDate')?.value,end=q('#teamEndDate')?.value;
+    const revenue=m=>(data.managerHierarchy?.financialEvents||data.financialEvents).filter(e=>(!start||e.occurredAt?.slice(0,10)>=start)&&(!end||e.occurredAt?.slice(0,10)<=end)&&(data.managerHierarchy?.orders||data.orders).some(o=>o.id===e.orderId&&(m.role==='LEADER'?o.leaderId===m.id:o.saleId===m.id))).reduce((s,e)=>s+Number(e.amount||0),0);
+    const customers=m=>(data.managerHierarchy?.customers||data.customers).filter(c=>m.role==='LEADER'?c.leaderId===m.id:c.saleId===m.id).length;
+    table(bodies[0],pending.map(m=>[m.name,m.phone,m.email,'Chờ phân chức vụ','']));
+    Array.from(bodies[0]?.rows||[]).forEach((r,i)=>{const b=r.querySelector('button');if(b){b.removeAttribute('onclick');b.onclick=()=>memberEditor(pending[i].id);b.disabled=data.user.role!=='ADMIN';}});
+    const teamColumnName=m=>m.role==='MANAGER'?'Team '+(m.name||m.teamId||'Chua phan')+' (manager)':(data.members.find(x=>x.role==='LEADER'&&(m.role==='LEADER'?x.id===m.id:x.id===m.leaderId))?('Team '+(data.members.find(x=>x.role==='LEADER'&&(m.role==='LEADER'?x.id===m.id:x.id===m.leaderId)).name||'Chua phan')+' (leader)'):(m.teamId?'Team '+m.teamId:'Chua phan Team'));
+    table(bodies[1],members.map(m=>[m.name+(m.phone?' · '+m.phone:''),m.role,teamColumnName(m),m.managerId?person(m.managerId):m.leaderId?person(m.leaderId):'—',customers(m),money(revenue(m)),'']));
+    Array.from(bodies[1]?.rows||[]).forEach((r,i)=>{const m=members[i],buttons=r.querySelectorAll('button');buttons.forEach(b=>{b.removeAttribute('onclick');b.disabled=data.user.role!=='ADMIN';});if(buttons[0])buttons[0].onclick=()=>memberEditor(m.id);if(buttons[1]){buttons[1].onclick=()=>passwordEditor(m.id);buttons[1].disabled=data.user.role!=='ADMIN'||!m.loginEnabled;}if(buttons[2]){buttons[2].disabled=data.user.role!=='ADMIN'||!['SALE','LEADER'].includes(m.role)||m.id===data.user.id;buttons[2].onclick=()=>{if(confirm('Xóa thành viên khỏi đội ngũ và thu hồi khách theo quy trình hiện có?'))run(()=>api.removeMember(m.id));};}});
+    const add=q('#tab-team .headline-row button');add.removeAttribute('onclick');add.onclick=()=>memberEditor();add.disabled=data.user.role!=='ADMIN';
+    const description=bodies[0]?.closest('.table-container')?.querySelector('.table-head-bar > div > div');if(description)description.textContent='Admin phân chức vụ trước khi tài khoản được sử dụng.';
+    const cards=qa('#tab-team .kpi-bento-card');
+    const scopedCustomers=data.managerHierarchy?.customers||data.customers||[];
+    const scopedOrders=data.managerHierarchy?.orders||data.orders||[];
+    const scopedEvents=data.managerHierarchy?.financialEvents||data.financialEvents||[];
+    const scopedTasks=data.managerHierarchy?.tasks||data.tasks||[];
+    const inRange=value=>(!start||String(value||'').slice(0,10)>=start)&&(!end||String(value||'').slice(0,10)<=end);
+    const eventOrderIds=new Set(scopedOrders.map(order=>order.id));
+    const teamRevenueValue=money(scopedEvents.filter(event=>eventOrderIds.has(event.orderId)&&inRange(event.occurredAt)).reduce((sum,event)=>sum+Number(event.amount||0),0));
+    const activeTasks=scopedTasks.filter(task=>task.status!=='DONE');
+    const isOverdue=task=>task.status==='OVERDUE'||(task.status!=='DONE'&&Number.isFinite(Date.parse(String(task.dueAt||'').replace(' ','T')))&&Date.parse(String(task.dueAt||'').replace(' ','T'))<Date.now());
+    const overdueTasks=activeTasks.filter(isOverdue);
+    const managedCustomerIds=new Set(scopedCustomers.filter(customer=>[customer.saleId,customer.leaderId,customer.managerId,customer.ownerId].some(id=>id&&members.some(member=>member.id===id))).map(customer=>customer.id));
+    const assignedCustomers=scopedCustomers.filter(customer=>managedCustomerIds.has(customer.id));
+    const calledCustomers=assignedCustomers.filter(customer=>['Đã gọi được','Đã gọi','Đã kết nối'].includes(customer.customFields?.callStatus)||customer.customFields?.callStatus==='Đã gọi được');
+    const paidOrders=scopedOrders.filter(order=>inRange(order.paidAt||order.createdAt)&&['PAID','COURSE_GRANTED'].includes(order.status));
+    const target=members.filter(member=>member.role==='SALE').reduce((sum,member)=>sum+Number(member.target||0),0);
+    const progress=target?Math.min(100,scopedEvents.filter(event=>eventOrderIds.has(event.orderId)&&inRange(event.occurredAt)).reduce((sum,event)=>sum+Number(event.amount||0),0)/target*100):0;
+    const metrics=[members.length,teamRevenueValue,assignedCustomers.length,overdueTasks.length];
+    cards.forEach((card,i)=>{primaryText(card.querySelector('.kpi-hero-num'),metrics[i]);});
+    cards[0]?.querySelectorAll('.kpi-foot-stat .value').forEach((node,i)=>{if(i===0)node.textContent=members.filter(member=>member.role==='LEADER').length+' người';else if(i===1)node.textContent=members.filter(member=>member.role==='SALE').length+' người';else node.textContent=members.length?'100%':'0%';});
+    const online=cards[0]?.querySelector('.kpi-trend-pill');if(online)online.textContent=members.length+' hoạt động';
+    const foot=(i,values)=>cards[i]?.querySelectorAll('.kpi-foot-stat .value').forEach((n,j)=>n.textContent=values[j]);
+    foot(1,[paidOrders.length+' đơn',target?money(target):'Chưa đặt',target?progress.toFixed(1)+'%':'—']);
+    foot(2,[assignedCustomers.length+' khách',(scopedCustomers.length-assignedCustomers.length)+' khách',assignedCustomers.length?(calledCustomers.length/assignedCustomers.length*100).toFixed(1)+'%':'—']);
     const overdueAge=task=>{const due=Date.parse(String(task.dueAt||'').replace(' ','T'));return Number.isFinite(due)?Math.max(0,Date.now()-due):0;};
     foot(3,[overdueTasks.filter(task=>overdueAge(task)>=86400000).length,overdueTasks.filter(task=>overdueAge(task)>=172800000).length,activeTasks.length?((activeTasks.length-overdueTasks.length)/activeTasks.length*100).toFixed(1)+'%':'—']);
     const exportButton=qa('#tab-team button').find(b=>b.textContent.trim()==='Xuất CSV');if(exportButton){exportButton.removeAttribute('onclick');exportButton.onclick=()=>{const rows=[['Họ tên','SĐT','Email','Chức vụ','Team','Khách hàng','Doanh thu'],...members.map(m=>[m.name,m.phone,m.email,m.role,m.teamId,customers(m),revenue(m)])];const csv='\uFEFF'+rows.map(r=>r.map(v=>'"'+String(v??'').replace(/^[=+@-]/,"'").replaceAll('"','""')+'"').join(',')).join('\r\n');const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})),a=document.createElement('a');a.href=url;a.download='doi-ngu.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};}
     renderTeamHierarchyV6();
   }
-  function announcementEditor(){editor('Tạo thông báo',formField('Tiêu đề','<input id="refNoticeTitle" required maxlength="200">')+formField('Nội dung','<textarea id="refNoticeText" required maxlength="1000" rows="5"></textarea>'),()=>api.announce({title:q('#refNoticeTitle').value,text:q('#refNoticeText').value}));}
+  function announcementEditor(){
+    styleTelegramStudio();
+    q('#referenceEditor')?.remove();
+    const modal=document.createElement('div');
+    modal.id='referenceEditor';
+    modal.className='modal-overlay open';
+    modal.innerHTML=`
+      <div class="modal-card telegram-admin-studio" role="dialog" aria-modal="true" aria-labelledby="refEditorTitle">
+        <div class="telegram-studio-head">
+          <div class="telegram-studio-head-main">
+            <span class="telegram-studio-icon">📢</span>
+            <div>
+              <h3 id="refEditorTitle">Tạo thông báo Telegram</h3>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <button type="button" class="modal-close-btn" data-editor-close aria-label="Đóng">&times;</button>
+          </div>
+        </div>
+        <div class="telegram-studio-body">
+          <div class="telegram-presets-heading">
+            <span>Mẫu thông báo</span>
+            <button type="button" data-telegram-reset>Tự soạn</button>
+          </div>
+          <div data-telegram-presets></div>
+          <form data-telegram-form>
+            <input type="hidden" data-telegram-type value="MEETING">
+            <div class="telegram-form-top">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span data-telegram-active-badge class="telegram-active-badge" data-tone="blue"><span>📅</span> <span>Họp tổng tuần</span></span>
+              </div>
+              <label style="font-size:12px;font-weight:700;color:#334155;display:flex;align-items:center;gap:8px;margin:0">
+                <span>Người nhận</span>
+                <select data-telegram-target style="min-height:36px;padding:6px 10px;border:1px solid #cbd5e1;border-radius:8px;font-weight:700;color:#1e293b;width:auto">
+                  <option value="ALL">🌐 Toàn bộ Agency (Sale + Leader + Manager)</option>
+                  <option value="SALE">💼 Chỉ Đội ngũ Sales / Tư vấn</option>
+                  <option value="MANAGERS">🎖️ Chỉ Ban Quản Lý (Leader & Manager)</option>
+                </select>
+              </label>
+            </div>
+            <label style="display:block;margin-top:12px;font-size:12.5px;font-weight:800;color:#1e335f">Tiêu đề</label>
+            <input required maxlength="200" data-telegram-title placeholder="Nhập tiêu đề">
+            <div data-telegram-meeting class="telegram-meeting-box">
+              <label style="font-size:12px;font-weight:700;color:#1e3a8a">
+                Thời gian họp
+                <input data-telegram-time placeholder="VD: 16:30 chiều nay">
+              </label>
+              <label style="font-size:12px;font-weight:700;color:#1e3a8a">
+                Link họp
+                <input data-telegram-link placeholder="meet.google.com/...">
+              </label>
+              <div class="telegram-meeting-reminder">
+                <div class="telegram-meeting-reminder-copy">
+                  <span><strong>Nhắc lịch</strong></span>
+                </div>
+                <select data-telegram-remind>
+                  <option value="15">⏰ Nhắc trước 15 phút (Khuyên dùng)</option>
+                  <option value="30">⏰ Nhắc trước 30 phút</option>
+                  <option value="45">⏰ Nhắc trước 45 phút</option>
+                  <option value="60">⏰ Nhắc trước 1 tiếng</option>
+                  <option value="120">⏰ Nhắc trước 2 tiếng</option>
+                  <option value="0">❌ Không nhắc</option>
+                </select>
+              </div>
+            </div>
+            <label style="display:block;margin-top:12px;font-size:12.5px;font-weight:800;color:#1e335f">
+              Người gửi
+              <input data-telegram-host value="Ban Quản Trị NVT Agency">
+            </label>
+            <label style="display:block;margin-top:12px;font-size:12.5px;font-weight:800;color:#1e335f">
+              Nội dung
+              <textarea required maxlength="4000" rows="4" data-telegram-content></textarea>
+            </label>
+            <div class="telegram-send-row"><div style="display:flex;justify-content:flex-end;gap:8px;width:100%">
+                <button type="button" class="btn-secondary" data-editor-close>Đóng</button>
+                <button type="submit" class="btn-primary" data-telegram-send>Gửi thông báo</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    modal.querySelectorAll('[data-editor-close]').forEach(btn=>btn.onclick=()=>modal.remove());
+    modal.onclick=e=>{if(e.target===modal)modal.remove();};
+    const form=modal.querySelector('[data-telegram-form]');
+    const presetsContainer=modal.querySelector('[data-telegram-presets]');
+    Object.entries(telegramTemplates).forEach(([key,item])=>{
+      const b=document.createElement('button');
+      b.type='button';
+      b.dataset.telegramPreset=key;
+      b.dataset.tone=item.tone;
+      b.innerHTML='<div class="preset-top"><span class="preset-icon">'+item.icon+'</span><span class="preset-badge">'+item.badge+'</span></div><strong class="preset-title">'+item.title+'</strong><span class="preset-desc">'+item.desc+'</span>';
+      b.onclick=()=>{
+        modal.querySelectorAll('[data-telegram-preset]').forEach(n=>n.classList.remove('is-selected'));
+        b.classList.add('is-selected');
+        const typeInput=modal.querySelector('[data-telegram-type]');
+        if(typeInput)typeInput.value=item.type;
+        modal.querySelector('[data-telegram-target]').value=item.target;
+        modal.querySelector('[data-telegram-title]').value=item.title;
+        modal.querySelector('[data-telegram-content]').value=item.content;
+        const timeInput=modal.querySelector('[data-telegram-time]');if(timeInput)timeInput.value=item.time||'';
+        const linkInput=modal.querySelector('[data-telegram-link]');if(linkInput)linkInput.value=item.link||'';
+        const hostInput=modal.querySelector('[data-telegram-host]');if(hostInput)hostInput.value=item.host||'Ban Quản Trị NVT Agency';
+        toggleTelegramMeeting(modal);
+      };
+      presetsContainer.appendChild(b);
+    });
+    modal.querySelector('[data-telegram-reset]').onclick=()=>{
+      modal.querySelectorAll('[data-telegram-preset]').forEach(n=>n.classList.remove('is-selected'));
+      const typeInput=modal.querySelector('[data-telegram-type]');
+      if(typeInput)typeInput.value='CUSTOM';
+      modal.querySelector('[data-telegram-title]').value='';
+      modal.querySelector('[data-telegram-content]').value='';
+      const timeInput=modal.querySelector('[data-telegram-time]');if(timeInput)timeInput.value='';
+      const linkInput=modal.querySelector('[data-telegram-link]');if(linkInput)linkInput.value='';
+      toggleTelegramMeeting(modal);
+      modal.querySelector('[data-telegram-title]')?.focus();
+    };
+    presetsContainer.querySelector('[data-telegram-preset="meeting_weekly"]')?.click();
+    form.onsubmit=e=>{
+      e.preventDefault();
+      const get=s=>modal.querySelector(s)?.value?.trim()||'';
+      const remindSelect=modal.querySelector('[data-telegram-remind]');
+      const title=get('[data-telegram-title]'), content=get('[data-telegram-content]');
+      run(async ()=>{
+        const res=await api.telegramBroadcast({
+          type:get('[data-telegram-type]'),target:get('[data-telegram-target]'),title:title,content:content,host:get('[data-telegram-host]'),
+          meeting_time:modal.querySelector('[data-telegram-time]')?.value||null,meeting_link:get('[data-telegram-link]'),remind_minutes:remindSelect?Number(remindSelect.value):0
+        });
+        try{await api.announce({title:title,text:content});}catch(_){}
+        return res;
+      },(result)=>{
+        referenceNotice(`Đã bắn thông báo Telegram và lưu hệ thống CRM tới ${result?.sent||0} tài khoản.`);
+        modal.remove();refresh(true);
+      });
+    };
+  }
   function notificationSettings(){
     const keys={dataBotToken:'Bot báo data · Token',dataBotChatId:'Bot báo data · Chat ID',memberBotToken:'Bot báo thành viên · Token',memberBotChatId:'Bot báo thành viên · Chat ID'};
     editor('Cài đặt thông báo',Object.entries(keys).map(([key,label])=>formField(label,`<input id="ref-${key}" type="${key.endsWith('Token')?'password':'text'}" autocomplete="off" value="${esc(data.settings[key]||'')}">`)).join(''),()=>api.settings(Object.fromEntries(Object.keys(keys).map(k=>[k,q('#ref-'+k).value.trim()]))));
+  }
+  const telegramTemplates={
+    meeting_weekly:{type:'MEETING',title:'Họp tổng kết tuần & Trao thưởng Top 1 Doanh số',content:'Toàn bộ nhân sự Sale và Leader có mặt đúng giờ để tổng kết kết quả kinh doanh tuần qua, phổ biến mục tiêu tuần mới và trao thưởng nóng cho các cá nhân xuất sắc.',time:'16:30 chiều nay',link:'meet.google.com/nvt-agency-meet',host:'Ban Giám Đốc NVT Agency',target:'ALL',icon:'📅',badge:'Lịch họp',desc:'Tổng kết số & trao thưởng',tone:'blue'},
+    reward_fast:{type:'REWARD',title:'Chính sách thưởng nóng: Chốt cọc trong vòng 2 giờ!',content:'Từ hôm nay, bất kỳ đơn hàng nào được Sale tiếp nhận và chốt cọc thành công trong vòng 2 tiếng sẽ được nhận THƯỞNG NÓNG 500.000 VNĐ + cộng thêm 5% hoa hồng trực tiếp!',time:'',link:'',host:'Ban Quản Trị NVT Agency',target:'SALE',icon:'⚡',badge:'Thưởng nóng',desc:'+5% hoa hồng trong 2h',tone:'green'},
+    honor_bestseller:{type:'REWARD',title:'VINH DANH BEST SELLER TUẦN: BÙNG NỔ 120 TRIỆU DOANH SỐ!',content:'Nhiệt liệt biểu dương chiến binh xuất sắc đã cán mốc doanh số ấn tượng nhất tuần qua. Tinh thần kỷ luật và bám sát khách hàng của bạn là tấm gương cho toàn Agency noi theo! 🔥',time:'',link:'',host:'Ban Giám Đốc & Khối Kinh Doanh',target:'ALL',icon:'🏆',badge:'Vinh danh',desc:'Khen thưởng bão đơn tuần',tone:'amber'},
+    stale_warning:{type:'WARNING',title:'CẢNH BÁO: XỬ LÝ DỨT ĐIỂM DATA NÓNG TỒN ĐỌNG TRƯỚC 18H00',content:'Hiện tại hệ thống phát hiện vẫn còn một số data nhận từ sáng chưa được cập nhật cuộc gọi hoặc ghi chú. Yêu cầu toàn bộ Sale liên hệ ngay trước 18h00 để tránh hệ thống tự động thu hồi về hàng chờ.',time:'Trước 18:00 hôm nay',link:'',host:'Bộ Phận Vận Hành & Trưởng Nhóm Sale',target:'SALE',icon:'⚠️',badge:'Cảnh báo',desc:'Yêu cầu dứt điểm trước 18h',tone:'red'},
+    morning_motivation:{type:'MOTIVATION',title:'CHÚC TOÀN THỂ NVT AGENCY TUẦN MỚI BÃO ĐƠN & BỨT PHÁ!',content:'Thị trường đang có những tín hiệu rất đẹp, data khách hàng quan tâm khóa học và chỉ báo đang đổ về liên tục. Chúc anh em Sale tuần này bội thu doanh số và đạt mốc thưởng cao nhất! 🚀',time:'',link:'',host:'Ban Lãnh Đạo Agency',target:'ALL',icon:'🚀',badge:'Động viên',desc:'Khí thế bứt phá đầu tuần',tone:'purple'},
+    emergency_meet:{type:'MEETING',title:'HỌP KHẨN CẤP: TRIỂN KHAI CHIẾN DỊCH QUẢNG CÁO MỚI',content:'Họp khẩn toàn bộ Leader và Sale để cập nhật kịch bản chốt đơn cho luồng data mới từ TikTok và Google Ads.',time:'14:00 hôm nay (Bắt buộc)',link:'meet.google.com/nvt-khan-cap',host:'CEO & Marketing Director',target:'MANAGERS',icon:'🚨',badge:'Khẩn cấp',desc:'Họp Leader & Sale gấp',tone:'red'}
+  };
+  function toggleTelegramMeeting(root){
+    if(!root)root=q('#adminTelegramStudio');
+    if(!root)return;
+    const type=root.querySelector('[data-telegram-type]')?.value||'CUSTOM';
+    const isMeeting=type==='MEETING';
+    const meetingBox=root.querySelector('[data-telegram-meeting]');
+    if(meetingBox){
+      meetingBox.classList.toggle('is-hidden',!isMeeting);
+      meetingBox.style.setProperty('display',isMeeting?'grid':'none','important');
+    }
+    const form=root.querySelector('[data-telegram-form]');
+    const activePreset=root.querySelector('[data-telegram-preset].is-selected');
+    const tone=activePreset?.dataset?.tone||(isMeeting?'blue':'default');
+    if(form)form.dataset.tone=tone;
+    const activeBadge=root.querySelector('[data-telegram-active-badge]');
+    if(activeBadge){
+      if(activePreset){
+        const icon=activePreset.querySelector('.preset-icon')?.textContent||'📢';
+        const title=activePreset.querySelector('.preset-title')?.textContent||'';
+        activeBadge.innerHTML='<span>'+icon+'</span> <span>'+esc(title)+'</span>';
+        activeBadge.dataset.tone=tone;
+      }else{
+        activeBadge.innerHTML='<span>✏️</span> <span>Tự soạn nội dung</span>';
+        activeBadge.dataset.tone='default';
+      }
+    }
+  }
+  function styleTelegramStudio(root){
+    if(!q('#telegramAdminStudioStyles')){const style=document.createElement('style');style.id='telegramAdminStudioStyles';style.textContent=`
+      .telegram-admin-studio{font-family:Arial,"Segoe UI",sans-serif!important;font-size:13px!important;margin:0 0 24px!important;padding:0!important;border:1.5px solid #c7d2fe!important;border-radius:18px!important;background:#f8fafc!important;overflow:hidden;box-shadow:0 8px 24px rgba(37,99,235,.06)!important;color:#13224f}
+      #referenceEditor .modal-card.telegram-admin-studio{width:min(780px,calc(100vw - 28px))!important;max-height:92dvh!important;overflow-y:auto!important;border-radius:20px!important;box-shadow:0 20px 50px rgba(15,23,42,.22),0 0 0 1px rgba(99,102,241,.1)!important;background:#fff!important}
+      .telegram-admin-studio .telegram-studio-head{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px!important;flex-wrap:wrap!important;padding:14px 18px!important;background:linear-gradient(120deg,#f5f3ff,#eef4ff)!important;border-bottom:1px solid #e2e8f0!important}
+      .telegram-admin-studio .telegram-studio-head-main{display:flex!important;align-items:center!important;gap:12px!important}
+      .telegram-admin-studio .telegram-studio-icon{width:38px!important;height:38px!important;display:grid!important;place-items:center!important;border-radius:10px!important;background:linear-gradient(145deg,#8b1eea,#5b22d8)!important;color:#fff!important;font-size:20px!important;box-shadow:0 6px 14px rgba(99,42,216,.25)!important;flex-shrink:0!important}
+      .telegram-admin-studio h2,.telegram-admin-studio h3{margin:0!important;color:#111b3f!important;font-size:18px!important;font-family:Arial,"Segoe UI",sans-serif!important;font-weight:800!important;line-height:1.25!important}
+      .telegram-admin-studio .telegram-subtitle,.telegram-admin-studio .telegram-admin-tag{display:none!important}
+      .telegram-admin-studio .telegram-admin-tag{padding:6px 12px!important;border:1px solid #dfc8fa!important;border-radius:8px!important;background:#f2e7ff!important;color:#6d2bb1!important;font-size:11px!important;font-weight:900!important;letter-spacing:.3px!important}
+      .telegram-admin-studio .modal-close-btn{width:32px!important;height:32px!important;display:grid!important;place-items:center!important;border-radius:8px!important;background:transparent!important;border:none!important;font-size:24px!important;color:#64748b!important;cursor:pointer!important;line-height:1!important;transition:all .15s ease!important}
+      .telegram-admin-studio .modal-close-btn:hover{background:#e2e8f0!important;color:#0f172a!important}
+      .telegram-admin-studio .telegram-studio-body{padding:14px 18px 18px!important;background:#f8fafc!important}
+      .telegram-admin-studio .telegram-presets-heading{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px!important;margin-bottom:8px!important;color:#334155!important;font-size:13px!important;font-weight:800!important;text-transform:none!important;letter-spacing:0!important}
+      .telegram-admin-studio [data-telegram-reset]{border:0!important;background:none!important;color:#6d28d9!important;font:700 12px inherit!important;cursor:pointer!important;padding:4px 6px!important;border-radius:6px!important;display:inline-flex!important;align-items:center!important;gap:4px!important;transition:background .15s ease!important}
+      .telegram-admin-studio [data-telegram-reset]:hover{background:#ede9fe!important}
+      .telegram-admin-studio [data-telegram-presets]{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:8px!important;margin:0 0 12px!important}
+      @media(max-width:680px){.telegram-admin-studio [data-telegram-presets]{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+      @media(max-width:440px){.telegram-admin-studio [data-telegram-presets]{grid-template-columns:1fr!important}}
+      .telegram-admin-studio [data-telegram-preset]{position:relative!important;display:flex!important;flex-direction:column!important;justify-content:space-between!important;min-height:78px!important;padding:9px 11px!important;border:1.5px solid #e2e8f0!important;border-radius:10px!important;background:#fff!important;cursor:pointer!important;text-align:left!important;transition:all .16s ease!important;box-shadow:0 1px 3px rgba(0,0,0,.04)!important;color:#1e293b!important;font-family:inherit!important}
+      .telegram-admin-studio [data-telegram-preset]:hover{transform:translateY(-2px)!important;box-shadow:0 6px 14px rgba(15,23,42,.08)!important}
+      .telegram-admin-studio [data-telegram-preset] .preset-top{display:flex!important;align-items:center!important;justify-content:space-between!important;width:100%!important;margin-bottom:6px!important}
+      .telegram-admin-studio [data-telegram-preset] .preset-icon{font-size:18px!important;line-height:1!important}
+      .telegram-admin-studio [data-telegram-preset] .preset-badge{display:inline-block!important;padding:2.5px 7px!important;border-radius:6px!important;font-size:10.5px!important;font-weight:800!important;line-height:1.2!important}
+      .telegram-admin-studio [data-telegram-preset] .preset-title{display:-webkit-box!important;-webkit-line-clamp:2!important;-webkit-box-orient:vertical!important;overflow:hidden!important;font-size:12px!important;font-weight:800!important;line-height:1.35!important;color:inherit!important;margin:0 0 3px!important}
+      .telegram-admin-studio [data-telegram-preset] .preset-desc{display:none!important}
+      .telegram-admin-studio [data-telegram-preset][data-tone=blue] .preset-badge{background:#eff6ff!important;color:#1d4ed8!important;border:1px solid #dbeafe!important}
+      .telegram-admin-studio [data-telegram-preset][data-tone=blue]:hover{border-color:#93c5fd!important;background:#fbfdff!important}
+      .telegram-admin-studio [data-telegram-preset][data-tone=blue].is-selected{border-color:#2563eb!important;background:#f0f7ff!important;box-shadow:0 0 0 3px rgba(37,99,235,.2),0 6px 14px rgba(37,99,235,.12)!important;transform:translateY(-2px)!important;color:#1d4ed8!important}
+      .telegram-admin-studio [data-telegram-preset][data-tone=green] .preset-badge{background:#ecfdf5!important;color:#047857!important;border:1px solid #d1fae5!important}
+      .telegram-admin-studio [data-telegram-preset][data-tone=green]:hover{border-color:#86efac!important;background:#fbfefc!important}
+      .telegram-admin-studio [data-telegram-preset][data-tone=green].is-selected{border-color:#10b981!important;background:#f0fdf4!important;box-shadow:0 0 0 3px rgba(16,185,129,.2),0 6px 14px rgba(16,185,129,.12)!important;transform:translateY(-2px)!important;color:#047857!important}
+      .telegram-admin-studio [data-telegram-preset][data-tone=amber] .preset-badge{background:#fffbeb!important;color:#b45309!important;border:1px solid #fef3c7!important}
+      .telegram-admin-studio [data-telegram-preset][data-tone=amber]:hover{border-color:#fde047!important;background:#fffefb!important}
+      .telegram-admin-studio [data-telegram-preset][data-tone=amber].is-selected{border-color:#f59e0b!important;background:#fffbeb!important;box-shadow:0 0 0 3px rgba(245,158,11,.2),0 6px 14px rgba(245,158,11,.12)!important;transform:translateY(-2px)!important;color:#b45309!important}
+      .telegram-admin-studio [data-telegram-preset][data-tone=red] .preset-badge{background:#fef2f2!important;color:#dc2626!important;border:1px solid #fee2e2!important}
+      .telegram-admin-studio [data-telegram-preset][data-tone=red]:hover{border-color:#fca5a5!important;background:#fffbfb!important}
+      .telegram-admin-studio [data-telegram-preset][data-tone=red].is-selected{border-color:#ef4444!important;background:#fef2f2!important;box-shadow:0 0 0 3px rgba(239,68,68,.2),0 6px 14px rgba(239,68,68,.12)!important;transform:translateY(-2px)!important;color:#dc2626!important}
+      .telegram-admin-studio [data-telegram-preset][data-tone=purple] .preset-badge{background:#faf5ff!important;color:#7c3aed!important;border:1px solid #ede9fe!important}
+      .telegram-admin-studio [data-telegram-preset][data-tone=purple]:hover{border-color:#d8b4fe!important;background:#fdfbff!important}
+      .telegram-admin-studio [data-telegram-preset][data-tone=purple].is-selected{border-color:#8b5cf6!important;background:#faf5ff!important;box-shadow:0 0 0 3px rgba(139,92,246,.2),0 6px 14px rgba(139,92,246,.12)!important;transform:translateY(-2px)!important;color:#7c3aed!important}
+      .telegram-admin-studio [data-telegram-form]{padding:15px 16px!important;border:1.5px solid #3b82f6!important;border-radius:13px!important;background:#fff!important;box-shadow:0 4px 14px rgba(59,130,246,.08)!important;transition:border-color .2s ease,box-shadow .2s ease!important}
+      .telegram-admin-studio [data-telegram-form][data-tone=blue]{border-color:#3b82f6!important;box-shadow:0 4px 18px rgba(59,130,246,.12)!important}
+      .telegram-admin-studio [data-telegram-form][data-tone=green]{border-color:#10b981!important;box-shadow:0 4px 18px rgba(16,185,129,.12)!important}
+      .telegram-admin-studio [data-telegram-form][data-tone=amber]{border-color:#f59e0b!important;box-shadow:0 4px 18px rgba(245,158,11,.12)!important}
+      .telegram-admin-studio [data-telegram-form][data-tone=red]{border-color:#ef4444!important;box-shadow:0 4px 18px rgba(239,68,68,.15)!important}
+      .telegram-admin-studio [data-telegram-form][data-tone=purple]{border-color:#8b5cf6!important;box-shadow:0 4px 18px rgba(139,92,246,.12)!important}
+      .telegram-admin-studio [data-telegram-form][data-tone=default]{border-color:#cbd5e1!important;box-shadow:0 3px 12px rgba(15,23,42,.05)!important}
+      .telegram-admin-studio .telegram-form-top{display:flex!important;justify-content:space-between!important;align-items:center!important;gap:10px!important;flex-wrap:wrap!important;padding-bottom:10px!important;border-bottom:1px solid #f1f5f9!important}
+      .telegram-admin-studio .telegram-form-top>label{display:flex!important;align-items:center!important;gap:8px!important;min-width:min(100%,300px)!important;flex:1 1 300px!important}
+      .telegram-admin-studio .telegram-active-badge{display:inline-flex!important;align-items:center!important;gap:6px!important;padding:5px 10px!important;border-radius:8px!important;font-size:11.5px!important;font-weight:700!important;border:1px solid transparent!important}
+      .telegram-admin-studio .telegram-active-badge[data-tone=blue]{background:#eff6ff!important;color:#1d4ed8!important;border-color:#bfdbfe!important}
+      .telegram-admin-studio .telegram-active-badge[data-tone=green]{background:#ecfdf5!important;color:#047857!important;border-color:#a7f3d0!important}
+      .telegram-admin-studio .telegram-active-badge[data-tone=amber]{background:#fffbeb!important;color:#b45309!important;border-color:#fde68a!important}
+      .telegram-admin-studio .telegram-active-badge[data-tone=red]{background:#fef2f2!important;color:#dc2626!important;border-color:#fecaca!important}
+      .telegram-admin-studio .telegram-active-badge[data-tone=purple]{background:#faf5ff!important;color:#7c3aed!important;border-color:#ddd6fe!important}
+      .telegram-admin-studio .telegram-active-badge[data-tone=default]{background:#f1f5f9!important;color:#475569!important;border-color:#cbd5e1!important}
+      .telegram-admin-studio label{display:block!important;color:#1e335f!important;font-size:13px!important;font-weight:700!important;line-height:1.35!important}
+      .telegram-admin-studio input,.telegram-admin-studio select,.telegram-admin-studio textarea{width:100%!important;box-sizing:border-box!important;margin-top:5px!important;padding:8px 12px!important;border:1px solid #cbd5e1!important;border-radius:8px!important;background:#fff!important;color:#0f172a!important;font:500 13px/1.35 Arial,"Segoe UI",sans-serif!important;outline:none!important;transition:border-color .15s ease,box-shadow .15s ease!important}
+      .telegram-admin-studio input:focus,.telegram-admin-studio select:focus,.telegram-admin-studio textarea:focus{border-color:#6366f1!important;box-shadow:0 0 0 3px rgba(99,102,241,.12)!important}
+      .telegram-admin-studio textarea{min-height:86px!important;resize:vertical!important;line-height:1.45!important}
+      .telegram-admin-studio .telegram-meeting-box{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important;margin-top:12px!important;padding:12px 14px!important;border:1.5px solid #bfdbfe!important;border-radius:12px!important;background:#f0f7ff!important}
+      .telegram-admin-studio .telegram-meeting-box.is-hidden{display:none!important}
+      .telegram-admin-studio .telegram-meeting-reminder{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px!important;grid-column:1/-1!important;padding-top:10px!important;border-top:1px solid #dbeafe!important;flex-wrap:wrap!important}
+      .telegram-admin-studio .telegram-meeting-reminder-copy{display:flex!important;align-items:center!important;gap:8px!important;font-size:11px!important;color:#1e40af!important}
+      .telegram-admin-studio .telegram-meeting-reminder select{min-height:38px!important;padding:6px 10px!important;border:1.5px solid #93c5fd!important;border-radius:8px!important;font-weight:700!important;color:#1e40af!important;background:#fff!important;max-width:320px!important}
+      .telegram-admin-studio .telegram-send-row{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px!important;margin-top:14px!important;padding-top:12px!important;border-top:1px solid #f1f5f9!important;flex-wrap:wrap!important}
+      .telegram-admin-studio .telegram-send-row span{color:#64748b!important;font-size:11.5px!important}
+      .telegram-admin-studio .telegram-send-row .btn-secondary{padding:9px 18px!important;border:1px solid #cbd5e1!important;border-radius:8px!important;background:#fff!important;color:#475569!important;font-weight:700!important;font-size:13px!important;cursor:pointer!important;transition:all .15s ease!important}
+      .telegram-admin-studio .telegram-send-row .btn-secondary:hover{background:#f1f5f9!important;color:#0f172a!important}
+      .telegram-admin-studio .telegram-send-row .btn-primary,.telegram-admin-studio [data-telegram-send]{padding:10px 22px!important;border:0!important;border-radius:10px!important;background:linear-gradient(135deg,#7c3aed 0%,#4f46e5 100%)!important;color:#fff!important;font-size:13px!important;font-weight:800!important;box-shadow:0 6px 18px rgba(124,58,237,.28)!important;cursor:pointer!important;display:inline-flex!important;align-items:center!important;gap:8px!important;transition:transform .15s ease,box-shadow .15s ease!important}
+      .telegram-admin-studio .telegram-send-row .btn-primary:hover,.telegram-admin-studio [data-telegram-send]:hover{transform:translateY(-1px)!important;box-shadow:0 8px 24px rgba(124,58,237,.38)!important}
+      .telegram-admin-studio .telegram-send-row .btn-primary:active,.telegram-admin-studio [data-telegram-send]:active{transform:scale(0.98)!important}
+      @media(max-width:560px){
+        #referenceEditor .modal-card.telegram-admin-studio{width:calc(100vw - 16px)!important;border-radius:14px!important}
+        .telegram-admin-studio .telegram-studio-head{padding:12px 14px!important}
+        .telegram-admin-studio .telegram-studio-body{padding:11px 12px 14px!important}
+        .telegram-admin-studio [data-telegram-form]{padding:12px!important}
+        .telegram-admin-studio .telegram-meeting-box{grid-template-columns:1fr!important;padding:10px!important}
+        .telegram-admin-studio .telegram-meeting-reminder{align-items:stretch!important}
+        .telegram-admin-studio .telegram-meeting-reminder select{max-width:none!important}
+        .telegram-admin-studio .telegram-send-row>div{width:100%!important}
+        .telegram-admin-studio .telegram-send-row button{flex:1 1 0!important;justify-content:center!important}
+      }
+    `;document.head.appendChild(style);}
+    if(root)root.className='telegram-admin-studio';
+  }
+  function telegramStudio(){
+    const host=q('#tab-notifications');if(!host||data.user.role!=='ADMIN')return;styleTelegramStudio();let root=q('#adminTelegramStudio');
+    if(!root){
+      root=document.createElement('section');root.id='adminTelegramStudio';root.className='telegram-admin-studio';
+      root.innerHTML='<div class="telegram-studio-head"><div class="telegram-studio-head-main"><span class="telegram-studio-icon">📢</span><div><h2>Trung Tâm Thông Báo Telegram Cho Admin</h2><p class="telegram-subtitle">Chọn mẫu và chỉnh sửa nội dung trước khi gửi</p></div></div><span class="telegram-admin-tag">ADMIN STUDIO</span></div><div class="telegram-studio-body"><div class="telegram-presets-heading"><span>💡 Mẫu thông báo</span><button type="button" data-telegram-reset>✏️ Tự soạn tự do</button></div><div data-telegram-presets></div><form data-telegram-form><input type="hidden" data-telegram-type value="MEETING"><div class="telegram-form-top"><div style="display:flex;align-items:center;gap:8px"><span style="color:#64748b;font-size:12px;font-weight:600">Đang chọn:</span><span data-telegram-active-badge class="telegram-active-badge" data-tone="blue"><span>📅</span> <span>Họp tổng tuần</span></span></div><label style="font-size:12px;font-weight:700;color:#334155;display:flex;align-items:center;gap:8px;margin:0"><span>Đối tượng nhận:</span><select data-telegram-target style="min-height:36px;padding:6px 10px;border:1px solid #cbd5e1;border-radius:8px;font-weight:700;color:#1e293b;width:auto"><option value="ALL">🌐 Toàn bộ Agency (Sale + Leader + Manager)</option><option value="SALE">💼 Chỉ Đội ngũ Sales / Tư vấn</option><option value="MANAGERS">🎖️ Chỉ Ban Quản Lý (Leader & Manager)</option></select></label></div><label style="display:block;margin-top:12px;font-size:12.5px;font-weight:800;color:#1e335f">Tiêu đề thông báo</label><input required maxlength="200" data-telegram-title placeholder="Tiêu đề thông báo..."><div data-telegram-meeting class="telegram-meeting-box"><label style="font-size:12px;font-weight:700;color:#1e3a8a">⏰ Thời gian diễn ra họp<input data-telegram-time placeholder="VD: 16:30 chiều nay"></label><label style="font-size:12px;font-weight:700;color:#1e3a8a">📍 Địa điểm / Link họp<input data-telegram-link placeholder="meet.google.com/..."></label><div class="telegram-meeting-reminder"><div class="telegram-meeting-reminder-copy"><span style="font-size:16px">🔔</span><span><strong>Nhắc lại trước giờ họp</strong></span></div><select data-telegram-remind><option value="15">⏰ Nhắc trước 15 phút (Khuyên dùng)</option><option value="30">⏰ Nhắc trước 30 phút</option><option value="45">⏰ Nhắc trước 45 phút</option><option value="60">⏰ Nhắc trước 1 tiếng</option><option value="120">⏰ Nhắc trước 2 tiếng</option><option value="0">❌ Không nhắc</option></select></div></div><label style="display:block;margin-top:12px;font-size:12.5px;font-weight:800;color:#1e335f">Người chủ trì / Ban hành<input data-telegram-host value="Ban Quản Trị NVT Agency"></label><label style="display:block;margin-top:12px;font-size:12.5px;font-weight:800;color:#1e335f">Nội dung chi tiết thông báo<textarea required maxlength="4000" rows="4" data-telegram-content></textarea></label><div class="telegram-send-row"><button type="submit" class="btn-primary" data-telegram-send>🚀 BẮN THÔNG BÁO TELEGRAM NGAY</button></div></form></div>';
+      const presets=root.querySelector('[data-telegram-presets]');
+      Object.entries(telegramTemplates).forEach(([key,item])=>{
+        const b=document.createElement('button');b.type='button';b.dataset.telegramPreset=key;b.dataset.tone=item.tone;
+        b.innerHTML='<div class="preset-top"><span class="preset-icon">'+item.icon+'</span><span class="preset-badge">'+item.badge+'</span></div><strong class="preset-title">'+item.title+'</strong><span class="preset-desc">'+item.desc+'</span>';
+        b.onclick=()=>{
+          root.querySelectorAll('[data-telegram-preset]').forEach(n=>n.classList.remove('is-selected'));
+          b.classList.add('is-selected');
+          const typeInput=root.querySelector('[data-telegram-type]');if(typeInput)typeInput.value=item.type;
+          root.querySelector('[data-telegram-target]').value=item.target;
+          root.querySelector('[data-telegram-title]').value=item.title;
+          root.querySelector('[data-telegram-content]').value=item.content;
+          const timeInput=root.querySelector('[data-telegram-time]');if(timeInput)timeInput.value=item.time||'';
+          const linkInput=root.querySelector('[data-telegram-link]');if(linkInput)linkInput.value=item.link||'';
+          const hostInput=root.querySelector('[data-telegram-host]');if(hostInput)hostInput.value=item.host||'Ban Quản Trị NVT Agency';
+          toggleTelegramMeeting(root);
+        };
+        presets.appendChild(b);
+      });
+      root.querySelector('[data-telegram-reset]').onclick=()=>{
+        root.querySelectorAll('[data-telegram-preset]').forEach(n=>n.classList.remove('is-selected'));
+        const typeInput=root.querySelector('[data-telegram-type]');if(typeInput)typeInput.value='CUSTOM';
+        root.querySelector('[data-telegram-title]').value='';root.querySelector('[data-telegram-content]').value='';
+        const timeInput=root.querySelector('[data-telegram-time]');if(timeInput)timeInput.value='';
+        const linkInput=root.querySelector('[data-telegram-link]');if(linkInput)linkInput.value='';
+        toggleTelegramMeeting(root);
+        root.querySelector('[data-telegram-title]')?.focus();
+      };
+      presets.querySelector('[data-telegram-preset="meeting_weekly"]')?.click();
+      root.querySelector('[data-telegram-form]').onsubmit=e=>{
+        e.preventDefault();const get=s=>root.querySelector(s)?.value?.trim()||'';const remindSelect=root.querySelector('[data-telegram-remind]');
+        const title=get('[data-telegram-title]'), content=get('[data-telegram-content]');
+        run(async ()=>{
+          const res=await api.telegramBroadcast({
+            type:get('[data-telegram-type]'),target:get('[data-telegram-target]'),title:title,content:content,host:get('[data-telegram-host]'),
+            meeting_time:root.querySelector('[data-telegram-time]')?.value||null,meeting_link:get('[data-telegram-link]'),remind_minutes:remindSelect?Number(remindSelect.value):0
+          });
+          try{await api.announce({title:title,text:content});}catch(_){}
+          return res;
+        },(result)=>{
+          referenceNotice(`Đã bắn thông báo Telegram và lưu hệ thống CRM tới ${result?.sent||0} tài khoản.`);
+          e.target.reset();root.querySelector('[data-telegram-host]').value='Ban Quản Trị NVT Agency';toggleTelegramMeeting(root);
+        });
+      };
+      host.querySelector('.headline-row')?.after(root);
+    }
+    toggleTelegramMeeting(root);
   }
   let noticeFilter=0;
   const noticeFeed=q('#tab-notifications .pill-tab-group')?.parentElement?.nextElementSibling;
@@ -856,6 +1362,7 @@
   const noticeDropdownBody=q('#notificationDropdown')?.children[1],noticeDropdownTemplate=noticeDropdownBody?.firstElementChild?.cloneNode(true);
   const noticeKind=n=>/RENT|EXPIR|THUÊ/i.test(n.type||n.title)?2:/PAY|ORDER|THANH TOÁN/i.test(n.type||n.title)?1:/DATA|WEBHOOK/i.test(n.type||n.title)?3:4;
   function notices(){
+    q("#adminTelegramStudio")?.remove();
     const unseen=data.notifications.filter(n=>!(n.readBy||[]).includes(data.user.id)).length;text('topbarNotifBadge',unseen);const badge=q('.nav-link[data-tab="tab-notifications"] .nav-badge');if(badge)badge.textContent=unseen;
     if(noticeDropdownBody&&noticeDropdownTemplate){noticeDropdownBody.replaceChildren();data.notifications.slice(0,8).forEach(n=>{const row=noticeDropdownTemplate.cloneNode(true),content=row.children[1];content.querySelector('b').textContent=n.title;content.querySelector('small').textContent=fmtDate(n.at);content.children[1].textContent=n.text;row.onclick=()=>{switchTab('tab-notifications');closeNotificationDropdown();};noticeDropdownBody.appendChild(row);});q('#notificationDropdown').firstElementChild.querySelector('span').textContent=unseen;if(!noticeDropdownBody.children.length)noticeDropdownBody.textContent='Chưa có thông báo.';}
     // Đúng thứ tự bảy cột; IP lấy từ nhật ký đã lưu, không dùng mã đối tượng.
@@ -863,7 +1370,9 @@
     if(noticeFeed&&noticeTemplate){noticeFeed.replaceChildren();data.notifications.filter(n=>!noticeFilter||noticeKind(n)===noticeFilter).forEach(n=>{const row=noticeTemplate.cloneNode(true),content=row.firstElementChild.children[1],kind=noticeKind(n);content.querySelector('b').textContent=n.title;content.children[1].textContent=n.text;content.querySelector('.chip').textContent=['Tất cả','Tài chính','Hạn thuê','Data mới','Vận hành'][kind];row.lastElementChild.querySelector('span').textContent=fmtDate(n.at);const button=row.querySelector('button');button.removeAttribute('onclick');button.textContent=(n.readBy||[]).includes(data.user.id)?'Đã đọc':'Đánh dấu đã đọc';button.disabled=(n.readBy||[]).includes(data.user.id);button.onclick=()=>run(()=>api.readNotice(n.id));row.style.opacity=button.disabled?'.65':'1';noticeFeed.appendChild(row);});if(!noticeFeed.children.length){const empty=document.createElement('p');empty.textContent='Chưa có thông báo.';noticeFeed.appendChild(empty);}}
     qa('#tab-notifications .pill-tab-item').forEach((b,i)=>{b.textContent=['Tất cả','Tài chính','Hạn thuê','Data mới','Vận hành'][i]+' ('+data.notifications.filter(n=>!i||noticeKind(n)===i).length+')';b.classList.toggle('active',noticeFilter===i);b.onclick=()=>{noticeFilter=i;notices();};});
     const buttons=qa('#tab-notifications .headline-row button').filter(b=>b.id!=='refCreateNotice');buttons.forEach(b=>b.removeAttribute('onclick'));if(buttons[0]){buttons[0].id='markNotificationsReadButton';buttons[0].onclick=()=>run(()=>api.readNotifications());}if(buttons[1]){buttons[1].id='notificationSettingsButton';buttons[1].onclick=notificationSettings;buttons[1].hidden=data.user.role!=='ADMIN';buttons[1].style.display=data.user.role==='ADMIN'?'':'none';}
-    if(!q('#refCreateNotice')){const b=document.createElement('button');b.id='refCreateNotice';b.className='btn-action btn-primary';b.textContent='+ Tạo thông báo';buttons[1]?.before(b);}q('#refCreateNotice').onclick=announcementEditor;q('#refCreateNotice').hidden=data.user.role!=='ADMIN';
+    if(!q('#refCreateNotice')){const b=document.createElement('button');b.id='refCreateNotice';b.className='btn-action btn-primary';b.textContent='+ Tạo thông báo';buttons[1]?.before(b);}
+    q('#refCreateNotice').onclick=()=>announcementEditor();
+    q('#refCreateNotice').hidden=data.user.role!=='ADMIN';
     const cards=qa('#tab-notifications .bento-card');cards.forEach((c,i)=>{const value=c.querySelector('[style*="font-size: 28px"], [style*="font-size: 26px"], [style*="font-size: 32px"]');if(value)value.textContent=[data.notifications.length,data.notifications.filter(n=>noticeKind(n)===2).length,data.notifications.filter(n=>noticeKind(n)===1).length,data.notifications.filter(n=>noticeKind(n)===3).length][i]||0;if(c.children[2])c.children[2].textContent=i===0?unseen+' chưa đọc':i===1?'Thông báo hạn thuê':i===2?'Thông báo tài chính':'Thông báo nguồn data';});
   }
   function webhookEditor(id){const w=data.websites.find(w=>w.id===id);const modal=editor('Cấu hình URL webhook',formField('Mã webhook (slug)',`<input id="refWebhookSlug" required maxlength="60" value="${esc(w.webhookSlug)}">`)+formField('URL công khai ghi đè (HTTPS, tùy chọn)',`<input id="refWebhookOverride" type="url" value="${esc(w.webhookUrlOverride||'')}">`)+formField('Domain công khai dùng chung',`<input id="refWebhookBase" type="url" value="${esc(data.settings.webhookPublicBase||'')}">`)+`<button type="button" id="refGenerateWebhook" class="btn-action btn-secondary">Tạo mã mới</button>`,()=>api.saveWebhook(id,{slug:q('#refWebhookSlug').value,override:q('#refWebhookOverride').value,base:q('#refWebhookBase').value}));q('#refGenerateWebhook').onclick=()=>{q('#refWebhookSlug').value=api.newWebhookSlug();q('#refWebhookOverride').value='';};}
@@ -1443,7 +1952,7 @@
     if(!host||!data||!['ADMIN','MANAGER'].includes(role))return;
     const scopedMembers=role==='MANAGER'?(data.managerHierarchy?.members||data.members||[]):(data.members||[]);
     const allMembers=role==='MANAGER'
-      ? [...scopedMembers.filter(m=>m.id!==data.user.id), data.user]
+      ? [...scopedMembers.filter(m=>m.id!==data.user.id), {...data.user,role:"MANAGER"}]
       : scopedMembers;
     const managerLeaders=role==='MANAGER'
       ? allMembers.filter(m=>m.active!==false&&m.role==='LEADER'&&m.managerId===data.user.id)
@@ -1453,7 +1962,7 @@
       ? allMembers.filter(m=>m.active!==false&&(
           m.id===data.user.id ||
           managerLeaderIds.has(m.id) ||
-          (m.role==='SALE'&&(m.managerId===data.user.id||managerLeaderIds.has(m.leaderId)))
+          (m.role==='SALE'&&(m.managerId===data.user.id||m.leaderId===data.user.id||managerLeaderIds.has(m.leaderId)))
         ))
       : allMembers
     ).filter(m=>m.active!==false&&['MANAGER','LEADER','SALE'].includes(m.role));
@@ -1462,27 +1971,28 @@
     const sales=members.filter(m=>m.role==='SALE').sort((a,b)=>String(a.name).localeCompare(String(b.name),'vi'));
     const byManager=id=>leaders.filter(l=>l.managerId===id);
     const byLeader=id=>sales.filter(x=>x.leaderId===id);
+    const directSales=id=>sales.filter(x=>(x.managerId===id&&!leaders.some(l=>l.id===x.leaderId))||x.leaderId===id);
     const enabledLeaders=new Set(data.leaderDistribution?.enabledLeaderIds||[]);
     const initials=m=>String(m.name||'?').trim().split(/\s+/).slice(-2).map(x=>x[0]).join('').toUpperCase()||'?';
     const row=(member,kind,level)=>{
       const isManager=kind==='MANAGER',isLeader=kind==='LEADER';
       const managerLeaders=isManager?byManager(member.id):[];
-      const configLeaderId=isManager?managerLeaders[0]?.id:member.leaderId;
+      const configLeaderId=isManager?managerLeaders[0]?.id:(leaders.some(l=>l.id===member.leaderId)?member.leaderId:'manager:'+(member.managerId||member.leaderId));
       const config=isLeader||!configLeaderId?{}:(data.saleDistributionByLeader?.[configLeaderId]||{});
       const weight=isLeader?(data.leaderDistribution?.weights?.[member.id]||1):(config?.weights?.[member.id]||1);
       const enabled=isLeader?enabledLeaders.has(member.id):(config?.managerDistributionInitialized!==true&&isManager?true:(Array.isArray(config?.enabledSaleIds)?config.enabledSaleIds.includes(member.id):true));
       const load=(data.customers||[]).filter(c=>isManager?c.managerId===member.id:c[isLeader?'leaderId':'saleId']===member.id).length;
-      const canEdit=role==='ADMIN'||(role==='MANAGER'&&kind==='SALE'&&(member.managerId===data.user.id||managerLeaderIds.has(member.leaderId)));
+      const canEdit=role==='ADMIN'||(role==='MANAGER'&&kind==='SALE'&&(member.managerId===data.user.id||member.leaderId===data.user.id||managerLeaderIds.has(member.leaderId)));
       const controls=canEdit
         ? '<label>Ty trong <input type="number" min="1" max="100" value="'+weight+'" data-ref-distribution-weight="'+kind+':'+esc(member.id)+'"></label><label class="distribution-check"><input type="checkbox" '+(enabled?'checked':'')+' data-ref-distribution-member="'+kind+':'+esc(member.id)+'"><span>'+(enabled?'Dang nhan':'Tam tat')+'</span></label>'
         : '<span class="distribution-readonly">Chi xem</span>';
       return '<div class="distribution-person-row level-'+level+'"><div class="distribution-person-main"><span class="distribution-avatar">'+esc(initials(member))+'</span><span><b>'+esc(member.name||'Chua dat ten')+'</b><small>'+esc(kind)+' · '+esc(member.teamId||'Chua gan Team')+' · '+load+' khach</small></span></div><div class="distribution-person-controls">'+controls+'</div></div>';
     };
     const block=(title,sub,html)=>'<section class="distribution-tree-block"><div class="distribution-tree-head"><b>'+esc(title)+'</b><small>'+esc(sub)+'</small></div>'+html+'</section>';
-    let blocks=managers.map(manager=>block(manager.name||'Manager', 'MANAGER · '+(manager.teamId||'Quan ly tuyen'), row(manager,'MANAGER',0)+byManager(manager.id).map(leader=>row(leader,'LEADER',1)+byLeader(leader.id).map(sale=>row(sale,'SALE',2)).join('')).join(''))).join('');
+    let blocks=managers.map(manager=>block(manager.name||'Manager', 'MANAGER · '+(manager.teamId||'Quan ly tuyen'), row(manager,'MANAGER',0)+directSales(manager.id).map(sale=>row(sale,'SALE',1)).join('')+byManager(manager.id).map(leader=>row(leader,'LEADER',1)+byLeader(leader.id).map(sale=>row(sale,'SALE',2)).join('')).join(''))).join('');
     const unassignedLeaders=leaders.filter(l=>!l.managerId);
     if(unassignedLeaders.length)blocks+=block('Chua gan Manager','Leader chua duoc gan tuyen',unassignedLeaders.map(leader=>row(leader,'LEADER',1)+byLeader(leader.id).map(sale=>row(sale,'SALE',2)).join('')).join(''));
-    const unassignedSales=sales.filter(sale=>!sale.leaderId);
+    const unassignedSales=sales.filter(sale=>!leaders.some(l=>l.id===sale.leaderId)&&!managers.some(m=>directSales(m.id).some(s=>s.id===sale.id)));
     if(unassignedSales.length)blocks+=block('Chua gan Leader','Sale chua duoc gan Leader',unassignedSales.map(sale=>row(sale,'SALE',2)).join(''));
     if(!q('#referenceDistributionStyles')){const style=document.createElement('style');style.id='referenceDistributionStyles';style.textContent='.distribution-tree-list{display:grid;gap:10px}.distribution-tree-block{border:1px solid var(--border-light);border-radius:10px;overflow:hidden;background:var(--bg-surface)}.distribution-tree-head{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px 16px;background:var(--bg-subtle);border-bottom:1px solid var(--border-light)}.distribution-tree-head b{font-size:14px}.distribution-tree-head small{color:var(--text-muted);font-size:11px}.distribution-person-row{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:13px 16px;border-bottom:1px solid var(--border-light);flex-wrap:wrap}.distribution-person-row:last-child{border-bottom:0}.distribution-person-row.level-1{padding-left:30px}.distribution-person-row.level-2{padding-left:58px;background:#fcfdff}.distribution-person-main{display:flex;align-items:center;gap:10px;min-width:230px}.distribution-person-main>span:last-child{display:grid;gap:3px}.distribution-person-main small{color:var(--text-muted);font-size:10.5px}.distribution-avatar{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;background:#eff6ff;color:#2563eb;font-size:11px;font-weight:800;flex:0 0 auto}.distribution-person-controls{display:flex;align-items:center;gap:16px;flex-wrap:wrap}.distribution-person-controls label{display:flex;align-items:center;gap:7px;color:var(--text-muted);font-size:11.5px}.distribution-person-controls input[type=number]{width:64px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-subtle);font:inherit;text-align:center;color:var(--text-main)}.distribution-check{color:var(--text-main)!important;font-weight:600;cursor:pointer}.distribution-check input{accent-color:#2563eb}.distribution-readonly{font-size:11px;color:var(--text-muted);font-style:italic}@media(max-width:700px){.distribution-person-row.level-1,.distribution-person-row.level-2{padding-left:16px}.distribution-person-controls{width:100%;padding-left:44px;justify-content:flex-start}}';document.head.appendChild(style)}
     host.innerHTML='<section class="panel" style="background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;padding:22px;box-shadow:var(--shadow-sm)"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:18px;flex-wrap:wrap"><div><b style="font-size:15px;color:var(--text-main);display:block">Chinh sua ty trong</b><div style="font-size:12px;color:var(--text-muted);margin-top:3px">Cau hinh Manager, Leader va Sale trong cung mot he thong nhan data.</div></div><span class="chip">'+members.length+' nhan su</span></div><div class="distribution-tree-list">'+(blocks||'<div class="empty"><b>Chua co Manager, Leader hoac Sale</b><span>Hay phan bo nhan su tai muc Doi ngu.</span></div>')+'</div></section>';

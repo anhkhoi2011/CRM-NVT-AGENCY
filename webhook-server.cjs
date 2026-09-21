@@ -133,10 +133,11 @@ function seedDemoWorkspace() {
   addMember({ id: 'demo-leader-2', accountId: 'LEADER-DEMO-2', phone: '0900000014', email: 'leader2.demo@local.test', name: 'Leader Demo 2', role: 'LEADER', teamId: 'DEMO-2', leaderId: null, managerId: 'demo-manager', active: true }, 'LeaderDemo2026!');
   addMember({ id: 'demo-sale-2', accountId: 'SALE-DEMO-2', phone: '0900000015', email: 'sale2.demo@local.test', name: 'Sale Demo 2', role: 'SALE', teamId: 'DEMO-2', leaderId: 'demo-leader-2', active: true }, 'SaleDemo2026!');
   addMember({ id: 'demo-sale-3', accountId: 'SALE-DEMO-3', phone: '0900000016', email: 'sale3.demo@local.test', name: 'Sale Demo 3', role: 'SALE', teamId: 'DEMO', leaderId: 'demo-leader', active: true }, 'SaleDemo2026!');
+  addMember({ id: 'demo-sale-manager', accountId: 'SALE-MANAGER-DEMO', phone: '0900000017', email: 'sale.manager.demo@local.test', name: 'Sale Truc Thuoc Manager', role: 'SALE', teamId: 'MANAGER-DIRECT', leaderId: null, managerId: 'demo-manager', active: true }, 'SaleDemo2026!');
 
   const customer = (id, name, phone, owner, status, customerClass, level, createdAt) => ({
     id, name, phone, email: `${id.toLowerCase()}@local.test`, source: 'Landing Page', campaign: 'DEMO-2026', status,
-    saleId: owner?.saleId || null, leaderId: owner?.leaderId || null, teamId: owner?.teamId || null,
+    managerId: owner?.managerId || null, saleAcceptedAt: owner?.saleId ? createdAt : null, saleId: owner?.saleId || null, leaderId: owner?.leaderId || null, teamId: owner?.teamId || null,
     note: 'Du lieu mau de kiem tra quy trinh CRM', customFields: { customerClass, customerLevel: level, callStatus: status === 'CONTACTED' ? 'CONTACTED' : 'NEW' }, createdAt, updatedAt: createdAt
   });
   const owners = {
@@ -144,7 +145,8 @@ function seedDemoWorkspace() {
     leader2: { leaderId: 'demo-leader-2', teamId: 'DEMO-2' },
     sale1: { saleId: 'demo-sale', leaderId: 'demo-leader', teamId: 'DEMO' },
     sale2: { saleId: 'demo-sale-2', leaderId: 'demo-leader-2', teamId: 'DEMO-2' },
-    sale3: { saleId: 'demo-sale-3', leaderId: 'demo-leader', teamId: 'DEMO' }
+    sale3: { saleId: 'demo-sale-3', leaderId: 'demo-leader', teamId: 'DEMO' },
+    managerSale: { saleId: 'demo-sale-manager', leaderId: null, managerId: 'demo-manager', teamId: 'MANAGER-DIRECT' }
   };
   [
     customer('DEMO-CUS-3', 'Nguyen Minh Anh', '0900000021', owners.sale1, 'CONTACTED', 'Premium', 'L3', '2026-09-16 08:30'),
@@ -154,6 +156,7 @@ function seedDemoWorkspace() {
     customer('DEMO-CUS-7', 'Vo Thanh Tung', '0900000025', owners.leader2, 'NEW', 'Am', 'L1', '2026-09-17 08:10'),
     customer('DEMO-CUS-8', 'Do Ngoc Linh', '0900000026', owners.sale1, 'CONTACTED', 'Nong', 'L5', '2026-09-14 14:20'),
     customer('DEMO-CUS-9', 'Bui Quoc Viet', '0900000027', owners.sale3, 'NEW', 'Pending', 'L0', '2026-09-13 16:45'),
+    customer('DEMO-CUS-MANAGER', 'Khach cua Sale Manager', '0900000029', owners.managerSale, 'NEW', 'Am', 'L2', '2026-09-18 09:20'),
     customer('DEMO-CUS-10', 'Hoang Mai Phuong', '0900000028', owners.leader2, 'CONTACTED', 'Whale', 'L4.1', '2026-09-12 11:30')
   ].forEach(row => addOnce(demoState.customers, row));
 
@@ -185,7 +188,8 @@ function seedDemoWorkspace() {
   demoState.saleDistributionByLeader = {
     ...demoState.saleDistributionByLeader,
     'demo-leader': { leaderEnabled: true, enabledSaleIds: ['demo-leader', 'demo-sale', 'demo-sale-3'], weights: { 'demo-leader': 1, 'demo-sale': 1, 'demo-sale-3': 1 } },
-    'demo-leader-2': { leaderEnabled: true, enabledSaleIds: ['demo-leader-2', 'demo-sale-2'], weights: { 'demo-leader-2': 1, 'demo-sale-2': 1 } }
+    'demo-leader-2': { leaderEnabled: true, enabledSaleIds: ['demo-leader-2', 'demo-sale-2'], weights: { 'demo-leader-2': 1, 'demo-sale-2': 1 } },
+    'manager:demo-manager': { leaderEnabled: true, enabledSaleIds: ['demo-sale-manager'], weights: { 'demo-sale-manager': 1 }, managerDistributionInitialized: true }
   };
 }
 seedDemoWorkspace();
@@ -1022,6 +1026,12 @@ const server = http.createServer(async (request, response) => {
       if (!user || user.role !== 'ADMIN') return sendJson(response, 403, { error: 'Chỉ Admin được gửi thông báo' }, corsHeaders(request));
       const body = await readDbBody(request);
       const sent = await telegramBot.sendBroadcastAnnouncement(body);
+      if (!sent) {
+        return sendJson(response, 503, {
+          ok: false,
+          error: 'Bot chưa gửi được thông báo. Kiểm tra tài khoản đã liên kết Telegram và trạng thái Bot.'
+        }, corsHeaders(request));
+      }
       return sendJson(response, 200, { ok: true, sent }, corsHeaders(request));
     }
     if (pathname === '/api/appointments' && request.method === 'GET') {

@@ -401,6 +401,19 @@
       },'announcement');
     },
     async readNotice(id) {return persist(()=>{const item=visibleNotifications().find(n=>n.id===id);if(!item)throw Error('Không tìm thấy thông báo.');item.readBy=Array.from(new Set([...(item.readBy||[]),currentAccount.id]));return {ok:true};},'read-notice:'+id);},
+    async telegramBroadcast(input) {
+      requireRole(['ADMIN']);
+      const target=String(input.target||'ALL').toUpperCase();
+      const payload={type:String(input.type||'CUSTOM').toUpperCase(),target:['ALL','SALE','MANAGERS'].includes(target)?target:'ALL',title:String(input.title||'').trim(),content:String(input.content||'').trim(),host:String(input.host||'').trim(),meeting_time:input.meeting_time||null,meeting_link:String(input.meeting_link||'').trim()||null,remind_minutes:Number.isFinite(Number(input.remind_minutes))?Number(input.remind_minutes):15,effective_date:input.effective_date||null};
+      if(!payload.title||payload.title.length>200||!payload.content||payload.content.length>4000)throw Error('Nháº­p tiÃªu Ä‘á» vÃ  ná»™i dung há»£p lá»‡.');
+      const response=await fetch(`${webhookApiBase()}/api/broadcast`,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json',Authorization:`Bearer ${serverSyncToken}`},body:JSON.stringify(payload)});
+      let result={};try{result=await response.json();}catch{}
+      if(!response.ok||!result.ok)throw Error(result.error||`KhÃ´ng gá»­i Ä‘Æ°á»£c thÃ´ng bÃ¡o (HTTP ${response.status}).`);
+      state.notifications.unshift({id:makeRecordId('NT'),title:payload.title,text:`Telegram - ${payload.content}`,role:'ALL',at:stamp(),readBy:[]});
+      audit('TELEGRAM_BROADCAST','NOTIFICATIONS',`${payload.title} - ${result.sent||0} nguoi nhan`);saveState();
+      if(!await flushServerPersistence())throw Error('Telegram da gui nhung chua luu duoc lich su CRM.');
+      return {ok:true,sent:Number(result.sent||0)};
+    },
     newWebhookSlug(){requireRole(['ADMIN']);return generateWebhookSlug();},
     async saveWebhook(id,input) {
       requireRole(['ADMIN']);return persist(()=>{
@@ -422,14 +435,14 @@
     },
     // Luu ty trong va trang thai nhan data cua Leader/Sale vao state phan phoi.
     async distributionWeight(kind,id,value) {
-      requireRole(['ADMIN','MANAGER']);
+      if(!serverStateLoaded||!['ADMIN','MANAGER'].includes(effectivePermissionRole()))throw Error('Khong co quyen chinh ty trong.');
       const normalizedKind=String(kind||'').toUpperCase();
       const member=state.members.find(item=>item.id===id&&item.active!==false);
-      const managerRole=currentAccount.actualRole||currentAccount.role;
+      const managerRole=effectivePermissionRole();
       if(managerRole==='MANAGER'){
         if(normalizedKind!=='SALE')throw Error('Manager chi duoc chinh ty trong Sale trong tuyen cua minh.');
         const leaderIds=new Set(state.members.filter(item=>item.role==='LEADER'&&item.managerId===currentAccount.id&&item.active!==false).map(item=>item.id));
-        const allowed=member?.id===currentAccount.id&&normalizedKind==='MANAGER'||member?.role==='LEADER'&&leaderIds.has(member.id)||member?.role==='SALE'&&(member.managerId===currentAccount.id||leaderIds.has(member.leaderId));
+        const allowed=member?.id===currentAccount.id&&normalizedKind==='MANAGER'||member?.role==='LEADER'&&leaderIds.has(member.id)||member?.role==='SALE'&&(member.managerId===currentAccount.id||member.leaderId===currentAccount.id||leaderIds.has(member.leaderId));
         if(!allowed)throw Error('Manager chi duoc chinh ty trong Sale trong tuyen cua minh.');
       }
 
@@ -439,12 +452,12 @@
       else {
         const leaderIds=normalizedKind==='MANAGER'
           ? state.members.filter(item=>item.role==='LEADER'&&item.managerId===member.id&&item.active!==false).map(item=>item.id)
-          : [member.leaderId];
-        if(!leaderIds.filter(Boolean).length)throw Error('Manager chua co Leader truc thuoc de cai ty trong.');
+          : [state.members.some(m=>m.id===member.leaderId&&m.role==='LEADER')?member.leaderId:(state.members.some(m=>m.id===(member.managerId||member.leaderId)&&m.role==='MANAGER'&&m.active!==false)?`manager:${member.managerId||member.leaderId}`:null)];
+        if(!leaderIds.filter(Boolean).length)throw Error('Sale chua thuoc Leader hoac Manager hop le.');
         leaderIds.filter(Boolean).forEach(leaderId=>{
-          const config=state.saleDistributionByLeader[leaderId] ||= {leaderEnabled:true,enabledSaleIds:[],weights:{}};
+          const config=state.saleDistributionByLeader[leaderId] ||= {leaderEnabled:true,enabledSaleIds:state.members.filter(m=>m.active!==false&&m.role==='SALE'&&(leaderId.startsWith('manager:')?(m.leaderId===leaderId.slice(8)||m.managerId===leaderId.slice(8)&&!state.members.some(l=>l.id===m.leaderId&&l.role==='LEADER')):m.leaderId===leaderId)).map(m=>m.id),weights:{}};
           config.weights ||= {};config.weights[id]=weight;config.managerDistributionInitialized=true;
-          if(!config.enabledSaleIds.length)config.enabledSaleIds=state.members.filter(item=>item.active!==false&&((item.role==='SALE'&&item.leaderId===leaderId)||(item.role==='MANAGER'&&item.id===member.id))).map(item=>item.id);
+
         });
       }
       audit('UPDATE_DISTRIBUTION_WEIGHT',id,normalizedKind+' - ty trong '+weight);
@@ -459,14 +472,14 @@
       return {ok:true,count};
     },
     async distributionMember(kind,id,enabled) {
-      requireRole(['ADMIN','MANAGER']);
+      if(!serverStateLoaded||!['ADMIN','MANAGER'].includes(effectivePermissionRole()))throw Error('Khong co quyen chinh ty trong.');
       const normalizedKind=String(kind||'').toUpperCase();
       const member=state.members.find(item=>item.id===id&&item.active!==false);
-      const managerRole=currentAccount.actualRole||currentAccount.role;
+      const managerRole=effectivePermissionRole();
       if(managerRole==='MANAGER'){
         if(normalizedKind!=='SALE')throw Error('Manager chi duoc chinh ty trong Sale trong tuyen cua minh.');
         const leaderIds=new Set(state.members.filter(item=>item.role==='LEADER'&&item.managerId===currentAccount.id&&item.active!==false).map(item=>item.id));
-        const allowed=member?.id===currentAccount.id&&normalizedKind==='MANAGER'||member?.role==='LEADER'&&leaderIds.has(member.id)||member?.role==='SALE'&&(member.managerId===currentAccount.id||leaderIds.has(member.leaderId));
+        const allowed=member?.id===currentAccount.id&&normalizedKind==='MANAGER'||member?.role==='LEADER'&&leaderIds.has(member.id)||member?.role==='SALE'&&(member.managerId===currentAccount.id||member.leaderId===currentAccount.id||leaderIds.has(member.leaderId));
         if(!allowed)throw Error('Manager chi duoc chinh ty trong Sale trong tuyen cua minh.');
       }
 
@@ -476,10 +489,10 @@
       } else {
         const leaderIds=normalizedKind==='MANAGER'
           ? state.members.filter(item=>item.role==='LEADER'&&item.managerId===member.id&&item.active!==false).map(item=>item.id)
-          : [member.leaderId];
-        if(!leaderIds.filter(Boolean).length)throw Error('Manager chua co Leader truc thuoc de bat nhan data.');
+          : [state.members.some(m=>m.id===member.leaderId&&m.role==='LEADER')?member.leaderId:(state.members.some(m=>m.id===(member.managerId||member.leaderId)&&m.role==='MANAGER'&&m.active!==false)?`manager:${member.managerId||member.leaderId}`:null)];
+        if(!leaderIds.filter(Boolean).length)throw Error('Sale chua thuoc Leader hoac Manager hop le.');
         leaderIds.filter(Boolean).forEach(leaderId=>{
-          const config=state.saleDistributionByLeader[leaderId] ||= {leaderEnabled:true,enabledSaleIds:[],weights:{}};
+          const config=state.saleDistributionByLeader[leaderId] ||= {leaderEnabled:true,enabledSaleIds:state.members.filter(m=>m.active!==false&&m.role==='SALE'&&(leaderId.startsWith('manager:')?(m.leaderId===leaderId.slice(8)||m.managerId===leaderId.slice(8)&&!state.members.some(l=>l.id===m.leaderId&&l.role==='LEADER')):m.leaderId===leaderId)).map(m=>m.id),weights:{}};
           config.managerDistributionInitialized=true;
           const ids=new Set(config.enabledSaleIds||[]);enabled?ids.add(id):ids.delete(id);config.enabledSaleIds=Array.from(ids);
         });

@@ -131,19 +131,19 @@ async function allData(c){
 }
 // Phạm vi Manager lấy từ bản ghi đã lưu, tuyệt đối không lấy danh sách quyền từ request.
 function managerLeaders(user,data){return [...data.members.values()].filter(m=>m.active!==false&&m.role==='LEADER'&&m.managerId===user.id);}
-function managerSales(user,data){const leaders=managerLeaders(user,data),leaderIds=new Set(leaders.map(l=>l.id));return [...data.members.values()].filter(m=>m.active!==false&&m.role==='SALE'&&(m.managerId===user.id||leaderIds.has(m.leaderId)));}
-function managerOwns(user,row,data){if(!row)return false;const leaders=managerLeaders(user,data),sales=managerSales(user,data);return row.managerId===user.id||row.ownerId===user.id||leaders.some(l=>row.leaderId===l.id&&row.teamId===l.teamId)||sales.some(s=>row.saleId===s.id);}
+function managerSales(user,data){const leaders=managerLeaders(user,data),leaderIds=new Set(leaders.map(l=>l.id));return [...data.members.values()].filter(m=>m.active!==false&&m.role==='SALE'&&(m.managerId===user.id||m.leaderId===user.id||leaderIds.has(m.leaderId)));}
+function managerOwns(user,row,data){if(!row)return false;const leaders=managerLeaders(user,data),sales=managerSales(user,data);return row.managerId===user.id||row.ownerId===user.id||row.leaderId===user.id||leaders.some(l=>row.leaderId===l.id&&row.teamId===l.teamId)||sales.some(s=>row.saleId===s.id);}
 function managerReadable(user,key,r,data){
  const leaders=managerLeaders(user,data),ids=new Set(leaders.map(l=>l.id));
- if(key==='members')return r.id===user.id||ids.has(r.id)||(r.role==='SALE'&&((r.managerId===user.id)||ids.has(r.leaderId)&&leaders.some(l=>l.id===r.leaderId&&l.teamId===r.teamId)));
+ if(key==='members')return r.id===user.id||ids.has(r.id)||(r.role==='SALE'&&((r.managerId===user.id)||r.leaderId===user.id||ids.has(r.leaderId)&&leaders.some(l=>l.id===r.leaderId&&l.teamId===r.teamId)));
  if(['customers','orders'].includes(key))return managerOwns(user,r,data);
  if(['products','customFieldDefinitions','productCategories','websites','settings','saleDistributionByLeader','careGroups','leaderDistribution'].includes(key))return true;
  if(key==='attendance')return r.accountId===user.id||[...data.members.values()].some(m=>m.id===r.accountId&&(ids.has(m.id)||m.role==='SALE'&&ids.has(m.leaderId)));
  if(key==='products'&&Object.hasOwn(value,'vatRate')&&(!Number.isFinite(Number(value.vatRate))||Number(value.vatRate)<0||Number(value.vatRate)>1))error(400,'Thuế suất sản phẩm không hợp lệ');
  if(key==='brokerageMetrics')return ids.has(r.leaderId);
- if(key==='notifications')return r.role==='ALL'||r.saleId===user.id||ids.has(r.leaderId)||[...data.members.values()].some(m=>m.id===r.saleId&&(ids.has(m.id)||m.role==='SALE'&&ids.has(m.leaderId)));
+ if(key==='notifications')return r.role==='ALL'||r.saleId===user.id||managerSales(user,data).some(m=>m.id===r.saleId)||ids.has(r.leaderId)||[...data.members.values()].some(m=>m.id===r.saleId&&(ids.has(m.id)||m.role==='SALE'&&ids.has(m.leaderId)));
  if(key==='audit')return r.actorId===user.id;
- if(key==='dataOffers')return ids.has(r.leaderId)&&managerOwns(user,data.customers.get(r.customerId),data);
+ if(key==='dataOffers')return (ids.has(r.leaderId)||r.leaderId===user.id||managerSales(user,data).some(m=>m.id===r.saleId))&&managerOwns(user,data.customers.get(r.customerId),data);
  return !!r.customerId&&managerOwns(user,data.customers.get(r.customerId),data);
 }
 function authorizeManager(user,key,old,next,data){
@@ -151,7 +151,7 @@ function authorizeManager(user,key,old,next,data){
  const r=next||old,leaders=managerLeaders(user,data),ids=leaders.map(l=>l.id);
  if(key==='members'&&old?.id===user.id&&next&&sameExcept(old,next,['name','accountId','email','phone','initials','avatar']))return;
  if(key==='saleDistributionByLeader'){
-  if(!next||Object.keys(next).some(id=>!ids.includes(id)))error(403,'Không được cài phân phối ngoài hệ thống được giao');return;
+  if(!next||Object.keys(next).some(id=>!ids.includes(id)&&id!=='manager:'+user.id))error(403,'Không được cài phân phối ngoài hệ thống được giao');return;
  }
  if(key==='settings'){
   const visible=publicValue(user,key,old,data);
@@ -170,10 +170,13 @@ function authorizeManager(user,key,old,next,data){
  if(!managerOwns(user,customer,data))error(403,'Dữ liệu ngoài hệ thống được Admin giao');
  if(key==='customers'){
   if(!next||!managerOwns(user,next,data))error(403,'Không được chuyển khách ngoài hệ thống');
-  if(next.saleId&&!([...data.members.values()].some(m=>m.id===next.saleId&&m.active!==false&&(m.role==='SALE'&&m.leaderId===next.leaderId&&m.teamId===next.teamId||m.role==='LEADER'&&m.id===next.leaderId))))error(403,'Sale không thuộc Team');
+  if(next.saleId&&!([...data.members.values()].some(m=>m.id===next.saleId&&m.active!==false&&(m.role==='SALE'&&(m.leaderId||null)===(next.leaderId||null)&&m.teamId===next.teamId||m.role==='LEADER'&&m.id===next.leaderId))))error(403,'Sale không thuộc Team');
  }
  if(key==='orders'&&old&&!managerOwns(user,old,data))error(403,'Đơn ngoài hệ thống');
- if(key==='dataOffers'&&next&&(!ids.includes(next.leaderId)||!([...data.members.values()].some(m=>m.id===next.saleId&&m.role==='SALE'&&m.leaderId===next.leaderId&&m.teamId===customer.teamId))))error(403,'Lời mời ngoài Team');
+ if(key==='dataOffers'&&next){
+  const recipient=managerSales(user,data).find(m=>m.id===next.saleId);
+  if(!recipient||(recipient.leaderId||null)!==(next.leaderId||null)||recipient.teamId!==next.teamId||next.teamId!==customer.teamId)error(403,'Lời mời ngoài Team');
+ }
  // Đơn hàng vẫn giữ các giới hạn riêng của Leader/Sale (ví dụ không tự xác
  // nhận thanh toán). Chỉ các thao tác Data mới dùng toàn bộ tuyến Manager.
  if(key==='orders'){
@@ -209,7 +212,7 @@ function readable(user,key,r,data){
 function publicValue(user,key,r,data){
  if(user.role==='MANAGER'&&data){
   const ids=managerLeaders(user,data).map(l=>l.id);
-  if(key==='saleDistributionByLeader')return Object.fromEntries(Object.entries(r).filter(([id])=>ids.includes(id)));
+  if(key==='saleDistributionByLeader')return Object.fromEntries(Object.entries(r).filter(([id])=>ids.includes(id)||id==='manager:'+user.id));
   if(key==='leaderDistribution')return {enabled:r.enabled===true,enabledLeaderIds:(r.enabledLeaderIds||[]).filter(id=>ids.includes(id))};
   if(key==='settings')r={...r,saleAssignmentModes:Object.fromEntries(Object.entries(r.saleAssignmentModes||{}).filter(([id])=>ids.includes(id)))};
  }
@@ -399,8 +402,14 @@ async function distributeAutomatic(c, data = null) {
  const automatic = ['EQUAL','ROUND_ROBIN','BALANCED'].includes(mode);
  const members = [...data.members.values()].filter(p => p.active !== false);
  const leaders = members.filter(p => p.role === 'LEADER' && p.teamId && (config.enabledLeaderIds || []).includes(p.id)).sort((a,b)=>a.id.localeCompare(b.id));
- if (!leaders.length) return 0;
  const saleConfigs = data.saleDistributionByLeader.get('$') || {};
+ const directSales = managerId => members.filter(p=>p.role==='SALE'&&(p.leaderId===managerId||p.managerId===managerId&&!members.some(l=>l.role==='LEADER'&&l.id===p.leaderId)));
+ for(const manager of members.filter(p=>p.role==='MANAGER')){
+  const ownConfig=saleConfigs['manager:'+manager.id]||{};
+  if(directSales(manager.id).some(p=>!Array.isArray(ownConfig.enabledSaleIds)||ownConfig.enabledSaleIds.includes(p.id)))leaders.push({...manager,directManagerBranch:true});
+ }
+ leaders.sort((a,b)=>a.id.localeCompare(b.id));
+ if(!leaders.length)return 0;
  const history = [];
  const at = new Date().toLocaleString('sv-SE',{timeZone:'Asia/Ho_Chi_Minh'}).slice(0,19);
  const cursor = settings.assignmentCursor ||= {leaders:0,salesByTeam:{}};
@@ -410,7 +419,7 @@ async function distributeAutomatic(c, data = null) {
  const pick = (people, weights, key, team) => {
   if (!people.length) return null;
   if (mode === 'BALANCED') {
-   const load = person => [...data.customers.values()].filter(row => team ? (person.managerRecipient ? row.managerId === person.id : row.saleId === person.id) : row.leaderId === person.id).length + (team && !person.managerRecipient ? [...data.dataOffers.values()].filter(o=>o.saleId===person.id&&o.status==='PENDING').length : 0);
+   const load = person => [...data.customers.values()].filter(row => team ? (person.managerRecipient ? row.managerId === person.id : row.saleId === person.id) : person.directManagerBranch ? row.managerId===person.id&&!members.some(l=>l.role==='LEADER'&&l.id===row.leaderId) : row.leaderId === person.id).length + (team && !person.managerRecipient ? [...data.dataOffers.values()].filter(o=>o.saleId===person.id&&o.status==='PENDING').length : 0);
    return people.slice().sort((a,b)=>load(a)/weight(weights,a.id)-load(b)/weight(weights,b.id)||a.id.localeCompare(b.id))[0];
   }
   const weighted = mode === 'ROUND_ROBIN';
@@ -429,7 +438,7 @@ async function distributeAutomatic(c, data = null) {
   data[key].set(id,value);
  };
  // Chi chia hang cho Admin. Khach da vao Team (ke ca het han 24h) de Leader phan lai.
- const waiting = [...data.customers.values()].filter(row=>!row.saleId&&!row.leaderId&&!row.teamId&&row.status!=='ARCHIVED'&&![...data.dataOffers.values()].some(o=>o.customerId===row.id&&o.status==='PENDING'))
+ const waiting = [...data.customers.values()].filter(row=>!row.saleId&&!row.leaderId&&!row.teamId&&!row.managerId&&row.status!=='ARCHIVED'&&![...data.dataOffers.values()].some(o=>o.customerId===row.id&&o.status==='PENDING'))
   .sort((a,b)=>String(a.createdAt||'').localeCompare(String(b.createdAt||''))||a.id.localeCompare(b.id));
  let count = 0;
  for (const row of waiting) {
@@ -440,23 +449,25 @@ async function distributeAutomatic(c, data = null) {
   });
   const leader = automatic ? (sourceRule ? leaders.find(item => item.id === sourceRule.targetLeaderId) : pick(leaders,config.weights,'leaders',false)) : null;
   if (!leader) continue;
-  const saleConfig = saleConfigs[leader.id] || {};
+  const saleConfig = saleConfigs[leader.directManagerBranch?'manager:'+leader.id:leader.id] || {};
   const manager = leader.managerId ? members.find(p=>p.role==='MANAGER'&&p.id===leader.managerId) : null;
   const managerRecipient = manager ? {...manager,role:'SALE',actualRole:'MANAGER',managerRecipient:true,leaderId:leader.id,teamId:leader.teamId} : null;
   const managerEnabled = managerRecipient && (saleConfig.managerDistributionInitialized !== true || !Array.isArray(saleConfig.enabledSaleIds) || saleConfig.enabledSaleIds.includes(managerRecipient.id));
-  const recipients = [
+  const recipients = leader.directManagerBranch ? directSales(leader.id).filter(p=>!Array.isArray(saleConfig.enabledSaleIds)||saleConfig.enabledSaleIds.includes(p.id)) : [
    ...members.filter(p=>p.id===leader.id && saleConfig.leaderEnabled!==false),
    ...members.filter(p=>p.teamId===leader.teamId && p.role==='SALE'&&p.leaderId===leader.id&&(!Array.isArray(saleConfig.enabledSaleIds)||saleConfig.enabledSaleIds.includes(p.id))),
    ...(managerEnabled ? [managerRecipient] : [])
   ].sort((a,b)=>a.id.localeCompare(b.id));
   const recipient = automatic ? pick(recipients,saleConfig.weights,leader.id,true) : null;
+  const assignedLeaderId=leader.directManagerBranch?(recipient?.leaderId||null):leader.id;
+  const assignedTeamId=leader.directManagerBranch?recipient?.teamId:leader.teamId;
   const direct = recipient?.id===leader.id;
   const managerDirect = recipient?.managerRecipient === true;
-  const next = {...row,leaderId:leader.id,teamId:leader.teamId,managerId:managerDirect?recipient.id:(row.managerId||null),saleId:direct?leader.id:null,saleAcceptedAt:(direct||managerDirect)?at:null,updatedAt:at,note:'Ph\u00e2n t\u1ef1 \u0111\u1ed9ng theo t\u1ef7 tr\u1ecdng'};
+  const next = {...row,leaderId:assignedLeaderId,teamId:assignedTeamId,managerId:leader.directManagerBranch?leader.id:managerDirect?recipient.id:(row.managerId||null),saleId:direct?leader.id:null,saleAcceptedAt:(direct||managerDirect)?at:null,updatedAt:at,note:'Ph\u00e2n t\u1ef1 \u0111\u1ed9ng theo t\u1ef7 tr\u1ecdng'};
   await put('customers',row.id,next);
   if (recipient && !direct && !managerDirect) {
    const id='OFR-'+crypto.randomUUID();
-   await put('dataOffers',id,{id,customerId:row.id,saleId:recipient.id,leaderId:leader.id,teamId:leader.teamId,offeredAt:at,status:'PENDING',resolvedAt:'',source:'AUTO'});
+   await put('dataOffers',id,{id,customerId:row.id,saleId:recipient.id,leaderId:assignedLeaderId,teamId:assignedTeamId,offeredAt:at,status:'PENDING',resolvedAt:'',source:'AUTO'});
   }
   if (direct) {
    const id='TSK-'+crypto.randomUUID();
@@ -464,9 +475,9 @@ async function distributeAutomatic(c, data = null) {
    await put('tasks',id,{id,customerId:row.id,customerName:row.name,ownerId:leader.id,leaderId:leader.id,teamId:leader.teamId,type:'Li\u00ean h\u1ec7 data m\u1edbi',createdAt:at,dueAt,slaBased:true,status:'OPEN',priority:'HIGH'});
   }
   const id='ASN-'+crypto.randomUUID();
-  await put('assignmentHistory',id,{id,customerId:row.id,fromSaleId:null,fromLeaderId:null,toSaleId:next.saleId,toLeaderId:leader.id,toLeaderName:leader.name,toSaleName:direct?leader.name:managerDirect?recipient.name:'',offeredSaleId:direct||managerDirect?null:recipient?.id||null,managerId:managerDirect?recipient.id:null,teamId:leader.teamId,actorId:'SYSTEM',actor:'H\u1ec7 th\u1ed1ng',source:'AUTO',reason:next.note,at});
+  await put('assignmentHistory',id,{id,customerId:row.id,fromSaleId:null,fromLeaderId:null,toSaleId:next.saleId,toLeaderId:assignedLeaderId,toLeaderName:leader.name,toSaleName:direct?leader.name:managerDirect?recipient.name:'',offeredSaleId:direct||managerDirect?null:recipient?.id||null,managerId:leader.directManagerBranch?leader.id:managerDirect?recipient.id:null,teamId:assignedTeamId,actorId:'SYSTEM',actor:'H\u1ec7 th\u1ed1ng',source:'AUTO',reason:next.note,at});
   const notificationId='NT-'+crypto.randomUUID();
-  await put('notifications',notificationId,{id:notificationId,role:managerDirect?'MANAGER':recipient?'OWN':'LEADER',saleId:managerDirect?null:recipient?.id||null,managerId:managerDirect?recipient.id:null,leaderId:leader.id,teamId:leader.teamId,title:recipient?'Data m\u1edbi \u0111\u01b0\u1ee3c ph\u00e2n':'Kh\u00e1ch m\u1edbi trong Team',text:row.name,at,readBy:[]});
+  await put('notifications',notificationId,{id:notificationId,role:managerDirect?'MANAGER':recipient?'OWN':'LEADER',saleId:managerDirect?null:recipient?.id||null,managerId:leader.directManagerBranch?leader.id:managerDirect?recipient.id:null,leaderId:assignedLeaderId,teamId:assignedTeamId,title:recipient?'Data m\u1edbi \u0111\u01b0\u1ee3c ph\u00e2n':'Kh\u00e1ch m\u1edbi trong Team',text:row.name,at,readBy:[]});
   count++;
  }
  if (count) {

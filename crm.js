@@ -1567,7 +1567,7 @@ function managerScope() {
   const leaders = activeStaff().filter(person => person.role === 'LEADER' && person.managerId === managerId);
   const leaderIds = new Set(leaders.map(person => person.id));
   const sales = activeStaff().filter(person => person.role === 'SALE' && (
-    person.managerId === managerId || leaderIds.has(person.leaderId)
+    person.managerId === managerId || person.leaderId === managerId || leaderIds.has(person.leaderId)
   ));
   return { manager, leaders, sales, leaderIds, saleIds: new Set(sales.map(person => person.id)) };
 }

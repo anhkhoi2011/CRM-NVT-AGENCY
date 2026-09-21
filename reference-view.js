@@ -1,5 +1,21 @@
 // Các hàm trình bày lấy nguyên từ giao diện tham chiếu. Adapter thay thao tác mô phỏng bằng CRM.
 let appState = { customers: [], orders: [], careGroups: [] };
+  function matchesPersonnelCustomer(customer, ownerId, members) {
+    if (!ownerId || ownerId === 'ALL') return true;
+    const member = members.find(m => m.id === ownerId);
+    if (!member) return false;
+    const ids = new Set([ownerId]);
+    if (member.role === 'MANAGER') {
+      members.filter(m => m.role === 'LEADER' && m.managerId === ownerId).forEach(m => ids.add(m.id));
+      members.filter(m => m.role === 'SALE' && (m.managerId === ownerId || ids.has(m.leaderId))).forEach(m => ids.add(m.id));
+      return customer.managerId === ownerId || ids.has(customer.ownerId) || ids.has(customer.leaderId) || ids.has(customer.saleId);
+    }
+    if (member.role === 'LEADER') {
+      members.filter(m => m.role === 'SALE' && m.leaderId === ownerId).forEach(m => ids.add(m.id));
+      return customer.leaderId === ownerId || ids.has(customer.saleId) || ids.has(customer.ownerId);
+    }
+    return customer.saleId === ownerId || customer.ownerId === ownerId;
+  }
   // Đồng hồ chạy thời gian thực
   function updateLiveClock() {
     const now = new Date();
@@ -23,7 +39,7 @@ let appState = { customers: [], orders: [], careGroups: [] };
       const matchText = (c.name + ' ' + c.phone + ' ' + c.level + ' ' + c.note).toLowerCase().includes(searchVal);
       const matchStatus = statusVal === 'ALL' || c.status === statusVal;
       const matchAssign = assignVal === 'ALL' || (assignVal === 'UNASSIGNED' ? !c.saleId : Boolean(c.saleId));
-      const matchOwner = ownerVal === 'ALL' || c.saleId === ownerVal || c.leaderId === ownerVal || c.managerId === ownerVal;
+      const matchOwner = matchesPersonnelCustomer(c, ownerVal, appState.members || []);
       return matchText && matchStatus && matchAssign && matchOwner;
     });
 

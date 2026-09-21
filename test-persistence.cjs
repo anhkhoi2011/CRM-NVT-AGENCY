@@ -814,3 +814,46 @@ test('Sale queue excludes expired, missing and foreign offers; keeps yesterday w
  vm.runInContext("state.dataOffers[1].status='EXPIRED';",c);
  assert.deepEqual(stats(),{today:2,threeDays:3,sevenDays:4});
  });
+
+test('Manager direct sales weights persist, disabled sales stay disabled, and other managers are denied',async()=>{
+ const f=await managerFixture(),m={id:'mgr',role:'MANAGER'};
+ await f.api.write(admin,'direct-sale-seed',[change('members',{id:'direct',name:'Direct',role:'SALE',managerId:'mgr',leaderId:'mgr',teamId:'D',active:true})]);
+ const c=referenceBridge(),r=await f.api.read(m);
+ vm.runInContext(`applyServerSnapshot(${JSON.stringify(r)});currentAccount=hydrateSessionAccount({id:'mgr',name:'Manager',role:'MANAGER'});`,c);
+ c.fetch=async(url,options)=>{try{return {ok:true,json:async()=>await f.api.write(m,JSON.parse(options.body).requestId,JSON.parse(options.body).changes)}}catch(e){return {ok:false,status:e.status,json:async()=>({error:e.message})}}};
+ // Use the real persistence function, not the bridge stub.
+ const source=fs.readFileSync('crm.js','utf8');vm.runInContext(source.slice(source.indexOf('async function flushServerPersistence()'),source.indexOf('function startServerSyncPolling()')),c);
+ vm.runInContext("serverSyncToken='test-token'",c);
+ await c.window.crmApi.distributionWeight('SALE','direct',3);
+ await c.window.crmApi.distributionMember('SALE','direct',false);
+ await c.window.crmApi.distributionWeight('SALE','direct',4);
+ let saved=await f.api.read(m);assert.equal(saved.state.saleDistributionByLeader['manager:mgr'].weights.direct,4);assert.deepEqual(Array.from(saved.state.saleDistributionByLeader['manager:mgr'].enabledSaleIds),[]);
+ await c.window.crmApi.distributionMember('SALE','direct',true);
+ saved=await f.api.read(m);assert.ok(saved.state.saleDistributionByLeader['manager:mgr'].enabledSaleIds.includes('direct'));
+ await assert.rejects(c.window.crmApi.distributionWeight('SALE','s-out',9));
+ await assert.rejects(f.api.write(m,'foreign-manager-config',[{key:'saleDistributionByLeader',id:'$',base:saved.versions['saleDistributionByLeader/$'],value:{...saved.state.saleDistributionByLeader,'manager:mgr2':{weights:{other:10}}}}]),e=>e.status===403);
+});
+for(const mode of ['BALANCED','ROUND_ROBIN'])test('Direct manager sales receive weighted pending offers without a Leader: '+mode,async()=>{
+ const f=fixture();
+ await f.api.write(admin,'direct-auto-seed',[
+ ...[{id:'m',name:'Manager',role:'MANAGER',active:true},{id:'a',name:'A',role:'SALE',managerId:'m',leaderId:'m',teamId:'D',active:true},{id:'b',name:'B',role:'SALE',managerId:'m',leaderId:null,teamId:'D',active:true},{id:'off',name:'Off',role:'SALE',managerId:'m',leaderId:'m',teamId:'D',active:true}].map(m=>change('members',m)),
+ {key:'settings',id:'$',base:null,value:{assignmentMode:mode}},
+ {key:'leaderDistribution',id:'$',base:null,value:{enabled:true,enabledLeaderIds:[],weights:{}}},
+ {key:'saleDistributionByLeader',id:'$',base:null,value:{'manager:m':{enabledSaleIds:['a','b'],weights:{a:2,b:1}}}},
+ ...Array.from({length:12},(_,i)=>change('customers',{...customer,id:'direct-'+i,saleId:null,leaderId:null,teamId:null}))]);
+ const r=await f.api.read(admin);assert.equal(r.state.dataOffers.filter(o=>o.saleId==='a').length,8);assert.equal(r.state.dataOffers.filter(o=>o.saleId==='b').length,4);assert.equal(r.state.dataOffers.filter(o=>o.saleId==='off').length,0);
+ const manager=await f.api.read({id:'m',role:'MANAGER'});assert.equal(manager.state.customers.length,12);assert.equal(manager.state.dataOffers.length,12);
+ const saleSnapshot=await f.api.read({id:'b',role:'SALE',teamId:'D',leaderId:null});assert.equal(saleSnapshot.state.customers.length,4);
+ const offer=saleSnapshot.state.dataOffers[0],row=saleSnapshot.state.customers.find(c=>c.id===offer.customerId),at=new Date().toLocaleString('sv-SE',{timeZone:'Asia/Ho_Chi_Minh'}).slice(0,19);
+ await f.api.write({id:'b',role:'SALE',teamId:'D',leaderId:null},'accept-direct',[
+ change('customers',{...row,saleId:'b',saleAcceptedAt:at},saleSnapshot.versions['customers/'+row.id]),
+ change('dataOffers',{...offer,status:'ACCEPTED',resolvedAt:at},saleSnapshot.versions['dataOffers/'+offer.id])]);
+ assert.equal((await f.api.read({id:'b',role:'SALE',teamId:'D',leaderId:null})).state.customers.find(c=>c.id===row.id).saleId,'b');
+});
+test('Personnel customer filter includes each hierarchy and excludes sibling branches',()=>{
+ const source=fs.readFileSync('reference-view.js','utf8'),a=source.indexOf('  function matchesPersonnelCustomer('),b=source.indexOf('\n  //',a),c=vm.createContext({});vm.runInContext(source.slice(a,b),c);
+ const members=[{id:'m',role:'MANAGER'},{id:'l',role:'LEADER',managerId:'m'},{id:'s',role:'SALE',leaderId:'l'},{id:'d',role:'SALE',leaderId:'m',managerId:'m'},{id:'out',role:'SALE',leaderId:'other'}];
+ const rows=[{id:'own',managerId:'m'},{id:'leader',leaderId:'l'},{id:'sale',saleId:'s'},{id:'direct',saleId:'d'},{id:'outside',saleId:'out'}];
+ const filter=id=>rows.filter(row=>c.matchesPersonnelCustomer(row,id,members)).map(row=>row.id);
+ assert.deepEqual(filter('m'),['own','leader','sale','direct']);assert.deepEqual(filter('l'),['leader','sale']);assert.deepEqual(filter('s'),['sale']);assert.deepEqual(filter('d'),['direct']);assert.deepEqual(filter('ALL'),rows.map(r=>r.id));
+});
