@@ -2,6 +2,7 @@
 // Giữ HTML/CSS tham chiếu. Chỉ thay nguồn dữ liệu và handler của các ô có sẵn.
 (() => {
   const q=s=>document.querySelector(s), qa=s=>Array.from(document.querySelectorAll(s));
+  const ACTIVE_TAB_KEY='nvt-crm-active-tab-v1';
   const frame=q('#crmRuntimeFrame');
   const bootScreen=q('#crmBootScreen');
   let api=null, data=null, signature='', working=false, refreshTimer=null, bootFallbackTimer=null, selectedCustomer='', careKey='', dataQueuePage=1, dataQueuePageSize=20, dataQueueDateFrom='', dataQueueDateTo='';
@@ -1820,6 +1821,20 @@
   }
   function dateDefaults(){['order','rev','team'].forEach(p=>{const start=q('#'+p+'StartDate'),end=q('#'+p+'EndDate');if(start)start.value=fromDay(30);if(end)end.value=data.today;});}
   let toolsRole='',renderedTabs=new Map();
+  const rememberActiveTab=id=>{
+    if(!id)return;
+    try{sessionStorage.setItem(ACTIVE_TAB_KEY,id);}catch{}
+  };
+  const savedActiveTab=()=>{
+    try{return sessionStorage.getItem(ACTIVE_TAB_KEY)||'';}catch{return '';}
+  };
+  const tabAllowedForSnapshot=id=>{
+    if(!data||!id||!q('#'+id))return false;
+    const view=id.replace(/^tab-/,'');
+    const role=data.user.actualRole||data.user.role;
+    const alias={data:role==='LEADER'?'pool':role==='SALE'?'accept':'distribution'};
+    return data.navigation.includes(alias[view]||view);
+  };
   function paintTab(id,force=false){
     if(!data)return;
     const jobs={
@@ -1863,8 +1878,13 @@
     installCustomerJourney();
     // Chỉ dựng tab đang xem; số thông báo vẫn cập nhật độc lập.
     if(first)renderedTabs.clear();
+    const storedTab=savedActiveTab();
+    const initialTab=tabAllowedForSnapshot(storedTab)?storedTab:'tab-dashboard';
     paintTab('tab-notifications');
-    paintTab(q('section.active[id^="tab-"]')?.id||'tab-dashboard');wireParity();
+    paintTab(initialTab);wireParity();
+    // Restore the outer tab after the runtime snapshot is ready. The static HTML
+    // starts on Dashboard, so rendering alone would otherwise overwrite Data.
+    if(first||q('section.active[id^="tab-"]')?.id!==initialTab)switchTab(initialTab);
     applySaleDataLayout();
     // Khi F5 đang mở trực tiếp tab Data, tab tĩnh có thể được dựng trước khi
     // renderer tham chiếu khởi tạo. Vẽ lại ngay để Admin luôn thấy cùng một
@@ -1934,7 +1954,8 @@
   // Khi bat tu dong, mac dinh dung che do ty trong cho data moi.
   toggleAutoDist=enabled=>run(()=>api.distribution(enabled,enabled?'BALANCED':data.settings.assignmentMode));
   updateAssignmentMode=mode=>run(()=>api.distribution(data.leaderDistribution.enabled,mode));
-  switchTab=function(id){if(data){const view=id.replace('tab-',''),alias={data:data.user.role==='LEADER'?'pool':data.user.role==='SALE'?'accept':'distribution'};if(!data.navigation.includes(alias[view]||view))return;}renders.switchTab(id);if(data){if(id==='tab-customers')clearAutofilledCustomerSearch();if(id==='tab-data'&&(data.user.actualRole||data.user.role)==='SALE'){const search=q('#dataQueueSearch');if(search)search.value='';}paintTab(id,id==='tab-data');wireParity();}};
+  switchTab=function(id){if(data){const view=id.replace('tab-',''),alias={data:data.user.role==='LEADER'?'pool':data.user.role==='SALE'?'accept':'distribution'};if(!data.navigation.includes(alias[view]||view))return;}rememberActiveTab(id);renders.switchTab(id);if(data){if(id==='tab-customers')clearAutofilledCustomerSearch();if(id==='tab-data'&&(data.user.actualRole||data.user.role)==='SALE'){const search=q('#dataQueueSearch');if(search)search.value='';}paintTab(id,id==='tab-data');wireParity();}};
+  qa('.nav-link[data-tab]').forEach(button=>button.addEventListener('click',()=>rememberActiveTab(button.dataset.tab),true));
   filterTeamPeriod=(period,button)=>{q('#teamStartDate').value=fromDay(parseInt(period)||30);q('#teamEndDate').value=data.today;if(button){qa('.team-period-btn').forEach(b=>b.className='btn-secondary team-period-btn');button.className='btn-primary team-period-btn';}updateTeamDateLabel();};
   updateTeamDateLabel=()=>text('teamDateRangeLabel',fmtDate(q('#teamStartDate').value)+' - '+fmtDate(q('#teamEndDate').value));
   let revenuePeriod=30;
