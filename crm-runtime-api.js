@@ -450,7 +450,7 @@
       const member=state.members.find(item=>item.id===id&&item.active!==false);
       const managerRole=effectivePermissionRole();
       if(managerRole==='MANAGER'){
-        if(normalizedKind!=='SALE')throw Error('Manager chi duoc chinh ty trong Sale trong tuyen cua minh.');
+        if(!['SALE','MANAGER'].includes(normalizedKind))throw Error('Manager chi duoc chinh ty trong Sale trong tuyen cua minh.');
         const leaderIds=new Set(state.members.filter(item=>item.role==='LEADER'&&item.managerId===currentAccount.id&&item.active!==false).map(item=>item.id));
         const allowed=member?.id===currentAccount.id&&normalizedKind==='MANAGER'||member?.role==='LEADER'&&leaderIds.has(member.id)||member?.role==='SALE'&&(member.managerId===currentAccount.id||member.leaderId===currentAccount.id||leaderIds.has(member.leaderId));
         if(!allowed)throw Error('Manager chi duoc chinh ty trong Sale trong tuyen cua minh.');
@@ -465,7 +465,7 @@
           : [state.members.some(m=>m.id===member.leaderId&&m.role==='LEADER')?member.leaderId:(state.members.some(m=>m.id===(member.managerId||member.leaderId)&&m.role==='MANAGER'&&m.active!==false)?`manager:${member.managerId||member.leaderId}`:null)];
         if(!leaderIds.filter(Boolean).length)throw Error('Sale chua thuoc Leader hoac Manager hop le.');
         leaderIds.filter(Boolean).forEach(leaderId=>{
-          const config=state.saleDistributionByLeader[leaderId] ||= {leaderEnabled:true,enabledSaleIds:state.members.filter(m=>m.active!==false&&m.role==='SALE'&&(leaderId.startsWith('manager:')?(m.leaderId===leaderId.slice(8)||m.managerId===leaderId.slice(8)&&!state.members.some(l=>l.id===m.leaderId&&l.role==='LEADER')):m.leaderId===leaderId)).map(m=>m.id),weights:{}};
+          const config=state.saleDistributionByLeader[leaderId] ||= {leaderEnabled:true,enabledSaleIds:state.members.filter(m=>m.active!==false&&(m.role==='SALE'&&(leaderId.startsWith('manager:')?(m.leaderId===leaderId.slice(8)||m.managerId===leaderId.slice(8)&&!state.members.some(l=>l.id===m.leaderId&&l.role==='LEADER')):m.leaderId===leaderId)||m.role==='MANAGER'&&!leaderId.startsWith('manager:')&&state.members.some(l=>l.id===leaderId&&l.managerId===m.id))).map(m=>m.id),weights:{}};
           config.weights ||= {};config.weights[id]=weight;config.managerDistributionInitialized=true;
 
         });
@@ -487,7 +487,7 @@
       const member=state.members.find(item=>item.id===id&&item.active!==false);
       const managerRole=effectivePermissionRole();
       if(managerRole==='MANAGER'){
-        if(normalizedKind!=='SALE')throw Error('Manager chi duoc chinh ty trong Sale trong tuyen cua minh.');
+        if(!['SALE','MANAGER'].includes(normalizedKind))throw Error('Manager chi duoc chinh ty trong Sale trong tuyen cua minh.');
         const leaderIds=new Set(state.members.filter(item=>item.role==='LEADER'&&item.managerId===currentAccount.id&&item.active!==false).map(item=>item.id));
         const allowed=member?.id===currentAccount.id&&normalizedKind==='MANAGER'||member?.role==='LEADER'&&leaderIds.has(member.id)||member?.role==='SALE'&&(member.managerId===currentAccount.id||member.leaderId===currentAccount.id||leaderIds.has(member.leaderId));
         if(!allowed)throw Error('Manager chi duoc chinh ty trong Sale trong tuyen cua minh.');
@@ -502,7 +502,7 @@
           : [state.members.some(m=>m.id===member.leaderId&&m.role==='LEADER')?member.leaderId:(state.members.some(m=>m.id===(member.managerId||member.leaderId)&&m.role==='MANAGER'&&m.active!==false)?`manager:${member.managerId||member.leaderId}`:null)];
         if(!leaderIds.filter(Boolean).length)throw Error('Sale chua thuoc Leader hoac Manager hop le.');
         leaderIds.filter(Boolean).forEach(leaderId=>{
-          const config=state.saleDistributionByLeader[leaderId] ||= {leaderEnabled:true,enabledSaleIds:state.members.filter(m=>m.active!==false&&m.role==='SALE'&&(leaderId.startsWith('manager:')?(m.leaderId===leaderId.slice(8)||m.managerId===leaderId.slice(8)&&!state.members.some(l=>l.id===m.leaderId&&l.role==='LEADER')):m.leaderId===leaderId)).map(m=>m.id),weights:{}};
+          const config=state.saleDistributionByLeader[leaderId] ||= {leaderEnabled:true,enabledSaleIds:state.members.filter(m=>m.active!==false&&(m.role==='SALE'&&(leaderId.startsWith('manager:')?(m.leaderId===leaderId.slice(8)||m.managerId===leaderId.slice(8)&&!state.members.some(l=>l.id===m.leaderId&&l.role==='LEADER')):m.leaderId===leaderId)||m.role==='MANAGER'&&!leaderId.startsWith('manager:')&&state.members.some(l=>l.id===leaderId&&l.managerId===m.id))).map(m=>m.id),weights:{}};
           config.managerDistributionInitialized=true;
           const ids=new Set(config.enabledSaleIds||[]);enabled?ids.add(id):ids.delete(id);config.enabledSaleIds=Array.from(ids);
         });

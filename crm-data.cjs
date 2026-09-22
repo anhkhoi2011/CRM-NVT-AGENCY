@@ -406,7 +406,8 @@ async function distributeAutomatic(c, data = null) {
  const directSales = managerId => members.filter(p=>p.role==='SALE'&&(p.leaderId===managerId||p.managerId===managerId&&!members.some(l=>l.role==='LEADER'&&l.id===p.leaderId)));
  for(const manager of members.filter(p=>p.role==='MANAGER')){
   const ownConfig=saleConfigs['manager:'+manager.id]||{};
-  if(directSales(manager.id).some(p=>!Array.isArray(ownConfig.enabledSaleIds)||ownConfig.enabledSaleIds.includes(p.id)))leaders.push({...manager,directManagerBranch:true});
+  const ownConfigured=Array.isArray(ownConfig.enabledSaleIds)&&ownConfig.enabledSaleIds.length>0;
+  if(directSales(manager.id).some(p=>!ownConfigured||ownConfig.enabledSaleIds.includes(p.id)))leaders.push({...manager,directManagerBranch:true});
  }
  leaders.sort((a,b)=>a.id.localeCompare(b.id));
  if(!leaders.length)return 0;
@@ -425,10 +426,14 @@ async function distributeAutomatic(c, data = null) {
   const weighted = mode === 'ROUND_ROBIN';
   const candidates = weighted ? people.flatMap(person => Array.from({length: weight(weights, person.id)}, () => person)) : people;
   const raw = team ? cursor.salesByTeam[key] : cursor.leaders;
-  const index = Number.isSafeInteger(raw) && raw >= 0 ? raw : 0;
-  const person = candidates[index % candidates.length];
-  if (team) cursor.salesByTeam[key] = (index+1)%candidates.length;
-  else cursor.leaders = (index+1)%candidates.length;
+  let stateCursor = typeof raw === 'object' && raw ? {index:Number.isInteger(raw.index)?raw.index:0,ids:Array.isArray(raw.ids)?raw.ids.map(String):[]} : {index:Number.isInteger(raw)?raw:0,ids:[]};
+  const candidateIds = candidates.map(person=>person.id);
+  let roundIds = stateCursor.ids.filter(id=>candidateIds.includes(id));
+  if (!roundIds.length || stateCursor.index >= roundIds.length) { roundIds=candidateIds; stateCursor.index=0; }
+  const targetId=roundIds[stateCursor.index];
+  const person=candidates.find(candidate=>candidate.id===targetId)||null;
+  stateCursor.index += 1; stateCursor.ids=roundIds;
+  if (team) cursor.salesByTeam[key]=stateCursor; else cursor.leaders=stateCursor;
   return person;
  };
  const put = async (key,id,value) => {
@@ -449,13 +454,19 @@ async function distributeAutomatic(c, data = null) {
   });
   const leader = automatic ? (sourceRule ? leaders.find(item => item.id === sourceRule.targetLeaderId) : pick(leaders,config.weights,'leaders',false)) : null;
   if (!leader) continue;
-  const saleConfig = saleConfigs[leader.directManagerBranch?'manager:'+leader.id:leader.id] || {};
+  const saleConfigKey=leader.directManagerBranch?'manager:'+leader.id:leader.id;
+  let saleConfig = saleConfigs[saleConfigKey] || {};
   const manager = leader.managerId ? members.find(p=>p.role==='MANAGER'&&p.id===leader.managerId) : null;
   const managerRecipient = manager ? {...manager,role:'SALE',actualRole:'MANAGER',managerRecipient:true,leaderId:leader.id,teamId:leader.teamId} : null;
-  const managerEnabled = managerRecipient && (saleConfig.managerDistributionInitialized !== true || !Array.isArray(saleConfig.enabledSaleIds) || saleConfig.enabledSaleIds.includes(managerRecipient.id));
-  const recipients = leader.directManagerBranch ? directSales(leader.id).filter(p=>!Array.isArray(saleConfig.enabledSaleIds)||saleConfig.enabledSaleIds.includes(p.id)) : [
+  const configuredRecipients=Array.isArray(saleConfig.enabledSaleIds)&&saleConfig.enabledSaleIds.length>0;
+  if(managerRecipient && saleConfig.managerDistributionInitialized !== true && Array.isArray(saleConfig.enabledSaleIds) && !saleConfig.enabledSaleIds.includes(managerRecipient.id)){
+   saleConfig={...saleConfig,enabledSaleIds:[...saleConfig.enabledSaleIds,managerRecipient.id],managerDistributionInitialized:true};
+   saleConfigs.set(saleConfigKey,saleConfig);distributionConfigMigrated=true;
+  }
+  const managerEnabled = managerRecipient && (!configuredRecipients || saleConfig.enabledSaleIds.includes(managerRecipient.id));
+  const recipients = leader.directManagerBranch ? directSales(leader.id).filter(p=>!configuredRecipients||saleConfig.enabledSaleIds.includes(p.id)) : [
    ...members.filter(p=>p.id===leader.id && saleConfig.leaderEnabled!==false),
-   ...members.filter(p=>p.teamId===leader.teamId && p.role==='SALE'&&p.leaderId===leader.id&&(!Array.isArray(saleConfig.enabledSaleIds)||saleConfig.enabledSaleIds.includes(p.id))),
+   ...members.filter(p=>p.teamId===leader.teamId && p.role==='SALE'&&p.leaderId===leader.id&&(!configuredRecipients||saleConfig.enabledSaleIds.includes(p.id))),
    ...(managerEnabled ? [managerRecipient] : [])
   ].sort((a,b)=>a.id.localeCompare(b.id));
   const recipient = automatic ? pick(recipients,saleConfig.weights,leader.id,true) : null;

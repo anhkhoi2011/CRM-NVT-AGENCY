@@ -375,8 +375,8 @@ function sanitizeSaleDistribution(input, members, defaults) {
     const recipients = managerRecipient ? [...sales, managerRecipient] : sales;
     const saleIds = new Set(recipients.map(sale => sale.id));
     const source = value[leader.id] && typeof value[leader.id] === 'object' ? value[leader.id] : defaults[leader.id] || {};
-    const configuredIds = Array.isArray(source.enabledSaleIds) ? source.enabledSaleIds : recipients.map(sale => sale.id);
-    const migratedIds = managerRecipient && source.managerDistributionInitialized !== true && !configuredIds.includes(managerRecipient.id)
+    const configuredIds = source.managerDistributionInitialized === true && Array.isArray(source.enabledSaleIds) && source.enabledSaleIds.length > 0 ? source.enabledSaleIds : recipients.map(sale => sale.id);
+    const migratedIds = managerRecipient && !configuredIds.includes(managerRecipient.id)
       ? [...configuredIds, managerRecipient.id]
       : configuredIds;
     output[leader.id] = {
@@ -396,7 +396,7 @@ function sanitizeSettings(settings, defaults) {
     : input.autoAssign === true ? 'BALANCED' : defaults.assignmentMode;
   const rawCursor = input.assignmentCursor && typeof input.assignmentCursor === 'object' && !Array.isArray(input.assignmentCursor) ? input.assignmentCursor : {};
   const salesByTeam = rawCursor.salesByTeam && typeof rawCursor.salesByTeam === 'object' && !Array.isArray(rawCursor.salesByTeam)
-    ? Object.fromEntries(Object.entries(rawCursor.salesByTeam).filter(([teamId, cursor]) => cleanId(teamId) && Number.isInteger(cursor) && cursor >= 0).map(([teamId, cursor]) => [teamId, cursor]))
+    ? Object.fromEntries(Object.entries(rawCursor.salesByTeam).filter(([teamId, cursor]) => cleanId(teamId) && (Number.isInteger(cursor) && cursor >= 0 || cursor && typeof cursor === 'object' && Number.isInteger(cursor.index) && cursor.index >= 0 && Array.isArray(cursor.ids))).map(([teamId, cursor]) => [teamId, Number.isInteger(cursor) ? cursor : { index: cursor.index, ids: cursor.ids.map(String).slice(0, 10000) }]))
     : {};
   const saleAssignmentModes = input.saleAssignmentModes && typeof input.saleAssignmentModes === 'object' && !Array.isArray(input.saleAssignmentModes)
     ? Object.fromEntries(Object.entries(input.saleAssignmentModes).filter(([leaderId, mode]) => cleanId(leaderId) && ['MANUAL', 'EQUAL', 'ROUND_ROBIN', 'BALANCED'].includes(mode)))
@@ -2507,7 +2507,7 @@ function distributionView() {
     body = `<div class="grid grid-2"><section class="panel"><div class="panel-head"><div><div class="panel-title">Cơ chế chia data mới</div></div><button class="toggle ${state.leaderDistribution.enabled ? 'on' : ''}" id="toggleLeaderDistribution" aria-pressed="${state.leaderDistribution.enabled}" aria-label="Bật tắt chia Leader"></button></div><div class="panel-body"><label class="form-field">Chế độ mặc định<select id="assignmentModeSelect"><option value="MANUAL" ${state.settings.assignmentMode === 'MANUAL' ? 'selected' : ''}>Thủ công</option><option value="EQUAL" ${state.settings.assignmentMode === 'EQUAL' || state.settings.assignmentMode === 'ROUND_ROBIN' ? 'selected' : ''}>Chia đều</option><option value="BALANCED" ${state.settings.assignmentMode === 'BALANCED' ? 'selected' : ''}>Chia theo tỷ trọng</option></select></label></div></section><section class="panel"><div class="panel-head"><div><div class="panel-title">Tình trạng phân phối</div></div></div><div class="panel-body"><div class="stat-row"><div><small>Leader hoạt động</small><b>${enabledLeaders.size}/${leaders.length}</b></div><div><small>Chế độ hiện tại</small><b>${state.settings.assignmentMode === 'MANUAL' ? 'Thủ công' : state.settings.assignmentMode === 'BALANCED' ? 'Theo tỷ trọng' : 'Chia đều'}</b></div><div><small>Khách đang chờ</small><b>${state.customers.filter(customer => !customer.leaderId && !customer.saleId).length}</b></div></div></div></section></div>`;  } else if (distributionTab === 'LEADERS') {
     body = `<section class="panel"><div class="panel-head"><div><div class="panel-title">Leader nhận data</div><div class="panel-sub">Bật/tắt và đặt tỷ trọng riêng cho từng Leader</div></div></div><div class="field-manager">${leaders.map(leader => { const saleCount = activeStaff().filter(member => member.role === 'SALE' && member.leaderId === leader.id).length; return `<div class="field-manager-row"><div class="avatar">${escapeHtml(leader.initials)}</div><div><b>${escapeHtml(leader.name)}</b><small>${escapeHtml(leader.teamId)} · ${saleCount} Sale · đang phụ trách ${assignmentLoad(leader)} khách</small></div><label class="weight-control">Tỷ trọng<input class="weight-input" type="number" min="1" max="100" value="${state.leaderDistribution.weights[leader.id] || 1}" data-distribution-weight="LEADER:${escapeHtml(leader.id)}"></label><label class="member-switch"><input type="checkbox" data-distribution-member="LEADER:${escapeHtml(leader.id)}" ${enabledLeaders.has(leader.id) ? 'checked' : ''}><span>${enabledLeaders.has(leader.id) ? 'Đang nhận' : 'Tạm tắt'}</span></label></div>`; }).join('') || '<div class="empty"><b>Chưa có Leader</b><span>Thêm Leader tại mục Đội ngũ trước.</span></div>'}</div></section>`;
   } else {
-    body = `<section class="panel"><div class="panel-head"><div><div class="panel-title">Sale nhận data trong từng Team</div><div class="panel-sub">Manager, Leader và Sale trong tuyến đều có thể được bật để nhận data</div></div><select id="distributionLeaderSelect">${leaders.map(leader => `<option value="${escapeHtml(leader.id)}" ${leader.id === distributionLeaderId ? 'selected' : ''}>${escapeHtml(leader.name)} · ${escapeHtml(leader.teamId)}</option>`).join('')}</select></div><div class="field-manager">${sales.map(sale => { const isManager = sale.managerRecipient; const isLeader = sale.teamLeaderRecipient; const enabled = isLeader ? saleConfig.leaderEnabled !== false : (isManager && saleConfig.managerDistributionInitialized !== true ? true : enabledSales.has(sale.id)); return `<div class="field-manager-row"><div class="avatar">${escapeHtml(sale.initials)}</div><div><b>${escapeHtml(sale.name)}</b><small>${isManager ? 'MANAGER' : isLeader ? 'LEADER' : 'SALE'} · ${escapeHtml(sale.teamId || '')} · đang phụ trách ${assignmentLoad(sale)} khách</small></div><label class="weight-control">Tỷ trọng<input class="weight-input" type="number" min="1" max="100" value="${saleConfig.weights[sale.id] || 1}" data-distribution-weight="${isManager ? 'MANAGER' : 'SALE'}:${escapeHtml(sale.id)}"></label><label class="member-switch"><input type="checkbox" data-distribution-member="${isManager ? 'MANAGER' : 'SALE'}:${escapeHtml(sale.id)}" ${enabled ? 'checked' : ''}><span>${enabled ? 'Đang nhận' : 'Tạm tắt'}</span></label></div>`; }).join('') || '<div class="empty"><b>Chưa có nhân sự trong tuyến</b><span>Thêm Manager, Leader hoặc Sale tại mục Đội ngũ.</span></div>'}</div></section>`;
+    body = `<section class="panel"><div class="panel-head"><div><div class="panel-title">Sale nhận data trong từng Team</div><div class="panel-sub">Manager, Leader và Sale trong tuyến đều có thể được bật để nhận data</div></div><select id="distributionLeaderSelect">${leaders.map(leader => `<option value="${escapeHtml(leader.id)}" ${leader.id === distributionLeaderId ? 'selected' : ''}>${escapeHtml(leader.name)} · ${escapeHtml(leader.teamId)}</option>`).join('')}</select></div><div class="field-manager">${sales.map(sale => { const isManager = sale.managerRecipient; const isLeader = sale.teamLeaderRecipient; const enabled = isLeader ? saleConfig.leaderEnabled !== false : (saleConfig.managerDistributionInitialized !== true || enabledSales.has(sale.id)); return `<div class="field-manager-row"><div class="avatar">${escapeHtml(sale.initials)}</div><div><b>${escapeHtml(sale.name)}</b><small>${isManager ? 'MANAGER' : isLeader ? 'LEADER' : 'SALE'} · ${escapeHtml(sale.teamId || '')} · đang phụ trách ${assignmentLoad(sale)} khách</small></div><label class="weight-control">Tỷ trọng<input class="weight-input" type="number" min="1" max="100" value="${saleConfig.weights[sale.id] || 1}" data-distribution-weight="${isManager ? 'MANAGER' : 'SALE'}:${escapeHtml(sale.id)}"></label><label class="member-switch"><input type="checkbox" data-distribution-member="${isManager ? 'MANAGER' : 'SALE'}:${escapeHtml(sale.id)}" ${enabled ? 'checked' : ''}><span>${enabled ? 'Đang nhận' : 'Tạm tắt'}</span></label></div>`; }).join('') || '<div class="empty"><b>Chưa có nhân sự trong tuyến</b><span>Thêm Manager, Leader hoặc Sale tại mục Đội ngũ.</span></div>'}</div></section>`;
   }
   return pageHead('Data', 'Phân data cho Leader và Sale; lịch sử phụ trách cũ luôn được giữ.') + `<div class="distribution-tabs">${tabs.map(([id, label]) => `<button class="distribution-tab ${distributionTab === id ? 'active' : ''}" data-distribution-tab="${id}">${label}</button>`).join('')}</div>${body}`;
 }
@@ -4550,7 +4550,8 @@ function teamRecipients(leaderId, teamId) {
 function assignmentCandidates(customer) {
   if (customer.leaderId) {
     const config = state.saleDistributionByLeader[customer.leaderId];
-    return teamRecipients(customer.leaderId, customer.teamId).filter(p => p.teamLeaderRecipient ? config?.leaderEnabled !== false : !Array.isArray(config?.enabledSaleIds) || config.enabledSaleIds.includes(p.id)).sort((a,b)=>a.id.localeCompare(b.id));
+    const configured = config?.managerDistributionInitialized === true && Array.isArray(config?.enabledSaleIds) && config.enabledSaleIds.length > 0;
+    return teamRecipients(customer.leaderId, customer.teamId).filter(p => p.teamLeaderRecipient ? config?.leaderEnabled !== false : !configured || config.enabledSaleIds.includes(p.id)).sort((a,b)=>a.id.localeCompare(b.id));
   }
   const enabledIds = new Set(state.leaderDistribution.enabledLeaderIds);
   return activeStaff().filter(p=>p.role==='LEADER'&&enabledIds.has(p.id)).sort((a,b)=>a.id.localeCompare(b.id));
@@ -4592,12 +4593,18 @@ function chooseAssignmentTarget(customer, mode) {
   if (!['EQUAL', 'ROUND_ROBIN', 'BALANCED'].includes(mode)) return null;
   if (mode === 'BALANCED') return candidates.slice().sort((a, b) => assignmentLoad(a) / assignmentWeight(a) - assignmentLoad(b) / assignmentWeight(b) || a.id.localeCompare(b.id))[0];
   const key = customer.leaderId || 'leaders';
-  const cursor = customer.leaderId ? (state.settings.assignmentCursor.salesByTeam[key] || 0) : (state.settings.assignmentCursor.leaders || 0);
   const weighted = mode === 'ROUND_ROBIN' ? weightedCandidateList(candidates) : candidates;
-  const target = weighted[cursor % weighted.length];
-  if (customer.leaderId) state.settings.assignmentCursor.salesByTeam[key] = (cursor + 1) % weighted.length;
-  else state.settings.assignmentCursor.leaders = (cursor + 1) % weighted.length;
-  return target;
+  const cursorStore = customer.leaderId ? state.settings.assignmentCursor.salesByTeam : state.settings.assignmentCursor;
+  const raw = customer.leaderId ? cursorStore[key] : cursorStore.leaders;
+  const currentIds = weighted.map(person => person.id);
+  let cursor = typeof raw === 'object' && raw ? { index: Number.isInteger(raw.index) ? raw.index : 0, ids: Array.isArray(raw.ids) ? raw.ids.map(String) : [] } : { index: Number.isInteger(raw) ? raw : 0, ids: [] };
+  let roundIds = cursor.ids.filter(id => currentIds.includes(id));
+  if (!roundIds.length || cursor.index >= roundIds.length) { roundIds = currentIds; cursor.index = 0; }
+  const targetId = roundIds[cursor.index];
+  const target = weighted.find(person => person.id === targetId) || candidates.find(person => person.id === targetId);
+  cursor.index += 1; cursor.ids = roundIds;
+  if (customer.leaderId) cursorStore[key] = cursor; else cursorStore.leaders = cursor;
+  return target || null;
 }
 
 /* Nhận data hai bước: mọi đường gán SALE đều đi qua đây. Sale đang giữ khách,

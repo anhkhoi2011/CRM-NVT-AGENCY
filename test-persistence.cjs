@@ -370,6 +370,15 @@ test('Leader selects a Sale from the customer table and persists the pending ass
 });
 
 
+test('Round robin keeps one customer per recipient and defers a new Sale to the next round',()=>{
+ const c=frontend();
+ vm.runInContext(`currentAccount=hydrateSessionAccount({id:'admin',name:'Admin',role:'ADMIN'});state=initialState();state.members=[{id:'lead',name:'Leader',role:'LEADER',teamId:'T',managerId:'mgr',active:true},{id:'mgr',name:'Manager',role:'MANAGER',active:true},{id:'s1',name:'Sale 1',role:'SALE',leaderId:'lead',teamId:'T',active:true},{id:'s2',name:'Sale 2',role:'SALE',leaderId:'lead',teamId:'T',active:true},{id:'s3',name:'Sale 3',role:'SALE',leaderId:'lead',teamId:'T',active:true}];state.saleDistributionByLeader.lead={leaderEnabled:false,managerDistributionInitialized:false,enabledSaleIds:[],weights:{}};STAFF=state.members;`,c);
+ const pick=()=>vm.runInContext(`chooseAssignmentTarget({leaderId:'lead',teamId:'T'},'ROUND_ROBIN').id`,c);
+ assert.deepEqual([pick(),pick(),pick(),pick()],['mgr','s1','s2','s3']);
+ vm.runInContext(`state.members.push({id:'s4',name:'Sale 4',role:'SALE',leaderId:'lead',teamId:'T',active:true})`,c);
+ assert.equal(pick(),'mgr');
+ assert.deepEqual([pick(),pick(),pick(),pick()],['s1','s2','s3','s4']);
+});
 test('Team allocation includes Leader, counts pending offers, and obeys weights', () => {
  const c=frontend();
  vm.runInContext(`currentAccount=hydrateSessionAccount({id:'lead',name:'Leader',role:'LEADER',teamId:'T'});applyServerSnapshot({state:{...initialState(),members:[{id:'lead',name:'Leader',role:'LEADER',teamId:'T',active:true},...[1,2,3,4].map(n=>({id:'s'+n,name:'Sale '+n,role:'SALE',leaderId:'lead',teamId:'T',active:true}))]},versions:{}});queueEmailNotification=()=>{};`,c);
