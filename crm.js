@@ -5533,6 +5533,7 @@ async function endSession(skipFlush=false) {
   const logoutToken=serverSyncToken;
   if(logoutToken)fetch(`${webhookApiBase()}/api/auth/logout`,{method:'POST',headers:{Authorization:`Bearer ${logoutToken}`}}).catch(()=>{});
   serverSyncToken = '';
+  window.crmRuntimeAuthState = 'unauthenticated';
   liveNavigationCounts = null;
   serverStateLoaded = false; clearTimeout(serverSaveTimer); serverSaveTimer = null;
 
@@ -5826,6 +5827,7 @@ saveTeamMember = function saveTeamMemberWithIdentitySync(id = null, registration
 let offerSweepTimer = null;
 // The outer index page waits for this before choosing login or the CRM shell.
 window.crmRuntimeBooted = false;
+window.crmRuntimeAuthState = 'restoring';
 
 async function initialize() {
   try {
@@ -5844,6 +5846,7 @@ async function initialize() {
   try {
     let session = null;
     try { session = JSON.parse(sessionStorage.getItem(SESSION_KEY)); } catch (error) {}
+    window.crmRuntimeAuthState = session?.token ? 'restoring' : 'unauthenticated';
     if (session?.token) serverSyncToken = session.token;
     const authPromise = session?.token ? fetch(`${webhookApiBase()}/api/auth/me`, { headers: { Authorization: `Bearer ${session.token}` }, cache: 'no-store' }) : Promise.resolve(null);
     const statePromise = session?.token ? fetch(`${webhookApiBase()}/api/state`, { headers: { Authorization: `Bearer ${session.token}` }, cache: 'no-store' }) : Promise.resolve(null);
@@ -5854,6 +5857,7 @@ async function initialize() {
       // Một lần lỗi mạng không được biến thành logout. Cho MySQL tối đa 3 lần để hồi đáp.
       for (let attempt = 0; attempt < 3; attempt += 1) {
         if (await startSession(account, true, serverSyncToken, initialSnapshot)) {
+          window.crmRuntimeAuthState = 'authenticated';
           if (serverSyncToken && !initialSnapshot) syncServerState();
           return;
         }
@@ -5863,6 +5867,7 @@ async function initialize() {
       return;
     }
     if (response && response.status === 401) {
+      window.crmRuntimeAuthState = 'unauthenticated';
       serverSyncToken='';
       try { sessionStorage.removeItem(SESSION_KEY); } catch (error) {}
     }

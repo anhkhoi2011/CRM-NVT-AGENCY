@@ -1869,6 +1869,9 @@
     // Cho phép mở ngay khi snapshot hợp lệ đã có; cờ boot chỉ cần dùng để
     // xác nhận trạng thái đăng xuất khi snapshot đang là null.
     if(!next && runtime?.crmRuntimeBooted!==true)return;
+    // A valid token can still be restoring while auth/state requests are in flight.
+    // Keep the boot screen during that window instead of showing a false login form.
+    if(!next && runtime?.crmRuntimeAuthState!=='unauthenticated')return;
     if(!next){data=null;signature='';if(bootFallbackTimer){clearTimeout(bootFallbackTimer);bootFallbackTimer=null;}bootScreen?.setAttribute('hidden','');frame.hidden=false;frame.style.display='block';frame.classList.add('is-login-visible');document.body.classList.remove('reference-ready');q('.app-shell')?.style.setProperty('visibility','hidden');q('.bg-aura')?.style.setProperty('visibility','hidden');return;}
     const first=!data;if(bootFallbackTimer){clearTimeout(bootFallbackTimer);bootFallbackTimer=null;}data=next;frame.hidden=true;frame.style.display='none';frame.classList.remove('is-login-visible');document.body.classList.add('reference-ready');q('.app-shell')?.style.setProperty('visibility','visible');q('.bg-aura')?.style.setProperty('visibility','visible');
     const sign=JSON.stringify(data);
@@ -2409,6 +2412,7 @@
     if(data||!bootScreen)return;
     const runtime=frame.contentWindow;
     if(runtime?.crmRuntimeBooted!==true){bootFallbackTimer=setTimeout(revealLoginFallback,250);return;}
+    if(runtime?.crmRuntimeAuthState!=='unauthenticated'){bootFallbackTimer=setTimeout(revealLoginFallback,250);return;}
     bootScreen.setAttribute('hidden','');
     frame.hidden=false;
     frame.style.display='block';
