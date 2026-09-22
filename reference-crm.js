@@ -3,9 +3,10 @@
 (() => {
   const q=s=>document.querySelector(s), qa=s=>Array.from(document.querySelectorAll(s));
   const ACTIVE_TAB_KEY='nvt-crm-active-tab-v1';
+  const SNAPSHOT_CACHE_KEY='nvt-crm-snapshot-cache-v1';
   const frame=q('#crmRuntimeFrame');
   const bootScreen=q('#crmBootScreen');
-  let api=null, data=null, signature='', working=false, refreshTimer=null, bootFallbackTimer=null, selectedCustomer='', careKey='', dataQueuePage=1, dataQueuePageSize=20, dataQueueDateFrom='', dataQueueDateTo='';
+  let api=null, data=null, signature='', working=false, refreshTimer=null, bootFallbackTimer=null, selectedCustomer='', careKey='', dataQueuePage=1, dataQueuePageSize=20, dataQueueDateFrom='', dataQueueDateTo='', cachedSnapshotUsed=false;
     const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));  function referenceNotice(message,type='success') {
     let host=document.getElementById('referenceNoticeHost');
     if(!host){
@@ -1828,6 +1829,25 @@
   const savedActiveTab=()=>{
     try{return sessionStorage.getItem(ACTIVE_TAB_KEY)||'';}catch{return '';}
   };
+  const sessionTokenHint=()=>{
+    try{
+      const session=JSON.parse(sessionStorage.getItem('nvt-crm-session-v1')||'null');
+      return session?.token?String(session.token).slice(0,24):'';
+    }catch{return '';}
+  };
+  const readCachedSnapshot=()=>{
+    const tokenHint=sessionTokenHint();
+    if(!tokenHint)return null;
+    try{
+      const cached=JSON.parse(sessionStorage.getItem(SNAPSHOT_CACHE_KEY)||'null');
+      return cached?.tokenHint===tokenHint&&cached.snapshot?.user?.id?cached.snapshot:null;
+    }catch{return null;}
+  };
+  const cacheSnapshot=snapshot=>{
+    const tokenHint=sessionTokenHint();
+    if(!tokenHint||!snapshot?.user?.id)return;
+    try{sessionStorage.setItem(SNAPSHOT_CACHE_KEY,JSON.stringify({tokenHint,savedAt:Date.now(),snapshot}));}catch{}
+  };
   const tabAllowedForSnapshot=id=>{
     if(!data||!id||!q('#'+id))return false;
     const view=id.replace(/^tab-/,'');
@@ -1865,7 +1885,12 @@
     // crmApi is available before CRM finishes restoring a saved session. Waiting here
     // prevents the login/static index screen from flashing after F5.
     if(!api)return;
-    const next=api.snapshot();
+    let next=api.snapshot();
+    cachedSnapshotUsed=false;
+    if(!next&&runtime?.crmRuntimeAuthState==='restoring'){
+      const cached=readCachedSnapshot();
+      if(cached){next=cached;cachedSnapshotUsed=true;}
+    }
     // Cho phép mở ngay khi snapshot hợp lệ đã có; cờ boot chỉ cần dùng để
     // xác nhận trạng thái đăng xuất khi snapshot đang là null.
     if(!next && runtime?.crmRuntimeBooted!==true)return;
@@ -1873,7 +1898,7 @@
     // Keep the boot screen during that window instead of showing a false login form.
     if(!next && runtime?.crmRuntimeAuthState!=='unauthenticated')return;
     if(!next){data=null;signature='';if(bootFallbackTimer){clearTimeout(bootFallbackTimer);bootFallbackTimer=null;}bootScreen?.setAttribute('hidden','');frame.hidden=false;frame.style.display='block';frame.classList.add('is-login-visible');document.body.classList.remove('reference-ready');q('.app-shell')?.style.setProperty('visibility','hidden');q('.bg-aura')?.style.setProperty('visibility','hidden');return;}
-    const first=!data;if(bootFallbackTimer){clearTimeout(bootFallbackTimer);bootFallbackTimer=null;}data=next;frame.hidden=true;frame.style.display='none';frame.classList.remove('is-login-visible');document.body.classList.add('reference-ready');q('.app-shell')?.style.setProperty('visibility','visible');q('.bg-aura')?.style.setProperty('visibility','visible');
+    const first=!data;if(bootFallbackTimer){clearTimeout(bootFallbackTimer);bootFallbackTimer=null;}data=next;if(!cachedSnapshotUsed)cacheSnapshot(next);frame.hidden=true;frame.style.display='none';frame.classList.remove('is-login-visible');document.body.classList.add('reference-ready');q('.app-shell')?.style.setProperty('visibility','visible');q('.bg-aura')?.style.setProperty('visibility','visible');
     const sign=JSON.stringify(data);
     if(!force && !first && (sign===signature||working||q('.modal-overlay.open')||q('#careGroupModal')?.style.display==='flex'||['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName)))return;
     signature=sign;if(first){dateDefaults();bindReferenceSettings();setupSources();installRoleVisibilityObserver();installPendingDataStyles();}
