@@ -395,6 +395,50 @@ async function notifyNewLead(customer, offer = null) {
 }
 
 /**
+ * Gửi thông báo riêng khi data được phân lại cho một Sale mới.
+ * Chỉ gửi đến Sale trong offer hiện tại, không gửi lại cho Sale cũ hoặc Leader.
+ */
+async function notifyReassignedLead(customer, offer = null) {
+  try {
+    const targetSaleId = customer?.sale_id || customer?.saleId || offer?.saleId || offer?.sale_id;
+    if (!targetSaleId || !offer || offer.status !== 'PENDING') {
+      return { ok: false, skipped: true, reason: 'missing-target' };
+    }
+
+    const rows = await dbQuery(
+      "SELECT id, name, telegram_chat_id FROM users WHERE id = ? AND role = 'SALE' AND active = 1 AND telegram_chat_id IS NOT NULL LIMIT 1",
+      [targetSaleId]
+    );
+    const sale = rows?.[0];
+    if (!sale?.telegram_chat_id) {
+      return { ok: false, skipped: true, reason: 'missing-chat-id' };
+    }
+
+    const source = customer.landingPageName || customer.landing_page_name || customer.source || 'Chưa gắn nguồn';
+    const offeredAt = offer.offeredAt || offer.offered_at || customer.updated_at || customer.updatedAt || new Date();
+    const text = `🔄 <b>DATA ĐƯỢC PHÂN LẠI CHO BẠN</b>\n\n` +
+      `• <b>Khách hàng:</b> ${escapeHtml(customer.name || 'Khách hàng mới')}\n` +
+      `• <b>Nguồn Form:</b> ${escapeHtml(source)}\n` +
+      `• <b>Thời gian phân:</b> ${escapeHtml(formatDateTimeVN(offeredAt))}\n` +
+      `• <b>Trạng thái:</b> <i>Đang chờ bạn nhận data</i>\n\n` +
+      `👉 Vui lòng bấm nút bên dưới để nhận data và bắt đầu tư vấn.`;
+
+    const result = await sendMessage(String(sale.telegram_chat_id), text, {
+      reply_markup: {
+        inline_keyboard: [[{
+          text: '📥 NHẬN DATA & XỬ LÝ',
+          callback_data: `accept_data:${customer.id}`
+        }]]
+      }
+    });
+    return { ok: Boolean(result?.ok), chatId: String(sale.telegram_chat_id) };
+  } catch (err) {
+    console.error('[Telegram Bot] notifyReassignedLead error:', err.message);
+    return { ok: false, error: err.message };
+  }
+}
+
+/**
  * Tính năng 10: Nhắc lịch hẹn khách hàng sắp diễn ra (15-30 phút trước)
  */
 async function notifyAppointmentReminder(appointment, customer, sale) {
@@ -706,6 +750,7 @@ module.exports = {
   setWebhook,
   handleTelegramUpdate,
   notifyNewLead,
+  notifyReassignedLead,
   notifyAppointmentReminder,
   notifyStaleLeadWarning,
   sendMorningCheckinAlert,

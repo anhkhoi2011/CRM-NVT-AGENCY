@@ -335,6 +335,22 @@ async function handleDbApi(request, response, pathname) {
         const body=await readDbBody(request);
         const result=await crmData.write(user,body.requestId,body.changes);
         notifyInboxListeners({id:body.requestId,kind:'state',receivedAt:stamp()});
+
+        // Phân lại thủ công tạo offer PENDING cho Sale mới. Gửi Telegram sau
+        // khi giao dịch đã commit; request phát lại không gửi thêm lần nữa.
+        if(!result.replayed && Array.isArray(body.changes) && typeof telegramBot.notifyReassignedLead === 'function'){
+          const reassignedOffers=body.changes
+            .filter(change=>change?.key==='dataOffers'&&change.value?.status==='PENDING'&&change.value?.source==='MANUAL'&&change.value?.saleId)
+            .map(change=>change.value);
+          for(const offer of reassignedOffers){
+            try{
+              const [custRows]=await pool.execute('SELECT * FROM customers WHERE id = ? LIMIT 1',[offer.customerId]);
+              if(custRows?.[0]) await telegramBot.notifyReassignedLead(custRows[0],offer);
+            }catch(err){
+              console.warn('[Telegram Bot] notify reassigned lead notice:',err.message);
+            }
+          }
+        }
         return dbJson(request,response,200,result);
       }
     }
