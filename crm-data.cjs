@@ -1,4 +1,4 @@
-"use strict";
+﻿"use strict";
 // Kho dữ liệu nghiệp vụ: một giao dịch cho cả khách/đơn và lịch sử liên quan.
 const crypto = require('node:crypto');
 const { pool } = require('./db.js');
@@ -151,7 +151,14 @@ function authorizeManager(user,key,old,next,data){
  const r=next||old,leaders=managerLeaders(user,data),ids=leaders.map(l=>l.id);
  if(key==='members'&&old?.id===user.id&&next&&sameExcept(old,next,['name','accountId','email','phone','initials','avatar']))return;
  if(key==='saleDistributionByLeader'){
-  if(!next||Object.keys(next).some(id=>!ids.includes(id)&&id!=='manager:'+user.id))error(403,'Không được cài phân phối ngoài hệ thống được giao');return;
+  const allowed=new Set([...ids,'manager:'+user.id,String.fromCharCode(36)]);
+  if(!next||Object.keys(next).some(id=>!allowed.has(id)))error(403,'Distribution outside manager scope');
+  const global=next[String.fromCharCode(36)];
+  if(global&&user.role==='MANAGER'){
+   const scope=new Set([user.id,...ids,...managerSales(user,data).map(member=>member.id)]);
+   if((global.enabledSaleIds||[]).some(id=>!scope.has(id))||Object.keys(global.weights||{}).some(id=>!scope.has(id)))error(403,'Distribution member outside manager scope');
+  }
+  return;
  }
  if(key==='settings'){
   const visible=publicValue(user,key,old,data);
@@ -170,7 +177,7 @@ function authorizeManager(user,key,old,next,data){
  if(!managerOwns(user,customer,data))error(403,'Dữ liệu ngoài hệ thống được Admin giao');
  if(key==='customers'){
   if(!next||!managerOwns(user,next,data))error(403,'Không được chuyển khách ngoài hệ thống');
-  if(next.saleId&&!([...data.members.values()].some(m=>m.id===next.saleId&&m.active!==false&&(m.role==='SALE'&&(m.leaderId||null)===(next.leaderId||null)&&m.teamId===next.teamId||m.role==='LEADER'&&m.id===next.leaderId))))error(403,'Sale không thuộc Team');
+  if(next.saleId&&!([...data.members.values()].some(m=>m.id===next.saleId&&m.active!==false&&((m.role==='MANAGER'&&m.id===next.managerId)||(m.role==='SALE'&&(m.leaderId||null)===(next.leaderId||null)&&m.teamId===next.teamId)||(m.role==='LEADER'&&m.id===next.leaderId)))))error(403,'Recipient outside manager scope');
  }
  if(key==='orders'&&old&&!managerOwns(user,old,data))error(403,'Đơn ngoài hệ thống');
  if(key==='dataOffers'&&next){
@@ -212,7 +219,13 @@ function readable(user,key,r,data){
 function publicValue(user,key,r,data){
  if(user.role==='MANAGER'&&data){
   const ids=managerLeaders(user,data).map(l=>l.id);
-  if(key==='saleDistributionByLeader')return Object.fromEntries(Object.entries(r).filter(([id])=>ids.includes(id)||id==='manager:'+user.id));
+  if(key==='saleDistributionByLeader'){
+   const allowed=new Set([...ids,'manager:'+user.id,String.fromCharCode(36)]);
+   const value=Object.fromEntries(Object.entries(r).filter(([id])=>allowed.has(id)));
+   const global=value[String.fromCharCode(36)];
+   if(global){const scope=new Set([user.id,...ids,...managerSales(user,data).map(member=>member.id)]);value[String.fromCharCode(36)]={...global,enabledSaleIds:(global.enabledSaleIds||[]).filter(id=>scope.has(id)),weights:Object.fromEntries(Object.entries(global.weights||{}).filter(([id])=>scope.has(id)))};}
+   return value;
+  }
   if(key==='leaderDistribution')return {enabled:r.enabled===true,enabledLeaderIds:(r.enabledLeaderIds||[]).filter(id=>ids.includes(id))};
   if(key==='settings')r={...r,saleAssignmentModes:Object.fromEntries(Object.entries(r.saleAssignmentModes||{}).filter(([id])=>ids.includes(id)))};
  }

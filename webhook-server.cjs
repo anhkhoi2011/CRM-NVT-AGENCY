@@ -979,7 +979,7 @@ async function serveStatic(request, response, urlPathname) {
     }
     return;
   }
-  if (!['/','/index.html','/crm.js','/crm.css','/crm-modern.css','/crm-boot.css','/logo.jpg','/login-background.jpg','/customer-journey.svg','/care-ui.js','/crm-runtime.html','/crm-runtime-api.js','/reference-view.js','/reference-crm.js','/nvt-mobile-auth.css','/mobile_login_fixed_demo.html','/mobile-login-redesign.svg','/mobile-auth-unified.svg','/mobile_admin_overview.html','/mobile-admin-overview.svg','/mobile-multitab-showcase.svg','/commission_tree_demo.html','/commission-apex-mindmap.svg'].includes(decoded)) return sendJson(response,404,{error:'Không tìm thấy tài nguyên'});
+  if (!['/','/index.html','/crm.js','/crm.css','/crm-modern.css','/crm-boot.css','/logo.jpg','/login-background.jpg','/customer-journey.svg','/care-ui.js','/crm-runtime.html','/crm-runtime-api.js','/reference-view.js','/reference-crm.js','/nvt-mobile-auth.css','/commission_tree_demo.html','/commission-apex-mindmap.svg'].includes(decoded)) return sendJson(response,404,{error:'Không tìm thấy tài nguyên'});
 
   let relative = decoded === '/' ? '/index.html' : decoded;
   const absolute = path.resolve(REPO_ROOT, `.${path.posix.normalize(relative)}`);

@@ -2217,7 +2217,7 @@ function quickStatusControl(customer) {
 // Chọn Sale trong bảng, giữ hiển thị lời mời đang chờ nhận.
 function quickSaleControl(customer) {
   const pending = state.dataOffers.find(o => o.customerId === customer.id && o.status === 'PENDING');
-  const selectedId = customer.saleId || pending?.saleId || customer.leaderId || customer.managerId || '';
+  const selectedId = pending?.saleId || customer.saleId || customer.leaderId || customer.managerId || '';
   const permissionRole = effectivePermissionRole();
   const managerCanAssign = permissionRole === 'MANAGER'
     && scopedCustomers().some(item => item.id === customer.id);
@@ -2263,7 +2263,7 @@ async function quickAssignSale(customerId, saleId) {
         const leader = customer?.leaderId
           ? activeStaff().find(item => item.id === customer.leaderId && item.role === 'LEADER' && item.managerId === person.id && item.active !== false)
           : null;
-        return { ...person, managerRecipient: true, leaderId: leader?.id || null, teamId: leader?.teamId || null };
+        return { ...person, role: 'SALE', actualRole: 'MANAGER', managerRecipient: true, leaderId: leader?.id || null, teamId: leader?.teamId || person.teamId || null };
       })()
     : null;
   const managerLeaderTarget = permissionRole === 'MANAGER'
@@ -4754,24 +4754,26 @@ function applyCustomerAssignment(customer, target, reason, source = 'MANUAL', di
   if (target.managerRecipient) {
     closeOpenCustomerTasks(customer, 'REASSIGNED');
     state.dataOffers.forEach(o => { if (o.customerId === customer.id && o.status === 'PENDING') { o.status = 'EXPIRED'; o.resolvedAt = stamp(); } });
-    customer.saleId = null;
-    customer.leaderId = target.leaderId;
-    customer.teamId = target.teamId;
+    customer.saleId = target.id;
+    customer.leaderId = target.leaderId || null;
+    customer.teamId = target.teamId || null;
     customer.managerId = target.id;
     customer.saleAcceptedAt = stamp();
     customer.updatedAt = stamp();
     customer.note = reason;
-    state.notifications.unshift({ id: `NT-${Date.now()}-${customer.id}`, role: 'MANAGER', managerId: target.id, leaderId: target.leaderId, teamId: target.teamId, title: 'Khách mới trong tuyến', text: `${customer.name} · ${customerLandingName(customer)}`, at: stamp(), readBy: [] });
+    state.notifications.unshift({ id: `NT-${Date.now()}-${customer.id}`, role: 'OWN', saleId: target.id, managerId: target.id, leaderId: target.leaderId, teamId: target.teamId, title: 'Khách mới trong tuyến', text: `${customer.name} · ${customerLandingName(customer)}`, at: stamp(), readBy: [] });
     state.notes.unshift({ id: `NOTE-${Date.now()}-${customer.id}-${target.id}`, customerId: customer.id, authorId: currentAccount?.id || 'SYSTEM', author: currentAccount?.name || 'Hệ thống phân data', role: currentAccount?.role || 'SYSTEM', text: `${reason} · ${target.name}`, at: stamp() });
     recordAssignmentChange(customer, previous, reason, source);
     return true;
   }
-  if (target.role === 'LEADER') {
-    customer.saleId = null;
+  if (target.role === 'LEADER' || target.teamLeaderRecipient) {
+    customer.saleId = target.id;
     customer.leaderId = target.id;
     customer.teamId = target.teamId;
     customer.managerId = target.managerId || null;
-    state.notifications.unshift({ id: `NT-${Date.now()}-${customer.id}`, role: 'LEADER', leaderId: target.id, teamId: target.teamId, title: 'Khách mới trong Team', text: `${customer.name} · ${customerLandingName(customer)}`, at: stamp(), readBy: [] });
+    customer.saleAcceptedAt = stamp();
+    createInitialTask(customer);
+    state.notifications.unshift({ id: `NT-${Date.now()}-${customer.id}`, role: 'OWN', saleId: target.id, leaderId: target.id, teamId: target.teamId, title: 'Khách mới trong Team', text: `${customer.name} · ${customerLandingName(customer)}`, at: stamp(), readBy: [] });
     queueEmailNotification(
       [target.email],
       `Data mới được giao cho Leader - ${customer.name}`,

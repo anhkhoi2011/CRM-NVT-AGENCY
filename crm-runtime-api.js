@@ -144,7 +144,7 @@
     async assignLeader(id,leaderId){
       requireRole(['ADMIN']);
       return persist(()=>{
-        const customer=customerById(id),leader=activeStaff().find(m=>m.id===leaderId&&m.role==='LEADER');
+        const customer=customerById(id),leader=activeStaff().find(m=>m.id===leaderId&&['MANAGER','LEADER'].includes(m.role));
         if(!customer||!leader)throw Error('Khách hoặc Leader không còn hoạt động.');
         if(customer.leaderId===leader.id&&customer.teamId===leader.teamId)return {ok:true};
         closeOpenCustomerTasks(customer,'TRANSFERRED_TO_LEADER');
@@ -448,28 +448,16 @@
       if(!serverStateLoaded||!['ADMIN','MANAGER'].includes(effectivePermissionRole()))throw Error('Khong co quyen chinh ty trong.');
       const normalizedKind=String(kind||'').toUpperCase();
       const member=state.members.find(item=>item.id===id&&item.active!==false);
-      const managerRole=effectivePermissionRole();
-      if(managerRole==='MANAGER'){
-        if(!['SALE','MANAGER'].includes(normalizedKind))throw Error('Manager chi duoc chinh ty trong Sale trong tuyen cua minh.');
-        const leaderIds=new Set(state.members.filter(item=>item.role==='LEADER'&&item.managerId===currentAccount.id&&item.active!==false).map(item=>item.id));
-        const allowed=member?.id===currentAccount.id&&normalizedKind==='MANAGER'||member?.role==='LEADER'&&leaderIds.has(member.id)||member?.role==='SALE'&&(member.managerId===currentAccount.id||member.leaderId===currentAccount.id||leaderIds.has(member.leaderId));
-        if(!allowed)throw Error('Manager chi duoc chinh ty trong Sale trong tuyen cua minh.');
-      }
-
-      const rawWeight=Number(value); const weight=Number.isFinite(rawWeight)?Math.max(0,Math.min(100,Math.round(rawWeight))):1;
       if(!member||!['LEADER','SALE','MANAGER'].includes(normalizedKind)||member.role!==normalizedKind)throw Error('Nhan su khong hop le de cai ty trong.');
-      if(normalizedKind==='LEADER')state.leaderDistribution.weights[id]=weight;
-      else {
-        const leaderIds=normalizedKind==='MANAGER'
-          ? state.members.filter(item=>item.role==='LEADER'&&item.managerId===member.id&&item.active!==false).map(item=>item.id)
-          : [state.members.some(m=>m.id===member.leaderId&&m.role==='LEADER')?member.leaderId:(state.members.some(m=>m.id===(member.managerId||member.leaderId)&&m.role==='MANAGER'&&m.active!==false)?`manager:${member.managerId||member.leaderId}`:null)];
-        if(!leaderIds.filter(Boolean).length)throw Error('Sale chua thuoc Leader hoac Manager hop le.');
-        leaderIds.filter(Boolean).forEach(leaderId=>{
-          const config=state.saleDistributionByLeader[leaderId] ||= {leaderEnabled:true,enabledSaleIds:state.members.filter(m=>m.active!==false&&(m.role==='SALE'&&(leaderId.startsWith('manager:')?(m.leaderId===leaderId.slice(8)||m.managerId===leaderId.slice(8)&&!state.members.some(l=>l.id===m.leaderId&&l.role==='LEADER')):m.leaderId===leaderId)||m.role==='MANAGER'&&!leaderId.startsWith('manager:')&&state.members.some(l=>l.id===leaderId&&l.managerId===m.id))).map(m=>m.id),weights:{}};
-          config.weights ||= {};config.weights[id]=weight;config.managerDistributionInitialized=true;
-
-        });
+      if(effectivePermissionRole()==='MANAGER'){
+        const scope=managerScope();
+        if(!(member.id===scope.manager?.id||scope.leaderIds.has(member.id)||scope.saleIds.has(member.id)))throw Error('Manager chi duoc chinh ty trong trong tuyen cua minh.');
       }
+      const rawWeight=Number(value),weight=Number.isFinite(rawWeight)?Math.max(0,Math.min(100,Math.round(rawWeight))):1;
+      const config=state.saleDistributionByLeader['$'] ||= {globalCycle:true,enabledSaleIds:[],weights:{}};
+      config.globalCycle=true;config.weights||={};if(config.weights[id]===undefined)config.enabledSaleIds=Array.from(new Set([...(config.enabledSaleIds||[]),id]));config.weights[id]=weight;
+      const legacyKey=member.role==='SALE'?(member.managerId?'manager:'+member.managerId:(member.leaderId||null)):member.role==='LEADER'?member.id:'manager:'+member.id;
+      if(legacyKey){const legacy=state.saleDistributionByLeader[legacyKey] ||= {globalCycle:true,enabledSaleIds:[],weights:{}};legacy.weights||={};if(legacy.weights[id]===undefined)legacy.enabledSaleIds=Array.from(new Set([...(legacy.enabledSaleIds||[]),id]));legacy.weights[id]=weight;}
       audit('UPDATE_DISTRIBUTION_WEIGHT',id,normalizedKind+' - ty trong '+weight);
       if(!await flushServerPersistence())throw Error('Chua luu ty trong phan data.');
       return {ok:true};
@@ -485,33 +473,19 @@
       if(!serverStateLoaded||!['ADMIN','MANAGER'].includes(effectivePermissionRole()))throw Error('Khong co quyen chinh ty trong.');
       const normalizedKind=String(kind||'').toUpperCase();
       const member=state.members.find(item=>item.id===id&&item.active!==false);
-      const managerRole=effectivePermissionRole();
-      if(managerRole==='MANAGER'){
-        if(!['SALE','MANAGER'].includes(normalizedKind))throw Error('Manager chi duoc chinh ty trong Sale trong tuyen cua minh.');
-        const leaderIds=new Set(state.members.filter(item=>item.role==='LEADER'&&item.managerId===currentAccount.id&&item.active!==false).map(item=>item.id));
-        const allowed=member?.id===currentAccount.id&&normalizedKind==='MANAGER'||member?.role==='LEADER'&&leaderIds.has(member.id)||member?.role==='SALE'&&(member.managerId===currentAccount.id||member.leaderId===currentAccount.id||leaderIds.has(member.leaderId));
-        if(!allowed)throw Error('Manager chi duoc chinh ty trong Sale trong tuyen cua minh.');
-      }
-
       if(!member||!['LEADER','SALE','MANAGER'].includes(normalizedKind)||member.role!==normalizedKind)throw Error('Nhan su khong hop le de bat nhan data.');
-      if(normalizedKind==='LEADER'){
-        const ids=new Set(state.leaderDistribution.enabledLeaderIds||[]);enabled?ids.add(id):ids.delete(id);state.leaderDistribution.enabledLeaderIds=Array.from(ids);
-      } else {
-        const leaderIds=normalizedKind==='MANAGER'
-          ? state.members.filter(item=>item.role==='LEADER'&&item.managerId===member.id&&item.active!==false).map(item=>item.id)
-          : [state.members.some(m=>m.id===member.leaderId&&m.role==='LEADER')?member.leaderId:(state.members.some(m=>m.id===(member.managerId||member.leaderId)&&m.role==='MANAGER'&&m.active!==false)?`manager:${member.managerId||member.leaderId}`:null)];
-        if(!leaderIds.filter(Boolean).length)throw Error('Sale chua thuoc Leader hoac Manager hop le.');
-        leaderIds.filter(Boolean).forEach(leaderId=>{
-          const config=state.saleDistributionByLeader[leaderId] ||= {leaderEnabled:true,enabledSaleIds:state.members.filter(m=>m.active!==false&&(m.role==='SALE'&&(leaderId.startsWith('manager:')?(m.leaderId===leaderId.slice(8)||m.managerId===leaderId.slice(8)&&!state.members.some(l=>l.id===m.leaderId&&l.role==='LEADER')):m.leaderId===leaderId)||m.role==='MANAGER'&&!leaderId.startsWith('manager:')&&state.members.some(l=>l.id===leaderId&&l.managerId===m.id))).map(m=>m.id),weights:{}};
-          config.managerDistributionInitialized=true;
-          const ids=new Set(config.enabledSaleIds||[]);enabled?ids.add(id):ids.delete(id);config.enabledSaleIds=Array.from(ids);
-        });
+      if(effectivePermissionRole()==='MANAGER'){
+        const scope=managerScope();
+        if(!(member.id===scope.manager?.id||scope.leaderIds.has(member.id)||scope.saleIds.has(member.id)))throw Error('Manager chi duoc chinh nguoi trong tuyen cua minh.');
       }
+      const config=state.saleDistributionByLeader['$'] ||= {globalCycle:true,enabledSaleIds:[],weights:{}};
+      config.globalCycle=true;config.weights||={};const ids=new Set(config.enabledSaleIds||[]);enabled?ids.add(id):ids.delete(id);config.enabledSaleIds=Array.from(ids);if(config.weights[id]===undefined)config.weights[id]=1;
+      const legacyKey=member.role==='SALE'?(member.managerId?'manager:'+member.managerId:(member.leaderId||null)):member.role==='LEADER'?member.id:'manager:'+member.id;
+      if(legacyKey){const legacy=state.saleDistributionByLeader[legacyKey] ||= {globalCycle:true,enabledSaleIds:[],weights:{}};legacy.weights||={};const legacyIds=new Set(legacy.enabledSaleIds||[]);enabled?legacyIds.add(id):legacyIds.delete(id);legacy.enabledSaleIds=Array.from(legacyIds);if(legacy.weights[id]===undefined)legacy.weights[id]=1;}
       audit('UPDATE_DISTRIBUTION_MEMBER',id,normalizedKind+' - '+(enabled?'bat':'tat'));
       if(!await flushServerPersistence())throw Error('Chua luu trang thai nhan data.');
       return {ok:true};
     },
-
     notify:message=>toast(message)
   };
 })();
