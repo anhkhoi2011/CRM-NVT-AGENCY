@@ -456,7 +456,7 @@
         if(!allowed)throw Error('Manager chi duoc chinh ty trong Sale trong tuyen cua minh.');
       }
 
-      const weight=Math.max(1,Math.min(100,Math.round(Number(value)||1)));
+      const rawWeight=Number(value); const weight=Number.isFinite(rawWeight)?Math.max(0,Math.min(100,Math.round(rawWeight))):1;
       if(!member||!['LEADER','SALE','MANAGER'].includes(normalizedKind)||member.role!==normalizedKind)throw Error('Nhan su khong hop le de cai ty trong.');
       if(normalizedKind==='LEADER')state.leaderDistribution.weights[id]=weight;
       else {

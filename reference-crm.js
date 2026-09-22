@@ -2121,23 +2121,47 @@
     const initials=m=>String(m.name||'?').trim().split(/\s+/).slice(-2).map(x=>x[0]).join('').toUpperCase()||'?';
     const branchCustomerCount=(member,kind)=>{
       const ids=new Set();
-      if(kind==='MANAGER'){
-        const branchLeaderIds=new Set(leaders.filter(leader=>leader.managerId===member.id).map(leader=>leader.id));
-        const branchSaleIds=new Set(sales.filter(sale=>sale.managerId===member.id||branchLeaderIds.has(sale.leaderId)).map(sale=>sale.id));
-        (data.customers||[]).forEach(customer=>{
-          if(customer.managerId===member.id||branchLeaderIds.has(customer.leaderId)||branchSaleIds.has(customer.saleId))ids.add(customer.id);
-        });
-      }else if(kind==='LEADER'){
-        const branchSaleIds=new Set(sales.filter(sale=>sale.leaderId===member.id).map(sale=>sale.id));
-        (data.customers||[]).forEach(customer=>{
-          if(customer.leaderId===member.id||branchSaleIds.has(customer.saleId))ids.add(customer.id);
-        });
-      }else{
-        (data.customers||[]).forEach(customer=>{if(customer.saleId===member.id)ids.add(customer.id);});
-        (data.offers||[]).forEach(offer=>{if(offer.status==='PENDING'&&offer.saleId===member.id)ids.add(offer.customerId);});
-      }
+      (data.customers||[]).forEach(customer=>{
+        const personal=kind==='SALE'
+          ? customer.saleId===member.id
+          : kind==='LEADER'
+            ? customer.saleId===member.id
+            : customer.saleId===member.id||(customer.managerId===member.id&&!customer.leaderId);
+        if(personal)ids.add(customer.id);
+      });
+      if(kind==='SALE')(data.offers||[]).forEach(offer=>{if(offer.status==='PENDING'&&offer.saleId===member.id)ids.add(offer.customerId);});
       return ids.size;
     };
+    const weightOf=value=>{const n=Number(value);return Number.isFinite(n)?Math.max(0,Math.min(100,Math.round(n))):1;};
+    const leaderPool=leader=>{
+      const manager=leader?.managerId?members.find(member=>member.role==='MANAGER'&&member.id===leader.managerId):null;
+      const managerRecipient=manager?{...manager,role:'SALE',managerRecipient:true,leaderId:leader.id,teamId:leader.teamId}:null;
+      return [
+        {...leader,role:'SALE',teamLeaderRecipient:true},
+        ...sales.filter(sale=>sale.leaderId===leader.id),
+        ...(managerRecipient?[managerRecipient]:[])
+      ];
+    };
+    const cycleSummary=(people,configs,key)=>{
+      const config=configs?.[0]||{};
+      const enabledIds=new Set(Array.isArray(config.enabledSaleIds)?config.enabledSaleIds:people.map(person=>person.id));
+      const active=people.filter(person=>{
+        const enabled=person.teamLeaderRecipient?config.leaderEnabled!==false:enabledIds.has(person.id);
+        return enabled&&weightOf(config.weights?.[person.id])>0;
+      });
+      const sequence=active.flatMap(person=>Array.from({length:weightOf(config.weights?.[person.id])},()=>person));
+      const raw=data.settings?.assignmentCursor?.salesByTeam?.[key];
+      const stored=raw&&typeof raw==='object'?raw:{index:Number.isInteger(raw)?raw:0};
+      const absoluteIndex=Math.max(0,Number(stored.index)||0);
+      const index=sequence.length?absoluteIndex%sequence.length:0;
+      const round=sequence.length?Math.floor(absoluteIndex/sequence.length)+1:0;
+      const upcoming=sequence.length?Array.from({length:Math.min(sequence.length,6)},(_,offset)=>sequence[(index+offset)%sequence.length]):[];
+      const counts=new Map();sequence.forEach(person=>counts.set(person.id,(counts.get(person.id)||0)+1));
+      return {length:sequence.length,index,round,upcoming,counts};
+    };
+    const cycleMarkup=(summary,mode='ROUND_ROBIN')=>summary.length
+      ? '<div class="distribution-cycle"><div class="distribution-cycle-top"><b>Vòng '+summary.round+'</b><span>'+summary.index+'/'+summary.length+' lượt</span></div><div class="distribution-cycle-track"><i style="width:'+Math.round(summary.index/summary.length*100)+'%"></i></div><small>'+ (mode==='ROUND_ROBIN'?'Chuẩn bị nhận: ':'Thứ tự theo tỷ trọng: ') +summary.upcoming.map(person=>esc(person.name||'Chưa đặt tên')).join(' → ')+'</small></div>'
+      : '<div class="distribution-cycle is-empty"><b>Chưa có người nhận</b><small>Bật nhân sự và đặt tỷ trọng lớn hơn 0.</small></div>';
     const row=(member,kind,level)=>{
       const isManager=kind==='MANAGER',isLeader=kind==='LEADER';
       const managerLeaders=isManager?byManager(member.id):[];
@@ -2146,7 +2170,7 @@
         : [isLeader?member.id:(leaders.some(l=>l.id===member.leaderId)?member.leaderId:'manager:'+(member.managerId||member.leaderId))];
       const configs=configIds.map(id=>data.saleDistributionByLeader?.[id]||{});
       const config=configs[0]||{};
-      const weight=isLeader?(data.leaderDistribution?.weights?.[member.id]||1):(config?.weights?.[member.id]||1);
+      const weight=isLeader?weightOf(data.leaderDistribution?.weights?.[member.id]):weightOf(config?.weights?.[member.id]);
       const enabled=isLeader
         ? enabledLeaders.has(member.id) && configs.every(item=>item.leaderEnabled!==false)
         : isManager
@@ -2158,17 +2182,31 @@
         kind==='SALE'&&(member.managerId===data.user.id||member.leaderId===data.user.id||managerLeaderIds.has(member.leaderId))
       ));
       const controls=canEdit
-        ? '<label>Ty trong <input type="number" min="1" max="100" value="'+weight+'" data-ref-distribution-weight="'+kind+':'+esc(member.id)+'"></label><label class="distribution-check"><input type="checkbox" '+(enabled?'checked':'')+' data-ref-distribution-member="'+kind+':'+esc(member.id)+'"><span>'+(enabled?'Dang nhan':'Tam tat')+'</span></label>'
+        ? '<label>Ty trong <input type="number" min="0" max="100" value="'+weight+'" data-ref-distribution-weight="'+kind+':'+esc(member.id)+'"></label><label class="distribution-check"><input type="checkbox" '+(enabled?'checked':'')+' data-ref-distribution-member="'+kind+':'+esc(member.id)+'"><span>'+(enabled?'Dang nhan':'Tam tat')+'</span></label>'
         : '<span class="distribution-readonly">Chi xem</span>';
       return '<div class="distribution-person-row level-'+level+'"><div class="distribution-person-main"><span class="distribution-avatar">'+esc(initials(member))+'</span><span><b>'+esc(member.name||'Chua dat ten')+'</b><small>'+esc(kind)+' · '+esc(member.teamId||'Chua gan Team')+' · '+load+' khach</small></span></div><div class="distribution-person-controls">'+controls+'</div></div>';
     };
-    const block=(title,sub,html)=>'<section class="distribution-tree-block"><div class="distribution-tree-head"><b>'+esc(title)+'</b><small>'+esc(sub)+'</small></div>'+html+'</section>';
-    let blocks=managers.map(manager=>block(manager.name||'Manager', 'MANAGER · '+(manager.teamId||'Quan ly tuyen'), row(manager,'MANAGER',0)+directSales(manager.id).map(sale=>row(sale,'SALE',1)).join('')+byManager(manager.id).map(leader=>row(leader,'LEADER',1)+byLeader(leader.id).map(sale=>row(sale,'SALE',2)).join('')).join(''))).join('');
+    const managerCycle=manager=>{
+      const cycles=[];
+      const direct=directSales(manager.id);
+      if(direct.length) {
+        const config=data.saleDistributionByLeader?.['manager:'+manager.id]||{};
+        const managerRecipient={...manager,role:'SALE',managerRecipient:true};
+        cycles.push('<div class="distribution-cycle-label">Nhanh truc tiep</div>'+cycleMarkup(cycleSummary([managerRecipient,...direct],[config],'manager:'+manager.id),'WEIGHTED'));
+      }
+      byManager(manager.id).forEach(leader=>{
+        cycles.push('<div class="distribution-cycle-label">Nhanh truc tiep</div>'+cycleMarkup(cycleSummary(leaderPool(leader),[data.saleDistributionByLeader?.[leader.id]||{}],leader.id),'WEIGHTED'));
+      });
+      return cycles.length?'<div class="distribution-cycle-stack">'+cycles.join('')+'</div>':'';
+    };
+    const leaderCycle=leader=>cycleMarkup(cycleSummary(leaderPool(leader),[data.saleDistributionByLeader?.[leader.id]||{}],leader.id),'WEIGHTED');
+    const block=(title,sub,html,cycle='')=>'<section class="distribution-tree-block"><div class="distribution-tree-head"><div class="distribution-tree-title"><b>'+esc(title)+'</b><small>'+esc(sub)+'</small></div>'+(cycle?'<div class="distribution-tree-cycle">'+cycle+'</div>':'')+'</div>'+html+'</section>';
+    let blocks=managers.map(manager=>block(manager.name||'Manager', 'MANAGER Â· '+(manager.teamId||'Quan ly tuyen'), row(manager,'MANAGER',0)+directSales(manager.id).map(sale=>row(sale,'SALE',1)).join('')+byManager(manager.id).map(leader=>row(leader,'LEADER',1)+byLeader(leader.id).map(sale=>row(sale,'SALE',2)).join('')).join(''),managerCycle(manager))).join('');
     const unassignedLeaders=leaders.filter(l=>!l.managerId);
-    if(unassignedLeaders.length)blocks+=block('Chua gan Manager','Leader chua duoc gan tuyen',unassignedLeaders.map(leader=>row(leader,'LEADER',1)+byLeader(leader.id).map(sale=>row(sale,'SALE',2)).join('')).join(''));
+    if(unassignedLeaders.length)blocks+=block('Chua gan Manager','Leader chua duoc gan tuyen',unassignedLeaders.map(leader=>row(leader,'LEADER',1)+byLeader(leader.id).map(sale=>row(sale,'SALE',2)).join('')).join(''),leaderCycle(unassignedLeaders[0]));
     const unassignedSales=sales.filter(sale=>!leaders.some(l=>l.id===sale.leaderId)&&!managers.some(m=>directSales(m.id).some(s=>s.id===sale.id)));
     if(unassignedSales.length)blocks+=block('Chua gan Leader','Sale chua duoc gan Leader',unassignedSales.map(sale=>row(sale,'SALE',2)).join(''));
-    if(!q('#referenceDistributionStyles')){const style=document.createElement('style');style.id='referenceDistributionStyles';style.textContent='.distribution-tree-list{display:grid;gap:10px}.distribution-tree-block{border:1px solid var(--border-light);border-radius:10px;overflow:hidden;background:var(--bg-surface)}.distribution-tree-head{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px 16px;background:var(--bg-subtle);border-bottom:1px solid var(--border-light)}.distribution-tree-head b{font-size:14px}.distribution-tree-head small{color:var(--text-muted);font-size:11px}.distribution-person-row{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:13px 16px;border-bottom:1px solid var(--border-light);flex-wrap:wrap}.distribution-person-row:last-child{border-bottom:0}.distribution-person-row.level-1{padding-left:30px}.distribution-person-row.level-2{padding-left:58px;background:#fcfdff}.distribution-person-main{display:flex;align-items:center;gap:10px;min-width:230px}.distribution-person-main>span:last-child{display:grid;gap:3px}.distribution-person-main small{color:var(--text-muted);font-size:10.5px}.distribution-avatar{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;background:#eff6ff;color:#2563eb;font-size:11px;font-weight:800;flex:0 0 auto}.distribution-person-controls{display:flex;align-items:center;gap:16px;flex-wrap:wrap}.distribution-person-controls label{display:flex;align-items:center;gap:7px;color:var(--text-muted);font-size:11.5px}.distribution-person-controls input[type=number]{width:64px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-subtle);font:inherit;text-align:center;color:var(--text-main)}.distribution-check{color:var(--text-main)!important;font-weight:600;cursor:pointer}.distribution-check input{accent-color:#2563eb}.distribution-readonly{font-size:11px;color:var(--text-muted);font-style:italic}@media(max-width:700px){.distribution-person-row.level-1,.distribution-person-row.level-2{padding-left:16px}.distribution-person-controls{width:100%;padding-left:44px;justify-content:flex-start}}';document.head.appendChild(style)}
+    if(!q('#referenceDistributionStyles')){const style=document.createElement('style');style.id='referenceDistributionStyles';style.textContent='.distribution-tree-list{display:grid;gap:10px}.distribution-tree-block{border:1px solid var(--border-light);border-radius:10px;overflow:hidden;background:var(--bg-surface)}.distribution-tree-head{display:flex;justify-content:space-between;gap:16px;align-items:stretch;padding:12px 16px;background:var(--bg-subtle);border-bottom:1px solid var(--border-light)}.distribution-tree-title{display:grid;align-content:center;gap:4px;min-width:180px}.distribution-tree-cycle{min-width:280px;max-width:52%;padding-left:14px;border-left:1px solid var(--border-light)}.distribution-cycle-stack{display:grid;gap:8px;max-height:180px;overflow:auto}.distribution-cycle-label{color:#475569;font-size:10px;font-weight:800}.distribution-cycle{display:grid;gap:5px}.distribution-cycle-top{display:flex;justify-content:space-between;gap:12px;align-items:center;font-size:11px;color:var(--text-muted)}.distribution-cycle-top b{color:#2563eb;font-size:12px}.distribution-cycle-track{height:6px;overflow:hidden;border-radius:99px;background:#dbeafe}.distribution-cycle-track i{display:block;height:100%;border-radius:inherit;background:#2563eb;transition:width .2s ease}.distribution-cycle small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-muted);font-size:10.5px}.distribution-cycle.is-empty small{white-space:normal}.distribution-tree-head b{font-size:14px}.distribution-tree-head small{color:var(--text-muted);font-size:11px}.distribution-person-row{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:13px 16px;border-bottom:1px solid var(--border-light);flex-wrap:wrap}.distribution-person-row:last-child{border-bottom:0}.distribution-person-row.level-1{padding-left:30px}.distribution-person-row.level-2{padding-left:58px;background:#fcfdff}.distribution-person-main{display:flex;align-items:center;gap:10px;min-width:230px}.distribution-person-main>span:last-child{display:grid;gap:3px}.distribution-person-main small{color:var(--text-muted);font-size:10.5px}.distribution-avatar{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;background:#eff6ff;color:#2563eb;font-size:11px;font-weight:800;flex:0 0 auto}.distribution-person-controls{display:flex;align-items:center;gap:16px;flex-wrap:wrap}.distribution-person-controls label{display:flex;align-items:center;gap:7px;color:var(--text-muted);font-size:11.5px}.distribution-person-controls input[type=number]{width:64px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-subtle);font:inherit;text-align:center;color:var(--text-main)}.distribution-check{color:var(--text-main)!important;font-weight:600;cursor:pointer}.distribution-check input{accent-color:#2563eb}.distribution-readonly{font-size:11px;color:var(--text-muted);font-style:italic}@media(max-width:700px){.distribution-tree-head{display:grid}.distribution-tree-cycle{max-width:none;min-width:0;padding:10px 0 0;border-left:0;border-top:1px solid var(--border-light)}.distribution-person-row.level-1,.distribution-person-row.level-2{padding-left:16px}.distribution-person-controls{width:100%;padding-left:44px;justify-content:flex-start}}';document.head.appendChild(style)}
     host.innerHTML='<section class="panel" style="background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;padding:22px;box-shadow:var(--shadow-sm)"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:18px;flex-wrap:wrap"><div><b style="font-size:15px;color:var(--text-main);display:block">Chinh sua ty trong</b><div style="font-size:12px;color:var(--text-muted);margin-top:3px">Cau hinh Manager, Leader va Sale trong cung mot he thong nhan data.</div></div><span class="chip">'+members.length+' nhan su</span></div><div class="distribution-tree-list">'+(blocks||'<div class="empty"><b>Chua co Manager, Leader hoac Sale</b><span>Hay phan bo nhan su tai muc Doi ngu.</span></div>')+'</div></section>';
     host.querySelectorAll('[data-ref-distribution-weight]').forEach(input=>input.onchange=()=>{const [kind,id]=input.dataset.refDistributionWeight.split(':');run(()=>api.distributionWeight(kind,id,input.value));});
     host.querySelectorAll('[data-ref-distribution-member]').forEach(input=>input.onchange=()=>{const [kind,id]=input.dataset.refDistributionMember.split(':');run(()=>api.distributionMember(kind,id,input.checked));});

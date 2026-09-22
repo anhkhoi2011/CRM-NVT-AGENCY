@@ -415,9 +415,10 @@ async function distributeAutomatic(c, data = null) {
  const at = new Date().toLocaleString('sv-SE',{timeZone:'Asia/Ho_Chi_Minh'}).slice(0,19);
  const cursor = settings.assignmentCursor ||= {leaders:0,salesByTeam:{}};
  cursor.salesByTeam ||= {};
- const weight = (weights,id) => Math.max(1,Math.min(100,Math.round(Number(weights?.[id]) || 1)));
+ const weight = (weights,id) => { const raw = Number(weights?.[id]); return Number.isFinite(raw) ? Math.max(0,Math.min(100,Math.round(raw))) : 1; };
  const normalize = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
  const pick = (people, weights, key, team) => {
+  people = people.filter(person => weight(weights, person.id) > 0);
   if (!people.length) return null;
   if (mode === 'BALANCED') {
    const load = person => {
