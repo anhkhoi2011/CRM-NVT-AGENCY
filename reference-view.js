@@ -24,6 +24,18 @@ window.setCarePage = setCarePage;
     return customer.saleId === ownerId || customer.ownerId === ownerId;
   }
   // Đồng hồ chạy thời gian thực
+  const escapeCustomerLabel=value=>String(value??'').replace(/[&<>"']/g,character=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
+  function customerPersonnelLabels(customer) {
+    const members=appState.members||[],byId=id=>members.find(member=>member.id===id),assigned=byId(customer.saleId),directLeader=byId(customer.leaderId),directManager=byId(customer.managerId);
+    let sale=assigned,leader=directLeader,manager=directManager;
+    if(sale?.role==='MANAGER'){manager=sale;leader=null;}
+    else if(sale?.role==='LEADER'){leader=sale;manager=byId(sale.managerId)||manager;}
+    if(!leader&&sale?.leaderId)leader=byId(sale.leaderId);
+    if(!manager&&leader?.managerId)manager=byId(leader.managerId);
+    if(!manager&&sale?.managerId)manager=byId(sale.managerId);
+    const teamLeader=sale?.role==='LEADER'||sale?.role==='MANAGER'?manager:leader||manager;
+    return {teamLeader:teamLeader?.name||'',sale:sale?.name||''};
+  }
   function updateLiveClock() {
     const now = new Date();
     const timeStr = now.toLocaleTimeString('vi-VN', { hour12: false });
@@ -91,8 +103,8 @@ window.setCarePage = setCarePage;
         <td style="font-family: var(--font-mono); font-size: 11px; white-space: nowrap;">${c.createdAt}</td>
         <td><b>${c.name}</b><div style="font-size: 10.5px; color: var(--text-muted); font-family: var(--font-mono);">${c.phone}</div></td>
         <td><span style="color: #2563eb; font-weight: 700;">${c.source}</span></td>
-        <td>${c.leader}</td>
-        <td>${c.sale.includes('Chưa phân') ? `<span style="color: var(--text-muted); font-style: italic;">${c.sale}</span>` : `<b>${c.sale}</b>`}</td>
+        <td>${(() => { const personnel=customerPersonnelLabels(c); return personnel.teamLeader ? escapeCustomerLabel(personnel.teamLeader) : '<span style="color: var(--text-muted); font-style: italic;">Chưa phân Team / Leader</span>'; })()}</td>
+        <td>${(() => { const personnel=customerPersonnelLabels(c); return personnel.sale ? `<b>${escapeCustomerLabel(personnel.sale)}</b>` : '<span style="color: var(--text-muted); font-style: italic;">Chưa phân Sale</span>'; })()}</td>
         <td><span style="font-family: var(--font-mono); font-weight: 700;">${c.level}</span></td>
         <td>
           <select onchange="updateCustomerClass('${c.id}', this.value)" style="padding: 4px 8px; border-radius: 6px; font-size: 11px; border: 1px solid var(--border); background: var(--bg-surface); font-weight: 700;">
