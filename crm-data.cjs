@@ -433,19 +433,9 @@ async function distributeAutomatic(c, data = null) {
  const pick = (people, weights, key, team) => {
   people = people.filter(person => weight(weights, person.id) > 0);
   if (!people.length) return null;
-  if (mode === 'BALANCED') {
-   const load = person => {
-    const pendingCustomerIds = team && person.managerRecipient
-     ? new Set([...data.dataOffers.values()].filter(o=>o.status==='PENDING').map(o=>o.customerId))
-     : null;
-    return [...data.customers.values()].filter(row => team
-     ? (person.managerRecipient ? row.managerId === person.id&&!pendingCustomerIds.has(row.id) : row.saleId === person.id)
-     : person.directManagerBranch ? row.managerId===person.id&&!members.some(l=>l.role==='LEADER'&&l.id===row.leaderId)
-     : row.leaderId === person.id).length + (team && !person.managerRecipient ? [...data.dataOffers.values()].filter(o=>o.saleId===person.id&&o.status==='PENDING').length : 0);
-   };
-   return people.slice().sort((a,b)=>load(a)/weight(weights,a.id)-load(b)/weight(weights,b.id)||a.id.localeCompare(b.id))[0];
-  }
-  const weighted = mode === 'ROUND_ROBIN';
+  // BALANCED and ROUND_ROBIN both use the same weighted cycle. This keeps
+  // the incoming-data order, the pending queue and the cycle counter aligned.
+  const weighted = mode === 'ROUND_ROBIN' || mode === 'BALANCED';
   const candidates = weighted ? people.flatMap(person => Array.from({length: weight(weights, person.id)}, () => person)) : people;
   const raw = team ? cursor.salesByTeam[key] : cursor.leaders;
   let stateCursor = typeof raw === 'object' && raw ? {index:Number.isInteger(raw.index)?raw.index:0,ids:Array.isArray(raw.ids)?raw.ids.map(String):[]} : {index:Number.isInteger(raw)?raw:0,ids:[]};

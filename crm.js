@@ -4609,9 +4609,8 @@ function chooseAssignmentTarget(customer, mode) {
   const candidates = assignmentCandidates(customer);
   if (!candidates.length) return null;
   if (!['EQUAL', 'ROUND_ROBIN', 'BALANCED'].includes(mode)) return null;
-  if (mode === 'BALANCED') return candidates.slice().sort((a, b) => assignmentLoad(a) / assignmentWeight(a) - assignmentLoad(b) / assignmentWeight(b) || a.id.localeCompare(b.id))[0];
   const key = customer.leaderId || 'global';
-  const weighted = mode === 'ROUND_ROBIN' ? weightedCandidateList(candidates) : candidates;
+  const weighted = mode === 'ROUND_ROBIN' || mode === 'BALANCED' ? weightedCandidateList(candidates) : candidates;
   const cursorStore = customer.leaderId ? state.settings.assignmentCursor.salesByTeam : state.settings.assignmentCursor;
   const raw = customer.leaderId ? cursorStore[key] : cursorStore.global;
   const currentIds = weighted.map(person => person.id);

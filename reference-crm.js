@@ -1860,7 +1860,7 @@
     const jobs={
       'tab-customers':[()=>{renderCustomerTable();renderCustomerImportHistory();},[data.customers,data.members,data.fields,data.offers,data.imports]],
       'tab-care':[renderCareView,[data.customers,data.fields,data.careGroups]],
-      'tab-data':[renderDataQueue,[data.customers,data.pendingOffers,data.members,data.offers,data.resubmissions,data.today,data.assignedDataStats]],
+      'tab-data':[renderDataQueue,[data.customers,data.pendingOffers,data.members,data.offers,data.resubmissions,data.assignmentHistory,data.settings,data.leaderDistribution,data.saleDistributionByLeader,data.today,data.assignedDataStats]],
       'tab-orders':[drawOrders,[data.orders,data.members]],
       'tab-products':[catalog,[data.products]],
       'tab-team':[team,[data.members,data.registeredAccounts,data.customers,data.orders,data.managerHierarchy]],
@@ -2210,13 +2210,23 @@
       const active=people.filter(person=>(person.teamLeaderRecipient?config.leaderEnabled!==false:enabledIds.has(person.id))&&weightOf(config.weights?.[person.id])>0).sort((a,b)=>a.id.localeCompare(b.id));
       const next=active.flatMap(person=>Array.from({length:weightOf(config.weights?.[person.id])},()=>person));
       const raw=data.settings?.assignmentCursor?.salesByTeam?.[key];
-      const stored=raw&&typeof raw==='object'?raw:{index:Number.isInteger(raw)?raw:0};
-      const saved=Array.isArray(stored.ids)?stored.ids.map(id=>people.find(person=>person.id===id)).filter(person=>person&&active.some(item=>item.id===person.id)):[];
+      const savedIds=raw&&typeof raw==='object'&&Array.isArray(raw.ids)?raw.ids.map(String):[];
+      const saved=savedIds.map(id=>people.find(person=>person.id===id)).filter(person=>person&&active.some(item=>item.id===person.id));
       const sequence=saved.length?saved:next;
-      const absoluteIndex=Math.max(0,Number(stored.index)||0);
+      const activeIds=new Set(active.map(person=>person.id));
+      const assignments=(data.assignmentHistory||[]).filter(item=>{
+        if(item.source!=='AUTO')return false;
+        const recipientId=item.offeredSaleId||item.toSaleId||item.toLeaderId;
+        return activeIds.has(recipientId);
+      }).sort((a,b)=>String(a.at||'').localeCompare(String(b.at||''))||String(a.id||'').localeCompare(String(b.id||'')));
+      const absoluteIndex=assignments.length;
       const index=sequence.length?absoluteIndex%sequence.length:0;
-      const received=sequence.slice(0,index);
-      const upcoming=sequence.slice(index).filter(person=>active.some(item=>item.id===person.id));
+      const cycleStart=sequence.length?Math.floor(absoluteIndex/sequence.length)*sequence.length:0;
+      const received=assignments.slice(cycleStart).map(item=>{
+        const recipientId=item.offeredSaleId||item.toSaleId||item.toLeaderId;
+        return active.find(person=>person.id===recipientId)||people.find(person=>person.id===recipientId);
+      }).filter(Boolean);
+      const upcoming=sequence.slice(index);
       return {key,length:sequence.length,index,round:sequence.length?Math.floor(absoluteIndex/sequence.length)+1:0,received,upcoming:upcoming.length?upcoming:next,completed:sequence.length>0&&absoluteIndex>0&&absoluteIndex%sequence.length===0};
     };
     const cycleMarkup=(summary)=>{
