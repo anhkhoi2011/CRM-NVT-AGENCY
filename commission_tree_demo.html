@@ -1,0 +1,2608 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ <title>NVT AGENCY - CÂY MÔI GIỚI HOA HỒNG APEX (MANAGER 80K • LEADER 60K • SALE 50K)</title>
+ 
+ <!-- Fonts Google -->
+ <link rel="preconnect" href="https://fonts.googleapis.com">
+ <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+ <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+ <style>
+ :root {
+ --bg-page: #f8fafc;
+ --sidebar-bg: #0b1120;
+ --sidebar-width: 240px;
+ --header-height: 64px;
+ --text-main: #0f172a;
+ --text-muted: #64748b;
+ --text-faint: #94a3b8;
+ --border: #e2e8f0;
+ --accent: #f95721;
+ --accent-hover: #ea580c;
+ --blue: #3b82f6;
+ --purple: #8b5cf6;
+ --emerald: #10b981;
+ --card-bg: #ffffff;
+ }
+
+ * {
+ box-sizing: border-box;
+ margin: 0;
+ padding: 0;
+ }
+
+ body {
+ font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+ background-color: var(--bg-page);
+ color: var(--text-main);
+ overflow-x: hidden;
+ font-size: 13px;
+ line-height: 1.5;
+ }
+
+ /* Layout Shell */
+ .app-shell {
+ display: flex;
+ min-height: 100vh;
+ }
+
+ /* Sidebar */
+ .sidebar {
+ width: var(--sidebar-width);
+ background: var(--sidebar-bg);
+ color: #94a3b8;
+ display: flex;
+ flex-direction: column;
+ flex-shrink: 0;
+ border-right: 1px solid #1e293b;
+ z-index: 20;
+ }
+ .sidebar-brand {
+ height: var(--header-height);
+ display: flex;
+ align-items: center;
+ gap: 12px;
+ padding: 0 20px;
+ border-bottom: 1px solid #1e293b;
+ }
+ .brand-avatar {
+ width: 36px;
+ height: 36px;
+ background: linear-gradient(135deg, #f95721, #c2410c);
+ color: #ffffff;
+ border-radius: 9px;
+ display: flex;
+ align-items: center;
+ justify-content: center;
+ font-weight: 800;
+ font-size: 15px;
+ box-shadow: 0 3px 10px rgba(249, 87, 33, 0.4);
+ }
+ .brand-info strong {
+ display: block;
+ color: #ffffff;
+ font-size: 13.5px;
+ font-weight: 800;
+ letter-spacing: -0.2px;
+ }
+ .brand-info small {
+ display: block;
+ font-size: 10px;
+ color: #38bdf8;
+ font-weight: 700;
+ letter-spacing: 0.5px;
+ }
+
+ .sidebar-nav {
+ padding: 16px 10px;
+ display: flex;
+ flex-direction: column;
+ gap: 20px;
+ overflow-y: auto;
+ }
+ .nav-group-title {
+ font-size: 10.5px;
+ font-weight: 800;
+ color: #64748b;
+ padding: 0 10px 6px;
+ letter-spacing: 0.6px;
+ text-transform: uppercase;
+ }
+ .nav-list {
+ list-style: none;
+ display: flex;
+ flex-direction: column;
+ gap: 3px;
+ }
+ .nav-btn {
+ width: 100%;
+ display: flex;
+ align-items: center;
+ gap: 10px;
+ padding: 8px 12px;
+ font-size: 12.5px;
+ font-weight: 600;
+ color: #94a3b8;
+ background: transparent;
+ border: none;
+ border-radius: 8px;
+ cursor: pointer;
+ text-align: left;
+ transition: all 0.15s ease;
+ }
+ .nav-btn:hover {
+ background: rgba(255, 255, 255, 0.05);
+ color: #f8fafc;
+ }
+ .nav-btn.active {
+ background: rgba(249, 87, 33, 0.15);
+ color: #ffedd5;
+ font-weight: 700;
+ border-left: 3px solid #f95721;
+ }
+
+ /* Main Viewport */
+ .main-viewport {
+ flex: 1;
+ display: flex;
+ flex-direction: column;
+ min-width: 0;
+ background: #f8fafc;
+ }
+
+ /* Top Header */
+ .top-header {
+ height: var(--header-height);
+ background: #ffffff;
+ border-bottom: 1px solid var(--border);
+ display: flex;
+ align-items: center;
+ justify-content: space-between;
+ padding: 0 24px;
+ position: sticky;
+ top: 0;
+ z-index: 10;
+ }
+ .header-breadcrumb {
+ display: flex;
+ align-items: center;
+ gap: 8px;
+ font-size: 13px;
+ color: var(--text-muted);
+ }
+ .header-breadcrumb strong {
+ color: var(--text-main);
+ font-weight: 700;
+ }
+ .header-actions {
+ display: flex;
+ align-items: center;
+ gap: 10px;
+ }
+
+ /* Mode Switcher Tabs */
+ .view-mode-tabs {
+ display: flex;
+ background: #f1f5f9;
+ padding: 3px;
+ border-radius: 9px;
+ border: 1px solid var(--border);
+ }
+ .mode-tab-btn {
+ display: flex;
+ align-items: center;
+ gap: 6px;
+ padding: 6px 14px;
+ font-size: 12.5px;
+ font-weight: 700;
+ border: none;
+ background: transparent;
+ color: var(--text-muted);
+ border-radius: 7px;
+ cursor: pointer;
+ transition: all 0.2s;
+ }
+ .mode-tab-btn.active {
+ background: #ffffff;
+ color: var(--accent);
+ box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+ }
+
+ /* KPI Summary Strip */
+ .kpi-strip {
+ padding: 16px 24px 8px;
+ display: grid;
+ grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+ gap: 12px;
+ }
+ .kpi-card {
+ background: #ffffff;
+ border: 1px solid var(--border);
+ border-radius: 12px;
+ padding: 12px 16px;
+ box-shadow: 0 2px 6px rgba(15, 23, 42, 0.03);
+ position: relative;
+ overflow: hidden;
+ display: flex;
+ flex-direction: column;
+ gap: 4px;
+ }
+ .kpi-card::before {
+ content: "";
+ position: absolute;
+ top: 0;
+ left: 0;
+ width: 4px;
+ height: 100%;
+ background: #94a3b8;
+ }
+ .kpi-card.orange::before { background: #f95721; }
+ .kpi-card.blue::before { background: #3b82f6; }
+ .kpi-card.purple::before { background: #8b5cf6; }
+ .kpi-card.emerald::before { background: #10b981; }
+ .kpi-card.red::before { background: #ef4444; }
+
+ .kpi-label {
+ font-size: 11.5px;
+ font-weight: 700;
+ color: var(--text-muted);
+ text-transform: uppercase;
+ letter-spacing: 0.3px;
+ }
+ .kpi-val {
+ font-size: 19px;
+ font-weight: 800;
+ color: var(--text-main);
+ font-family: 'JetBrains Mono', monospace;
+ }
+ .kpi-sub {
+ font-size: 11px;
+ color: var(--text-faint);
+ }
+
+ /* Role Badges Lv1 - Lv2 - Lv3 */
+ .role-badge {
+ display: inline-flex;
+ align-items: center;
+ gap: 4px;
+ padding: 3px 8px;
+ border-radius: 6px;
+ font-size: 11px;
+ font-weight: 800;
+ letter-spacing: 0.4px;
+ text-transform: uppercase;
+ font-family: 'JetBrains Mono', monospace;
+ }
+ .role-lv1 {
+ background: #eff6ff;
+ color: #1d4ed8;
+ border: 1px solid #93c5fd;
+ }
+ .role-lv2 {
+ background: #fff7ed;
+ color: #c2410c;
+ border: 1px solid #fed7aa;
+ }
+ .role-lv3 {
+ background: #f0fdf4;
+ color: #15803d;
+ border: 1px solid #bbf7d0;
+ }
+
+ /* Page Content Area */
+ .content-container {
+ padding: 4px 24px 36px;
+ flex: 1;
+ }
+
+ /* TAB 1: MINDMAP CANVAS */
+ .mindmap-box {
+ background: #0b1329;
+ border: 1px solid #1e293b;
+ border-radius: 14px;
+ box-shadow: 0 6px 20px rgba(11, 19, 41, 0.15);
+ position: relative;
+ overflow: hidden;
+ }
+ .mindmap-toolbar {
+ padding: 12px 18px;
+ background: #0f172a;
+ border-bottom: 1px solid #1e293b;
+ display: flex;
+ align-items: center;
+ justify-content: space-between;
+ color: #e2e8f0;
+ flex-wrap: wrap;
+ gap: 12px;
+ }
+ .mindmap-title {
+ display: flex;
+ align-items: center;
+ gap: 10px;
+ font-size: 14px;
+ font-weight: 800;
+ color: #f8fafc;
+ }
+ .mindmap-title .badge-count {
+ color: #fff;
+ font-size: 11px;
+ padding: 3px 9px;
+ border-radius: 12px;
+ font-weight: 800;
+ }
+ .mindmap-controls {
+ display: flex;
+ align-items: center;
+ gap: 8px;
+ }
+ .tool-btn {
+ background: #ffffff;
+ border: 1px solid var(--border);
+ color: #334155;
+ padding: 6px 12px;
+ border-radius: 7px;
+ font-size: 12px;
+ font-weight: 700;
+ cursor: pointer;
+ display: inline-flex;
+ align-items: center;
+ gap: 6px;
+ transition: all 0.15s ease;
+ }
+ .tool-btn:hover {
+ background: #f1f5f9;
+ border-color: #cbd5e1;
+ }
+ .tool-btn.primary {
+ background: var(--accent);
+ color: #ffffff;
+ border-color: var(--accent);
+ }
+ .tool-btn.primary:hover {
+ background: var(--accent-hover);
+ }
+ .mindmap-viewport {
+ width: 100%;
+ height: 640px;
+ overflow: auto;
+ cursor: grab;
+ position: relative;
+ background: radial-gradient(circle at 50% 50%, #111e38 0%, #0b1329 100%);
+ }
+ .mindmap-viewport:active {
+ cursor: grabbing;
+ }
+
+ /* Node SVG Styles */
+ .node-group {
+ cursor: pointer;
+ transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+ }
+ .node-group:hover {
+ filter: drop-shadow(0 6px 14px rgba(59, 130, 246, 0.5));
+ }
+
+ /* TAB 2 & 3: REPORT & RANKING TABLES */
+ .report-card {
+ background: #ffffff;
+ border: 1px solid var(--border);
+ border-radius: 14px;
+ box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+ overflow: hidden;
+ }
+ .report-header-bar {
+ padding: 14px 20px;
+ border-bottom: 1px solid var(--border);
+ display: flex;
+ align-items: center;
+ justify-content: space-between;
+ flex-wrap: wrap;
+ gap: 12px;
+ background: #ffffff;
+ }
+ .search-input-wrap {
+ display: flex;
+ align-items: center;
+ background: #f8fafc;
+ border: 1px solid var(--border);
+ border-radius: 8px;
+ padding: 4px 10px;
+ gap: 6px;
+ }
+ .search-input-wrap input {
+ border: none;
+ background: transparent;
+ outline: none;
+ font-size: 12.5px;
+ width: 240px;
+ font-family: inherit;
+ }
+ .role-filter-strip {
+ display: flex;
+ align-items: center;
+ gap: 8px;
+ padding: 10px 20px;
+ background: #f8fafc;
+ border-bottom: 1px solid var(--border);
+ flex-wrap: wrap;
+ }
+ .filter-btn {
+ padding: 5px 12px;
+ font-size: 12px;
+ font-weight: 700;
+ border-radius: 6px;
+ border: 1px solid var(--border);
+ background: #ffffff;
+ color: var(--text-muted);
+ cursor: pointer;
+ transition: all 0.15s;
+ }
+ .filter-btn:hover {
+ background: #f1f5f9;
+ color: var(--text-main);
+ }
+ .filter-btn.active {
+ background: #0f172a;
+ color: #ffffff;
+ border-color: #0f172a;
+ }
+
+ /* Table styling */
+ .table-responsive {
+ width: 100%;
+ overflow-x: auto;
+ }
+ .crm-table {
+ width: 100%;
+ border-collapse: collapse;
+ text-align: left;
+ font-size: 12px;
+ white-space: nowrap;
+ }
+ .crm-table th {
+ background: #f1f5f9;
+ color: #475569;
+ font-weight: 700;
+ font-size: 11px;
+ text-transform: uppercase;
+ letter-spacing: 0.3px;
+ padding: 10px 12px;
+ border-bottom: 1px solid var(--border);
+ border-right: 1px solid rgba(226, 232, 240, 0.7);
+ }
+ .crm-table td {
+ padding: 10px 12px;
+ border-bottom: 1px solid var(--border);
+ border-right: 1px solid rgba(226, 232, 240, 0.7);
+ vertical-align: middle;
+ }
+ .crm-table tbody tr:hover {
+ background: #f8fafc;
+ }
+ .crm-table tfoot td {
+ background: #f8fafc;
+ font-weight: 800;
+ font-family: 'JetBrains Mono', monospace;
+ border-top: 2px solid #cbd5e1;
+ padding: 12px;
+ }
+
+ .btn-edit-lot {
+ background: #f8fafc;
+ border: 1px solid #cbd5e1;
+ color: #0f172a;
+ padding: 4px 10px;
+ border-radius: 6px;
+ font-size: 11px;
+ font-weight: 700;
+ cursor: pointer;
+ transition: all 0.15s;
+ }
+ .btn-edit-lot:hover {
+ background: #0f172a;
+ color: #ffffff;
+ border-color: #0f172a;
+ }
+
+ /* Downline Badge */
+ .downline-badge {
+ display: inline-flex;
+ align-items: center;
+ gap: 3px;
+ padding: 2px 7px;
+ border-radius: 5px;
+ font-size: 10.5px;
+ font-weight: 800;
+ font-family: 'JetBrains Mono', monospace;
+ }
+ .downline-lv1 {
+ background: #eff6ff;
+ color: #1d4ed8;
+ border: 1px solid #bfdbfe;
+ }
+ .downline-lv2 {
+ background: #fff7ed;
+ color: #c2410c;
+ border: 1px solid #fed7aa;
+ }
+ .downline-none {
+ color: #cbd5e1;
+ font-weight: 800;
+ font-size: 14px;
+ }
+  .btn-downline-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 800;
+    font-family: 'JetBrains Mono', monospace;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.15s ease;
+  }
+  .btn-downline-chip:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+  }
+  .btn-dl-lv1 {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border-color: #bfdbfe;
+  }
+  .btn-dl-lv1:hover {
+    background: #dbeafe;
+    border-color: #93c5fd;
+  }
+  .btn-dl-lv2 {
+    background: #fff7ed;
+    color: #c2410c;
+    border-color: #fed7aa;
+  }
+  .btn-dl-lv2:hover {
+    background: #ffedd5;
+    border-color: #fdba74;
+  }
+  .btn-downline-money {
+    background: transparent;
+    border: none;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 800;
+    cursor: pointer;
+    color: #7c3aed;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all 0.15s ease;
+  }
+  .btn-downline-money:hover {
+    background: #f3e8ff;
+    text-decoration: underline;
+  }
+
+ /* Modal Backdrop */
+ .modal-backdrop {
+ position: fixed;
+ top: 0;
+ left: 0;
+ width: 100vw;
+ height: 100vh;
+ background: rgba(15, 23, 42, 0.65);
+ backdrop-filter: blur(4px);
+ display: none;
+ align-items: center;
+ justify-content: center;
+ z-index: 100;
+ }
+ .modal-backdrop.active {
+ display: flex;
+ }
+ .modal-card {
+ background: #ffffff;
+ border-radius: 14px;
+ width: 90%;
+ max-width: 680px;
+ box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+ overflow: hidden;
+ animation: modalSlide 0.2s ease-out;
+ }
+ @keyframes modalSlide {
+ from { transform: translateY(20px); opacity: 0; }
+ to { transform: translateY(0); opacity: 1; }
+ }
+ .modal-header {
+ padding: 16px 24px;
+ background: #f8fafc;
+ border-bottom: 1px solid var(--border);
+ display: flex;
+ align-items: center;
+ justify-content: space-between;
+ }
+ .modal-header h3 {
+ margin: 0;
+ font-size: 15px;
+ font-weight: 800;
+ color: var(--text-main);
+ }
+ .modal-close {
+ background: transparent;
+ border: none;
+ font-size: 20px;
+ cursor: pointer;
+ color: var(--text-muted);
+ }
+ .modal-body {
+ padding: 18px 24px;
+ display: flex;
+ flex-direction: column;
+ gap: 14px;
+ max-height: 80vh;
+ overflow-y: auto;
+ }
+ .modal-footer {
+ padding: 14px 24px;
+ background: #f8fafc;
+ border-top: 1px solid var(--border);
+ display: flex;
+ align-items: center;
+ justify-content: flex-end;
+ gap: 10px;
+ }
+
+ .form-grid-2 {
+ display: grid;
+ grid-template-columns: 1fr 1fr;
+ gap: 12px;
+ }
+ .form-grid-3 {
+ display: grid;
+ grid-template-columns: 1fr 1fr 1fr;
+ gap: 12px;
+ }
+ .form-group label {
+ display: block;
+ font-size: 11.5px;
+ font-weight: 700;
+ color: var(--text-muted);
+ margin-bottom: 5px;
+ }
+ .form-group input, .form-group select {
+ width: 100%;
+ padding: 7px 10px;
+ border: 1px solid var(--border);
+ border-radius: 7px;
+ font-size: 12.5px;
+ outline: none;
+ font-family: 'JetBrains Mono', monospace;
+ font-weight: 600;
+ }
+ .form-group input:focus {
+ border-color: var(--accent);
+ }
+
+ /* Live calculation summary in modal */
+ .live-calc-box {
+ background: #eff6ff;
+ border: 1px solid #bfdbfe;
+ border-radius: 10px;
+ padding: 12px 14px;
+ display: flex;
+ flex-direction: column;
+ gap: 5px;
+ }
+ .calc-row {
+ display: flex;
+ justify-content: space-between;
+ font-size: 12px;
+ padding: 2px 0;
+ }
+ .calc-row.total {
+ font-size: 13.5px;
+ font-weight: 800;
+ border-top: 1px dashed #93c5fd;
+ padding-top: 6px;
+ margin-top: 4px;
+ color: #1d4ed8;
+ }
+
+ /* Tab Sections switch */
+ .tab-content-panel {
+ display: none;
+ }
+ .tab-content-panel.active {
+ display: block;
+ }
+ </style>
+</head>
+<body>
+
+<div class="app-shell">
+
+ <!-- 1. SIDEBAR CỘT DỌC NVT AGENCY -->
+ <aside class="sidebar">
+ <div class="sidebar-brand">
+ <div class="brand-avatar">NVT</div>
+ <div class="brand-info">
+ <strong>NVT AGENCY</strong>
+ <small>COMMISSION CORE</small>
+ </div>
+ </div>
+
+ <nav class="sidebar-nav">
+ <!-- VẬN HÀNH -->
+ <div>
+ <div class="nav-group-title">VẬN HÀNH</div>
+ <ul class="nav-list">
+ <li><button class="nav-btn" onclick="alert('Mở Tổng quan')">Tổng quan</button></li>
+ <li><button class="nav-btn" onclick="alert('Mở Khách hàng')">Khách hàng tổng</button></li>
+ <li><button class="nav-btn" onclick="alert('Mở Chăm Sóc Khách')">Chăm Sóc Khách</button></li>
+ <li><button class="nav-btn" onclick="alert('Mở Data')">Data</button></li>
+ </ul>
+ </div>
+
+ <!-- KINH DOANH -->
+ <div>
+ <div class="nav-group-title">KINH DOANH</div>
+ <ul class="nav-list">
+ <li><button class="nav-btn" onclick="alert('Mở Báo cáo')">Báo cáo</button></li>
+ <li><button class="nav-btn" onclick="alert('Mở Đội nhóm & Cây')">Đội nhóm & Cây</button></li>
+ <li><button class="nav-btn" onclick="alert('Mở Khách hàng')">Khách hàng</button></li>
+ </ul>
+ </div>
+
+ <!-- HOA HỒNG APEX (MỤC TRỌNG TÂM YÊU CẦU) -->
+ <div>
+ <div class="nav-group-title">HOA HỒNG APEX</div>
+ <ul class="nav-list">
+ <li><button class="nav-btn active" id="btnSideMindmap" onclick="switchView('tab-mindmap')">Cây Mindmap (Lv1-Lv3)</button></li>
+ <li><button class="nav-btn" id="btnSideReport" onclick="switchView('tab-report')">Báo cáo Doanh thu (23)</button></li>
+ </ul>
+ </div>
+
+ <!-- TÀI LIỆU & CÀI ĐẶT -->
+ <div>
+ <div class="nav-group-title">TÀI LIỆU & CÀI ĐẶT</div>
+ <ul class="nav-list">
+ <li><button class="nav-btn" onclick="openConfigModal()">Biến số Lot & Định mức</button></li>
+ </ul>
+ </div>
+ </nav>
+ </aside>
+
+ <!-- 2. MAIN VIEWPORT -->
+ <main class="main-viewport">
+ 
+ <!-- Top Header -->
+ <header class="top-header">
+ <div class="header-breadcrumb">
+ <span>Kinh Doanh</span>
+ <span>/</span>
+ <span>Cơ Cấu Môi Giới APEX</span>
+ <span>/</span>
+ <strong id="breadcrumbCurrent">Cơ Chế Bậc Thang (Manager 80k • Leader 60k • Sale 50k)</strong>
+ </div>
+
+ <!-- Mode switcher buttons -->
+ <div class="view-mode-tabs">
+ <button class="mode-tab-btn active" id="btnTabMindmap" onclick="switchView('tab-mindmap')">
+ Cây Mindmap (Lv1 - Lv3)
+ </button>
+ <button class="mode-tab-btn" id="btnTabReport" onclick="switchView('tab-report')">
+ Báo Cáo Doanh Thu (23 Nhân Sự)
+ </button>
+ </div>
+
+ <div class="header-actions">
+ <button class="tool-btn" onclick="openConfigModal()" title="Cấu hình hệ số quy đổi 1 MINI = 0.8, 1 Micro = 0.35, định mức 80k/60k/50k">
+ Biến Số Quy Đổi Lot
+ </button>
+ <button class="tool-btn primary" onclick="exportToCSV()">
+ Xuất Báo Cáo CSV
+ </button>
+ </div>
+ </header>
+
+ <!-- 3. KPI SUMMARY BAR (23 NHÂN SỰ LV1 - LV2 - LV3) -->
+ <section class="kpi-strip">
+ <div class="kpi-card orange">
+ <div class="kpi-label">Tổng Lot Quy Đổi (23 Nhân Sự)</div>
+ <div class="kpi-val" id="kpiTotalLot">390.47</div>
+ <div class="kpi-sub">Standard(x1) + Mini(x0.8) + Micro(x0.35)</div>
+ </div>
+ <div class="kpi-card blue">
+ <div class="kpi-label">Tổng HH Lot Cá Nhân</div>
+ <div class="kpi-val" id="kpiTotalHhLot" style="color:#2563eb;">21.845.000 đ</div>
+ <div class="kpi-sub" id="kpiSubHhLot">Lv1: 80k • Lv2: 60k • Lv3: 50k</div>
+ </div>
+ <div class="kpi-card purple">
+ <div class="kpi-label">HH Tuyến Dưới (Chênh Lệch Lot)</div>
+ <div class="kpi-val" id="kpiTotalDownline" style="color:#7c3aed;">6.755.000 đ</div>
+ <div class="kpi-sub" id="kpiSubDownline">Leader +10k/lot • Manager +20k/lot</div>
+ </div>
+ <div class="kpi-card emerald">
+ <div class="kpi-label">Doanh Thu Sản Phẩm Nhân Sự</div>
+ <div class="kpi-val" id="kpiTotalIndicator" style="color:#059669;">264.500.000 đ</div>
+ <div class="kpi-sub">Chỉ báo trading & Khóa học đào tạo</div>
+ </div>
+ <div class="kpi-card emerald">
+ <div class="kpi-label">Tổng Thực Nhận Chi Trả</div>
+ <div class="kpi-val" id="kpiTotalNet" style="color:#ea580c;">88.520.000 đ</div>
+ <div class="kpi-sub">Không trừ thuế • 100% Thu nhập thực tế</div>
+ </div>
+ </section>
+
+ <!-- 5. CONTENT TABS -->
+ <div class="content-container">
+
+    
+    </div>
+
+
+ <!-- ==========================================================
+ VIEW 1: CÂY MINDMAP HOA HỒNG (ẨN 2 ADMIN - PHÂN CẤP LV1, LV2, LV3)
+ ========================================================== -->
+ <div id="tab-mindmap" class="tab-content-panel active">
+ 
+ </div>
+
+ 
+ <div class="mindmap-box">
+ <!-- Toolbar -->
+ <div class="mindmap-toolbar">
+ <div class="mindmap-title">
+ <span>CÂY MÔI GIỚI APEX (23 NHÂN SỰ)</span>
+ <span class="badge-count" style="background:#2563eb;" id="badgeCountLv1">2 VỊ TRÍ LV1 (80K/LOT)</span>
+ <span class="badge-count" style="background:#ea580c;" id="badgeCountLv2">5 VỊ TRÍ LV2 (60K/LOT)</span>
+ <span class="badge-count" style="background:#059669;" id="badgeCountLv3">16 VỊ TRÍ LV3 (50K/LOT)</span>
+ <span style="font-size:11.5px; color:#94a3b8; font-weight:500;">(Đã ẩn 2 Admin)</span>
+ </div>
+ <div class="mindmap-controls">
+ <button class="tool-btn" onclick="zoomMindmap(1.15)"> Phóng to</button>
+ <button class="tool-btn" onclick="zoomMindmap(0.85)"> Thu nhỏ</button>
+ <button class="tool-btn" onclick="resetZoom()">⟲ Reset Zoom</button>
+ <button class="tool-btn primary" onclick="switchView('tab-report')"> Xem Báo Cáo Doanh Thu</button>
+ </div>
+ </div>
+
+ <!-- Mindmap Interactive SVG Canvas -->
+ <div class="mindmap-viewport" id="mindmapViewport">
+ <svg id="mindmapSvg" width="1800" height="960" style="transform-origin: 0 0; transition: transform 0.15s ease-out;">
+ <defs>
+ <linearGradient id="gradOrange" x1="0%" y1="0%" x2="100%" y2="100%">
+ <stop offset="0%" stop-color="#c2410c"/>
+ <stop offset="100%" stop-color="#ea580c"/>
+ </linearGradient>
+ </defs>
+
+ <g id="svgBranchesGroup"></g>
+ <g id="svgNodesGroup"></g>
+ </svg>
+ </div>
+ </div>
+
+ </div>
+
+ <!-- ==========================================================
+ VIEW 2: BÁO CÁO DOANH THU NHÂN VIÊN (23 NHÂN SỰ LV1 - LV2 - LV3)
+ ========================================================== -->
+ <div id="tab-report" class="tab-content-panel">
+ 
+ <div class="report-card">
+ <!-- Report Header & Filters -->
+ <div class="report-header-bar">
+ <div style="display:flex; align-items:center; gap:12px;">
+ <h3 style="margin:0; font-size:15px; font-weight:800; color:#0f172a;">
+ BÁO CÁO DOANH THU & HOA HỒNG NHÂN VIÊN (23 NHÂN SỰ)
+ </h3>
+ <span style="background:#e0f2fe; color:#0284c7; font-size:11.5px; font-weight:700; padding:3px 8px; border-radius:6px;">
+ Tháng 09/2026
+ </span>
+ <span style="background:#f1f5f9; color:#475569; font-size:11px; font-weight:700; padding:3px 8px; border-radius:6px;">
+ Đã ẩn 2 Admin
+ </span>
+ </div>
+
+ <div style="display:flex; align-items:center; gap:10px;">
+ <div class="search-input-wrap">
+ <span></span>
+ <input type="text" id="reportSearchInput" placeholder="Tìm tên nhân sự, ID, vị trí..." oninput="handleSearch(this.value)">
+ </div>
+ <button class="tool-btn" onclick="openConfigModal()"> Tùy Chỉnh Biến Số Lot</button>
+ <button class="tool-btn primary" onclick="exportToCSV()"> Xuất Excel/CSV</button>
+ </div>
+ </div>
+
+ <!-- Role Filter Strip -->
+ <div class="role-filter-strip">
+ <span style="font-size:11.5px; font-weight:800; color:#64748b; text-transform:uppercase;">Lọc Vị Trí:</span>
+ <button class="filter-btn active" onclick="filterByRole('ALL', this)">Tất cả (23)</button>
+ <button class="filter-btn" id="filterBtnLv1" onclick="filterByRole('LV1', this)">VỊ TRÍ LV1 (2) • 80k/lot</button>
+ <button class="filter-btn" id="filterBtnLv2" onclick="filterByRole('LV2', this)">VỊ TRÍ LV2 (5) • 60k/lot</button>
+ <button class="filter-btn" id="filterBtnLv3" onclick="filterByRole('LV3', this)">VỊ TRÍ LV3 (16) • 50k/lot</button>
+ <span style="margin-left:auto; font-size:11.5px; color:#64748b;">
+ <em>Khách Sale 1 lot: Sale 50k, Leader 10k, Manager 20k. Sale không có tuyến dưới hiển thị (—).</em>
+ </span>
+ </div>
+
+ <!-- Data Table -->
+ <div class="table-responsive">
+ <table class="crm-table" id="reportTable">
+ <thead>
+            <tr>
+              <th>STT</th>
+              <th>Nhân Sự</th>
+              <th>Vị Trí Cấp Bậc</th>
+              <th>Quản Lý Trực Thuộc</th>
+              <th title="Lot tiêu chuẩn cơ bản (hệ số 1.0)">Lot Chuẩn</th>
+              <th title="Quy đổi x 0.35">Lot Micro</th>
+              <th title="Quy đổi x 0.8">Lot MINI</th>
+              <th style="background:#e2e8f0; color:#0f172a;" title="Chuẩn + (Mini*0.8) + (Micro*0.35)">Tổng Lot Cá Nhân</th>
+              <th style="background:#fff7ed; color:#ea580c;" title="Định mức VNĐ nhận cho mỗi 1 lot cá nhân">Định Mức / Lot</th>
+              <th style="color:#2563eb;">HH Lot Cá Nhân</th>
+              <th style="background:#f5f3ff; color:#7c3aed;" title="Tổng lot phát sinh từ toàn bộ tuyến dưới">Lot Tuyến Dưới</th>
+              <th style="background:#f5f3ff; color:#6d28d9; font-weight:800;" title="Hoa hồng chênh lệch từ tuyến dưới">HH Tuyến Dưới</th>
+              <th>DS Chỉ Báo</th>
+              <th>DS Khóa Học</th>
+              <th style="background:#f0f9ff; color:#0284c7;" title="Tỷ lệ % hoa hồng sản phẩm (mặc định 10%, chỉnh được từng người)">% HH SP</th>
+              <th>HH Sản Phẩm</th>
+              <th style="background:#faf5ff; color:#7e22ce;" title="Thưởng nóng / KPI do Admin nhập">Thưởng KPI</th>
+              <th style="background:#ecfdf5; color:#059669; font-size:12px; font-weight:900;">Thực Nhận</th>
+              <th style="text-align:center;">Thao Tác</th>
+            </tr>
+          </thead>
+ <tbody id="reportTableBody">
+ <!-- Dynamic Rows Rendered by JS -->
+ </tbody>
+ <tfoot>
+            <tr>
+              <td colspan="4" style="text-align:right;">TỔNG CỘNG 23 NHÂN SỰ:</td>
+              <td id="footBasicLot">0.0</td>
+              <td id="footMicroLot">0.0</td>
+              <td id="footMiniLot">0.0</td>
+              <td id="footStdLot" style="color:#0f172a; font-size:13px;">0.0</td>
+              <td id="footAvgRate" style="color:#ea580c; font-size:11px; font-weight:800;">-</td>
+              <td id="footHhLot" style="color:#2563eb;">0 đ</td>
+              <td id="footDownlineLot" style="color:#7c3aed;">-</td>
+              <td id="footHhDownline" style="color:#6d28d9;">0 đ</td>
+              <td id="footIndRev">0 đ</td>
+              <td id="footCouRev">0 đ</td>
+              <td id="footProdRate" style="color:#0369a1; font-weight:800; text-align:center;">10.0%</td>
+              <td id="footHhProd" style="color:#0369a1; font-weight:800;">0 đ</td>
+              <td id="footBonus" style="color:#7e22ce; font-weight:800;">0 đ</td>
+              <td id="footNetIncome" style="color:#059669; font-size:14px; font-weight:900;">0 đ</td>
+              <td style="text-align:center;">-</td>
+            </tr>
+          </tfoot>
+ </table>
+ </div>
+ </div>
+
+ </div>
+
+ </div>
+
+ </div>
+ </main>
+</div>
+
+<!-- ====================================================================
+ MODAL 1: CHỈNH SỬA CƠ CHẾ, SỐ LOT & CHÊNH LỆCH TUYẾN DƯỚI TỪNG NHÂN SỰ
+ ==================================================================== -->
+<div class="modal-backdrop" id="editModal">
+ <div class="modal-card">
+ <div class="modal-header">
+ <div>
+ <h3 id="modalPersonnelName">Chỉnh sửa cơ chế nhân sự</h3>
+ <span id="modalPersonnelMeta" style="font-size:11.5px; color:#64748b;">Mã ID: 08049866</span>
+ </div>
+ <button class="modal-close" onclick="closeEditModal()">✕</button>
+ </div>
+
+ <div class="modal-body">
+ 
+ <!-- Nhóm 1: Cơ chế hoa hồng cá nhân -->
+ <div style="background:#fff7ed; border:1px solid #fed7aa; padding:12px 14px; border-radius:10px;">
+ <div style="font-size:12px; font-weight:800; color:#c2410c; margin-bottom:8px; text-transform:uppercase;">
+ 1. Cơ Chế Hoa Hồng Lot Cá Nhân (Định Mức k/lot)
+ </div>
+ <div class="form-grid-3">
+ <div class="form-group">
+ <label>Định Mức / Lot (VNĐ)</label>
+ <input type="number" id="inputRatePerLot" step="5000" oninput="updateModalPreview()">
+ <small style="color:#ea580c; font-size:10.5px; font-weight:700;" id="txtRateK">80k/lot</small>
+ </div>
+ <div class="form-group" style="grid-column: span 2;">
+ <label style="color:#0369a1;">% Hoa Hồng Sản Phẩm (Chỉ Báo & Khóa Học - Mặc định: 10%)</label>
+            <div style="display:flex; gap:6px; align-items:center;">
+              <input type="number" id="inputProductRate" min="0" max="100" step="1" value="10" oninput="updateModalPreview()" style="width:100px; border-color:#38bdf8; font-weight:800; color:#0369a1;">
+              <span style="font-weight:800; color:#0369a1;">%</span>
+            </div>
+            <small style="color:#0284c7; font-size:10.5px; margin-top:3px; display:block;">Admin có thể chỉnh riêng cho nhân sự này hoặc nhập trên bảng báo cáo</small>
+ </div>
+ </div>
+ </div>
+
+ <!-- Nhóm 2: Cơ chế Tuyến Dưới (Chỉ cho Vị trí Lv1 & Lv2, Lv3 không có) -->
+        <div id="downlineConfigSection" style="background:#f5f3ff; border:1px solid #ddd6fe; padding:12px 14px; border-radius:10px;">
+          <div style="font-size:12px; font-weight:800; color:#6d28d9; margin-bottom:8px; text-transform:uppercase; display:flex; justify-content:space-between; align-items:center;">
+            <span>2. Cơ Chế Hoa Hồng Tuyến Dưới (Chênh Lệch Lot)</span>
+            <span id="roleBadgeInModal" class="role-badge role-lv1">VỊ TRÍ LV1</span>
+          </div>
+          <div class="form-grid-2">
+            <div class="form-group" style="grid-column: span 2;">
+              <label>Tổng Lot Tuyến Dưới Tự Động Tính (Lot Chuẩn)</label>
+              <div style="display:flex; gap:8px; align-items:center;">
+                <input type="text" id="displayDownlineLots" readonly style="background:#f1f5f9; color:#0f172a; font-weight:800; width:100%;">
+                <button type="button" class="btn-edit-lot" onclick="if(currentEditingPersonnelId) openDownlineModal(currentEditingPersonnelId)" style="white-space:nowrap; padding:6px 12px; font-size:11.5px; font-weight:700; background:#7c3aed; color:#ffffff; border:none; border-radius:6px; cursor:pointer;">Xem Bảng Kê</button>
+              </div>
+              <div style="display:flex; justify-content:space-between; margin-top:5px; flex-wrap:wrap; gap:4px;">
+                <small style="color:#64748b; font-size:11px;" id="txtSubordinatesCount">0 cấp dưới trực thuộc</small>
+                <small style="color:#7c3aed; font-size:11.5px; font-weight:700;" id="txtDownlineHint"></small>
+              </div>
+            </div>
+          </div>
+        </div>
+
+ <!-- Khối thông báo nếu là Lv3 -->
+ <div id="downlineSaleNotice" style="display:none; background:#f1f5f9; border:1px dashed #cbd5e1; padding:10px 14px; border-radius:10px; font-size:12px; color:#64748b;">
+ ℹ <strong>Vị trí LV3 (Sale):</strong> Khách của Sale phát sinh 1 lot thì Sale nhận 50k. Không có hoa hồng tuyến dưới (không hiển thị số trên báo cáo —).
+ </div>
+
+ <!-- Nhóm 3: Biến số Lot (Lot Cơ bản, Lot Mini, Lot Micro) -->
+ <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:12px 14px; border-radius:10px;">
+ <div style="font-size:12px; font-weight:800; color:#334155; margin-bottom:8px; text-transform:uppercase;">
+ 3. Biến Số Số Lượng Lot Trong Kỳ
+ </div>
+ <div class="form-grid-3">
+ <div class="form-group">
+ <label>Lot Tiêu Chuẩn</label>
+ <input type="number" id="inputBasicLot" step="0.1" oninput="updateModalPreview()">
+ <small style="color:#64748b; font-size:10.5px;">Hệ số 1.0</small>
+ </div>
+ <div class="form-group">
+ <label>Lot MINI</label>
+ <input type="number" id="inputMiniLot" step="0.1" oninput="updateModalPreview()">
+ <small style="color:#ea580c; font-size:10.5px; font-weight:700;">Quy đổi x 0.8</small>
+ </div>
+ <div class="form-group">
+ <label>Lot Micro</label>
+ <input type="number" id="inputMicroLot" step="0.1" oninput="updateModalPreview()">
+ <small style="color:#2563eb; font-size:10.5px; font-weight:700;">Quy đổi x 0.35</small>
+ </div>
+ </div>
+ </div>
+
+ <!-- Nhóm 4: Doanh số sản phẩm & thưởng -->
+ <div class="form-grid-3">
+ <div class="form-group">
+ <label>Doanh thu Chỉ Báo (VNĐ)</label>
+ <input type="number" id="inputIndicatorRev" step="500000" oninput="updateModalPreview()">
+ </div>
+ <div class="form-group">
+ <label>Doanh thu Khóa Học (VNĐ)</label>
+ <input type="number" id="inputCourseRev" step="500000" oninput="updateModalPreview()">
+ </div>
+ <div class="form-group">
+ <label>Thưởng KPI / Nóng (VNĐ)</label>
+ <input type="number" id="inputBonus" step="100000" oninput="updateModalPreview()">
+ </div>
+ </div>
+
+ <!-- Live Calculation Box -->
+ <div class="live-calc-box">
+ <div style="font-size:11.5px; font-weight:800; color:#1e40af; text-transform:uppercase;">
+ Kết Quả Tính Toán Tự Động Theo Thời Gian Thực
+ </div>
+ <div class="calc-row">
+ <span>Tổng Lot chuẩn cá nhân:</span>
+ <strong id="previewStdLot">0.00 lot</strong>
+ </div>
+ <div class="calc-row">
+ <span>Hoa hồng Lot cá nhân:</span>
+ <strong id="previewHhLot" style="color:#2563eb;">0 đ</strong>
+ </div>
+ <div class="calc-row" id="previewDownlineRow">
+ <span>Hoa hồng Tuyến Dưới :</span>
+ <strong id="previewHhDownline" style="color:#7c3aed;">0 đ</strong>
+ </div>
+ <div class="calc-row">
+ <span>Hoa hồng Sản phẩm (Chỉ báo + Khóa học):</span>
+ <strong id="previewHhProduct">0 đ</strong>
+ </div>
+ <div class="calc-row">
+ <span>Thưởng KPI (Admin Nhập):</span>
+ <strong id="previewBonus" style="color:#7e22ce;">0 đ</strong>
+ </div>
+ <div class="calc-row total">
+ <span>TỔNG TIỀN THỰC NHẬN (ĐÃ BỎ THUẾ):</span>
+ <span id="previewNetIncome" style="color:#059669; font-size:16px; font-weight:900;">0 đ</span>
+ </div>
+ </div>
+
+ </div>
+
+ <div class="modal-footer">
+ <button class="tool-btn" onclick="closeEditModal()">Hủy bỏ</button>
+ <button class="tool-btn primary" onclick="savePersonnelChanges()"> Lưu & Cập Nhật Hệ Thống</button>
+ </div>
+ </div>
+</div>
+
+<!-- ====================================================================
+     MODAL 1.1: BẢNG KÊ CHI TIẾT HOA HỒNG TUYẾN DƯỚI (LV1 & LV2)
+     ==================================================================== -->
+<div class="modal-backdrop" id="downlineModal" style="z-index: 1050;">
+  <div class="modal-card" style="max-width: 860px;">
+    <div class="modal-header" style="background:#f5f3ff; border-bottom:1px solid #ddd6fe;">
+      <div>
+        <h3 id="downlineModalTitle" style="color:#6d28d9; margin:0; font-size:16px;">Bảng Kê Chi Tiết Tuyến Dưới</h3>
+        <span id="downlineModalSubtitle" style="font-size:12px; color:#64748b;">Danh sách nhân sự cấp dưới & hoa hồng chênh lệch nhận được</span>
+      </div>
+      <button class="modal-close" onclick="closeDownlineModal()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:16px;">
+      <div class="table-responsive">
+        <table class="crm-table">
+          <thead>
+            <tr>
+              <th>STT</th>
+              <th>Nhân Sự Tuyến Dưới</th>
+              <th>Cấp Bậc</th>
+              <th>Quan Hệ Cây</th>
+              <th style="background:#e2e8f0; color:#0f172a;">Lot Tiêu Chuẩn</th>
+              <th style="background:#fff7ed; color:#ea580c;">Mức Chênh Lệch</th>
+              <th style="background:#ecfdf5; color:#059669; font-weight:800;">Hoa Hồng Nhận</th>
+            </tr>
+          </thead>
+          <tbody id="downlineModalBody">
+            <!-- Rendered by JS -->
+          </tbody>
+          <tfoot>
+            <tr style="background:#f8fafc; font-weight:800;">
+              <td colspan="4" style="text-align:right;">TỔNG CỘNG TUYẾN DƯỚI:</td>
+              <td id="footDownlineTotalLot" style="font-family:'JetBrains Mono'; color:#0f172a;">0.00 lot</td>
+              <td>-</td>
+              <td id="footDownlineTotalMoney" style="font-family:'JetBrains Mono'; color:#059669; font-size:13.5px;">0 đ</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer" style="background:#f8fafc;">
+      <button type="button" class="tool-btn" onclick="closeDownlineModal()">Đóng Cửa Sổ</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====================================================================
+ MODAL 2: TÙY CHỈNH HỆ SỐ QUY ĐỔI LOT & ĐỊNH MỨC TOÀN HỆ THỐNG
+ ==================================================================== -->
+<div class="modal-backdrop" id="configModal">
+ <div class="modal-card" style="max-width:540px;">
+ <div class="modal-header">
+ <h3> Cấu Hình Biến Số Lot & Định Mức Toàn Hệ Thống</h3>
+ <button class="modal-close" onclick="closeConfigModal()">✕</button>
+ </div>
+ <div class="modal-body">
+ <p style="font-size:12.5px; color:#64748b; margin:0 0 10px;">
+ Thay đổi hệ số quy đổi và định mức chung cho toàn bộ nhân sự Apex:
+ </p>
+ 
+ <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:12px; border-radius:8px; margin-bottom:12px;">
+ <div style="font-size:11.5px; font-weight:800; color:#334155; margin-bottom:8px; text-transform:uppercase;">
+ 1. Hệ Số Quy Đổi Lot Chuẩn:
+ </div>
+ <div class="form-grid-2">
+ <div class="form-group">
+ <label>1 Lot MINI = ? Lot Chuẩn (Mặc định: 0.8)</label>
+ <input type="number" id="cfgMini" step="0.05" value="0.8">
+ </div>
+ <div class="form-group">
+ <label>1 Lot Micro = ? Lot Chuẩn (Mặc định: 0.35)</label>
+ <input type="number" id="cfgMicro" step="0.05" value="0.35">
+ </div>
+ </div>
+ </div>
+
+ <div style="background:#eff6ff; border:1px solid #bfdbfe; padding:12px; border-radius:8px;">
+ <div style="font-size:11.5px; font-weight:800; color:#1e40af; margin-bottom:8px; text-transform:uppercase;">
+ 2. Định Mức Hoa Hồng Theo Vị Trí (VNĐ / Lot):
+ </div>
+ <div class="form-grid-3">
+ <div class="form-group">
+ <label>Vị trí Lv1 (Manager)</label>
+ <input type="number" id="cfgRateLv1" step="5000" value="80000">
+ <small style="color:#2563eb; font-weight:700;">80k/lot</small>
+ </div>
+ <div class="form-group">
+ <label>Vị trí Lv2 (Leader)</label>
+ <input type="number" id="cfgRateLv2" step="5000" value="60000">
+ <small style="color:#ea580c; font-weight:700;">60k/lot</small>
+ </div>
+ <div class="form-group">
+ <label>Vị trí Lv3 (Sale)</label>
+ <input type="number" id="cfgRateLv3" step="5000" value="50000">
+ <small style="color:#10b981; font-weight:700;">50k/lot</small>
+ </div>
+ </div>
+
+ <div class="form-grid-2" style="margin-top:10px;">
+ <div class="form-group">
+ <label>Chênh lệch Leader nhận từ Sale (VNĐ / Lot)</label>
+ <input type="number" id="cfgDiffLeader" step="1000" value="10000">
+ <small style="color:#ea580c; font-weight:700;">60k - 50k = 10k/lot</small>
+ </div>
+ <div class="form-group">
+ <label>Chênh lệch Manager nhận từ Leader/Sale (VNĐ / Lot)</label>
+ <input type="number" id="cfgDiffManager" step="1000" value="20000">
+ <small style="color:#2563eb; font-weight:700;">80k - 60k = 20k/lot</small>
+ </div>
+ </div>
+ </div>
+
+ 
+ <div style="background:#f0f9ff; border:1px solid #bae6fd; padding:12px; border-radius:8px; margin-top:12px;">
+ <div style="font-size:11.5px; font-weight:800; color:#0369a1; margin-bottom:8px; text-transform:uppercase;">
+ 3. Tỷ Lệ Hoa Hồng Sản Phẩm Toàn Hệ Thống:
+ </div>
+ <div class="form-grid-2">
+ <div class="form-group">
+ <label>% Hoa hồng sản phẩm mặc định (%)</label>
+ <input type="number" id="cfgProductRate" step="1" min="0" max="100" value="10">
+ <small style="color:#0284c7; font-weight:700;">Mặc định: 10% cho toàn bộ 23 nhân sự</small>
+ </div>
+ <div class="form-group" style="display:flex; flex-direction:column; justify-content:center;">
+ <label style="color:#64748b;">Hành động nhanh:</label>
+ <button type="button" class="tool-btn" style="background:#e0f2fe; color:#0369a1; border-color:#7dd3fc; font-weight:800; padding:6px 10px;" onclick="resetAllProductRateTo10()">
+ Đặt lại toàn bộ 23 nhân sự về 10%
+ </button>
+ </div>
+ </div>
+ </div>
+ </div>
+ <div class="modal-footer">
+ <button class="tool-btn" onclick="closeConfigModal()">Đóng</button>
+ <button class="tool-btn primary" onclick="applyLotConfig()">Áp Dụng Toàn Hệ Thống</button>
+ </div>
+ </div>
+</div>
+
+<script>
+ // ====================================================================
+ // 1. HỆ SỐ QUY ĐỔI LOT & ĐỊNH MỨC HOA HỒNG TOÀN HỆ THỐNG
+ // ====================================================================
+ let LOT_CONFIG = {
+ standardMultiplier: 1.0,
+ miniMultiplier: 0.8, // 1 lot MINI = 0.8 lot tiêu chuẩn
+ microMultiplier: 0.35, // 1 lot Micro = 0.35 lot tiêu chuẩn
+ rateLv1: 80000, // Manager: 80k/lot
+ rateLv2: 60000, // Leader: 60k/lot
+ rateLv3: 50000, // Sale: 50k/lot
+ diffLeader: 10000, // Leader nhận chênh lệch 60k - 50k = 10k/lot từ khách Sale
+ diffManager: 20000, // Manager nhận chênh lệch 80k - 60k = 20k/lot từ Leader/Sale
+ diffManagerDirectSale: 30000 // Manager nhận từ Sale trực tiếp không qua Leader = 80k - 50k = 30k/lot
+ };
+
+ // ====================================================================
+ // 2. DỮ LIỆU ĐÚNG CHUẨN 23 NHÂN SỰ APEX (ĐÃ ẨN 2 ADMIN)
+ // CÁC VAI TRÒ:
+ // - VỊ TRÍ LV1 (2 Người - 80k/lot): Phương Anh, Nguyễn Hoàng Khánh
+ // - VỊ TRÍ LV2 (5 Người - 60k/lot): Trần Thị Tuyết, Đỗ Mạnh Hùng, Đỗ Việt Cường, Vũ Thị Quỳnh, Đặng Tấn Tử
+ // - VỊ TRÍ LV3 (16 Người - 50k/lot): Đặng Hương Thuỷ, Trần Thị Mai, Cáp Trọng Sơn Tùng, Lê Ngân, v.v...
+ // ====================================================================
+ let APEX_DATA = [
+ // ── 2 VỊ TRÍ LV1 (80k/lot, HƯỞNG +20K/LOT TỪ TUYẾN DƯỚI) ──
+ {
+ id: "08049866",
+ name: "Phương Anh",
+ phone: "0329093366",
+ roleLevel: "LV1",
+ roleTitle: "Vị trí Lv1",
+ team: "Nhánh Phương Anh",
+ directManager: "—",
+ parentId: null,
+ ratePerLot: 80000,
+ customDiffRate: 20000,
+ basicLot: 15.0,
+ miniLot: 12.0,
+ microLot: 14.0,
+ indicatorRev: 14000000,
+ courseRev: 20000000,
+ productRate: 10,
+ bonus: 1000000
+ },
+ {
+ id: "08014278",
+ name: "Nguyễn Hoàng Khánh",
+ phone: "09397724768",
+ roleLevel: "LV1",
+ roleTitle: "Vị trí Lv1",
+ team: "Nhánh Nguyễn Hoàng Khánh",
+ directManager: "—",
+ parentId: null,
+ ratePerLot: 80000,
+ customDiffRate: 20000,
+ basicLot: 20.0,
+ miniLot: 15.0,
+ microLot: 18.0,
+ indicatorRev: 18000000,
+ courseRev: 25000000,
+ productRate: 10,
+ bonus: 1500000
+ },
+
+ // ── 5 VỊ TRÍ LV2 (60k/lot, HƯỞNG +10K/LOT TỪ SALE TUYẾN DƯỚI) ──
+ {
+ id: "08077592",
+ name: "Trần Thị Tuyết",
+ phone: "0858237687",
+ roleLevel: "LV2",
+ roleTitle: "Vị trí Lv2",
+ team: "Nhóm Trần Thị Tuyết",
+ directManager: "Phương Anh - ID: 08049866",
+ parentId: "08049866",
+ ratePerLot: 60000,
+ customDiffRate: 10000,
+ basicLot: 12.0,
+ miniLot: 8.0,
+ microLot: 12.0,
+ indicatorRev: 9000000,
+ courseRev: 14000000,
+ productRate: 10,
+ bonus: 600000
+ },
+ {
+ id: "08080804",
+ name: "Đỗ Mạnh Hùng",
+ phone: "0842278856",
+ roleLevel: "LV2",
+ roleTitle: "Vị trí Lv2",
+ team: "Nhóm Đỗ Mạnh Hùng",
+ directManager: "—",
+ parentId: null,
+ ratePerLot: 60000,
+ customDiffRate: 10000,
+ basicLot: 15.0,
+ miniLot: 10.0,
+ microLot: 13.0,
+ indicatorRev: 13000000,
+ courseRev: 18000000,
+ productRate: 10,
+ bonus: 1000000
+ },
+ {
+ id: "08020609",
+ name: "Đỗ Việt Cường",
+ phone: "0849938395",
+ roleLevel: "LV2",
+ roleTitle: "Vị trí Lv2",
+ team: "Nhóm Đỗ Việt Cường",
+ directManager: "Phương Anh - ID: 08049866",
+ parentId: "08049866",
+ ratePerLot: 60000,
+ customDiffRate: 10000,
+ basicLot: 9.0,
+ miniLot: 6.0,
+ microLot: 8.0,
+ indicatorRev: 7000000,
+ courseRev: 10000000,
+ productRate: 10,
+ bonus: 300000
+ },
+ {
+ id: "08095532",
+ name: "Vũ Thị Quỳnh",
+ phone: "0975629969",
+ roleLevel: "LV2",
+ roleTitle: "Vị trí Lv2",
+ team: "Nhóm Vũ Thị Quỳnh",
+ directManager: "—",
+ parentId: null,
+ ratePerLot: 60000,
+ customDiffRate: 10000,
+ basicLot: 16.0,
+ miniLot: 11.0,
+ microLot: 14.0,
+ indicatorRev: 13500000,
+ courseRev: 19000000,
+ productRate: 10,
+ bonus: 1000000
+ },
+ {
+ id: "08035000",
+ name: "Đặng Tấn Tử",
+ phone: "0356563141",
+ roleLevel: "LV2",
+ roleTitle: "Vị trí Lv2",
+ team: "Nhóm Đặng Tấn Tử",
+ directManager: "Nguyễn Hoàng Khánh - ID: 08014278",
+ parentId: "08014278",
+ ratePerLot: 60000,
+ customDiffRate: 10000,
+ basicLot: 14.0,
+ miniLot: 10.0,
+ microLot: 12.0,
+ indicatorRev: 12000000,
+ courseRev: 16000000,
+ productRate: 10,
+ bonus: 800000
+ },
+
+ // ── 16 VỊ TRÍ LV3 (50k/lot, KHÔNG CÓ HH TUYẾN DƯỚI — HIỂN THỊ —) ──
+ {
+ id: "08062863",
+ name: "Lê Ngân",
+ phone: "03894386325",
+ roleLevel: "LV3",
+ roleTitle: "Vị trí Lv3",
+ team: "Nhóm Đặng Tấn Tử",
+ directManager: "Đặng Tấn Tử - ID: 08035000",
+ parentId: "08035000",
+ ratePerLot: 50000,
+ basicLot: 7.0,
+ miniLot: 5.0,
+ microLot: 7.0,
+ indicatorRev: 4500000,
+ courseRev: 6000000,
+ productRate: 10,
+ bonus: 200000
+ },
+ {
+ id: "08029908",
+ name: "Lê Trung Kiên",
+ phone: "0979998269",
+ roleLevel: "LV3",
+ roleTitle: "Vị trí Lv3",
+ team: "Nhóm Đặng Tấn Tử",
+ directManager: "Đặng Tấn Tử - ID: 08035000",
+ parentId: "08035000",
+ ratePerLot: 50000,
+ basicLot: 7.5,
+ miniLot: 5.5,
+ microLot: 6.0,
+ indicatorRev: 4800000,
+ courseRev: 7000000,
+ productRate: 10,
+ bonus: 200000
+ },
+ {
+ id: "08061116",
+ name: "Võ Thị Diễm Tiên",
+ phone: "0974768804",
+ roleLevel: "LV3",
+ roleTitle: "Vị trí Lv3",
+ team: "Nhóm Vũ Thị Quỳnh",
+ directManager: "Vũ Thị Quỳnh - ID: 08095532",
+ parentId: "08095532",
+ ratePerLot: 50000,
+ basicLot: 9.5,
+ miniLot: 6.5,
+ microLot: 9.0,
+ indicatorRev: 6500000,
+ courseRev: 9500000,
+ productRate: 10,
+ bonus: 400000
+ },
+ {
+ id: "08007997",
+ name: "Đỗ Mạnh Dũng",
+ phone: "0394558544",
+ roleLevel: "LV3",
+ roleTitle: "Vị trí Lv3",
+ team: "Nhóm Đỗ Mạnh Hùng",
+ directManager: "Đỗ Mạnh Hùng - ID: 08080804",
+ parentId: "08080804",
+ ratePerLot: 50000,
+ basicLot: 9.0,
+ miniLot: 6.0,
+ microLot: 8.5,
+ indicatorRev: 6000000,
+ courseRev: 9000000,
+ productRate: 10,
+ bonus: 300000
+ },
+ {
+ id: "08088879",
+ name: "Đức Thị Ngọc",
+ phone: "0982766562",
+ roleLevel: "LV3",
+ roleTitle: "Vị trí Lv3",
+ team: "Nhóm Vũ Thị Quỳnh",
+ directManager: "Vũ Thị Quỳnh - ID: 08095532",
+ parentId: "08095532",
+ ratePerLot: 50000,
+ basicLot: 7.0,
+ miniLot: 5.0,
+ microLot: 7.0,
+ indicatorRev: 4500000,
+ courseRev: 6500000,
+ productRate: 10,
+ bonus: 200000
+ },
+ {
+ id: "08066488",
+ name: "Cáp Trọng Sơn Tùng",
+ phone: "0982325893",
+ roleLevel: "LV3",
+ roleTitle: "Vị trí Lv3",
+ team: "Nhóm Đỗ Việt Cường",
+ directManager: "Đỗ Việt Cường - ID: 08020609",
+ parentId: "08020609",
+ ratePerLot: 50000,
+ basicLot: 10.0,
+ miniLot: 7.0,
+ microLot: 7.7,
+ indicatorRev: 7000000,
+ courseRev: 10000000,
+ productRate: 10,
+ bonus: 400000
+ },
+ {
+ id: "08083609",
+ name: "Lê Thanh Ngân",
+ phone: "0936133428",
+ roleLevel: "LV3",
+ roleTitle: "Vị trí Lv3",
+ team: "Nhóm Đặng Tấn Tử",
+ directManager: "Đặng Tấn Tử - ID: 08035000",
+ parentId: "08035000",
+ ratePerLot: 50000,
+ basicLot: 6.0,
+ miniLot: 4.5,
+ microLot: 6.4,
+ indicatorRev: 4000000,
+ courseRev: 5500000,
+ productRate: 10,
+ bonus: 150000
+ },
+ {
+ id: "08028282",
+ name: "Nguyễn Minh Thế",
+ phone: "0333454326",
+ roleLevel: "LV3",
+ roleTitle: "Vị trí Lv3",
+ team: "Nhóm Đặng Tấn Tử",
+ directManager: "Đặng Tấn Tử - ID: 08035000",
+ parentId: "08035000",
+ ratePerLot: 50000,
+ basicLot: 8.5,
+ miniLot: 6.0,
+ microLot: 8.0,
+ indicatorRev: 6000000,
+ courseRev: 8500000,
+ productRate: 10,
+ bonus: 300000
+ },
+ {
+ id: "08058577",
+ name: "Phạm Hoài Ngọc Đức",
+ phone: "0793769272",
+ roleLevel: "LV3",
+ roleTitle: "Vị trí Lv3",
+ team: "Nhóm Đặng Tấn Tử",
+ directManager: "Đặng Tấn Tử - ID: 08035000",
+ parentId: "08035000",
+ ratePerLot: 50000,
+ basicLot: 5.5,
+ miniLot: 4.0,
+ microLot: 6.4,
+ indicatorRev: 3500000,
+ courseRev: 5000000,
+ productRate: 10,
+ bonus: 100000
+ },
+ {
+ id: "08009687",
+ name: "Nguyễn Văn Sung",
+ phone: "0963429844",
+ roleLevel: "LV3",
+ roleTitle: "Vị trí Lv3",
+ team: "Nhóm Đỗ Mạnh Hùng",
+ directManager: "Đỗ Mạnh Hùng - ID: 08080804",
+ parentId: "08080804",
+ ratePerLot: 50000,
+ basicLot: 8.5,
+ miniLot: 6.0,
+ microLot: 6.9,
+ indicatorRev: 5500000,
+ courseRev: 8000000,
+ productRate: 10,
+ bonus: 300000
+ },
+ {
+ id: "08029280",
+ name: "Đinh Hoàng Tuấn Trí",
+ phone: "0939743785",
+ roleLevel: "LV3",
+ roleTitle: "Vị trí Lv3",
+ team: "Nhóm Đặng Tấn Tử",
+ directManager: "Đặng Tấn Tử - ID: 08035000",
+ parentId: "08035000",
+ ratePerLot: 50000,
+ basicLot: 8.0,
+ miniLot: 5.5,
+ microLot: 7.5,
+ indicatorRev: 5500000,
+ courseRev: 8000000,
+ productRate: 10,
+ bonus: 300000
+ },
+ {
+ id: "08022207",
+ name: "Trần Thị Mai",
+ phone: "0356275538",
+ roleLevel: "LV3",
+ roleTitle: "Vị trí Lv3",
+ team: "Nhóm Trần Thị Tuyết",
+ directManager: "Trần Thị Tuyết - ID: 08077592",
+ parentId: "08077592",
+ ratePerLot: 50000,
+ basicLot: 6.0,
+ miniLot: 4.0,
+ microLot: 6.0,
+ indicatorRev: 3500000,
+ courseRev: 5000000,
+ productRate: 10,
+ bonus: 100000
+ },
+ {
+ id: "08028892",
+ name: "Đặng Hương Thuỷ",
+ phone: "0768283269",
+ roleLevel: "LV3",
+ roleTitle: "Vị trí Lv3",
+ team: "Nhánh Phương Anh",
+ directManager: "Phương Anh - ID: 08049866",
+ parentId: "08049866",
+ ratePerLot: 50000,
+ basicLot: 8.0,
+ miniLot: 6.0,
+ microLot: 7.7,
+ indicatorRev: 6000000,
+ courseRev: 9000000,
+ productRate: 10,
+ bonus: 400000
+ },
+ {
+ id: "08049721",
+ name: "Hồ Tấn Anh Tài",
+ phone: "0839492750",
+ roleLevel: "LV3",
+ roleTitle: "Vị trí Lv3",
+ team: "Nhóm Đặng Tấn Tử",
+ directManager: "Đặng Tấn Tử - ID: 08035000",
+ parentId: "08035000",
+ ratePerLot: 50000,
+ basicLot: 8.0,
+ miniLot: 6.0,
+ microLot: 8.0,
+ indicatorRev: 5000000,
+ courseRev: 7500000,
+ productRate: 10,
+ bonus: 250000
+ },
+ {
+ id: "08010668",
+ name: "Hoàng Tấn Nguyên",
+ phone: "0347892110",
+ roleLevel: "LV3",
+ roleTitle: "Vị trí Lv3",
+ team: "Nhóm Đặng Tấn Tử",
+ directManager: "Đặng Tấn Tử - ID: 08035000",
+ parentId: "08035000",
+ ratePerLot: 50000,
+ basicLot: 7.0,
+ miniLot: 5.0,
+ microLot: 6.5,
+ indicatorRev: 4500000,
+ courseRev: 6500000,
+ productRate: 10,
+ bonus: 200000
+ },
+ {
+ id: "08042190",
+ name: "Nguyễn Thị Vân Huyền",
+ phone: "0968341905",
+ roleLevel: "LV3",
+ roleTitle: "Vị trí Lv3",
+ team: "Nhóm Vũ Thị Quỳnh",
+ directManager: "Vũ Thị Quỳnh - ID: 08095532",
+ parentId: "08095532",
+ ratePerLot: 50000,
+ basicLot: 8.0,
+ miniLot: 5.5,
+ microLot: 8.0,
+ indicatorRev: 5800000,
+ courseRev: 8500000,
+ productRate: 10,
+ bonus: 300000
+ }
+ ];
+
+ let currentEditingPersonnelId = null;
+ let currentRoleFilter = 'ALL';
+ let zoomLevel = 1.0;
+
+ // ====================================================================
+ // 3. TÍNH TOÁN LOT QUY ĐỔI & HOA HỒNG CHÊNH LỆCH THEO CÂY HỆ THỐNG
+ // ====================================================================
+ function getPersonalStdLot(p) {
+ const std = p.basicLot * LOT_CONFIG.standardMultiplier + 
+ p.miniLot * LOT_CONFIG.miniMultiplier + 
+ p.microLot * LOT_CONFIG.microMultiplier;
+ return Number(std.toFixed(2));
+ }
+
+ // Tính chi tiết tuyến dưới dựa trên cây nhân sự
+ function getDownlineDetails(person, dataList) {
+ if (person.roleLevel === 'LV3') {
+ return {
+ downlineLots: null,
+ overrideRateStr: '—',
+ downlineCommission: 0,
+ subordinatesCount: 0
+ };
+ }
+
+ if (person.roleLevel === 'LV2') {
+ // Leader: Tìm các Sale (LV3) trực thuộc
+ const directSales = dataList.filter(s => s.parentId === person.id);
+ const downlineLots = directSales.reduce((acc, s) => acc + getPersonalStdLot(s), 0);
+ const diffRate = (person.customDiffRate !== undefined && person.customDiffRate !== null) 
+ ? person.customDiffRate 
+ : LOT_CONFIG.diffLeader; // 10k/lot
+ const downlineCommission = Math.round(downlineLots * diffRate);
+ 
+ return {
+ downlineLots: Number(downlineLots.toFixed(2)),
+ overrideRateStr: '+' + (diffRate / 1000) + 'k/lot',
+ downlineCommission: downlineCommission,
+ subordinatesCount: directSales.length
+ };
+ }
+
+ if (person.roleLevel === 'LV1') {
+ // Manager: Tìm các Leader (LV2) và Sale trực thuộc
+ const directSubs = dataList.filter(s => s.parentId === person.id);
+ let totalLots = 0;
+ let totalCommission = 0;
+ let count = 0;
+
+ const mgrDiffRate = (person.customDiffRate !== undefined && person.customDiffRate !== null)
+ ? person.customDiffRate
+ : LOT_CONFIG.diffManager; // 20k/lot
+
+ directSubs.forEach(sub => {
+ if (sub.roleLevel === 'LV2') {
+ // 1 lot của Leader: Manager hưởng chênh lệch 20k
+ const lLot = getPersonalStdLot(sub);
+ totalLots += lLot;
+ totalCommission += lLot * mgrDiffRate;
+ count++;
+
+ // 1 lot của Sale dưới quyền Leader: Manager hưởng chênh lệch 20k
+ const teamSales = dataList.filter(s => s.parentId === sub.id);
+ teamSales.forEach(s => {
+ const sLot = getPersonalStdLot(s);
+ totalLots += sLot;
+ totalCommission += sLot * mgrDiffRate;
+ count++;
+ });
+ } else if (sub.roleLevel === 'LV3') {
+ // Sale trực thuộc Manager không qua Leader (ví dụ Đặng Hương Thuỷ):
+ // Manager hưởng phần chênh lệch trực tiếp 80k - 50k = 30k/lot
+ const sLot = getPersonalStdLot(sub);
+ totalLots += sLot;
+ totalCommission += sLot * LOT_CONFIG.diffManagerDirectSale;
+ count++;
+ }
+ });
+
+ return {
+ downlineLots: Number(totalLots.toFixed(2)),
+ overrideRateStr: '+' + (mgrDiffRate / 1000) + 'k/lot',
+ downlineCommission: Math.round(totalCommission),
+ subordinatesCount: count
+ };
+ }
+
+ return { downlineLots: null, overrideRateStr: '—', downlineCommission: 0, subordinatesCount: 0 };
+ }
+
+ function calculatePersonnelFinance(item) {
+ const stdLot = getPersonalStdLot(item);
+ const ratePerLot = item.ratePerLot || (item.roleLevel === 'LV1' ? LOT_CONFIG.rateLv1 : (item.roleLevel === 'LV2' ? LOT_CONFIG.rateLv2 : LOT_CONFIG.rateLv3));
+ const hhLot = Math.round(stdLot * ratePerLot);
+ 
+ // Tuyến dưới
+ const dl = getDownlineDetails(item, APEX_DATA);
+ 
+ // Sản phẩm: mặc định 10%, Admin có thể chỉnh riêng cho từng người
+ const productRate = (item.productRate !== undefined && item.productRate !== null) ? Number(item.productRate) : (LOT_CONFIG.defaultProductRate || 10);
+ const totalProductRev = (item.indicatorRev || 0) + (item.courseRev || 0);
+ const hhProduct = Math.round(totalProductRev * (productRate / 100));
+ const bonus = Number(item.bonus || 0);
+ 
+ // ĐÃ BỎ THUẾ VAT HOÀN TOÀN: Thực nhận = HH Lot + HH Tuyến Dưới + HH Sản Phẩm + Thưởng
+ const netIncome = hhLot + dl.downlineCommission + hhProduct + bonus;
+
+ return {
+ stdLot: stdLot,
+ ratePerLot: ratePerLot,
+ hhLot: hhLot,
+ downlineLots: dl.downlineLots,
+ overrideRateStr: dl.overrideRateStr,
+ hhDownline: dl.downlineCommission,
+ subordinatesCount: dl.subordinatesCount,
+ totalProductRev: totalProductRev,
+ productRate: productRate,
+ hhProduct: hhProduct,
+ bonus: bonus,
+ totalGross: netIncome,
+ netIncome: netIncome
+ };
+ }
+
+ function formatMoney(amount) {
+ return (amount || 0).toLocaleString('vi-VN') + ' đ';
+ }
+
+ function getRoleBadgeHtml(level) {
+ if (level === 'LV1') return '<span class="role-badge role-lv1">VỊ TRÍ LV1</span>';
+ if (level === 'LV2') return '<span class="role-badge role-lv2">VỊ TRÍ LV2</span>';
+ return '<span class="role-badge role-lv3">VỊ TRÍ LV3</span>';
+ }
+
+ // ====================================================================
+ // 4. RENDER CÂY MINDMAP SVG (ẨN 2 ADMIN, BẮT ĐẦU TỪ ROOT -> LV1 -> LV2 -> LV3)
+ // ====================================================================
+ function renderMindmapTree() {
+ const branchesGroup = document.getElementById('svgBranchesGroup');
+ const nodesGroup = document.getElementById('svgNodesGroup');
+ branchesGroup.innerHTML = '';
+ nodesGroup.innerHTML = '';
+
+ const colX = {
+ 0: 40, // Root
+ 1: 360, // Nhánh chính (Lv1 & Lv2 cấp 1)
+ 2: 740, // Cấp 2
+ 3: 1120 // Cấp 3
+ };
+
+ const nodePositions = {
+ "ROOT": { x: colX[0], y: 430, isRoot: true },
+
+ // Nhánh 1: Phương Anh (Vị trí Lv1 - 80k/lot)
+ "08049866": { x: colX[1], y: 160 }, // Phương Anh [Lv1]
+ "08077592": { x: colX[2], y: 120 }, // Trần Thị Tuyết [Lv2 - 60k]
+ "08022207": { x: colX[3], y: 120 }, // Trần Thị Mai [Lv3 - 50k]
+ "08020609": { x: colX[2], y: 180 }, // Đỗ Việt Cường [Lv2 - 60k]
+ "08066488": { x: colX[3], y: 180 }, // Cáp Trọng Sơn Tùng [Lv3 - 50k]
+ "08028892": { x: colX[2], y: 240 }, // Đặng Hương Thuỷ [Lv3 - 50k]
+
+ // Nhánh 2: Nguyễn Hoàng Khánh (Vị trí Lv1 - 80k/lot)
+ "08014278": { x: colX[1], y: 470 }, // Nguyễn Hoàng Khánh [Lv1]
+ "08035000": { x: colX[2], y: 470 }, // Đặng Tấn Tử [Lv2 - 60k]
+ "08062863": { x: colX[3], y: 300 }, // Lê Ngân [Lv3]
+ "08029908": { x: colX[3], y: 350 }, // Lê Trung Kiên [Lv3]
+ "08083609": { x: colX[3], y: 400 }, // Lê Thanh Ngân [Lv3]
+ "08028282": { x: colX[3], y: 450 }, // Nguyễn Minh Thế [Lv3]
+ "08058577": { x: colX[3], y: 500 }, // Phạm Hoài Ngọc Đức [Lv3]
+ "08029280": { x: colX[3], y: 550 }, // Đinh Hoàng Tuấn Trí [Lv3]
+ "08049721": { x: colX[3], y: 600 }, // Hồ Tấn Anh Tài [Lv3]
+ "08010668": { x: colX[3], y: 650 }, // Hoàng Tấn Nguyên [Lv3]
+
+ // Nhánh 3: Vũ Thị Quỳnh (Vị trí Lv2 - 60k/lot)
+ "08095532": { x: colX[1], y: 730 }, // Vũ Thị Quỳnh [Lv2]
+ "08061116": { x: colX[2], y: 700 }, // Võ Thị Diễm Tiên [Lv3]
+ "08088879": { x: colX[2], y: 745 }, // Đức Thị Ngọc [Lv3]
+ "08042190": { x: colX[2], y: 790 }, // Nguyễn Thị Vân Huyền [Lv3]
+
+ // Nhánh 4: Đỗ Mạnh Hùng (Vị trí Lv2 - 60k/lot)
+ "08080804": { x: colX[1], y: 860 }, // Đỗ Mạnh Hùng [Lv2]
+ "08007997": { x: colX[2], y: 840 }, // Đỗ Mạnh Dũng [Lv3]
+ "08009687": { x: colX[2], y: 885 } // Nguyễn Văn Sung [Lv3]
+ };
+
+ const edges = [
+ ["ROOT", "08049866"], // Root -> Phương Anh (Lv1)
+ ["ROOT", "08014278"], // Root -> Hoàng Khánh (Lv1)
+ ["ROOT", "08095532"], // Root -> Vũ Thị Quỳnh (Lv2)
+ ["ROOT", "08080804"], // Root -> Đỗ Mạnh Hùng (Lv2)
+
+ // Nhánh Phương Anh
+ ["08049866", "08077592"],
+ ["08077592", "08022207"],
+ ["08049866", "08020609"],
+ ["08020609", "08066488"],
+ ["08049866", "08028892"],
+
+ // Nhánh Nguyễn Hoàng Khánh
+ ["08014278", "08035000"],
+ ["08035000", "08062863"],
+ ["08035000", "08029908"],
+ ["08035000", "08083609"],
+ ["08035000", "08028282"],
+ ["08035000", "08058577"],
+ ["08035000", "08029280"],
+ ["08035000", "08049721"],
+ ["08035000", "08010668"],
+
+ // Nhánh Vũ Thị Quỳnh
+ ["08095532", "08061116"],
+ ["08095532", "08088879"],
+ ["08095532", "08042190"],
+
+ // Nhánh Đỗ Mạnh Hùng
+ ["08080804", "08007997"],
+ ["08080804", "08009687"]
+ ];
+
+ // Vẽ đường cong kết nối (Bezier Curves)
+ edges.forEach(([fromId, toId]) => {
+ const fromPos = nodePositions[fromId];
+ const toPos = nodePositions[toId];
+ if (!fromPos || !toPos) return;
+
+ const startX = fromPos.isRoot ? fromPos.x + 230 : fromPos.x + 240;
+ const startY = fromPos.y + (fromPos.isRoot ? 35 : 22);
+ const endX = toPos.x;
+ const endY = toPos.y + 22;
+ const midX = (startX + endX) / 2;
+
+ let strokeColor = "#334155";
+ let strokeWidth = 1.8;
+ if (fromId === "ROOT") {
+ strokeWidth = 2.4;
+ strokeColor = toId === "08049866" || toId === "08014278" ? "#3b82f6" : "#ea580c";
+ }
+
+ const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+ path.setAttribute('d', `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${endX} ${endY}`);
+ path.setAttribute('fill', 'none');
+ path.setAttribute('stroke', strokeColor);
+ path.setAttribute('stroke-width', strokeWidth);
+ path.setAttribute('stroke-linecap', 'round');
+ branchesGroup.appendChild(path);
+ });
+
+ // Vẽ Root Node
+ const rootPos = nodePositions["ROOT"];
+ const rootG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+ rootG.setAttribute('transform', `translate(${rootPos.x}, ${rootPos.y})`);
+ rootG.innerHTML = `
+ <rect width="230" height="70" rx="14" fill="url(#gradOrange)" stroke="#ff7a45" stroke-width="1.8"/>
+ <circle cx="34" cy="35" r="16" fill="rgba(255,255,255,0.2)"/>
+ <text x="34" y="38" fill="#ffffff" font-size="10" font-weight="900" text-anchor="middle">APEX</text>
+ <text x="60" y="32" fill="#ffffff" font-size="14" font-weight="900" font-family="'Plus Jakarta Sans', sans-serif">HỆ THỐNG APEX</text>
+ <text x="60" y="50" fill="#ffedd5" font-size="11" font-weight="700" font-family="'JetBrains Mono', monospace">23 NHÂN SỰ • TOÀN HỆ THỐNG</text>
+ `;
+ nodesGroup.appendChild(rootG);
+
+ // Vẽ các Node nhân sự
+ APEX_DATA.forEach(person => {
+ const pos = nodePositions[person.id];
+ if (!pos) return;
+
+ const fin = calculatePersonnelFinance(person);
+ const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+ g.setAttribute('class', 'node-group');
+ g.setAttribute('transform', `translate(${pos.x}, ${pos.y})`);
+ g.onclick = () => openEditPersonnelModal(person.id);
+
+ const cardW = 240;
+ const cardH = 46;
+
+ let strokeColor = "#10b981"; // Lv3
+ let rateBadgeBg = "#064e3b";
+ let roleLabelText = `LV3: ${(fin.ratePerLot / 1000)}k`;
+
+ if (person.roleLevel === 'LV1') {
+ strokeColor = "#3b82f6";
+ rateBadgeBg = "#1e3a8a";
+ roleLabelText = `LV1: ${(fin.ratePerLot / 1000)}k`;
+ } else if (person.roleLevel === 'LV2') {
+ strokeColor = "#ea580c";
+ rateBadgeBg = "#7c2d12";
+ roleLabelText = `LV2: ${(fin.ratePerLot / 1000)}k`;
+ }
+
+ let downlineInfo = "";
+ if (person.roleLevel === 'LV1') {
+ downlineInfo = ` • TD: +${(LOT_CONFIG.diffManager / 1000)}k/lot (${fin.downlineLots} lot)`;
+ } else if (person.roleLevel === 'LV2') {
+ downlineInfo = ` • TD: +${(LOT_CONFIG.diffLeader / 1000)}k/lot (${fin.downlineLots} lot)`;
+ }
+
+ g.innerHTML = `
+ <rect width="${cardW}" height="${cardH}" rx="8" fill="#172033" stroke="${strokeColor}" stroke-width="1.4"/>
+ <text x="10" y="19" fill="#f8fafc" font-size="11.5" font-weight="700" font-family="'Plus Jakarta Sans', sans-serif">
+ ${person.name}
+ </text>
+ <text x="10" y="33" fill="#94a3b8" font-size="9" font-family="'JetBrains Mono', monospace">
+ [${roleLabelText}]${downlineInfo}
+ </text>
+ <rect x="${cardW - 68}" y="9" width="60" height="22" rx="5" fill="${rateBadgeBg}" stroke="${strokeColor}" stroke-width="0.8"/>
+ <text x="${cardW - 38}" y="24" fill="#ffffff" font-size="10" font-weight="800" text-anchor="middle" font-family="'JetBrains Mono', monospace">
+ ${(fin.ratePerLot / 1000)}k/lot
+ </text>
+ `;
+
+ nodesGroup.appendChild(g);
+ });
+ }
+
+ // ====================================================================
+ // 5. RENDER BẢNG BÁO CÁO DOANH THU (LV1 - LV2 - LV3)
+ // ====================================================================
+ function renderReportTable() {
+ const tbody = document.getElementById('reportTableBody');
+ tbody.innerHTML = '';
+
+ const filtered = APEX_DATA.filter(p => {
+ if (currentRoleFilter === 'ALL') return true;
+ return p.roleLevel === currentRoleFilter;
+ });
+
+  let totalBasicLot = 0;
+  let totalMicroLot = 0;
+  let totalMiniLot = 0;
+  let totalStdLot = 0;
+  let totalHhLot = 0;
+  let totalHhDownline = 0;
+  let totalDownlineLot = 0;
+  let totalIndRev = 0;
+  let totalCouRev = 0;
+  let totalHhProd = 0;
+  let totalBonus = 0;
+  let totalNet = 0;
+
+  filtered.forEach((item, index) => {
+    const fin = calculatePersonnelFinance(item);
+    const prodRate = (item.productRate !== undefined && item.productRate !== null) ? Number(item.productRate) : 10;
+
+    totalBasicLot += item.basicLot;
+    totalMicroLot += item.microLot;
+    totalMiniLot += item.miniLot;
+    totalStdLot += fin.stdLot;
+    totalHhLot += fin.hhLot;
+    totalHhDownline += fin.hhDownline;
+    if (fin.downlineLots !== null) totalDownlineLot += fin.downlineLots;
+    totalIndRev += item.indicatorRev;
+    totalCouRev += item.courseRev;
+    totalHhProd += fin.hhProduct;
+    totalBonus += (item.bonus || 0);
+    totalNet += fin.netIncome;
+
+    let dlLotsStr = '<span class="downline-none">—</span>';
+    let dlMoneyStr = '<span class="downline-none">—</span>';
+
+    if (item.roleLevel === 'LV1') {
+      dlLotsStr = `<button type="button" class="btn-downline-chip btn-dl-lv1" onclick="openDownlineModal('${item.id}')" title="Bấm để xem bảng kê chi tiết toàn bộ tuyến dưới của ${item.name}">${fin.downlineLots.toFixed(2)} lot 🔍</button>`;
+      dlMoneyStr = `<button type="button" class="btn-downline-money" onclick="openDownlineModal('${item.id}')" title="Bấm để xem chi tiết hoa hồng chênh lệch">+${formatMoney(fin.hhDownline)}</button>`;
+    } else if (item.roleLevel === 'LV2') {
+      dlLotsStr = `<button type="button" class="btn-downline-chip btn-dl-lv2" onclick="openDownlineModal('${item.id}')" title="Bấm để xem bảng kê chi tiết tuyến dưới của ${item.name}">${fin.downlineLots.toFixed(2)} lot 🔍</button>`;
+      dlMoneyStr = `<button type="button" class="btn-downline-money" onclick="openDownlineModal('${item.id}')" title="Bấm để xem chi tiết hoa hồng chênh lệch">+${formatMoney(fin.hhDownline)}</button>`;
+    }
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="color:var(--text-muted); font-weight:700;">${index + 1}</td>
+      <td>
+        <b style="color:var(--text-main); font-size:12.5px; cursor:pointer;" onclick="openEditPersonnelModal('${item.id}')" title="Bấm để mở bảng điều chỉnh cơ chế của ${item.name}">${item.name}</b>
+        <div style="font-size:10px; color:var(--text-muted); font-family:'JetBrains Mono';">ID: ${item.id} • ${item.phone}</div>
+      </td>
+      <td>${getRoleBadgeHtml(item.roleLevel)}</td>
+      <td>
+        <span style="font-size:11px; color:#475569;">${item.directManager}</span>
+      </td>
+      <td style="font-family:'JetBrains Mono'; font-weight:600;">${item.basicLot.toFixed(1)}</td>
+      <td style="font-family:'JetBrains Mono'; font-weight:600; color:#2563eb;">${item.microLot.toFixed(1)}</td>
+      <td style="font-family:'JetBrains Mono'; font-weight:600; color:#ea580c;">${item.miniLot.toFixed(1)}</td>
+      <td style="font-family:'JetBrains Mono'; font-weight:800; font-size:13px; color:#0f172a; background:#f8fafc;">${fin.stdLot.toFixed(2)}</td>
+      <td>
+        <span style="background:#fff7ed; color:#ea580c; border:1px solid #fed7aa; padding:2px 6px; border-radius:5px; font-family:'JetBrains Mono'; font-weight:800; font-size:11px;">
+          ${(fin.ratePerLot / 1000)}k/lot
+        </span>
+      </td>
+      <td style="font-family:'JetBrains Mono'; font-weight:700; color:#2563eb;">${formatMoney(fin.hhLot)}</td>
+      <td style="text-align:center; background:#faf5ff;">${dlLotsStr}</td>
+      <td style="background:#faf5ff;">${dlMoneyStr}</td>
+      <td style="font-family:'JetBrains Mono'; font-size:11.5px;">${formatMoney(item.indicatorRev)}</td>
+      <td style="font-family:'JetBrains Mono'; font-size:11.5px;">${formatMoney(item.courseRev)}</td>
+      <td style="text-align:center; background:#f0f9ff;">
+        <span style="font-family:'JetBrains Mono'; font-weight:800; color:#0284c7; background:#e0f2fe; padding:2px 6px; border-radius:4px; font-size:11px;">${prodRate}%</span>
+      </td>
+      <td style="font-family:'JetBrains Mono'; font-weight:600;">${formatMoney(fin.hhProduct)}</td>
+      <td style="font-family:'JetBrains Mono'; color:#7e22ce; font-weight:700;">${formatMoney(item.bonus || 0)}</td>
+      <td style="font-family:'JetBrains Mono'; font-weight:900; font-size:13.5px; color:#059669; background:#f0fdf4;">${formatMoney(fin.netIncome)}</td>
+      <td style="text-align:center;">
+        <button class="btn-edit-lot" onclick="openEditPersonnelModal('${item.id}')">Sửa Cơ Chế</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+ document.getElementById('footBasicLot').textContent = totalBasicLot.toFixed(1);
+ document.getElementById('footMicroLot').textContent = totalMicroLot.toFixed(1);
+ document.getElementById('footMiniLot').textContent = totalMiniLot.toFixed(1);
+ document.getElementById('footStdLot').textContent = totalStdLot.toFixed(2);
+ document.getElementById('footHhLot').textContent = formatMoney(totalHhLot);
+ document.getElementById('footDownlineLot').textContent = totalDownlineLot.toFixed(2) + ' lot';
+ document.getElementById('footHhDownline').textContent = formatMoney(totalHhDownline);
+ document.getElementById('footIndRev').textContent = formatMoney(totalIndRev);
+ document.getElementById('footCouRev').textContent = formatMoney(totalCouRev);
+ const avgRate = filtered.length > 0 ? (filtered.reduce((acc, p) => acc + ((p.productRate !== undefined) ? p.productRate : 10), 0) / filtered.length).toFixed(1) : '10.0';
+ const footRateEl = document.getElementById('footProdRate');
+ if (footRateEl) footRateEl.textContent = avgRate + '%';
+ document.getElementById('footHhProd').textContent = formatMoney(totalHhProd);
+ document.getElementById('footBonus').textContent = formatMoney(totalBonus);
+ document.getElementById('footNetIncome').textContent = formatMoney(totalNet);
+
+ // 5 KPIs
+ document.getElementById('kpiTotalLot').textContent = totalStdLot.toFixed(2);
+ document.getElementById('kpiTotalHhLot').textContent = formatMoney(totalHhLot);
+ document.getElementById('kpiTotalDownline').textContent = formatMoney(totalHhDownline);
+ document.getElementById('kpiTotalIndicator').textContent = formatMoney(totalIndRev + totalCouRev);
+ document.getElementById('kpiTotalNet').textContent = formatMoney(totalNet);
+ }
+
+ // ====================================================================
+ // 6. RENDER BẢNG XẾP HẠNG THỰC NHẬN
+ // ====================================================================
+ function renderRankingTable() {
+ // Tab Xếp hạng đã được lược bỏ theo yêu cầu
+ }
+
+ // ====================================================================
+ // 7. MODAL CHỈNH SỬA CƠ CHẾ VÀ SỐ LOT TỪNG NGƯỜI
+ // ====================================================================
+  function openEditPersonnelModal(id) {
+    const person = APEX_DATA.find(p => p.id === id);
+    if (!person) return;
+
+    currentEditingPersonnelId = id;
+    const nameEl = document.getElementById('modalPersonnelName');
+    if (nameEl) nameEl.textContent = `Chỉnh sửa: ${person.name}`;
+    const metaEl = document.getElementById('modalPersonnelMeta');
+    if (metaEl) metaEl.textContent = `Cấp bậc: ${person.roleTitle} • ID: ${person.id} • Quản lý: ${person.directManager}`;
+
+    const fin = calculatePersonnelFinance(person);
+
+    const rateInput = document.getElementById('inputRatePerLot');
+    if (rateInput) rateInput.value = fin.ratePerLot;
+    const prodInput = document.getElementById('inputProductRate');
+    if (prodInput) prodInput.value = (person.productRate !== undefined) ? person.productRate : 10;
+
+    const downlineSection = document.getElementById('downlineConfigSection');
+    const downlineSaleNotice = document.getElementById('downlineSaleNotice');
+    const roleBadge = document.getElementById('roleBadgeInModal');
+    const previewDownlineRow = document.getElementById('previewDownlineRow');
+
+    if (roleBadge) {
+      roleBadge.className = `role-badge role-${person.roleLevel.toLowerCase()}`;
+      roleBadge.textContent = person.roleTitle.toUpperCase();
+    }
+
+    if (person.roleLevel === 'LV1' || person.roleLevel === 'LV2') {
+      if (downlineSection) downlineSection.style.display = 'block';
+      if (downlineSaleNotice) downlineSaleNotice.style.display = 'none';
+      if (previewDownlineRow) previewDownlineRow.style.display = 'flex';
+      
+      const dlLotsEl = document.getElementById('displayDownlineLots');
+      if (dlLotsEl) dlLotsEl.value = `${fin.downlineLots} lot tiêu chuẩn`;
+      const subCountEl = document.getElementById('txtSubordinatesCount');
+      if (subCountEl) subCountEl.textContent = `${fin.subordinatesCount} nhân sự cấp dưới trong cây`;
+      const hintEl = document.getElementById('txtDownlineHint');
+      if (hintEl) {
+        hintEl.textContent = (person.roleLevel === 'LV1') 
+          ? 'Manager hưởng +20k/lot từ Leader/Sale (+30k/lot từ Sale trực tiếp)'
+          : 'Leader hưởng +10k/lot từ khách của Sale trực thuộc';
+      }
+    } else {
+      // Vị trí LV3 (Sale)
+      if (downlineSection) downlineSection.style.display = 'none';
+      if (downlineSaleNotice) downlineSaleNotice.style.display = 'block';
+      if (previewDownlineRow) previewDownlineRow.style.display = 'none';
+      const dlLotsEl = document.getElementById('displayDownlineLots');
+      if (dlLotsEl) dlLotsEl.value = '0 lot tiêu chuẩn';
+    }
+
+    const bLot = document.getElementById('inputBasicLot');
+    if (bLot) bLot.value = person.basicLot;
+    const miniLot = document.getElementById('inputMiniLot');
+    if (miniLot) miniLot.value = person.miniLot;
+    const microLot = document.getElementById('inputMicroLot');
+    if (microLot) microLot.value = person.microLot;
+
+    const indRev = document.getElementById('inputIndicatorRev');
+    if (indRev) indRev.value = person.indicatorRev;
+    const couRev = document.getElementById('inputCourseRev');
+    if (couRev) couRev.value = person.courseRev;
+    const bon = document.getElementById('inputBonus');
+    if (bon) bon.value = person.bonus || 0;
+
+    updateModalPreview();
+    const modal = document.getElementById('editModal');
+    if (modal) modal.classList.add('active');
+  }
+
+  function closeEditModal() {
+    const modal = document.getElementById('editModal');
+    if (modal) modal.classList.remove('active');
+    currentEditingPersonnelId = null;
+  }
+
+  function updateModalPreview() {
+    if (!currentEditingPersonnelId) return;
+    const person = APEX_DATA.find(p => p.id === currentEditingPersonnelId);
+    if (!person) return;
+
+    const rateInput = document.getElementById('inputRatePerLot');
+    const ratePerLot = rateInput ? (Number(rateInput.value) || 0) : 50000;
+    const productRate = document.getElementById('inputProductRate') ? (Number(document.getElementById('inputProductRate').value) || 0) : 10;
+
+    const basicLot = document.getElementById('inputBasicLot') ? (Number(document.getElementById('inputBasicLot').value) || 0) : 0;
+    const miniLot = document.getElementById('inputMiniLot') ? (Number(document.getElementById('inputMiniLot').value) || 0) : 0;
+    const microLot = document.getElementById('inputMicroLot') ? (Number(document.getElementById('inputMicroLot').value) || 0) : 0;
+
+    const indicatorRev = document.getElementById('inputIndicatorRev') ? (Number(document.getElementById('inputIndicatorRev').value) || 0) : 0;
+    const courseRev = document.getElementById('inputCourseRev') ? (Number(document.getElementById('inputCourseRev').value) || 0) : 0;
+    const bonus = document.getElementById('inputBonus') ? (Number(document.getElementById('inputBonus').value) || 0) : 0;
+
+    const txtRateK = document.getElementById('txtRateK');
+    if (txtRateK) txtRateK.textContent = (ratePerLot / 1000) + 'k/lot';
+
+    const stdLot = Number((basicLot * LOT_CONFIG.standardMultiplier + miniLot * LOT_CONFIG.miniMultiplier + microLot * LOT_CONFIG.microMultiplier).toFixed(2));
+    const hhLot = Math.round(stdLot * ratePerLot);
+    
+    // Tuyến Dưới
+    let hhDownline = 0;
+    if (person.roleLevel === 'LV1' || person.roleLevel === 'LV2') {
+      const dl = getDownlineDetails(person, APEX_DATA);
+      hhDownline = dl.downlineCommission;
+      const previewDl = document.getElementById('previewHhDownline');
+      if (previewDl) previewDl.textContent = formatMoney(hhDownline);
+    }
+
+    const totalProductRev = indicatorRev + courseRev;
+    const hhProduct = Math.round(totalProductRev * (productRate / 100));
+    // ĐÃ BỎ THUẾ VAT: Thực nhận = HH Lot + HH Tuyến Dưới + HH Sản Phẩm + Thưởng
+    const netIncome = hhLot + hhDownline + hhProduct + bonus;
+
+    const prevStd = document.getElementById('previewStdLot');
+    if (prevStd) prevStd.textContent = `${stdLot.toFixed(2)} lot (${basicLot} chuẩn + ${(miniLot * LOT_CONFIG.miniMultiplier).toFixed(2)} mini + ${(microLot * LOT_CONFIG.microMultiplier).toFixed(2)} micro)`;
+    const prevHhLot = document.getElementById('previewHhLot');
+    if (prevHhLot) prevHhLot.textContent = formatMoney(hhLot);
+    const prevHhProd = document.getElementById('previewHhProduct');
+    if (prevHhProd) prevHhProd.textContent = `${formatMoney(hhProduct)} (${productRate}% của ${formatMoney(totalProductRev)})`;
+    const prevBonus = document.getElementById('previewBonus');
+    if (prevBonus) prevBonus.textContent = formatMoney(bonus);
+    const prevNet = document.getElementById('previewNetIncome');
+    if (prevNet) prevNet.textContent = formatMoney(netIncome);
+  }
+
+  function savePersonnelChanges() {
+    if (!currentEditingPersonnelId) return;
+    const person = APEX_DATA.find(p => p.id === currentEditingPersonnelId);
+    if (!person) return;
+
+    const rateInput = document.getElementById('inputRatePerLot');
+    if (rateInput) {
+      person.ratePerLot = Number(rateInput.value) || 0;
+      person.hasCustomRate = true;
+    }
+    const prodInput = document.getElementById('inputProductRate');
+    if (prodInput) {
+      person.productRate = Math.max(0, Math.min(100, Number(prodInput.value) || 0));
+    }
+
+    const bLot = document.getElementById('inputBasicLot');
+    if (bLot) person.basicLot = Number(bLot.value) || 0;
+    const miniLot = document.getElementById('inputMiniLot');
+    if (miniLot) person.miniLot = Number(miniLot.value) || 0;
+    const microLot = document.getElementById('inputMicroLot');
+    if (microLot) person.microLot = Number(microLot.value) || 0;
+
+    const indRev = document.getElementById('inputIndicatorRev');
+    if (indRev) person.indicatorRev = Number(indRev.value) || 0;
+    const couRev = document.getElementById('inputCourseRev');
+    if (couRev) person.courseRev = Number(couRev.value) || 0;
+    const bon = document.getElementById('inputBonus');
+    if (bon) person.bonus = Number(bon.value) || 0;
+
+    closeEditModal();
+    renderAllViews();
+    alert(`Đã cập nhật thành công dữ liệu và tính toán lại toàn bộ hệ thống cho: ${person.name}!`);
+  }
+
+  // ====================================================================
+  // 7.1 MODAL BẢNG KÊ CHI TIẾT TUYẾN DƯỚI (LV1 & LV2)
+  // ====================================================================
+  function openDownlineModal(id) {
+    const person = APEX_DATA.find(p => p.id === id);
+    if (!person) return;
+
+    const titleEl = document.getElementById('downlineModalTitle');
+    if (titleEl) titleEl.textContent = `Bảng Kê Cấp Dưới: ${person.name} (${person.roleTitle})`;
+    const subTitleEl = document.getElementById('downlineModalSubtitle');
+    if (subTitleEl) subTitleEl.textContent = `Mã ID: ${person.id} • Quản lý: ${person.directManager}`;
+
+    const tbody = document.getElementById('downlineModalBody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    let totalLots = 0;
+    let totalMoney = 0;
+    let stt = 1;
+
+    if (person.roleLevel === 'LV2') {
+      // Leader: Các Sale (LV3) trực thuộc
+      const sales = APEX_DATA.filter(s => s.parentId === person.id);
+      sales.forEach(sale => {
+        const sLot = getPersonalStdLot(sale);
+        const diffRate = (person.customDiffRate !== undefined && person.customDiffRate !== null) ? person.customDiffRate : LOT_CONFIG.diffLeader;
+        const comm = Math.round(sLot * diffRate);
+        totalLots += sLot;
+        totalMoney += comm;
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${stt++}</td>
+          <td>
+            <strong>${sale.name}</strong>
+            <div style="font-size:10px; color:#64748b;">ID: ${sale.id}</div>
+          </td>
+          <td>${getRoleBadgeHtml(sale.roleLevel)}</td>
+          <td style="font-size:11.5px; color:#475569;">Sale trực thuộc Leader</td>
+          <td style="font-family:'JetBrains Mono'; font-weight:700;">${sLot.toFixed(2)} lot</td>
+          <td style="color:#ea580c; font-weight:800; font-family:'JetBrains Mono';">+${(diffRate/1000)}k/lot</td>
+          <td style="color:#059669; font-weight:800; font-family:'JetBrains Mono';">+${formatMoney(comm)}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    } else if (person.roleLevel === 'LV1') {
+      // Manager: Leader và Sale trực thuộc
+      const directSubs = APEX_DATA.filter(s => s.parentId === person.id);
+      directSubs.forEach(sub => {
+        if (sub.roleLevel === 'LV2') {
+          // Leader
+          const lLot = getPersonalStdLot(sub);
+          const mgrDiff = (person.customDiffRate !== undefined && person.customDiffRate !== null) ? person.customDiffRate : LOT_CONFIG.diffManager;
+          const commL = Math.round(lLot * mgrDiff);
+          totalLots += lLot;
+          totalMoney += commL;
+
+          const trL = document.createElement('tr');
+          trL.style.background = '#fff7ed';
+          trL.innerHTML = `
+            <td>${stt++}</td>
+            <td>
+              <strong>${sub.name}</strong>
+              <div style="font-size:10px; color:#c2410c;">Leader Trực Thuộc • ID: ${sub.id}</div>
+            </td>
+            <td>${getRoleBadgeHtml(sub.roleLevel)}</td>
+            <td style="font-size:11.5px; color:#c2410c; font-weight:700;">Leader cấp 1</td>
+            <td style="font-family:'JetBrains Mono'; font-weight:700;">${lLot.toFixed(2)} lot</td>
+            <td style="color:#2563eb; font-weight:800; font-family:'JetBrains Mono';">+${(mgrDiff/1000)}k/lot</td>
+            <td style="color:#059669; font-weight:800; font-family:'JetBrains Mono';">+${formatMoney(commL)}</td>
+          `;
+          tbody.appendChild(trL);
+
+          // Sales của Leader này
+          const teamSales = APEX_DATA.filter(s => s.parentId === sub.id);
+          teamSales.forEach(sale => {
+            const sLot = getPersonalStdLot(sale);
+            const commS = Math.round(sLot * mgrDiff);
+            totalLots += sLot;
+            totalMoney += commS;
+
+            const trS = document.createElement('tr');
+            trS.innerHTML = `
+              <td>${stt++}</td>
+              <td style="padding-left:24px;">
+                ↳ <span>${sale.name}</span>
+                <div style="font-size:10px; color:#64748b;">ID: ${sale.id} • Dưới quyền ${sub.name}</div>
+              </td>
+              <td>${getRoleBadgeHtml(sale.roleLevel)}</td>
+              <td style="font-size:11.5px; color:#64748b;">Sale qua Leader ${sub.name}</td>
+              <td style="font-family:'JetBrains Mono'; font-weight:700;">${sLot.toFixed(2)} lot</td>
+              <td style="color:#2563eb; font-weight:800; font-family:'JetBrains Mono';">+${(mgrDiff/1000)}k/lot</td>
+              <td style="color:#059669; font-weight:800; font-family:'JetBrains Mono';">+${formatMoney(commS)}</td>
+            `;
+            tbody.appendChild(trS);
+          });
+        } else if (sub.roleLevel === 'LV3') {
+          // Sale trực thuộc Manager
+          const sLot = getPersonalStdLot(sub);
+          const commDirect = Math.round(sLot * LOT_CONFIG.diffManagerDirectSale);
+          totalLots += sLot;
+          totalMoney += commDirect;
+
+          const trD = document.createElement('tr');
+          trD.style.background = '#f0fdf4';
+          trD.innerHTML = `
+            <td>${stt++}</td>
+            <td>
+              <strong>${sub.name}</strong>
+              <div style="font-size:10px; color:#15803d;">Sale Trực Tiếp (Không qua Leader) • ID: ${sub.id}</div>
+            </td>
+            <td>${getRoleBadgeHtml(sub.roleLevel)}</td>
+            <td style="font-size:11.5px; color:#15803d; font-weight:700;">Trực thuộc Manager (+30k/lot)</td>
+            <td style="font-family:'JetBrains Mono'; font-weight:700;">${sLot.toFixed(2)} lot</td>
+            <td style="color:#15803d; font-weight:800; font-family:'JetBrains Mono';">+${(LOT_CONFIG.diffManagerDirectSale/1000)}k/lot</td>
+            <td style="color:#059669; font-weight:800; font-family:'JetBrains Mono';">+${formatMoney(commDirect)}</td>
+          `;
+          tbody.appendChild(trD);
+        }
+      });
+    }
+
+    const footLotEl = document.getElementById('footDownlineTotalLot');
+    if (footLotEl) footLotEl.textContent = totalLots.toFixed(2) + ' lot';
+    const footMoneyEl = document.getElementById('footDownlineTotalMoney');
+    if (footMoneyEl) footMoneyEl.textContent = formatMoney(totalMoney);
+
+    const downModal = document.getElementById('downlineModal');
+    if (downModal) downModal.classList.add('active');
+  }
+
+  function closeDownlineModal() {
+    const downModal = document.getElementById('downlineModal');
+    if (downModal) downModal.classList.remove('active');
+  }
+
+ // ====================================================================
+ // 8. CẤU HÌNH BIẾN SỐ TOÀN HỆ THỐNG
+ // ====================================================================
+ function openConfigModal() {
+ document.getElementById('cfgMini').value = LOT_CONFIG.miniMultiplier;
+ document.getElementById('cfgMicro').value = LOT_CONFIG.microMultiplier;
+ document.getElementById('cfgRateLv1').value = LOT_CONFIG.rateLv1;
+ document.getElementById('cfgRateLv2').value = LOT_CONFIG.rateLv2;
+ document.getElementById('cfgRateLv3').value = LOT_CONFIG.rateLv3;
+ document.getElementById('cfgDiffLeader').value = LOT_CONFIG.diffLeader;
+ document.getElementById('cfgDiffManager').value = LOT_CONFIG.diffManager;
+ document.getElementById('configModal').classList.add('active');
+ }
+
+ function closeConfigModal() {
+ document.getElementById('configModal').classList.remove('active');
+ }
+
+ function applyLotConfig() {
+ LOT_CONFIG.miniMultiplier = Number(document.getElementById('cfgMini').value) || 0.8;
+ LOT_CONFIG.microMultiplier = Number(document.getElementById('cfgMicro').value) || 0.35;
+ LOT_CONFIG.rateLv1 = Number(document.getElementById('cfgRateLv1').value) || 80000;
+ LOT_CONFIG.rateLv2 = Number(document.getElementById('cfgRateLv2').value) || 60000;
+ LOT_CONFIG.rateLv3 = Number(document.getElementById('cfgRateLv3').value) || 50000;
+ LOT_CONFIG.diffLeader = Number(document.getElementById('cfgDiffLeader').value) || 10000;
+ LOT_CONFIG.diffManager = Number(document.getElementById('cfgDiffManager').value) || 20000;
+
+ // Cập nhật lại định mức cho toàn bộ nhân sự theo vị trí
+ APEX_DATA.forEach(p => {
+ if (p.roleLevel === 'LV1') p.ratePerLot = LOT_CONFIG.rateLv1;
+ else if (p.roleLevel === 'LV2') p.ratePerLot = LOT_CONFIG.rateLv2;
+ else if (p.roleLevel === 'LV3') p.ratePerLot = LOT_CONFIG.rateLv3;
+ });
+
+ closeConfigModal();
+ renderAllViews();
+ alert('Đã áp dụng định mức mới (Manager 80k, Leader 60k, Sale 50k, Mini 0.8, Micro 0.35) cho toàn bộ hệ thống!');
+ }
+
+ // ====================================================================
+ // 9. FILTER, SEARCH, TABS, ZOOM, EXPORT
+ // ====================================================================
+ function switchView(tabId) {
+ document.querySelectorAll('.tab-content-panel').forEach(el => el.classList.remove('active'));
+ document.querySelectorAll('.mode-tab-btn').forEach(el => el.classList.remove('active'));
+ document.querySelectorAll('.sidebar-nav .nav-btn').forEach(el => el.classList.remove('active'));
+
+ document.getElementById(tabId).classList.add('active');
+
+ if (tabId === 'tab-mindmap') {
+ document.getElementById('btnTabMindmap').classList.add('active');
+ document.getElementById('btnSideMindmap').classList.add('active');
+ document.getElementById('breadcrumbCurrent').textContent = 'Cơ chế Cây Mindmap (Vị Trí Lv1 - Lv2 - Lv3)';
+ renderMindmapTree();
+    } else if (tabId === 'tab-report') {
+      document.getElementById('btnTabReport').classList.add('active');
+      document.getElementById('btnSideReport').classList.add('active');
+      document.getElementById('breadcrumbCurrent').textContent = 'Báo Cáo Doanh Thu (23 Nhân Sự Lv1 - Lv2 - Lv3)';
+      renderReportTable();
+    }
+  }
+
+ function filterByRole(role, btnElement) {
+ currentRoleFilter = role;
+ document.querySelectorAll('.role-filter-strip .filter-btn').forEach(b => b.classList.remove('active'));
+ if (btnElement) btnElement.classList.add('active');
+ renderReportTable();
+ }
+
+ function handleSearch(query) {
+ const q = (query || '').toLowerCase().trim();
+ const rows = document.querySelectorAll('#reportTableBody tr');
+ rows.forEach(tr => {
+ const text = tr.innerText.toLowerCase();
+ tr.style.display = text.includes(q) ? '' : 'none';
+ });
+ }
+
+ function zoomMindmap(factor) {
+ zoomLevel *= factor;
+ zoomLevel = Math.max(0.4, Math.min(2.5, zoomLevel));
+ document.getElementById('mindmapSvg').style.transform = `scale(${zoomLevel})`;
+ }
+
+ function resetZoom() {
+ zoomLevel = 1.0;
+ document.getElementById('mindmapSvg').style.transform = 'scale(1)';
+ }
+
+ function exportToCSV() {
+ let csv = "STT,Nhân Sự,Mã ID,Vị Trí,Quản Lý Trực Thuộc,Lot Chuẩn,Lot Micro,Lot MINI,Tổng Lot Cá Nhân,Định Mức Lot,HH Lot Cá Nhân,Lot Tuyến Dưới,HH Tuyến Dưới,DS Chỉ Báo,DS Khóa Học,% HH SP,HH Sản Phẩm,Thưởng KPI,Thực Nhận\n";
+ APEX_DATA.forEach((item, index) => {
+ const fin = calculatePersonnelFinance(item);
+ const dlLots = (fin.downlineLots !== null) ? fin.downlineLots : "";
+ const dlDiff = (fin.downlineLots !== null) ? fin.overrideRateStr : "";
+ const dlMoney = (fin.downlineLots !== null) ? fin.hhDownline : "";
+ csv += `"${index+1}","${item.name}","${item.id}","${item.roleTitle}","${item.directManager}","${item.basicLot}","${item.microLot}","${item.miniLot}","${fin.stdLot}","${fin.ratePerLot}","${fin.hhLot}","${dlLots}","${dlMoney}","${item.indicatorRev}","${item.courseRev}","${fin.productRate}%","${fin.hhProduct}","${item.bonus || 0}","${fin.netIncome}"\n`;
+ });
+
+ const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+ const url = URL.createObjectURL(blob);
+ const a = document.createElement('a');
+ a.href = url;
+ a.download = `Bao_Cao_Hoa_Hong_Apex_23_Nhan_Su_${new Date().toISOString().slice(0,10)}.csv`;
+ document.body.appendChild(a);
+ a.click();
+ document.body.removeChild(a);
+ }
+
+ 
+  // ====================================================================
+  // CẬP NHẬT TRỰC TIẾP NHÂN SỰ
+  // ====================================================================
+  function updatePersonnelRate(id, newRate) {
+    const person = APEX_DATA.find(p => p.id === id);
+    if (!person) return;
+    const val = Number(newRate) || 0;
+    person.ratePerLot = val;
+    person.hasCustomRate = true;
+    renderAllViews();
+  }
+
+  function updatePersonnelProductRate(id, newRate) {
+    const person = APEX_DATA.find(p => p.id === id);
+    if (!person) return;
+    person.productRate = Math.max(0, Math.min(100, Number(newRate) || 0));
+    renderAllViews();
+  }
+
+  function updatePersonnelBonus(id, newBonus) {
+    const person = APEX_DATA.find(p => p.id === id);
+    if (!person) return;
+    person.bonus = Math.max(0, Number(newBonus) || 0);
+    renderAllViews();
+  }
+
+  function renderAllViews() {
+ renderMindmapTree();
+ renderReportTable();
+ renderRankingTable();
+ }
+
+ // Khởi chạy khi load trang
+ window.addEventListener('DOMContentLoaded', () => {
+ renderAllViews();
+ });
+</script>
+
+</body>
+</html>

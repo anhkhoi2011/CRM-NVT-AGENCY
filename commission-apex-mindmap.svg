@@ -1,0 +1,279 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1900 1020" width="100%" height="100%" style="background:#0b1120; font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,sans-serif;">
+  <defs>
+    <filter id="glowOrange" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="10" flood-color="#ea580c" flood-opacity="0.45" />
+    </filter>
+    <filter id="glowBlue" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="10" flood-color="#3b82f6" flood-opacity="0.35" />
+    </filter>
+    <linearGradient id="gradRoot" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#c2410c"/>
+      <stop offset="100%" stop-color="#ea580c"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Title Header -->
+  <g transform="translate(40, 40)">
+    <text x="0" y="0" fill="#f8fafc" font-size="22" font-weight="900" letter-spacing="-0.5px">CÂY MÔI GIỚI APEX (23 NHÂN SỰ) - CƠ CẤU HOA HỒNG BẬC THANG</text>
+    <text x="0" y="24" fill="#94a3b8" font-size="13">MANAGER (80K/LOT • +20K TUYẾN DƯỚI) • LEADER (60K/LOT • +10K TUYẾN DƯỚI) • SALE (50K/LOT • —)</text>
+  </g>
+
+  <!-- Mechanism Explanation Infographic Strip in SVG -->
+  <g transform="translate(920, 18)">
+    <rect x="0" y="0" width="940" height="66" rx="10" fill="#172033" stroke="#334155" stroke-width="1"/>
+    
+    <!-- Step 1: Sale lot -->
+    <g transform="translate(15, 12)">
+      <rect x="0" y="0" width="295" height="42" rx="6" fill="#0f172a" stroke="#10b981" stroke-width="1"/>
+      <text x="10" y="16" fill="#10b981" font-size="10" font-weight="800">KHÁCH SALE 1 LOT (80K TỔNG):</text>
+      <text x="10" y="32" fill="#e2e8f0" font-size="10">Sale 50k • Leader +10k • Manager +20k</text>
+    </g>
+
+    <!-- Step 2: Leader lot -->
+    <g transform="translate(325, 12)">
+      <rect x="0" y="0" width="295" height="42" rx="6" fill="#0f172a" stroke="#ea580c" stroke-width="1"/>
+      <text x="10" y="16" fill="#ea580c" font-size="10" font-weight="800">KHÁCH LEADER 1 LOT (80K TỔNG):</text>
+      <text x="10" y="32" fill="#e2e8f0" font-size="10">Leader 60k • Manager +20k (Sale: —)</text>
+    </g>
+
+    <!-- Step 3: Manager lot -->
+    <g transform="translate(635, 12)">
+      <rect x="0" y="0" width="290" height="42" rx="6" fill="#0f172a" stroke="#3b82f6" stroke-width="1"/>
+      <text x="10" y="16" fill="#3b82f6" font-size="10" font-weight="800">KHÁCH MANAGER 1 LOT:</text>
+      <text x="10" y="32" fill="#e2e8f0" font-size="10">Manager nhận trọn 80.000 đ</text>
+    </g>
+  </g>
+
+  <!-- Edges (Curved Bezier Paths) -->
+  <g fill="none" stroke="#334155" stroke-width="2" stroke-linecap="round">
+    <!-- Root to 4 main branches -->
+    <path d="M 280 490 C 330 490, 330 220, 380 220" stroke="#3b82f6" stroke-width="2.2"/>
+    <path d="M 280 490 C 330 490, 330 520, 380 520" stroke="#3b82f6" stroke-width="2.2"/>
+    <path d="M 280 490 C 330 490, 330 750, 380 750" stroke="#ea580c" stroke-width="2.2"/>
+    <path d="M 280 490 C 330 490, 330 870, 380 870" stroke="#ea580c" stroke-width="2.2"/>
+
+    <!-- Phuong Anh (Lv1 - 80k) to Tuyet, Cuong, Thuy -->
+    <path d="M 620 220 C 670 220, 670 160, 720 160"/>
+    <path d="M 620 220 C 670 220, 670 220, 720 220"/>
+    <path d="M 620 220 C 670 220, 670 280, 720 280"/>
+
+    <!-- Tuyet (Lv2 - 60k) to Mai (Lv3 - 50k) -->
+    <path d="M 960 160 C 1010 160, 1010 160, 1060 160"/>
+
+    <!-- Cuong (Lv2 - 60k) to Tung (Lv3 - 50k) -->
+    <path d="M 960 220 C 1010 220, 1010 220, 1060 220"/>
+
+    <!-- Hoang Khanh (Lv1 - 80k) to Dang Tan Tu (Lv2 - 60k) -->
+    <path d="M 620 520 C 670 520, 670 520, 720 520"/>
+
+    <!-- Dang Tan Tu (Lv2 - 60k) to 8 Sales (Lv3 - 50k) -->
+    <path d="M 960 520 C 1010 520, 1010 350, 1060 350"/>
+    <path d="M 960 520 C 1010 520, 1010 400, 1060 400"/>
+    <path d="M 960 520 C 1010 520, 1010 450, 1060 450"/>
+    <path d="M 960 520 C 1010 520, 1010 500, 1060 500"/>
+    <path d="M 960 520 C 1010 520, 1010 550, 1060 550"/>
+    <path d="M 960 520 C 1010 520, 1010 600, 1060 600"/>
+    <path d="M 960 520 C 1010 520, 1010 650, 1060 650"/>
+    <path d="M 960 520 C 1010 520, 1010 700, 1060 700"/>
+
+    <!-- Quynh (Lv2 - 60k) to Tien, Ngoc, Huyen (Lv3 - 50k) -->
+    <path d="M 620 750 C 670 750, 670 720, 720 720"/>
+    <path d="M 620 750 C 670 750, 670 765, 720 765"/>
+    <path d="M 620 750 C 670 750, 670 810, 720 810"/>
+
+    <!-- Hung (Lv2 - 60k) to Dung, Sung (Lv3 - 50k) -->
+    <path d="M 620 870 C 670 870, 670 860, 720 860"/>
+    <path d="M 620 870 C 670 870, 670 905, 720 905"/>
+  </g>
+
+  <!-- ================= LEVEL 0: ROOT NODE ================= -->
+  <g transform="translate(40, 455)" filter="url(#glowOrange)">
+    <rect x="0" y="0" width="240" height="70" rx="14" fill="url(#gradRoot)" stroke="#ff7a45" stroke-width="1.5"/>
+    <circle cx="34" cy="35" r="16" fill="rgba(255,255,255,0.2)"/>
+    <text x="34" y="40" fill="#ffffff" font-size="14" font-weight="900" text-anchor="middle">🏢</text>
+    <text x="60" y="32" fill="#ffffff" font-size="14" font-weight="900">HỆ THỐNG APEX</text>
+    <text x="60" y="50" fill="#ffedd5" font-size="11" font-weight="700">23 NHÂN SỰ • TOÀN HỆ THỐNG</text>
+  </g>
+
+  <!-- ================= LEVEL 1: NHÁNH 1 - PHƯƠNG ANH (LV1 - 80K) ================= -->
+  <g transform="translate(380, 185)">
+    <rect x="0" y="0" width="240" height="70" rx="12" fill="#172033" stroke="#3b82f6" stroke-width="1.8"/>
+    <rect x="8" y="8" width="60" height="18" rx="4" fill="#3b82f6"/>
+    <text x="38" y="21" fill="#ffffff" font-size="9.5" font-weight="800" text-anchor="middle">LV1: 80K</text>
+    <text x="76" y="21" fill="#93c5fd" font-size="10" font-weight="700">TD: +20k/lot (84.3 lot)</text>
+    <text x="12" y="45" fill="#f8fafc" font-size="13" font-weight="800">Phương Anh</text>
+    <text x="12" y="60" fill="#94a3b8" font-size="10">ID: 08049866 • 5 Cấp Dưới</text>
+  </g>
+
+  <!-- Tran Thi Tuyet (Lv2 - 60k) -->
+  <g transform="translate(720, 135)">
+    <rect x="0" y="0" width="240" height="52" rx="8" fill="#172033" stroke="#ea580c" stroke-width="1.5"/>
+    <rect x="8" y="8" width="56" height="16" rx="3" fill="#ea580c"/>
+    <text x="36" y="20" fill="#ffffff" font-size="9" font-weight="800" text-anchor="middle">LV2: 60K</text>
+    <text x="72" y="20" fill="#fdba74" font-size="9.5" font-weight="700">TD: +10k/lot (11.3 lot)</text>
+    <text x="10" y="38" fill="#f8fafc" font-size="12" font-weight="800">Trần Thị Tuyết</text>
+    <text x="120" y="38" fill="#94a3b8" font-size="10">08077592</text>
+  </g>
+
+  <!-- Mai (Lv3 - 50k) under Tuyet -->
+  <g transform="translate(1060, 137)">
+    <rect x="0" y="0" width="220" height="46" rx="8" fill="#0f172a" stroke="#10b981" stroke-width="1.2"/>
+    <rect x="6" y="6" width="54" height="16" rx="3" fill="#10b981"/>
+    <text x="33" y="18" fill="#ffffff" font-size="9" font-weight="800" text-anchor="middle">LV3: 50K</text>
+    <text x="6" y="35" fill="#e2e8f0" font-size="11.5" font-weight="700">Trần Thị Mai</text>
+    <text x="110" y="35" fill="#64748b" font-size="9">08022207 • [—]</text>
+  </g>
+
+  <!-- Do Viet Cuong (Lv2 - 60k) -->
+  <g transform="translate(720, 195)">
+    <rect x="0" y="0" width="240" height="52" rx="8" fill="#172033" stroke="#ea580c" stroke-width="1.5"/>
+    <rect x="8" y="8" width="56" height="16" rx="3" fill="#ea580c"/>
+    <text x="36" y="20" fill="#ffffff" font-size="9" font-weight="800" text-anchor="middle">LV2: 60K</text>
+    <text x="72" y="20" fill="#fdba74" font-size="9.5" font-weight="700">TD: +10k/lot (18.3 lot)</text>
+    <text x="10" y="38" fill="#f8fafc" font-size="12" font-weight="800">Đỗ Việt Cường</text>
+    <text x="120" y="38" fill="#94a3b8" font-size="10">08020609</text>
+  </g>
+
+  <!-- Cap Trong Son Tung (Lv3 - 50k) under Cuong -->
+  <g transform="translate(1060, 197)">
+    <rect x="0" y="0" width="220" height="46" rx="8" fill="#0f172a" stroke="#10b981" stroke-width="1.2"/>
+    <rect x="6" y="6" width="54" height="16" rx="3" fill="#10b981"/>
+    <text x="33" y="18" fill="#ffffff" font-size="9" font-weight="800" text-anchor="middle">LV3: 50K</text>
+    <text x="6" y="35" fill="#e2e8f0" font-size="11.5" font-weight="700">Cáp Trọng Sơn Tùng</text>
+    <text x="135" y="35" fill="#64748b" font-size="9">08066488 • [—]</text>
+  </g>
+
+  <!-- Dang Huong Thuy (Lv3 - 50k) direct under Phuong Anh -->
+  <g transform="translate(720, 255)">
+    <rect x="0" y="0" width="240" height="50" rx="8" fill="#0f172a" stroke="#10b981" stroke-width="1.2"/>
+    <rect x="8" y="6" width="54" height="16" rx="3" fill="#10b981"/>
+    <text x="35" y="18" fill="#ffffff" font-size="9" font-weight="800" text-anchor="middle">LV3: 50K</text>
+    <text x="70" y="18" fill="#93c5fd" font-size="9" font-weight="700">Manager hưởng +30k/lot</text>
+    <text x="10" y="36" fill="#e2e8f0" font-size="11.5" font-weight="700">Đặng Hương Thuỷ</text>
+    <text x="130" y="36" fill="#64748b" font-size="9">08028892 • [—]</text>
+  </g>
+
+  <!-- ================= LEVEL 1: NHÁNH 2 - NGUYỄN HOÀNG KHÁNH (LV1 - 80K) ================= -->
+  <g transform="translate(380, 485)">
+    <rect x="0" y="0" width="240" height="70" rx="12" fill="#172033" stroke="#3b82f6" stroke-width="1.8"/>
+    <rect x="8" y="8" width="60" height="18" rx="4" fill="#3b82f6"/>
+    <text x="38" y="21" fill="#ffffff" font-size="9.5" font-weight="800" text-anchor="middle">LV1: 80K</text>
+    <text x="76" y="21" fill="#93c5fd" font-size="10" font-weight="700">TD: +20k/lot (136.5 lot)</text>
+    <text x="12" y="45" fill="#f8fafc" font-size="13" font-weight="800">Nguyễn Hoàng Khánh</text>
+    <text x="12" y="60" fill="#94a3b8" font-size="10">ID: 08014278 • 9 Cấp Dưới</text>
+  </g>
+
+  <!-- Dang Tan Tu (Lv2 - 60k) under Khanh -->
+  <g transform="translate(720, 495)">
+    <rect x="0" y="0" width="240" height="52" rx="8" fill="#172033" stroke="#ea580c" stroke-width="1.5"/>
+    <rect x="8" y="8" width="56" height="16" rx="3" fill="#ea580c"/>
+    <text x="36" y="20" fill="#ffffff" font-size="9" font-weight="800" text-anchor="middle">LV2: 60K</text>
+    <text x="72" y="20" fill="#fdba74" font-size="9.5" font-weight="700">TD: +10k/lot (110.3 lot)</text>
+    <text x="10" y="38" fill="#f8fafc" font-size="12" font-weight="800">Đặng Tấn Tử</text>
+    <text x="120" y="38" fill="#94a3b8" font-size="10">08035000</text>
+  </g>
+
+  <!-- 8 Sales under Dang Tan Tu (50k/lot) -->
+  <g transform="translate(1060, 330)">
+    <rect x="0" y="0" width="220" height="40" rx="6" fill="#0f172a" stroke="#10b981" stroke-width="1"/>
+    <text x="8" y="16" fill="#10b981" font-size="9" font-weight="800">LV3: 50K</text>
+    <text x="60" y="16" fill="#e2e8f0" font-size="11" font-weight="700">Lê Ngân</text>
+    <text x="8" y="31" fill="#64748b" font-size="9">08062863 • [—]</text>
+  </g>
+  <g transform="translate(1060, 380)">
+    <rect x="0" y="0" width="220" height="40" rx="6" fill="#0f172a" stroke="#10b981" stroke-width="1"/>
+    <text x="8" y="16" fill="#10b981" font-size="9" font-weight="800">LV3: 50K</text>
+    <text x="60" y="16" fill="#e2e8f0" font-size="11" font-weight="700">Lê Trung Kiên</text>
+    <text x="8" y="31" fill="#64748b" font-size="9">08029908 • [—]</text>
+  </g>
+  <g transform="translate(1060, 430)">
+    <rect x="0" y="0" width="220" height="40" rx="6" fill="#0f172a" stroke="#10b981" stroke-width="1"/>
+    <text x="8" y="16" fill="#10b981" font-size="9" font-weight="800">LV3: 50K</text>
+    <text x="60" y="16" fill="#e2e8f0" font-size="11" font-weight="700">Lê Thanh Ngân</text>
+    <text x="8" y="31" fill="#64748b" font-size="9">08083609 • [—]</text>
+  </g>
+  <g transform="translate(1060, 480)">
+    <rect x="0" y="0" width="220" height="40" rx="6" fill="#0f172a" stroke="#10b981" stroke-width="1"/>
+    <text x="8" y="16" fill="#10b981" font-size="9" font-weight="800">LV3: 50K</text>
+    <text x="60" y="16" fill="#e2e8f0" font-size="11" font-weight="700">Nguyễn Minh Thế</text>
+    <text x="8" y="31" fill="#64748b" font-size="9">08028282 • [—]</text>
+  </g>
+  <g transform="translate(1060, 530)">
+    <rect x="0" y="0" width="220" height="40" rx="6" fill="#0f172a" stroke="#10b981" stroke-width="1"/>
+    <text x="8" y="16" fill="#10b981" font-size="9" font-weight="800">LV3: 50K</text>
+    <text x="60" y="16" fill="#e2e8f0" font-size="11" font-weight="700">Phạm Hoài Ngọc Đức</text>
+    <text x="8" y="31" fill="#64748b" font-size="9">08058577 • [—]</text>
+  </g>
+  <g transform="translate(1060, 580)">
+    <rect x="0" y="0" width="220" height="40" rx="6" fill="#0f172a" stroke="#10b981" stroke-width="1"/>
+    <text x="8" y="16" fill="#10b981" font-size="9" font-weight="800">LV3: 50K</text>
+    <text x="60" y="16" fill="#e2e8f0" font-size="11" font-weight="700">Đinh Hoàng Tuấn Trí</text>
+    <text x="8" y="31" fill="#64748b" font-size="9">08029280 • [—]</text>
+  </g>
+  <g transform="translate(1060, 630)">
+    <rect x="0" y="0" width="220" height="40" rx="6" fill="#0f172a" stroke="#10b981" stroke-width="1"/>
+    <text x="8" y="16" fill="#10b981" font-size="9" font-weight="800">LV3: 50K</text>
+    <text x="60" y="16" fill="#e2e8f0" font-size="11" font-weight="700">Hồ Tấn Anh Tài</text>
+    <text x="8" y="31" fill="#64748b" font-size="9">08049721 • [—]</text>
+  </g>
+  <g transform="translate(1060, 680)">
+    <rect x="0" y="0" width="220" height="40" rx="6" fill="#0f172a" stroke="#10b981" stroke-width="1"/>
+    <text x="8" y="16" fill="#10b981" font-size="9" font-weight="800">LV3: 50K</text>
+    <text x="60" y="16" fill="#e2e8f0" font-size="11" font-weight="700">Hoàng Tấn Nguyên</text>
+    <text x="8" y="31" fill="#64748b" font-size="9">08010668 • [—]</text>
+  </g>
+
+  <!-- ================= LEVEL 1: NHÁNH 3 - VŨ THỊ QUỲNH (LV2 - 60K) ================= -->
+  <g transform="translate(380, 715)">
+    <rect x="0" y="0" width="240" height="70" rx="12" fill="#172033" stroke="#ea580c" stroke-width="1.8"/>
+    <rect x="8" y="8" width="60" height="18" rx="4" fill="#ea580c"/>
+    <text x="38" y="21" fill="#ffffff" font-size="9.5" font-weight="800" text-anchor="middle">LV2: 60K</text>
+    <text x="76" y="21" fill="#fdba74" font-size="10" font-weight="700">TD: +10k/lot (46.5 lot)</text>
+    <text x="12" y="45" fill="#f8fafc" font-size="13" font-weight="800">Vũ Thị Quỳnh</text>
+    <text x="12" y="60" fill="#94a3b8" font-size="10">ID: 08095532 • 3 Sale Trực Thuộc</text>
+  </g>
+
+  <!-- Quỳnh Sales: Tiên, Ngọc, Huyền (50k/lot) -->
+  <g transform="translate(720, 700)">
+    <rect x="0" y="0" width="220" height="42" rx="6" fill="#0f172a" stroke="#10b981" stroke-width="1.2"/>
+    <text x="8" y="18" fill="#10b981" font-size="9" font-weight="800">LV3: 50K</text>
+    <text x="60" y="18" fill="#e2e8f0" font-size="11" font-weight="700">Võ Thị Diễm Tiên</text>
+    <text x="8" y="33" fill="#64748b" font-size="9">08061116 • [—]</text>
+  </g>
+  <g transform="translate(720, 745)">
+    <rect x="0" y="0" width="220" height="42" rx="6" fill="#0f172a" stroke="#10b981" stroke-width="1.2"/>
+    <text x="8" y="18" fill="#10b981" font-size="9" font-weight="800">LV3: 50K</text>
+    <text x="60" y="18" fill="#e2e8f0" font-size="11" font-weight="700">Đức Thị Ngọc</text>
+    <text x="8" y="33" fill="#64748b" font-size="9">08088879 • [—]</text>
+  </g>
+  <g transform="translate(720, 790)">
+    <rect x="0" y="0" width="220" height="42" rx="6" fill="#0f172a" stroke="#10b981" stroke-width="1.2"/>
+    <text x="8" y="18" fill="#10b981" font-size="9" font-weight="800">LV3: 50K</text>
+    <text x="60" y="18" fill="#e2e8f0" font-size="11" font-weight="700">Nguyễn Thị Vân Huyền</text>
+    <text x="8" y="33" fill="#64748b" font-size="9">08042190 • [—]</text>
+  </g>
+
+  <!-- ================= LEVEL 1: NHÁNH 4 - ĐỖ MẠNH HÙNG (LV2 - 60K) ================= -->
+  <g transform="translate(380, 835)">
+    <rect x="0" y="0" width="240" height="70" rx="12" fill="#172033" stroke="#ea580c" stroke-width="1.8"/>
+    <rect x="8" y="8" width="60" height="18" rx="4" fill="#ea580c"/>
+    <text x="38" y="21" fill="#ffffff" font-size="9.5" font-weight="800" text-anchor="middle">LV2: 60K</text>
+    <text x="76" y="21" fill="#fdba74" font-size="10" font-weight="700">TD: +10k/lot (32.5 lot)</text>
+    <text x="12" y="45" fill="#f8fafc" font-size="13" font-weight="800">Đỗ Mạnh Hùng</text>
+    <text x="12" y="60" fill="#94a3b8" font-size="10">ID: 08080804 • 2 Sale Trực Thuộc</text>
+  </g>
+
+  <!-- Hùng Sales: Dũng, Sung (50k/lot) -->
+  <g transform="translate(720, 840)">
+    <rect x="0" y="0" width="220" height="42" rx="6" fill="#0f172a" stroke="#10b981" stroke-width="1.2"/>
+    <text x="8" y="18" fill="#10b981" font-size="9" font-weight="800">LV3: 50K</text>
+    <text x="60" y="18" fill="#e2e8f0" font-size="11" font-weight="700">Đỗ Mạnh Dũng</text>
+    <text x="8" y="33" fill="#64748b" font-size="9">08007997 • [—]</text>
+  </g>
+  <g transform="translate(720, 885)">
+    <rect x="0" y="0" width="220" height="42" rx="6" fill="#0f172a" stroke="#10b981" stroke-width="1.2"/>
+    <text x="8" y="18" fill="#10b981" font-size="9" font-weight="800">LV3: 50K</text>
+    <text x="60" y="18" fill="#e2e8f0" font-size="11" font-weight="700">Nguyễn Văn Sung</text>
+    <text x="8" y="33" fill="#64748b" font-size="9">08009687 • [—]</text>
+  </g>
+</svg>
