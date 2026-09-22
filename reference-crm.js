@@ -2119,15 +2119,44 @@
     const directSales=id=>sales.filter(x=>(x.managerId===id&&!leaders.some(l=>l.id===x.leaderId))||x.leaderId===id);
     const enabledLeaders=new Set(data.leaderDistribution?.enabledLeaderIds||[]);
     const initials=m=>String(m.name||'?').trim().split(/\s+/).slice(-2).map(x=>x[0]).join('').toUpperCase()||'?';
+    const branchCustomerCount=(member,kind)=>{
+      const ids=new Set();
+      if(kind==='MANAGER'){
+        const branchLeaderIds=new Set(leaders.filter(leader=>leader.managerId===member.id).map(leader=>leader.id));
+        const branchSaleIds=new Set(sales.filter(sale=>sale.managerId===member.id||branchLeaderIds.has(sale.leaderId)).map(sale=>sale.id));
+        (data.customers||[]).forEach(customer=>{
+          if(customer.managerId===member.id||branchLeaderIds.has(customer.leaderId)||branchSaleIds.has(customer.saleId))ids.add(customer.id);
+        });
+      }else if(kind==='LEADER'){
+        const branchSaleIds=new Set(sales.filter(sale=>sale.leaderId===member.id).map(sale=>sale.id));
+        (data.customers||[]).forEach(customer=>{
+          if(customer.leaderId===member.id||branchSaleIds.has(customer.saleId))ids.add(customer.id);
+        });
+      }else{
+        (data.customers||[]).forEach(customer=>{if(customer.saleId===member.id)ids.add(customer.id);});
+        (data.offers||[]).forEach(offer=>{if(offer.status==='PENDING'&&offer.saleId===member.id)ids.add(offer.customerId);});
+      }
+      return ids.size;
+    };
     const row=(member,kind,level)=>{
       const isManager=kind==='MANAGER',isLeader=kind==='LEADER';
       const managerLeaders=isManager?byManager(member.id):[];
-      const configLeaderId=isManager?managerLeaders[0]?.id:(leaders.some(l=>l.id===member.leaderId)?member.leaderId:'manager:'+(member.managerId||member.leaderId));
-      const config=isLeader||!configLeaderId?{}:(data.saleDistributionByLeader?.[configLeaderId]||{});
+      const configIds=isManager
+        ? (managerLeaders.length?managerLeaders.map(leader=>leader.id):['manager:'+member.id])
+        : [isLeader?member.id:(leaders.some(l=>l.id===member.leaderId)?member.leaderId:'manager:'+(member.managerId||member.leaderId))];
+      const configs=configIds.map(id=>data.saleDistributionByLeader?.[id]||{});
+      const config=configs[0]||{};
       const weight=isLeader?(data.leaderDistribution?.weights?.[member.id]||1):(config?.weights?.[member.id]||1);
-      const enabled=isLeader?enabledLeaders.has(member.id):(config?.managerDistributionInitialized!==true&&isManager?true:(Array.isArray(config?.enabledSaleIds)?config.enabledSaleIds.includes(member.id):true));
-      const load=(data.customers||[]).filter(c=>isManager?c.managerId===member.id:c[isLeader?'leaderId':'saleId']===member.id).length;
-      const canEdit=role==='ADMIN'||(role==='MANAGER'&&kind==='SALE'&&(member.managerId===data.user.id||member.leaderId===data.user.id||managerLeaderIds.has(member.leaderId)));
+      const enabled=isLeader
+        ? enabledLeaders.has(member.id) && configs.every(item=>item.leaderEnabled!==false)
+        : isManager
+          ? configs.every(item=>item.managerDistributionInitialized!==true||!Array.isArray(item.enabledSaleIds)||item.enabledSaleIds.includes(member.id))
+          : (config.managerDistributionInitialized!==true||!Array.isArray(config.enabledSaleIds)||config.enabledSaleIds.includes(member.id));
+      const load=branchCustomerCount(member,kind);
+      const canEdit=role==='ADMIN'||(role==='MANAGER'&&(
+        kind==='MANAGER'&&member.id===data.user.id ||
+        kind==='SALE'&&(member.managerId===data.user.id||member.leaderId===data.user.id||managerLeaderIds.has(member.leaderId))
+      ));
       const controls=canEdit
         ? '<label>Ty trong <input type="number" min="1" max="100" value="'+weight+'" data-ref-distribution-weight="'+kind+':'+esc(member.id)+'"></label><label class="distribution-check"><input type="checkbox" '+(enabled?'checked':'')+' data-ref-distribution-member="'+kind+':'+esc(member.id)+'"><span>'+(enabled?'Dang nhan':'Tam tat')+'</span></label>'
         : '<span class="distribution-readonly">Chi xem</span>';

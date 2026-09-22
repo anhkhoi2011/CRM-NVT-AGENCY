@@ -420,7 +420,15 @@ async function distributeAutomatic(c, data = null) {
  const pick = (people, weights, key, team) => {
   if (!people.length) return null;
   if (mode === 'BALANCED') {
-   const load = person => [...data.customers.values()].filter(row => team ? (person.managerRecipient ? row.managerId === person.id : row.saleId === person.id) : person.directManagerBranch ? row.managerId===person.id&&!members.some(l=>l.role==='LEADER'&&l.id===row.leaderId) : row.leaderId === person.id).length + (team && !person.managerRecipient ? [...data.dataOffers.values()].filter(o=>o.saleId===person.id&&o.status==='PENDING').length : 0);
+   const load = person => {
+    const pendingCustomerIds = team && person.managerRecipient
+     ? new Set([...data.dataOffers.values()].filter(o=>o.status==='PENDING').map(o=>o.customerId))
+     : null;
+    return [...data.customers.values()].filter(row => team
+     ? (person.managerRecipient ? row.managerId === person.id&&!pendingCustomerIds.has(row.id) : row.saleId === person.id)
+     : person.directManagerBranch ? row.managerId===person.id&&!members.some(l=>l.role==='LEADER'&&l.id===row.leaderId)
+     : row.leaderId === person.id).length + (team && !person.managerRecipient ? [...data.dataOffers.values()].filter(o=>o.saleId===person.id&&o.status==='PENDING').length : 0);
+   };
    return people.slice().sort((a,b)=>load(a)/weight(weights,a.id)-load(b)/weight(weights,b.id)||a.id.localeCompare(b.id))[0];
   }
   const weighted = mode === 'ROUND_ROBIN';
@@ -457,14 +465,19 @@ async function distributeAutomatic(c, data = null) {
   const saleConfigKey=leader.directManagerBranch?'manager:'+leader.id:leader.id;
   let saleConfig = saleConfigs[saleConfigKey] || {};
   const manager = leader.managerId ? members.find(p=>p.role==='MANAGER'&&p.id===leader.managerId) : null;
-  const managerRecipient = manager ? {...manager,role:'SALE',actualRole:'MANAGER',managerRecipient:true,leaderId:leader.id,teamId:leader.teamId} : null;
+  const managerRecipient = leader.directManagerBranch
+   ? {...leader,role:'SALE',actualRole:'MANAGER',managerRecipient:true,leaderId:null,teamId:leader.teamId}
+   : manager ? {...manager,role:'SALE',actualRole:'MANAGER',managerRecipient:true,leaderId:leader.id,teamId:leader.teamId} : null;
   const configuredRecipients=Array.isArray(saleConfig.enabledSaleIds)&&saleConfig.enabledSaleIds.length>0;
   if(managerRecipient && saleConfig.managerDistributionInitialized !== true && Array.isArray(saleConfig.enabledSaleIds) && !saleConfig.enabledSaleIds.includes(managerRecipient.id)){
    saleConfig={...saleConfig,enabledSaleIds:[...saleConfig.enabledSaleIds,managerRecipient.id],managerDistributionInitialized:true};
-   saleConfigs.set(saleConfigKey,saleConfig);distributionConfigMigrated=true;
+   saleConfigs[saleConfigKey]=saleConfig;
   }
   const managerEnabled = managerRecipient && (!configuredRecipients || saleConfig.enabledSaleIds.includes(managerRecipient.id));
-  const recipients = leader.directManagerBranch ? directSales(leader.id).filter(p=>!configuredRecipients||saleConfig.enabledSaleIds.includes(p.id)) : [
+  const recipients = leader.directManagerBranch ? [
+   ...(managerRecipient ? [managerRecipient] : []),
+   ...directSales(leader.id).filter(p=>!configuredRecipients||saleConfig.enabledSaleIds.includes(p.id))
+  ] : [
    ...members.filter(p=>p.id===leader.id && saleConfig.leaderEnabled!==false),
    ...members.filter(p=>p.teamId===leader.teamId && p.role==='SALE'&&p.leaderId===leader.id&&(!configuredRecipients||saleConfig.enabledSaleIds.includes(p.id))),
    ...(managerEnabled ? [managerRecipient] : [])
@@ -472,7 +485,7 @@ async function distributeAutomatic(c, data = null) {
   const recipient = automatic ? pick(recipients,saleConfig.weights,leader.id,true) : null;
   const assignedLeaderId=leader.directManagerBranch?(recipient?.leaderId||null):leader.id;
   const assignedTeamId=leader.directManagerBranch?recipient?.teamId:leader.teamId;
-  const direct = recipient?.id===leader.id;
+  const direct = recipient?.id===leader.id&&!recipient?.managerRecipient;
   const managerDirect = recipient?.managerRecipient === true;
   const next = {...row,leaderId:assignedLeaderId,teamId:assignedTeamId,managerId:leader.directManagerBranch?leader.id:managerDirect?recipient.id:(row.managerId||null),saleId:direct?leader.id:null,saleAcceptedAt:(direct||managerDirect)?at:null,updatedAt:at,note:'Ph\u00e2n t\u1ef1 \u0111\u1ed9ng theo t\u1ef7 tr\u1ecdng'};
   await put('customers',row.id,next);

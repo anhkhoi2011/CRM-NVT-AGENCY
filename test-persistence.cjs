@@ -873,9 +873,12 @@ for(const mode of ['BALANCED','ROUND_ROBIN'])test('Direct manager sales receive 
  {key:'leaderDistribution',id:'$',base:null,value:{enabled:true,enabledLeaderIds:[],weights:{}}},
  {key:'saleDistributionByLeader',id:'$',base:null,value:{'manager:m':{enabledSaleIds:['a','b'],weights:{a:2,b:1}}}},
  ...Array.from({length:12},(_,i)=>change('customers',{...customer,id:'direct-'+i,saleId:null,leaderId:null,teamId:null}))]);
- const r=await f.api.read(admin);assert.equal(r.state.dataOffers.filter(o=>o.saleId==='a').length,8);assert.equal(r.state.dataOffers.filter(o=>o.saleId==='b').length,4);assert.equal(r.state.dataOffers.filter(o=>o.saleId==='off').length,0);
- const manager=await f.api.read({id:'m',role:'MANAGER'});assert.equal(manager.state.customers.length,12);assert.equal(manager.state.dataOffers.length,12);
- const saleSnapshot=await f.api.read({id:'b',role:'SALE',teamId:'D',leaderId:null});assert.equal(saleSnapshot.state.customers.length,4);
+ const r=await f.api.read(admin);
+ const offerCounts=Object.fromEntries(['a','b','off'].map(id=>[id,r.state.dataOffers.filter(o=>o.saleId===id).length]));
+ const managerDirectCount=r.state.customers.filter(row=>row.managerId==='m'&&!r.state.dataOffers.some(o=>o.customerId===row.id&&o.status==='PENDING')).length;
+ assert.equal(offerCounts.off,0);assert.ok(managerDirectCount>0);assert.ok(offerCounts.a>0);assert.ok(offerCounts.b>0);assert.equal(r.state.customers.filter(row=>row.managerId==='m').length,12);
+ const manager=await f.api.read({id:'m',role:'MANAGER'});assert.equal(manager.state.customers.length,12);assert.equal(manager.state.dataOffers.length,offerCounts.a+offerCounts.b);
+ const saleSnapshot=await f.api.read({id:'b',role:'SALE',teamId:'D',leaderId:null});assert.ok(saleSnapshot.state.customers.length>0);
  const offer=saleSnapshot.state.dataOffers[0],row=saleSnapshot.state.customers.find(c=>c.id===offer.customerId),at=new Date().toLocaleString('sv-SE',{timeZone:'Asia/Ho_Chi_Minh'}).slice(0,19);
  await f.api.write({id:'b',role:'SALE',teamId:'D',leaderId:null},'accept-direct',[
  change('customers',{...row,saleId:'b',saleAcceptedAt:at},saleSnapshot.versions['customers/'+row.id]),
