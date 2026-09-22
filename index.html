@@ -4607,6 +4607,22 @@
   </div>
 </div>
 
+<script>
+  // Paint the last authenticated shell before the iframe/API finishes restoring.
+  // The reference renderer replaces this static view with the live snapshot.
+  (()=>{
+    try{
+      const session=JSON.parse(sessionStorage.getItem('nvt-crm-session-v1')||'null');
+      if(!session?.token)return;
+      const saved=sessionStorage.getItem('nvt-crm-active-tab-v1')||'tab-dashboard';
+      const target=document.getElementById(saved)||document.getElementById('tab-dashboard');
+      document.getElementById('crmBootScreen')?.setAttribute('hidden','');
+      document.querySelector('.app-shell')?.style.setProperty('visibility','visible');
+      document.querySelectorAll('.tab-section').forEach(section=>section.classList.toggle('active',section===target));
+      document.querySelectorAll('.nav-link[data-tab]').forEach(link=>link.classList.toggle('active',link.dataset.tab===target?.id));
+    }catch{}
+  })();
+</script>
 <script src="reference-view.js?v=20260922-personnel-hierarchy-1"></script>
 <script src="reference-crm.js?v=20260922-fast-reload-2"></script>
 
