@@ -2199,17 +2199,21 @@
       return '<div class="distribution-person-row level-'+level+'"><div class="distribution-person-main"><span class="distribution-avatar">'+esc(initials(member))+'</span><span><b>'+esc(member.name||'Chua dat ten')+'</b><small>'+esc(kind)+' · '+esc(member.teamId||'Chua gan Team')+' · '+load+' khach</small></span></div><div class="distribution-person-controls">'+controls+'</div></div>';
     };
     const managerCycle=manager=>{
-      const cycles=[];
-      const direct=directSales(manager.id);
-      if(direct.length) {
-        const config=data.saleDistributionByLeader?.['manager:'+manager.id]||{};
-        const managerRecipient={...manager,role:'SALE',managerRecipient:true};
-        cycles.push('<div class="distribution-cycle-label">Nhánh trực tiếp</div>'+cycleMarkup(cycleSummary([managerRecipient,...direct],[config],'manager:'+manager.id),'WEIGHTED'));
-      }
+      const people=[],weights={},seen=new Set(),add=(person,weight)=>{if(!person||seen.has(person.id)||weightOf(weight)<=0)return;seen.add(person.id);people.push(person);weights[person.id]=weightOf(weight);};
       byManager(manager.id).forEach(leader=>{
-        cycles.push('<div class="distribution-cycle-label">'+esc(leader.name||'Leader')+'</div>'+cycleMarkup(cycleSummary(leaderPool(leader),[data.saleDistributionByLeader?.[leader.id]||{}],leader.id),'WEIGHTED'));
+        const config=data.saleDistributionByLeader?.[leader.id]||{};
+        if(enabledLeaders.has(leader.id)&&config.leaderEnabled!==false)add({...leader,role:'SALE',teamLeaderRecipient:true},data.leaderDistribution?.weights?.[leader.id]);
+        const configured=config.managerDistributionInitialized===true&&Array.isArray(config.enabledSaleIds)&&config.enabledSaleIds.length>0;
+        sales.filter(sale=>sale.leaderId===leader.id&&(!configured||config.enabledSaleIds.includes(sale.id))).forEach(sale=>add(sale,config.weights?.[sale.id]));
+        const managerRecipient={...manager,role:'SALE',managerRecipient:true,leaderId:leader.id,teamId:leader.teamId};
+        if(!configured||config.enabledSaleIds.includes(manager.id))add(managerRecipient,config.weights?.[manager.id]);
       });
-      return cycles.length?'<div class="distribution-cycle-stack">'+cycles.join('')+'</div>':'';
+      const directConfig=data.saleDistributionByLeader?.['manager:'+manager.id]||{};
+      const directConfigured=directConfig.managerDistributionInitialized===true&&Array.isArray(directConfig.enabledSaleIds)&&directConfig.enabledSaleIds.length>0;
+      directSales(manager.id).forEach(sale=>{if(!directConfigured||directConfig.enabledSaleIds.includes(sale.id))add(sale,directConfig.weights?.[sale.id]);});
+      if(!people.length)return '';
+      const config={leaderEnabled:true,enabledSaleIds:people.map(person=>person.id),weights};
+      return '<div class="distribution-cycle-label">ToÃ n bá»™ tuyáº¿n</div>'+cycleMarkup(cycleSummary(people,[config],'global'),'WEIGHTED');
     };
     const leaderCycle=leader=>cycleMarkup(cycleSummary(leaderPool(leader),[data.saleDistributionByLeader?.[leader.id]||{}],leader.id),'WEIGHTED');
     const block=(title,sub,html,cycle='')=>'<section class="distribution-tree-block"><div class="distribution-tree-head"><div class="distribution-tree-title"><b>'+esc(title)+'</b><small>'+esc(sub)+'</small></div>'+(cycle?'<div class="distribution-tree-cycle">'+cycle+'</div>':'')+'</div>'+html+'</section>';

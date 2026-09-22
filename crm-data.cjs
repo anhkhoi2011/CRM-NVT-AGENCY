@@ -445,6 +445,28 @@ async function distributeAutomatic(c, data = null) {
   if (team) cursor.salesByTeam[key]=stateCursor; else cursor.leaders=stateCursor;
   return person;
  };
+ const globalRecipients=[];
+ const globalWeights={};
+ const globalSeen=new Set();
+ const globalLeaderWeights=data.leaderDistribution.get('$')?.weights||{};
+ const globalWeight=raw=>{const n=Number(raw);return Number.isFinite(n)?Math.max(0,Math.min(100,Math.round(n))):1;};
+ const addGlobal=(person,raw)=>{const value=globalWeight(raw);if(!person||globalSeen.has(person.id)||value<=0)return;globalSeen.add(person.id);globalRecipients.push(person);globalWeights[person.id]=value;};
+ for(const leader of leaders){
+  const saleKey=leader.directManagerBranch?'manager:'+leader.id:leader.id;
+  const config=saleConfigs[saleKey]||{};
+  if(leader.directManagerBranch){
+   const managerRecipient={...leader,role:'SALE',actualRole:'MANAGER',managerRecipient:true,leaderId:null,teamId:leader.teamId};
+   if(config.leaderEnabled!==false)addGlobal(managerRecipient,config.weights?.[leader.id]);
+   const configured=Array.isArray(config.enabledSaleIds)&&config.enabledSaleIds.length>0;
+   directSales(leader.id).filter(p=>!configured||config.enabledSaleIds.includes(p.id)).forEach(p=>addGlobal({...p,directManagerBranch:true,managerId:leader.id,leaderId:null},config.weights?.[p.id]));
+   continue;
+  }
+  if(config.leaderEnabled!==false)addGlobal({...leader,role:'LEADER',teamLeaderRecipient:true},config.weights?.[leader.id]??globalLeaderWeights[leader.id]);
+  const configured=Array.isArray(config.enabledSaleIds)&&config.enabledSaleIds.length>0;
+  members.filter(p=>p.role==='SALE'&&p.leaderId===leader.id&&(!configured||config.enabledSaleIds.includes(p.id))).forEach(p=>addGlobal(p,config.weights?.[p.id]));
+  const manager=leader.managerId&&members.find(p=>p.role==='MANAGER'&&p.id===leader.managerId);
+  if(manager&&(!configured||config.enabledSaleIds.includes(manager.id)))addGlobal({...manager,role:'SALE',actualRole:'MANAGER',managerRecipient:true,leaderId:leader.id,teamId:leader.teamId},config.weights?.[manager.id]);
+ }
  const put = async (key,id,value) => {
   history.push({key,id,before:data[key].get(id) || null,after:value});
   await project(c,key,id,value);
@@ -461,6 +483,23 @@ async function distributeAutomatic(c, data = null) {
    const value = rule.matchType === 'WEBSITE' ? row.websiteId : rule.matchType === 'CAMPAIGN' ? row.campaign : row.source;
    return normalize(value) === normalize(rule.matchValue);
   });
+  if (automatic && !sourceRule && globalRecipients.length) {
+   const recipient=pick(globalRecipients,globalWeights,'global',true);
+   if(!recipient)continue;
+   const direct=recipient.teamLeaderRecipient===true;
+   const managerDirect=recipient.managerRecipient===true;
+   const assignedLeaderId=direct?recipient.id:(recipient.directManagerBranch?null:(recipient.leaderId||null));
+   const assignedTeamId=recipient.teamId||null;
+   const assignedManagerId=managerDirect?recipient.id:(recipient.directManagerBranch?recipient.managerId:(recipient.role==='SALE'&&recipient.managerId&&!recipient.leaderId?recipient.managerId:null));
+   const next={...row,leaderId:assignedLeaderId,teamId:assignedTeamId,managerId:assignedManagerId,saleId:direct?recipient.id:null,saleAcceptedAt:(direct||managerDirect)?at:null,updatedAt:at,note:'Phan tu dong theo vong chung'};
+   await put('customers',row.id,next);
+   if(!direct&&!managerDirect){const id='OFR-'+crypto.randomUUID();await put('dataOffers',id,{id,customerId:row.id,saleId:recipient.id,leaderId:assignedLeaderId,teamId:assignedTeamId,offeredAt:at,status:'PENDING',resolvedAt:'',source:'AUTO'});}
+   if(direct){const id='TSK-'+crypto.randomUUID();const dueAt=new Date(Date.parse(at.replace(' ','T')+'+07:00')+(Number(settings.slaMinutes)||30)*60000).toLocaleString('sv-SE',{timeZone:'Asia/Ho_Chi_Minh'}).slice(0,19);await put('tasks',id,{id,customerId:row.id,customerName:row.name,ownerId:recipient.id,leaderId:assignedLeaderId,teamId:assignedTeamId,type:'Lien he data moi',createdAt:at,dueAt,slaBased:true,status:'OPEN',priority:'HIGH'});}
+   const id='ASN-'+crypto.randomUUID();await put('assignmentHistory',id,{id,customerId:row.id,fromSaleId:null,fromLeaderId:null,toSaleId:next.saleId,toLeaderId:assignedLeaderId,toLeaderName:assignedLeaderId?members.find(p=>p.id===assignedLeaderId)?.name||'':'',toSaleName:direct||managerDirect?recipient.name:'',offeredSaleId:direct||managerDirect?null:recipient.id,managerId:assignedManagerId,teamId:assignedTeamId,actorId:'SYSTEM',actor:'He thong',source:'AUTO',reason:next.note,at});
+   const notificationId='NT-'+crypto.randomUUID();await put('notifications',notificationId,{id:notificationId,role:managerDirect?'MANAGER':'OWN',saleId:managerDirect?null:recipient.id,managerId:assignedManagerId,leaderId:assignedLeaderId,teamId:assignedTeamId,title:'Data moi duoc phan',text:row.name,at,readBy:[]});
+   count++;
+   continue;
+  }
   const leader = automatic ? (sourceRule ? leaders.find(item => item.id === sourceRule.targetLeaderId) : pick(leaders,config.weights,'leaders',false)) : null;
   if (!leader) continue;
   const saleConfigKey=leader.directManagerBranch?'manager:'+leader.id:leader.id;

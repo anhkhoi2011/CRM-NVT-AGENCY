@@ -407,7 +407,7 @@ function sanitizeSettings(settings, defaults) {
     leaderAttendanceRequired: input.leaderAttendanceRequired !== false,
     assignmentMode,
     saleAssignmentModes,
-    assignmentCursor: { leaders: cleanNumber(rawCursor.leaders, defaults.assignmentCursor.leaders, 0, Number.MAX_SAFE_INTEGER, true), salesByTeam },
+    assignmentCursor: { leaders: cleanNumber(rawCursor.leaders, defaults.assignmentCursor.leaders, 0, Number.MAX_SAFE_INTEGER, true), global: Number.isInteger(rawCursor.global) && rawCursor.global >= 0 ? rawCursor.global : rawCursor.global && typeof rawCursor.global === 'object' && Number.isInteger(rawCursor.global.index) && rawCursor.global.index >= 0 && Array.isArray(rawCursor.global.ids) ? { index: rawCursor.global.index, ids: rawCursor.global.ids.map(String).slice(0, 10000) } : 0, salesByTeam },
     slaMinutes: cleanNumber(input.slaMinutes, defaults.slaMinutes, 5, 1440, true),
     customAccent: /^#[0-9a-f]{6}$/i.test(input.customAccent) ? input.customAccent : (defaults.customAccent || '#e8572a'),
     fontFamily: cleanText(input.fontFamily, defaults.fontFamily || 'aptos', 40),
@@ -4553,8 +4553,26 @@ function assignmentCandidates(customer) {
     const configured = config?.managerDistributionInitialized === true && Array.isArray(config?.enabledSaleIds) && config.enabledSaleIds.length > 0;
     return teamRecipients(customer.leaderId, customer.teamId).filter(p => assignmentWeight(p) > 0 && (p.teamLeaderRecipient ? config?.leaderEnabled !== false : !configured || config.enabledSaleIds.includes(p.id))).sort((a,b)=>a.id.localeCompare(b.id));
   }
-  const enabledIds = new Set(state.leaderDistribution.enabledLeaderIds);
-  return activeStaff().filter(p=>p.role==='LEADER'&&enabledIds.has(p.id)&&assignmentWeight(p)>0).sort((a,b)=>a.id.localeCompare(b.id));
+  const enabledLeaders = new Set(state.leaderDistribution.enabledLeaderIds);
+  const members = activeStaff();
+  const leaders = members.filter(p=>p.role==='LEADER'&&enabledLeaders.has(p.id));
+  const recipients = [];
+  const seen = new Set();
+  const add = person => { if(person && !seen.has(person.id) && assignmentWeight(person)>0){seen.add(person.id);recipients.push(person);} };
+  leaders.forEach(leader=>{
+    const config=state.saleDistributionByLeader[leader.id]||{};
+    if(config.leaderEnabled!==false)add({...leader,role:'SALE',leaderId:leader.id,teamId:leader.teamId,teamLeaderRecipient:true});
+    const configured=config.managerDistributionInitialized===true&&Array.isArray(config.enabledSaleIds)&&config.enabledSaleIds.length>0;
+    members.filter(p=>p.role==='SALE'&&p.leaderId===leader.id&&(!configured||config.enabledSaleIds.includes(p.id))).forEach(add);
+    const manager=leader.managerId&&members.find(p=>p.role==='MANAGER'&&p.id===leader.managerId);
+    if(manager){const managerRecipient={...manager,role:'SALE',actualRole:'MANAGER',leaderId:leader.id,teamId:leader.teamId,managerRecipient:true};if(!configured||config.enabledSaleIds.includes(manager.id))add(managerRecipient);}
+  });
+  members.filter(p=>p.role==='SALE'&&p.managerId&&!p.leaderId).forEach(sale=>{
+    const config=state.saleDistributionByLeader['manager:'+sale.managerId]||{};
+    const configured=config.managerDistributionInitialized===true&&Array.isArray(config.enabledSaleIds)&&config.enabledSaleIds.length>0;
+    if(!configured||config.enabledSaleIds.includes(sale.id))add(sale);
+  });
+  return recipients.sort((a,b)=>a.id.localeCompare(b.id));
 }
 
 function assignmentModeFor(customer) {
@@ -4592,10 +4610,10 @@ function chooseAssignmentTarget(customer, mode) {
   if (!candidates.length) return null;
   if (!['EQUAL', 'ROUND_ROBIN', 'BALANCED'].includes(mode)) return null;
   if (mode === 'BALANCED') return candidates.slice().sort((a, b) => assignmentLoad(a) / assignmentWeight(a) - assignmentLoad(b) / assignmentWeight(b) || a.id.localeCompare(b.id))[0];
-  const key = customer.leaderId || 'leaders';
+  const key = customer.leaderId || 'global';
   const weighted = mode === 'ROUND_ROBIN' ? weightedCandidateList(candidates) : candidates;
   const cursorStore = customer.leaderId ? state.settings.assignmentCursor.salesByTeam : state.settings.assignmentCursor;
-  const raw = customer.leaderId ? cursorStore[key] : cursorStore.leaders;
+  const raw = customer.leaderId ? cursorStore[key] : cursorStore.global;
   const currentIds = weighted.map(person => person.id);
   let cursor = typeof raw === 'object' && raw ? { index: Number.isInteger(raw.index) ? raw.index : 0, ids: Array.isArray(raw.ids) ? raw.ids.map(String) : [] } : { index: Number.isInteger(raw) ? raw : 0, ids: [] };
   let roundIds = cursor.ids.filter(id => currentIds.includes(id));
@@ -4603,7 +4621,7 @@ function chooseAssignmentTarget(customer, mode) {
   const targetId = roundIds[cursor.index];
   const target = weighted.find(person => person.id === targetId) || candidates.find(person => person.id === targetId);
   cursor.index += 1; cursor.ids = roundIds;
-  if (customer.leaderId) cursorStore[key] = cursor; else cursorStore.leaders = cursor;
+  if (customer.leaderId) cursorStore[key] = cursor; else cursorStore.global = cursor;
   return target || null;
 }
 
