@@ -1434,6 +1434,19 @@
   </style>
   <link rel="stylesheet" href="crm-boot.css?v=20260918-manager-fix-2">
   <link rel="stylesheet" href="./team-tree-hierarchy.css?v=20260918-nested-tree-1">
+    <style id="dataDateFilterStyles">
+      .data-date-filter-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+      .data-date-filter-field{display:flex;flex-direction:column;gap:6px;min-width:0}
+      .data-date-filter-field span{font-size:10px;font-weight:800;letter-spacing:.02em;color:var(--text-muted);text-transform:uppercase}
+      .data-date-filter-field input{width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--border);border-radius:7px;background:var(--bg-surface);color:var(--text-main);font:600 12px var(--font-sans,Arial,sans-serif);color-scheme:light}
+      .data-date-filter-field input:focus{outline:0;border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+      .data-date-filter-actions{display:flex;gap:8px;margin-top:12px}
+      .data-date-filter-actions button{min-height:34px;padding:7px 12px;border-radius:7px;font:700 11px var(--font-sans,Arial,sans-serif);cursor:pointer}
+      .data-date-filter-apply{border:1px solid #2563eb;background:#2563eb;color:#fff}.data-date-filter-apply:hover{background:#1d4ed8}
+      .data-date-filter-clear{border:1px solid var(--border);background:var(--bg-surface);color:var(--text-main)}.data-date-filter-clear:hover{background:var(--bg-subtle)}
+      .data-date-filter-summary{min-height:16px;margin-top:10px;color:var(--text-muted);font-size:11px;font-weight:600}
+      @media(max-width:860px){.data-date-filter-grid{grid-template-columns:1fr 1fr}.data-date-filter-actions button{flex:1}}
+    </style>
 </head>
 <body>
 <div id=crmBootScreen role=status aria-label=Loading><div class=crm-boot-mark><span class=crm-boot-spinner aria-hidden=true></span><span>NVT-AGENCY</span></div></div>
@@ -2342,6 +2355,22 @@
                   <b style="font-family: var(--font-mono); font-size: 15px; color: #ea580c;" id="dataStat30Days">0 data</b>
                 </div>
               </div>
+            </div>
+
+            <div id="dataDateFilterPanel" class="widget-box" style="padding: 18px 20px;">
+              <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px;">
+                <div>
+                  <b style="font-size: 14.5px; display: block;">Lọc data theo ngày</b>
+                  <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 3px;">Chọn một ngày hoặc khoảng ngày data về</div>
+                </div>
+                <span aria-hidden="true" style="font-size: 20px; line-height: 1; color: #2563eb;">▣</span>
+              </div>
+              <div class="data-date-filter-grid">
+                <label class="data-date-filter-field"><span>Từ ngày</span><input type="date" id="dataDateFrom" aria-label="Từ ngày"></label>
+                <label class="data-date-filter-field"><span>Đến ngày</span><input type="date" id="dataDateTo" aria-label="Đến ngày"></label>
+              </div>
+              <div class="data-date-filter-actions"><button type="button" id="dataDateApply" class="data-date-filter-apply">Áp dụng</button><button type="button" id="dataDateClear" class="data-date-filter-clear">Xóa lọc</button></div>
+              <div id="dataDateFilterSummary" class="data-date-filter-summary" aria-live="polite">Chưa lọc theo ngày</div>
             </div>
 
             <div class="widget-box" style="padding: 18px 20px;">
@@ -4590,7 +4619,7 @@
 </div>
 
 <script src="reference-view.js?v=20260922-care-collapsed-3"></script>
-<script src="reference-crm.js?v=20260922-cycle-details-2"></script>
+<script src="reference-crm.js?v=20260922-data-date-filter-1"></script>
 
 </body>
 </html>
