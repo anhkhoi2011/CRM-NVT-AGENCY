@@ -5492,7 +5492,7 @@ async function submitRegistration() {
   }
 }
 
-async function startSession(account, restored = false, token = serverSyncToken) {
+async function startSession(account, restored = false, token = serverSyncToken, initialSnapshot = null) {
   serverSyncToken=token;serverStateLoaded=false;serverConflict=false;serverPendingRequest=null;liveNavigationCounts=null;
   state=initialState();
   currentAccount = hydrateSessionAccount(account);
@@ -5507,7 +5507,7 @@ async function startSession(account, restored = false, token = serverSyncToken) 
   selectedPoolIds.clear();
   customerOwnerFilter = 'ALL';
   try { sessionStorage.setItem(SESSION_KEY, JSON.stringify({ token: serverSyncToken })); } catch (error) {}
-  if(!await syncServerState()){
+  if(initialSnapshot&&initialSnapshot.state){applyServerSnapshot(initialSnapshot);} else if(!await syncServerState()){
     // Không xóa token khi MySQL hoặc mạng lỗi tạm thời; initialize() sẽ thử khôi phục lại.
     $('#appShell').classList.add('is-hidden');
     $('#loginScreen').classList.remove('is-hidden');
@@ -5845,13 +5845,16 @@ async function initialize() {
     let session = null;
     try { session = JSON.parse(sessionStorage.getItem(SESSION_KEY)); } catch (error) {}
     if (session?.token) serverSyncToken = session.token;
-    const response = session?.token ? await fetch(`${webhookApiBase()}/api/auth/me`, { headers: { Authorization: `Bearer ${session.token}` }, cache: 'no-store' }) : null;
+    const authPromise = session?.token ? fetch(`${webhookApiBase()}/api/auth/me`, { headers: { Authorization: `Bearer ${session.token}` }, cache: 'no-store' }) : Promise.resolve(null);
+    const statePromise = session?.token ? fetch(`${webhookApiBase()}/api/state`, { headers: { Authorization: `Bearer ${session.token}` }, cache: 'no-store' }) : Promise.resolve(null);
+    const [response,stateResponse] = await Promise.all([authPromise,statePromise]);
     const account = response?.ok ? (await response.json()).user : null;
+    const initialSnapshot = stateResponse?.ok ? await stateResponse.json().catch(() => null) : null;
     if (account) {
       // Một lần lỗi mạng không được biến thành logout. Cho MySQL tối đa 3 lần để hồi đáp.
       for (let attempt = 0; attempt < 3; attempt += 1) {
-        if (await startSession(account, true)) {
-          if (serverSyncToken) syncServerState();
+        if (await startSession(account, true, serverSyncToken, initialSnapshot)) {
+          if (serverSyncToken && !initialSnapshot) syncServerState();
           return;
         }
         await new Promise(resolve => setTimeout(resolve, 350 * (attempt + 1)));
