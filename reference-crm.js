@@ -2384,7 +2384,15 @@
   if(!q('#liveClockDisplay')){const clock=document.createElement('time');clock.id='liveClockDisplay';clock.setAttribute('aria-label','Giờ hiện tại');clock.style.cssText='font:500 11px var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-muted);white-space:nowrap';q('#themeBtn')?.before(clock);updateLiveClock();}
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();});
   // Không để màn hình chờ quay vô hạn khi iframe đăng nhập khởi tạo chậm/lỡ sự kiện load.
-  const revealLoginFallback=()=>{if(data||!bootScreen)return;bootScreen.setAttribute('hidden','');frame.hidden=false;frame.style.display='block';frame.classList.add('is-login-visible');};
-  bootFallbackTimer=setTimeout(revealLoginFallback,2500);
+  const revealLoginFallback=()=>{
+    if(data||!bootScreen)return;
+    const runtime=frame.contentWindow;
+    if(runtime?.crmRuntimeBooted!==true){bootFallbackTimer=setTimeout(revealLoginFallback,250);return;}
+    bootScreen.setAttribute('hidden','');
+    frame.hidden=false;
+    frame.style.display='block';
+    frame.classList.add('is-login-visible');
+  };
+  bootFallbackTimer=setTimeout(revealLoginFallback,250);
   refreshTimer=setInterval(()=>{if(!document.hidden)refresh();},5000);frame.addEventListener('load',()=>refresh(true));
 })();
