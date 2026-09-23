@@ -2361,8 +2361,9 @@
       const storedGlobal=data.saleDistributionByLeader?.['$']||{};
       const activeRound=storedGlobal.rounds?.[0]||storedGlobal;
       const enabledGlobal=new Set(Array.isArray(activeRound.enabledSaleIds)?activeRound.enabledSaleIds:[]);
+      const hasGlobalMemberMatch=members.some(member=>enabledGlobal.has(member.id));
       const people=[],weights={},seen=new Set();
-      const add=(person,weight)=>{const effective=weightOf(activeRound.weights?.[person?.id]===undefined?weight:activeRound.weights[person.id]);if(!person||seen.has(person.id)||(enabledGlobal.size&&!enabledGlobal.has(person.id))||effective<=0)return;seen.add(person.id);people.push(person);weights[person.id]=effective;};
+      const add=(person,weight)=>{const effective=weightOf(activeRound.weights?.[person?.id]===undefined?weight:activeRound.weights[person.id]);if(!person||seen.has(person.id)||(hasGlobalMemberMatch&&enabledGlobal.size&&!enabledGlobal.has(person.id))||effective<=0)return;seen.add(person.id);people.push(person);weights[person.id]=effective;};
       const addLeaderBranch=(leader,config)=>{
         if(enabledLeaders.has(leader.id)&&config.leaderEnabled!==false)add({...leader,role:'SALE',teamLeaderRecipient:true},data.leaderDistribution?.weights?.[leader.id]);
         const configured=config.managerDistributionInitialized===true&&Array.isArray(config.enabledSaleIds)&&config.enabledSaleIds.length>0;
@@ -2387,7 +2388,8 @@
       const queuedRounds=Array.isArray(storedGlobal.rounds)?storedGlobal.rounds.slice(1):[];
       const queuedMarkup=queuedRounds.map((round,index)=>{
         const enabled=new Set(Array.isArray(round.enabledSaleIds)?round.enabledSaleIds:people.map(person=>person.id));
-        const sequence=people.filter(person=>enabled.has(person.id)&&weightOf(round.weights?.[person.id])>0).flatMap(person=>Array.from({length:weightOf(round.weights?.[person.id])},()=>person));
+        const hasRoundMemberMatch=people.some(person=>enabled.has(person.id));
+        const sequence=people.filter(person=>(!hasRoundMemberMatch||enabled.has(person.id))&&weightOf(round.weights?.[person.id])>0).flatMap(person=>Array.from({length:weightOf(round.weights?.[person.id])},()=>person));
         const key='global-round-'+round.id;
         const summary={key,length:sequence.length,index:0,round:index+2,received:[],upcoming:sequence,completed:false};
         cycleDetails.set(key,summary);
