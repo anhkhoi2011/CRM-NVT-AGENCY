@@ -14,7 +14,8 @@
       if (!await flushServerPersistence()) throw Error('Chưa lưu được dữ liệu. Giữ trang mở để thử lại.');
       const result=pendingResult.result;pendingResult=null;return result;
     }
-    if (!await flushServerPersistence()) throw Error('Máy chủ chưa xác nhận dữ liệu trước đó.');
+    const persistenceBlocked=typeof serverPendingRequest!=='undefined'&&(serverPendingRequest||serverConflict||serverSaveRunning);
+    if (!persistenceBlocked&&!await flushServerPersistence()) throw Error('Máy chủ chưa xác nhận dữ liệu trước đó.');
     const result=await action();pendingResult={kind,result:result || {ok:true}}; saveState();
     if (!await flushServerPersistence()) throw Error('Chưa lưu được dữ liệu. Giữ trang mở để thử lại.');
     pendingResult=null;return result;
