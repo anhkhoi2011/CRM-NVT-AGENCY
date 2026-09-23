@@ -1,4 +1,4 @@
-﻿"use strict";
+"use strict";
 // Kho dữ liệu nghiệp vụ: một giao dịch cho cả khách/đơn và lịch sử liên quan.
 const crypto = require('node:crypto');
 const { pool } = require('./db.js');
@@ -124,7 +124,13 @@ async function allData(c){
   data.customers.set(id,{...customer,websiteId:customer.websiteId||website.id,landingPageName:customer.landingPageName||website.name||website.domain,landingPageUrl:customer.landingPageUrl||sourceUrl,landingPageDomain:customer.landingPageDomain||website.domain});
  }
  const [users]=await c.query('SELECT id,account_code,phone,email,name,role,team_id,leader_id,telegram_chat_id,telegram_username,active,created_at FROM users');
- for(const u of users)if(!deleted.has(`members/${u.id}`))data.members.set(u.id,{...data.members.get(u.id),...userRow(u),loginEnabled:true,initials:data.members.get(u.id)?.initials||String(u.name).trim().split(/\s+/).slice(-2).map(x=>x[0]).join('').toUpperCase()});
+ const actualUserIds=new Set(users.map(u=>String(u.id)));
+ if(actualUserIds.size>0){for(const id of data.members.keys())if(!actualUserIds.has(String(id)))data.members.delete(id);}
+ for(const u of users){
+  if(deleted.has(`members/${u.id}`))continue;
+  const row=userRow(u);
+  data.members.set(u.id,{...data.members.get(u.id),...row,active:row.active,loginEnabled:true,initials:data.members.get(u.id)?.initials||String(u.name).trim().split(/\s+/).slice(-2).map(x=>x[0]).join('').toUpperCase()});
+ }
  const [settings]=await c.query('SELECT setting_key,setting_value FROM system_settings');
  if(!data.settings.has('$')) {const row=settings.find(r=>r.setting_key==='crm');if(row)data.settings.set('$',parsed(row.setting_value));}
  return data;
