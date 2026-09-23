@@ -518,17 +518,23 @@ window.setCarePage = setCarePage;
   function switchDataSubTab(tabKey, btn) {
     // Danh sach Leader da gop vao tab Chinh sua ty trong; giu alias cu de tuong thich nguoc.
     if (tabKey === 'leaders') tabKey = 'sales';
-    if (btn) {
-      btn.parentElement.querySelectorAll('.sub-tab-btn').forEach(b => {
+    const tabBar = btn?.parentElement || document.querySelector('#tab-data .sub-tabs-bar');
+    const activeButton = btn || tabBar?.querySelector('#dataTab' + (tabKey === 'queue' ? 'Queue' : tabKey === 'auto' ? 'Auto' : 'Sales') + 'Btn');
+    if (tabBar) {
+      tabBar.querySelectorAll('.sub-tab-btn').forEach(b => {
         b.classList.remove('active');
         b.style.background = 'transparent';
         b.style.color = 'var(--text-muted)';
         b.style.boxShadow = 'none';
+        b.setAttribute('aria-selected', 'false');
       });
-      btn.classList.add('active');
-      btn.style.background = '#e05326';
-      btn.style.color = '#ffffff';
-      btn.style.boxShadow = '0 2px 8px rgba(224, 83, 38, 0.25)';
+      if (activeButton) {
+        activeButton.classList.add('active');
+        activeButton.style.background = '#e05326';
+        activeButton.style.color = '#ffffff';
+        activeButton.style.boxShadow = '0 2px 8px rgba(224, 83, 38, 0.25)';
+        activeButton.setAttribute('aria-selected', 'true');
+      }
     }
 
     const views = {
@@ -540,11 +546,9 @@ window.setCarePage = setCarePage;
 
     Object.keys(views).forEach(k => {
       if (views[k]) {
-        if (k === tabKey) {
-          views[k].style.display = (k === 'queue') ? 'grid' : 'block';
-        } else {
-          views[k].style.display = 'none';
-        }
+        const visible = k === tabKey;
+        views[k].hidden = !visible;
+        views[k].style.setProperty('display', visible ? (k === 'queue' ? 'grid' : 'block') : 'none', 'important');
       }
     });
   }
