@@ -549,6 +549,16 @@ test('Reference layout retains every original ID and the exact stylesheet',()=>{
  for(const id of layout.ids)assert.ok(h.includes(`id="${id}"`),id);
  assert.doesNotMatch(h,/<link[^>]+href=".*crm(?:-modern)?\.css/);
 });
+test('Distribution rounds stay visible when the current round has no enabled recipients',()=>{
+ const source=fs.readFileSync('reference-crm.js','utf8');
+ const start=source.indexOf('    const globalCycle=()=>{'),end=source.indexOf("    const block=(title,sub,html,cycle='')",start);
+ assert.ok(start>=0&&end>start,'global cycle renderer exists');
+ const renderer=source.slice(start,end);
+ assert.doesNotMatch(renderer,/if\s*\(!people\.length\)\s*return\s*''/);
+ assert.match(renderer,/const roundRoster=/);
+ assert.match(renderer,/roundRoster\.filter\(person=>hasRoundMemberMatch\?/);
+ assert.match(source,/key==='global'\?1:/);
+});
 test('Reference care save retries the same group and denies a different operation while pending',async()=>{
  const c=frontend();vm.runInContext(fs.readFileSync('crm-runtime-api.js','utf8'),c);
  vm.runInContext(`currentAccount={id:'admin',role:'ADMIN'};serverStateLoaded=true;state=initialState();let attempts=0;flushServerPersistence=async()=>++attempts!==2;`,c);
