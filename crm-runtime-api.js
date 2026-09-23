@@ -515,7 +515,7 @@
       const round={id:`ROUND-${Date.now()}`,createdAt:stamp(),enabledSaleIds:Array.from(enabled).filter(id=>members.some(member=>member.id===id)),weights:Object.fromEntries(members.map(member=>[member.id,Number.isFinite(Number(weights[member.id]))?Math.max(0,Math.min(100,Math.round(Number(weights[member.id])))):1]))};
       config.globalCycle=true;config.rounds=Array.isArray(config.rounds)&&config.rounds.length?config.rounds:[{id:'ROUND-1',createdAt:stamp(),enabledSaleIds:config.enabledSaleIds||members.map(item=>item.id),weights:config.weights||{}}];config.rounds.push(round);config.weights=config.rounds[0].weights;config.enabledSaleIds=config.rounds[0].enabledSaleIds;
       audit('CREATE_DISTRIBUTION_ROUND',round.id,`Vong tiep theo ${round.enabledSaleIds.length} nguoi`);
-      if(!await flushServerPersistence())throw Error('Chua luu vong ty trong.');
+      saveState();
       return {ok:true,round};
     },
     async distributionRoundDelete(id) {
@@ -526,7 +526,7 @@
       if(target===config.rounds[0].id)throw Error('Khong the xoa vong dang chay.');
       const before=config.rounds.length;config.rounds=config.rounds.filter(round=>round.id!==target);if(config.rounds.length===before)throw Error('Khong tim thay vong cho.');
       config.weights=config.rounds[0].weights;config.enabledSaleIds=config.rounds[0].enabledSaleIds;audit('DELETE_DISTRIBUTION_ROUND',target,'Xoa vong cho');
-      if(!await flushServerPersistence())throw Error('Chua luu thao tac xoa vong.');
+      saveState();
       return {ok:true};
     },
     async bulkAssignWaitingSales(mode) {
