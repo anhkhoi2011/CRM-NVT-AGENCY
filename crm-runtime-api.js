@@ -485,6 +485,7 @@
       const rawWeight=Number(value),weight=Number.isFinite(rawWeight)?Math.max(0,Math.min(100,Math.round(rawWeight))):1;
       const config=state.saleDistributionByLeader['$'] ||= {globalCycle:true,enabledSaleIds:[],weights:{}};
       config.globalCycle=true;config.weights||={};if(config.weights[id]===undefined)config.enabledSaleIds=Array.from(new Set([...(config.enabledSaleIds||[]),id]));config.weights[id]=weight;
+      if(Array.isArray(config.rounds)&&config.rounds[0]){config.rounds[0].weights||={};config.rounds[0].weights[id]=weight;config.rounds[0].enabledSaleIds=Array.from(new Set(config.rounds[0].enabledSaleIds||[]));if(!config.rounds[0].enabledSaleIds.includes(id))config.rounds[0].enabledSaleIds.push(id);}
       const legacyKeys=member.role==='MANAGER'
         ? ['manager:'+member.id,...state.members.filter(item=>item.role==='LEADER'&&item.managerId===member.id).map(item=>item.id)]
         : [member.role==='SALE'?(member.managerId?'manager:'+member.managerId:(member.leaderId||null)):member.id];
@@ -492,6 +493,40 @@
       if(effectivePermissionRole()==='ADMIN')resetDistributionCursor();
       audit('UPDATE_DISTRIBUTION_WEIGHT',id,normalizedKind+' - ty trong '+weight);
       if(!await flushServerPersistence())throw Error('Chua luu ty trong phan data.');
+      return {ok:true};
+    },
+    async distributionRoundSave(input) {
+      if(!serverStateLoaded||!['ADMIN','MANAGER'].includes(effectivePermissionRole()))throw Error('Khong co quyen luu vong ty trong.');
+      const source=input&&typeof input==='object'?input:{};
+      const config=state.saleDistributionByLeader['$'] ||= {globalCycle:true,enabledSaleIds:[],weights:{},rounds:[]};
+      const members=state.members.filter(item=>item.active!==false&&['MANAGER','LEADER','SALE'].includes(item.role));
+      const scope=effectivePermissionRole()==='MANAGER'?managerScope():null;
+      const allowed=effectivePermissionRole()==='MANAGER'?new Set([scope.manager?.id,...scope.leaderIds,...scope.saleIds].filter(Boolean)):new Set(members.map(item=>item.id));
+      const current=config.rounds?.[0]||config;
+      const weights={...(current.weights||{})};
+      const enabled=new Set(Array.isArray(current.enabledSaleIds)?current.enabledSaleIds:members.map(item=>item.id));
+      for(const member of members){
+        if(!allowed.has(member.id))continue;
+        const raw=source.weights?.[member.id];
+        if(raw!==undefined)weights[member.id]=Number.isFinite(Number(raw))?Math.max(0,Math.min(100,Math.round(Number(raw)))):1;
+        if(Array.isArray(source.enabledIds)&&source.enabledIds.includes(member.id))enabled.add(member.id);
+        if(Array.isArray(source.enabledIds)&&!source.enabledIds.includes(member.id))enabled.delete(member.id);
+      }
+      const round={id:`ROUND-${Date.now()}`,createdAt:stamp(),enabledSaleIds:Array.from(enabled).filter(id=>members.some(member=>member.id===id)),weights:Object.fromEntries(members.map(member=>[member.id,Number.isFinite(Number(weights[member.id]))?Math.max(0,Math.min(100,Math.round(Number(weights[member.id])))):1]))};
+      config.globalCycle=true;config.rounds=Array.isArray(config.rounds)&&config.rounds.length?config.rounds:[{id:'ROUND-1',createdAt:stamp(),enabledSaleIds:config.enabledSaleIds||members.map(item=>item.id),weights:config.weights||{}}];config.rounds.push(round);config.weights=config.rounds[0].weights;config.enabledSaleIds=config.rounds[0].enabledSaleIds;
+      audit('CREATE_DISTRIBUTION_ROUND',round.id,`Vong tiep theo ${round.enabledSaleIds.length} nguoi`);
+      if(!await flushServerPersistence())throw Error('Chua luu vong ty trong.');
+      return {ok:true,round};
+    },
+    async distributionRoundDelete(id) {
+      if(!serverStateLoaded||!['ADMIN','MANAGER'].includes(effectivePermissionRole()))throw Error('Khong co quyen xoa vong ty trong.');
+      const config=state.saleDistributionByLeader['$'];
+      if(!config||!Array.isArray(config.rounds)||config.rounds.length<2)throw Error('Khong co vong cho de xoa.');
+      const target=String(id||'');
+      if(target===config.rounds[0].id)throw Error('Khong the xoa vong dang chay.');
+      const before=config.rounds.length;config.rounds=config.rounds.filter(round=>round.id!==target);if(config.rounds.length===before)throw Error('Khong tim thay vong cho.');
+      config.weights=config.rounds[0].weights;config.enabledSaleIds=config.rounds[0].enabledSaleIds;audit('DELETE_DISTRIBUTION_ROUND',target,'Xoa vong cho');
+      if(!await flushServerPersistence())throw Error('Chua luu thao tac xoa vong.');
       return {ok:true};
     },
     async bulkAssignWaitingSales(mode) {
@@ -512,6 +547,7 @@
       }
       const config=state.saleDistributionByLeader['$'] ||= {globalCycle:true,enabledSaleIds:[],weights:{}};
       config.globalCycle=true;config.weights||={};const ids=new Set(config.enabledSaleIds||[]);enabled?ids.add(id):ids.delete(id);config.enabledSaleIds=Array.from(ids);if(config.weights[id]===undefined)config.weights[id]=1;
+      if(Array.isArray(config.rounds)&&config.rounds[0]){config.rounds[0].weights||={};if(config.rounds[0].weights[id]===undefined)config.rounds[0].weights[id]=1;const roundIds=new Set(config.rounds[0].enabledSaleIds||[]);enabled?roundIds.add(id):roundIds.delete(id);config.rounds[0].enabledSaleIds=Array.from(roundIds);}
       const legacyKeys=member.role==='MANAGER'
         ? ['manager:'+member.id,...state.members.filter(item=>item.role==='LEADER'&&item.managerId===member.id).map(item=>item.id)]
         : [member.role==='SALE'?(member.managerId?'manager:'+member.managerId:(member.leaderId||null)):member.id];

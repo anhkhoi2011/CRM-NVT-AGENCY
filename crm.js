@@ -370,6 +370,22 @@ function sanitizeLeaderDistribution(input, members, defaults) {
 function sanitizeSaleDistribution(input, members, defaults) {
   const value = input && typeof input === 'object' && !Array.isArray(input) ? input : {};
   const output = {};
+  const globalRecipients = members.filter(member => ['MANAGER', 'LEADER', 'SALE'].includes(member.role));
+  const globalIds = new Set(globalRecipients.map(member => member.id));
+  const globalSource = value.$ && typeof value.$ === 'object' ? value.$ : defaults.$ && typeof defaults.$ === 'object' ? defaults.$ : {};
+  const globalWeights = Object.fromEntries(globalRecipients.map(member => {
+    const raw = globalSource.weights?.[member.id];
+    return [member.id, cleanNumber(raw === undefined ? 1 : raw, 1, 0, 100, true)];
+  }));
+  const globalEnabled = Array.from(new Set((Array.isArray(globalSource.enabledSaleIds) ? globalSource.enabledSaleIds : globalRecipients.map(member => member.id)).filter(id => globalIds.has(id))));
+  const globalRounds = (Array.isArray(globalSource.rounds) ? globalSource.rounds : []).map((round, index) => {
+    if (!round || typeof round !== 'object') return null;
+    const weights = Object.fromEntries(globalRecipients.map(member => [member.id, cleanNumber(round.weights?.[member.id] === undefined ? globalWeights[member.id] : round.weights[member.id], 1, 0, 100, true)]));
+    const enabledSaleIds = Array.from(new Set((Array.isArray(round.enabledSaleIds) ? round.enabledSaleIds : globalEnabled).filter(id => globalIds.has(id))));
+    return { id: cleanId(round.id) || `ROUND-${index + 1}`, createdAt: cleanTimestamp(round.createdAt, stamp()), enabledSaleIds, weights };
+  }).filter(Boolean);
+  if (!globalRounds.length) globalRounds.push({ id: cleanId(globalSource.activeRoundId) || 'ROUND-1', createdAt: cleanTimestamp(globalSource.createdAt, stamp()), enabledSaleIds: globalEnabled, weights: globalWeights });
+  output.$ = { globalCycle: true, enabledSaleIds: globalRounds[0].enabledSaleIds, weights: globalRounds[0].weights, rounds: globalRounds };
   members.filter(member => member.role === 'LEADER').forEach(leader => {
     const sales = members.filter(member => member.role === 'SALE' && member.leaderId === leader.id);
     // Keep Manager as a compatible recipient in the leader's distribution pool.
@@ -4593,7 +4609,24 @@ function teamRecipients(leaderId, teamId) {
     ...(managerRecipient ? [managerRecipient] : [])
   ];
 }
-function assignmentCandidates(customer) {
+function globalDistributionRound() {
+  const config = state.saleDistributionByLeader['$'];
+  return config?.rounds?.[0] || config || null;
+}
+
+function promoteGlobalDistributionRound() {
+  const config = state.saleDistributionByLeader['$'];
+  if (!config || !Array.isArray(config.rounds) || config.rounds.length < 2) return false;
+  const next = config.rounds.shift();
+  config.weights = next.weights || {};
+  config.enabledSaleIds = next.enabledSaleIds || [];
+  state.settings.assignmentCursor.global = { index: 0, ids: [] };
+  audit('ACTIVATE_DISTRIBUTION_ROUND', next.id, 'Vong cho tro thanh vong dang chay');
+  saveState();
+  return true;
+}
+
+function assignmentCandidates(customer, roundConfig = null) {
   if (customer.leaderId) {
     const config = state.saleDistributionByLeader[customer.leaderId];
     const configured = config?.managerDistributionInitialized === true && Array.isArray(config?.enabledSaleIds) && config.enabledSaleIds.length > 0;
@@ -4604,7 +4637,8 @@ function assignmentCandidates(customer) {
   const leaders = members.filter(p=>p.role==='LEADER'&&enabledLeaders.has(p.id));
   const recipients = [];
   const seen = new Set();
-  const add = person => { if(person && !seen.has(person.id) && assignmentWeight(person)>0){seen.add(person.id);recipients.push(person);} };
+  const enabledGlobal = new Set(Array.isArray(roundConfig?.enabledSaleIds) ? roundConfig.enabledSaleIds : []);
+  const add = person => { if(person && (!roundConfig || !enabledGlobal.size || enabledGlobal.has(person.id)) && !seen.has(person.id) && assignmentWeight(person, roundConfig)>0){seen.add(person.id);recipients.push(person);} };
   leaders.forEach(leader=>{
     const config=state.saleDistributionByLeader[leader.id]||{};
     if(config.leaderEnabled!==false)add({...leader,role:'SALE',leaderId:leader.id,teamId:leader.teamId,teamLeaderRecipient:true});
@@ -4633,8 +4667,8 @@ function assignmentLoad(person) {
   return state.customers.filter(customer => customer.saleId === person.id && customer.leaderId === person.leaderId && customer.teamId === person.teamId).length + state.dataOffers.filter(o=>o.saleId===person.id&&o.status==='PENDING').length;
 }
 
-function assignmentWeight(person) {
-  const value = person.role === 'LEADER' ? state.leaderDistribution.weights[person.id] : state.saleDistributionByLeader[person.leaderId]?.weights?.[person.id];
+function assignmentWeight(person, roundConfig = null) {
+  const value = roundConfig?.weights?.[person.id] ?? (person.role === 'LEADER' ? state.leaderDistribution.weights[person.id] : state.saleDistributionByLeader[person.leaderId]?.weights?.[person.id]);
   return Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : 1;
 }
 
@@ -4652,15 +4686,23 @@ function weightedCandidateList(candidates) {
 }
 
 function chooseAssignmentTarget(customer, mode) {
-  const candidates = assignmentCandidates(customer);
+  let globalRound = customer.leaderId ? null : globalDistributionRound();
+  let candidates = assignmentCandidates(customer, globalRound);
   if (!candidates.length) return null;
   if (!['EQUAL', 'ROUND_ROBIN', 'BALANCED'].includes(mode)) return null;
   const key = customer.leaderId || 'global';
-  const weighted = mode === 'ROUND_ROBIN' || mode === 'BALANCED' ? weightedCandidateList(candidates) : candidates;
+  let weighted = mode === 'ROUND_ROBIN' || mode === 'BALANCED' ? candidates.flatMap(candidate => Array.from({ length: assignmentWeight(candidate, globalRound) }, () => candidate)) : candidates;
   const cursorStore = customer.leaderId ? state.settings.assignmentCursor.salesByTeam : state.settings.assignmentCursor;
   const raw = customer.leaderId ? cursorStore[key] : cursorStore.global;
-  const currentIds = weighted.map(person => person.id);
+  let currentIds = weighted.map(person => person.id);
   let cursor = typeof raw === 'object' && raw ? { index: Number.isInteger(raw.index) ? raw.index : 0, ids: Array.isArray(raw.ids) ? raw.ids.map(String) : [] } : { index: Number.isInteger(raw) ? raw : 0, ids: [] };
+  if (!customer.leaderId && cursor.index >= (cursor.ids.length || currentIds.length) && promoteGlobalDistributionRound()) {
+    globalRound = globalDistributionRound();
+    candidates = assignmentCandidates(customer, globalRound);
+    weighted = mode === 'ROUND_ROBIN' || mode === 'BALANCED' ? candidates.flatMap(candidate => Array.from({ length: assignmentWeight(candidate, globalRound) }, () => candidate)) : candidates;
+    currentIds = weighted.map(person => person.id);
+    cursor = { index: 0, ids: [] };
+  }
   let roundIds = cursor.ids.filter(id => currentIds.includes(id));
   if (!roundIds.length || cursor.index >= roundIds.length) { roundIds = currentIds; cursor.index = 0; }
   const targetId = roundIds[cursor.index];

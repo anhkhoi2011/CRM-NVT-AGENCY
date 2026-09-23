@@ -2281,6 +2281,7 @@
     };
     const weightOf=value=>{const n=Number(value);return Number.isFinite(n)?Math.max(0,Math.min(100,Math.round(n))):1;};
     const cycleDetails=new Map();
+    const storedGlobalRound=data.saleDistributionByLeader?.['$']?.rounds?.[0]||data.saleDistributionByLeader?.['$']||null;
     const cycleSummary=(people,configs,key)=>{
       const config=configs?.[0]||{};
       const enabledIds=new Set(Array.isArray(config.enabledSaleIds)?config.enabledSaleIds:people.map(person=>person.id));
@@ -2311,7 +2312,7 @@
       const index=sequence.length?Math.min(cursorIndex,sequence.length):0;
       const received=sequence.slice(0,index);
       const upcoming=sequence.slice(index);
-      return {key,length:sequence.length,index,round:sequence.length?Math.floor(cursorIndex/sequence.length)+1:0,received,upcoming:upcoming.length?upcoming:next,completed:sequence.length>0&&index===sequence.length};
+      return {key,length:sequence.length,index,round:key==='global'&&sequence.length?1:sequence.length?Math.floor(cursorIndex/sequence.length)+1:0,received,upcoming:upcoming.length?upcoming:next,completed:sequence.length>0&&index===sequence.length};
     };
     const cycleMarkup=(summary)=>{
       cycleDetails.set(summary.key,summary);
@@ -2337,12 +2338,12 @@
         : [isLeader?member.id:(leaders.some(l=>l.id===member.leaderId)?member.leaderId:'manager:'+(member.managerId||member.leaderId))];
       const configs=configIds.map(id=>data.saleDistributionByLeader?.[id]||{});
       const config=configs[0]||{};
-      const weight=isLeader?weightOf(data.leaderDistribution?.weights?.[member.id]):weightOf(config?.weights?.[member.id]);
+      const weight=storedGlobalRound?.weights?.[member.id]===undefined?(isLeader?weightOf(data.leaderDistribution?.weights?.[member.id]):weightOf(config?.weights?.[member.id])):weightOf(storedGlobalRound.weights[member.id]);
       const enabled=isLeader
-        ? enabledLeaders.has(member.id) && configs.every(item=>item.leaderEnabled!==false)
+        ? (storedGlobalRound?.enabledSaleIds?storedGlobalRound.enabledSaleIds.includes(member.id):enabledLeaders.has(member.id)) && configs.every(item=>item.leaderEnabled!==false)
         : isManager
-          ? configs.every(item=>item.managerDistributionInitialized!==true||!Array.isArray(item.enabledSaleIds)||item.enabledSaleIds.includes(member.id))
-          : (config.managerDistributionInitialized!==true||!Array.isArray(config.enabledSaleIds)||config.enabledSaleIds.includes(member.id));
+          ? (storedGlobalRound?.enabledSaleIds?storedGlobalRound.enabledSaleIds.includes(member.id):configs.every(item=>item.managerDistributionInitialized!==true||!Array.isArray(item.enabledSaleIds)||item.enabledSaleIds.includes(member.id)))
+          : (storedGlobalRound?.enabledSaleIds?storedGlobalRound.enabledSaleIds.includes(member.id):(config.managerDistributionInitialized!==true||!Array.isArray(config.enabledSaleIds)||config.enabledSaleIds.includes(member.id)));
       const load=branchCustomerCount(member,kind);
       const canEdit=role==='ADMIN'||(role==='MANAGER'&&(
         (kind==='MANAGER'&&member.id===data.user.id) ||
@@ -2356,8 +2357,11 @@
     };
     // One shared cycle for the complete agency.
     const globalCycle=()=>{
+      const storedGlobal=data.saleDistributionByLeader?.['$']||{};
+      const activeRound=storedGlobal.rounds?.[0]||storedGlobal;
+      const enabledGlobal=new Set(Array.isArray(activeRound.enabledSaleIds)?activeRound.enabledSaleIds:[]);
       const people=[],weights={},seen=new Set();
-      const add=(person,weight)=>{if(!person||seen.has(person.id)||weightOf(weight)<=0)return;seen.add(person.id);people.push(person);weights[person.id]=weightOf(weight);};
+      const add=(person,weight)=>{const effective=weightOf(activeRound.weights?.[person?.id]===undefined?weight:activeRound.weights[person.id]);if(!person||seen.has(person.id)||(enabledGlobal.size&&!enabledGlobal.has(person.id))||effective<=0)return;seen.add(person.id);people.push(person);weights[person.id]=effective;};
       const addLeaderBranch=(leader,config)=>{
         if(enabledLeaders.has(leader.id)&&config.leaderEnabled!==false)add({...leader,role:'SALE',teamLeaderRecipient:true},data.leaderDistribution?.weights?.[leader.id]);
         const configured=config.managerDistributionInitialized===true&&Array.isArray(config.enabledSaleIds)&&config.enabledSaleIds.length>0;
@@ -2386,9 +2390,28 @@
     if(unassignedSales.length)blocks+=block('Chua gan Leader','Sale chua duoc gan Leader',unassignedSales.map(sale=>row(sale,'SALE',2)).join(''));
     if(!q('#referenceDistributionStyles')){const style=document.createElement('style');style.id='referenceDistributionStyles';style.textContent='.distribution-global-cycle{margin:0 0 12px;padding:12px 14px;border:1px solid #bfdbfe;border-radius:10px;background:#f8fbff}.distribution-global-cycle-title{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}.distribution-global-cycle-title b{font-size:13px;color:#1e3a8a}.distribution-global-cycle-title small{font-size:10.5px;color:#64748b}.distribution-global-cycle .distribution-cycle{min-width:0}.distribution-global-cycle .distribution-cycle-info{flex:1}.distribution-global-cycle .distribution-cycle-info>small{white-space:normal}.distribution-global-cycle .distribution-cycle-ring{width:54px;height:54px;flex-basis:54px}.distribution-tree-list{display:grid;gap:10px}.distribution-tree-block{border:1px solid var(--border-light);border-radius:10px;overflow:hidden;background:var(--bg-surface)}.distribution-tree-head{display:flex;justify-content:space-between;gap:16px;align-items:stretch;padding:12px 16px;background:var(--bg-subtle);border-bottom:1px solid var(--border-light)}.distribution-tree-title{display:grid;align-content:center;gap:4px;min-width:180px}.distribution-tree-cycle{min-width:280px;max-width:52%;padding-left:14px;border-left:1px solid var(--border-light)}.distribution-cycle-stack{display:grid;gap:8px;max-height:180px;overflow:auto}.distribution-cycle-label{color:#475569;font-size:10px;font-weight:800}.distribution-cycle{display:flex;align-items:center;gap:10px;min-width:270px}.distribution-cycle-ring{--cycle-progress:0%;width:58px;height:58px;flex:0 0 58px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(#2563eb var(--cycle-progress),#dbeafe 0);position:relative}.distribution-cycle-ring:after{content:"";position:absolute;inset:6px;border-radius:50%;background:var(--bg-subtle)}.distribution-cycle-ring span{position:relative;z-index:1;display:grid;text-align:center;line-height:1.05}.distribution-cycle-ring b{font-size:12px;color:#1d4ed8}.distribution-cycle-ring small{font-size:9px;color:var(--text-muted)}.distribution-cycle-info{display:grid;gap:2px;min-width:0}.distribution-cycle-info>b{font-size:11px;color:#1e293b}.distribution-cycle-info>small{font-size:10px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.distribution-cycle-detail{width:max-content;border:0;background:transparent;color:#2563eb;padding:0;font:inherit;font-size:10.5px;font-weight:800;cursor:pointer}.distribution-cycle-detail:hover{text-decoration:underline}.distribution-cycle-top,.distribution-cycle-track{display:none}.distribution-cycle small{display:block}.distribution-cycle.is-empty small{white-space:normal}.distribution-cycle-columns{display:grid;grid-template-columns:1fr 1fr;gap:18px}.distribution-cycle-columns section{border:1px solid var(--border-light);border-radius:10px;overflow:hidden;background:var(--bg-subtle)}.distribution-cycle-columns h4{display:flex;justify-content:space-between;gap:8px;padding:12px 14px;font-size:12px;color:var(--text-main);border-bottom:1px solid var(--border-light)}.distribution-cycle-columns h4 span{color:#2563eb}.distribution-cycle-list{list-style:none;display:grid;gap:0;margin:0;padding:0}.distribution-cycle-list li{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--bg-surface);border-bottom:1px solid var(--border-light)}.distribution-cycle-list li:last-child{border-bottom:0}.distribution-cycle-position{width:24px;height:24px;display:grid;place-items:center;border-radius:50%;background:#eff6ff;color:#2563eb;font-size:10px;font-weight:800;flex:0 0 auto}.distribution-cycle-list li>div{display:grid;gap:2px;min-width:0;flex:1}.distribution-cycle-list li b{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.distribution-cycle-list li small{font-size:10px;color:var(--text-muted)}.distribution-cycle-status{font-size:10px;font-weight:800;color:#2563eb;white-space:nowrap}.distribution-cycle-status.is-done{color:#15803d}.distribution-cycle-empty,.distribution-cycle-note{margin:0;padding:14px;color:var(--text-muted);font-size:12px}.distribution-cycle-note{padding:0 0 14px}.distribution-tree-head b{font-size:14px}.distribution-tree-head small{color:var(--text-muted);font-size:11px}.distribution-tree-head b{font-size:14px}.distribution-tree-head small{color:var(--text-muted);font-size:11px}.distribution-person-row{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:13px 16px;border-bottom:1px solid var(--border-light);flex-wrap:wrap}.distribution-person-row:last-child{border-bottom:0}.distribution-person-row.level-1{padding-left:30px}.distribution-person-row.level-2{padding-left:58px;background:#fcfdff}.distribution-person-main{display:flex;align-items:center;gap:10px;min-width:230px}.distribution-person-main>span:last-child{display:grid;gap:3px}.distribution-person-main small{color:var(--text-muted);font-size:10.5px}.distribution-avatar{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;background:#eff6ff;color:#2563eb;font-size:11px;font-weight:800;flex:0 0 auto}.distribution-person-controls{display:flex;align-items:center;gap:16px;flex-wrap:wrap}.distribution-person-controls label{display:flex;align-items:center;gap:7px;color:var(--text-muted);font-size:11.5px}.distribution-person-controls input[type=number]{width:64px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-subtle);font:inherit;text-align:center;color:var(--text-main)}.distribution-check{color:var(--text-main)!important;font-weight:600;cursor:pointer}.distribution-check input{accent-color:#2563eb}.distribution-readonly{font-size:11px;color:var(--text-muted);font-style:italic}@media(max-width:700px){.distribution-tree-head{display:grid}.distribution-tree-cycle{max-width:none;min-width:0;padding:10px 0 0;border-left:0;border-top:1px solid var(--border-light)}.distribution-cycle{min-width:0}.distribution-cycle-columns{grid-template-columns:1fr}.distribution-cycle-info>small{max-width:180px}.distribution-person-row.level-1,.distribution-person-row.level-2{padding-left:16px}.distribution-person-controls{width:100%;padding-left:44px;justify-content:flex-start}}';document.head.appendChild(style)}
     host.innerHTML='<section class="panel" style="background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;padding:22px;box-shadow:var(--shadow-sm)"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:14px;flex-wrap:wrap"><b style="font-size:15px;color:var(--text-main);display:block">Chỉnh sửa tỷ trọng</b><span class="chip">'+members.length+' nhân sự</span></div><div class="distribution-global-cycle"><div class="distribution-global-cycle-title"><b>Vòng phân data toàn hệ thống</b></div>'+globalCycle()+'</div><div class="distribution-tree-list">'+(blocks||'<div class="empty"><b>Chưa có Manager, Leader hoặc Sale</b><span>Hãy phân bổ nhân sự tại mục Đội ngũ.</span></div>')+'</div></section>';
+    const globalRounds=data.saleDistributionByLeader?.['$']?.rounds||[];
+    const roundFooter=document.createElement('div');
+    roundFooter.className='distribution-round-footer';
+    roundFooter.style.cssText='margin-top:18px;padding-top:16px;border-top:1px solid var(--border-light);display:grid;gap:12px';
+    const queued=globalRounds.slice(1);
+    roundFooter.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><b style="font-size:13px;color:var(--text-main)">Vòng tỷ trọng đã lưu</b><small style="display:block;margin-top:4px;color:var(--text-muted)">Vòng mới chỉ bắt đầu sau khi vòng hiện tại chạy hết.</small></div><button type="button" class="btn-action btn-primary" data-save-distribution-round>Lưu tỷ trọng · tạo vòng mới</button></div><div data-distribution-round-list style="display:grid;gap:7px"></div>';
+    const roundList=roundFooter.querySelector('[data-distribution-round-list]');
+    if(roundList){
+      const currentLabel='<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;border:1px solid #bfdbfe;border-radius:8px;background:#eff6ff;color:#1d4ed8;font-size:11px;font-weight:800"><span>Vòng 1 · đang chạy</span><span>'+((globalRounds[0]?.id||'ROUND-1'))+'</span></div>';
+      roundList.innerHTML=currentLabel+queued.map((round,index)=>'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;border:1px solid var(--border-light);border-radius:8px;background:var(--bg-subtle);font-size:11px"><span><b>Vòng '+(index+2)+'</b><small style="display:block;margin-top:3px;color:var(--text-muted)">Sẽ thành Vòng 1 sau khi vòng trước hoàn tất</small></span><button type="button" class="btn-action btn-secondary" data-delete-distribution-round="'+esc(round.id)+'">Xóa</button></div>').join('');
+    }
+    host.firstElementChild?.appendChild(roundFooter);
     host.querySelectorAll('[data-cycle-detail]').forEach(button=>button.onclick=()=>showCycleDetails(button.dataset.cycleDetail,button));
-    host.querySelectorAll('[data-ref-distribution-weight]').forEach(input=>input.onchange=()=>{const [kind,id]=input.dataset.refDistributionWeight.split(':');run(()=>api.distributionWeight(kind,id,input.value));});
-    host.querySelectorAll('[data-ref-distribution-member]').forEach(input=>input.onchange=()=>{const [kind,id]=input.dataset.refDistributionMember.split(':');run(()=>api.distributionMember(kind,id,input.checked));});
+    host.querySelectorAll('[data-ref-distribution-weight]').forEach(input=>input.onchange=()=>{});
+    host.querySelectorAll('[data-ref-distribution-member]').forEach(input=>input.onchange=()=>{});
+    roundFooter.querySelector('[data-save-distribution-round]')?.addEventListener('click',()=>{
+      const weights={},enabledIds=[];
+      host.querySelectorAll('[data-ref-distribution-weight]').forEach(input=>{const [,id]=input.dataset.refDistributionWeight.split(':');weights[id]=input.value;});
+      host.querySelectorAll('[data-ref-distribution-member]:checked').forEach(input=>{const [,id]=input.dataset.refDistributionMember.split(':');enabledIds.push(id);});
+      run(()=>api.distributionRoundSave({weights,enabledIds}),()=>referenceNotice('Đã lưu tỷ trọng và tạo vòng mới.'));
+    });
+    roundFooter.querySelectorAll('[data-delete-distribution-round]').forEach(button=>button.onclick=()=>run(()=>api.distributionRoundDelete(button.dataset.deleteDistributionRound),()=>referenceNotice('Đã xóa vòng chờ.')));
   }
   function mountManagementDataShell(role){
     const tab=q('#tab-data');
