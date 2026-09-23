@@ -345,7 +345,7 @@
   }
   function fieldEditor(id=null) {
     const f=data.fields.find(item=>item.id===id)||{label:'',type:'SELECT',options:[],notificationWebhookId:''};
-    const fieldType=f.notificationWebhookId?'NOTIFICATION':f.type;
+    const fieldType=f.type==='NOTIFICATION'?'NOTIFICATION':f.type;
     const notificationWebhooks=(data.websites||[]).filter(website=>website.provider==='NOTIFICATION');
     const modal=editor(id?'Sửa cột khách hàng':'Thêm cột khách hàng',
       formField('Tên cột',`<input id="refFieldLabel" required maxlength="160" value="${esc(f.label)}">`)+
@@ -355,7 +355,7 @@
       ()=>api.saveField(id,{label:q('#refFieldLabel').value,type:q('#refFieldType').value,notificationWebhookId:q('#refFieldType').value==='NOTIFICATION'?q('#refFieldNotificationWebhook').value:'',options:qa('#refFieldOptions > div').map(row=>({value:row.dataset.value||row.querySelector('input').value,label:row.querySelector('input').value,color:row.querySelector('input[type=color]').value}))}));
     const add=o=>{const row=document.createElement('div');row.style.cssText='display:flex;gap:8px;align-items:center;margin-bottom:10px';row.dataset.value=o?.value||'';row.innerHTML=`<input aria-label="Tên lựa chọn" required maxlength="200" placeholder="Tên lựa chọn" value="${esc(o?.label||'')}" style="min-width:0;flex:1;padding:9px;border:1px solid var(--border);border-radius:6px"><input aria-label="Màu lựa chọn" type="color" value="${validColor(o?.color)}" style="width:40px;flex-shrink:0"><button type="button" class="btn-action btn-secondary">Xóa</button>`;row.querySelector('button').onclick=()=>row.remove();q('#refFieldOptions').appendChild(row);};
     (f.options||[]).forEach(add);q('#refAddOption').onclick=()=>add();
-    const sync=()=>{const type=q('#refFieldType').value,show=['SELECT','MULTI_SELECT'].includes(type),notification=type==='NOTIFICATION';q('#refOptionsArea').hidden=!show;qa('#refFieldOptions input').forEach(node=>node.disabled=!show);q('#refFieldNotificationWebhook').closest('.form-group').hidden=!notification;q('#refFieldNotificationWebhook').required=notification;};
+    const sync=()=>{const type=q('#refFieldType').value,show=['SELECT','MULTI_SELECT'].includes(type),notification=type==='NOTIFICATION',webhookField=q('#refFieldNotificationWebhook')?.closest('.form-group');q('#refOptionsArea').hidden=!show;q('#refOptionsArea').style.display=show?'':'none';qa('#refFieldOptions input').forEach(node=>node.disabled=!show);if(webhookField){webhookField.hidden=!notification;webhookField.style.setProperty('display',notification?'':'none','important');}q('#refFieldNotificationWebhook').required=notification;};
     q('#refFieldType').onchange=sync;sync();
   }
   let editingCareId=null;
