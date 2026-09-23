@@ -4375,7 +4375,9 @@ function ingestCustomer(record, context = {}) {
   const name = cleanText(record.name || record.fullName || record.customer, '', 160).trim();
   const website = websiteById(cleanId(record.websiteId));
   if (!name || phone.length < 9 || phone.length > 11) return { created: false, error: 'Tên hoặc số điện thoại không hợp lệ' };
-  if (!website) return { created: false, error: 'Landing page nguồn không hợp lệ' };
+  const sourceLabel = dataTerminology(cleanText(record.source, context.sourceLabel || 'Nhập thủ công', 120));
+  const isDefaultManualSource = context.intakeType === 'MANUAL' && ['Khách hàng cũ', 'Khách hàng ngoài data'].includes(sourceLabel);
+  if (!website && !isDefaultManualSource) return { created: false, error: 'Landing page nguồn không hợp lệ' };
   const customFields = Object.fromEntries(state.customFieldDefinitions.map(field => [field.id, sanitizeCustomFieldValue(record.customFields?.[field.id] ?? defaultCustomFieldValue(field), field)]));
   const createdAt = stamp();
   const customer = {
@@ -4384,13 +4386,13 @@ function ingestCustomer(record, context = {}) {
     phone,
     email: cleanText(record.email, '', 254).trim(),
     ipAddress: cleanText(record.ipAddress || record.ip, 'Chưa xác định', 64),
-    source: dataTerminology(cleanText(record.source, context.sourceLabel || 'Nhập thủ công', 120)),
+    source: sourceLabel,
     campaign: dataTerminology(cleanText(record.campaign, 'MANUAL-CRM', 160)),
-    landingPageName: cleanText(record.landingPageName || record.landingPage || website.name || website.domain, website.name || website.domain, 200),
-    landingPageUrl: cleanSourceUrl(record.landingPageUrl || website.sourceUrl),
-    landingPageDomain: cleanText(record.landingPageDomain || website.domain, website.domain, 253),
+    landingPageName: cleanText(record.landingPageName || record.landingPage || website?.name || website?.domain || sourceLabel, website?.name || website?.domain || sourceLabel, 200),
+    landingPageUrl: cleanSourceUrl(record.landingPageUrl || website?.sourceUrl),
+    landingPageDomain: cleanText(record.landingPageDomain || website?.domain || '', website?.domain || '', 253),
     productName: cleanText(record.productName || record.product || record.sanpham, 'Chưa xác định sản phẩm', 200),
-    websiteId: website.id,
+    websiteId: website?.id || null,
     manualEntry: context.intakeType === 'MANUAL',
     status: Object.hasOwn(STATUS_META, record.status) ? record.status : 'NEW',
     saleId: null,
@@ -4400,7 +4402,7 @@ function ingestCustomer(record, context = {}) {
     updatedAt: createdAt,
     lastIntakeAt: createdAt,
     lastIntakeType: ['MANUAL', 'FORM', 'IMPORT', 'API'].includes(context.intakeType) ? context.intakeType : 'FORM',
-    note: dataTerminology(cleanText(record.note, `Data từ ${website.domain}`, 2000)),
+    note: dataTerminology(cleanText(record.note, `Tạo thủ công từ ${sourceLabel}`, 2000)),
     customFields
   };
   state.customers.unshift(customer);

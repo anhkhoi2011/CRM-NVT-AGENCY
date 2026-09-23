@@ -162,8 +162,9 @@
       return persist(async()=>{
         const websites=state.websites||[];
         const selectedWebsite=websites.find(website=>website.id===input.websiteId||website.name===input.websiteId||website.domain===input.websiteId)||websites[0];
-        if(!selectedWebsite)throw Error('Chưa có Landing page/website nguồn để tạo data.');
-        const normalizedInput={...input,websiteId:selectedWebsite.id};
+        const defaultManualSource=['Khách hàng cũ','Khách hàng ngoài data'].includes(String(input.source||''));
+        if(!selectedWebsite&&!defaultManualSource)throw Error('Chưa có Landing page/website nguồn để tạo data.');
+        const normalizedInput={...input,websiteId:selectedWebsite?.id||null};
         const recipient=normalizedInput.saleId?activeStaff().find(m=>m.id===normalizedInput.saleId && ['MANAGER','SALE','LEADER'].includes(m.role)):null;
         const managerLeaders=currentAccount.role==='MANAGER'?new Set(activeStaff().filter(m=>m.role==='LEADER'&&m.managerId===currentAccount.id&&m.active!==false).map(m=>m.id)):new Set();
         const managerSales=currentAccount.role==='MANAGER'?new Set(activeStaff().filter(m=>m.role==='SALE'&&m.active!==false&&(m.managerId===currentAccount.id||managerLeaders.has(m.leaderId))).map(m=>m.id)):new Set();
@@ -177,6 +178,18 @@
           if (!recipient||!recipientAllowed) throw Error('Người phụ trách không nằm trong phạm vi tài khoản.');
           const assignmentTarget=recipient.role==='MANAGER'?{...recipient,actualRole:'MANAGER',managerRecipient:true,leaderId:null,teamId:''}:recipient;
           applyCustomerAssignment(c,assignmentTarget,'Phân công khi tạo khách từ CRM');
+        }
+        if(result.created&&!result.duplicate&&!normalizedInput.saleId){
+          const owner=currentAccount.role==='MANAGER'?activeStaff().find(m=>m.id===currentAccount.id&&m.role==='MANAGER'):
+            currentAccount.role==='LEADER'?activeStaff().find(m=>m.id===currentAccount.id&&m.role==='LEADER'):
+            currentAccount.role==='SALE'?activeStaff().find(m=>m.id===currentAccount.saleId&&m.role==='SALE'):null;
+          if(owner){
+            c.managerId=owner.role==='MANAGER'?owner.id:(owner.managerId||null);
+            c.leaderId=owner.role==='LEADER'?owner.id:(owner.leaderId||null);
+            c.teamId=owner.teamId||null;
+            if(owner.role==='SALE'){c.saleId=owner.id;c.saleAcceptedAt=stamp();}
+            c.updatedAt=stamp();
+          }
         }
         return {id:result.customer.id,duplicate:result.duplicate};
       },'customer');
