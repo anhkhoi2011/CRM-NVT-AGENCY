@@ -226,7 +226,103 @@ async function handleIncomingMessage(msg) {
 
 // ==================== XỬ LÝ NÚT BẤM INLINE (CALLBACK QUERIES) ====================
 
+async function acceptDataFromTelegram(chatId, callbackData) {
+  const userRows = await dbQuery('SELECT * FROM users WHERE telegram_chat_id = ? AND active = 1 LIMIT 1', [String(chatId)]);
+  if (!userRows?.length) throw new Error('Tài khoản Telegram này chưa liên kết CRM. Gõ /start để liên kết.');
+  const user = userRows[0];
+  if (String(user.role || '').toUpperCase() !== 'SALE') throw new Error('Chức năng nhận data chỉ dành cho Sale được phân công.');
+
+  const payload = String(callbackData || '').slice('accept_data:'.length);
+  const [customerId, requestedOfferId = ''] = payload.split(':', 2);
+  if (!customerId) throw new Error('Nút nhận data không hợp lệ. Vui lòng mở thông báo mới nhất.');
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [customerRows] = await connection.execute('SELECT * FROM customers WHERE id = ? LIMIT 1 FOR UPDATE', [customerId]);
+    if (!customerRows?.length) throw new Error('Khách hàng không còn tồn tại.');
+    const customer = customerRows[0];
+
+    const [offerRows] = await connection.execute(
+      `SELECT id, body FROM crm_documents
+       WHERE collection = 'dataOffers' AND (deleted = 0 OR deleted IS NULL)
+         AND JSON_UNQUOTE(JSON_EXTRACT(body, '$.customerId')) = ?
+       FOR UPDATE`,
+      [customerId]
+    );
+    const offers = offerRows.map(row => {
+      try { return { id: row.id, body: typeof row.body === 'string' ? JSON.parse(row.body) : row.body }; }
+      catch { return null; }
+    }).filter(Boolean);
+    const offer = offers.find(item =>
+      (!requestedOfferId || item.id === requestedOfferId || item.body?.id === requestedOfferId)
+      && item.body?.status === 'PENDING'
+      && item.body?.saleId === user.id
+    );
+
+    if (!offer) {
+      if (customer.sale_id === user.id && customer.sale_accepted_at) throw new Error('Data này đã được bạn nhận trước đó.');
+      if (customer.sale_id && customer.sale_id !== user.id) throw new Error('Data này đã được Sale khác nhận.');
+      throw new Error('Data này không còn chờ bạn nhận hoặc đã hết hạn.');
+    }
+
+    const nowStamp = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' }).slice(0, 19);
+    const [updated] = await connection.execute(
+      `UPDATE customers
+       SET sale_id = ?, leader_id = COALESCE(leader_id, ?), team_id = COALESCE(team_id, ?), sale_accepted_at = ?, updated_at = ?
+       WHERE id = ? AND (sale_id IS NULL OR sale_id = ?)`,
+      [user.id, user.leader_id || offer.body.leaderId || user.id, user.team_id || offer.body.teamId || '', nowStamp, nowStamp, customerId, user.id]
+    );
+    if (updated.affectedRows !== 1) throw new Error('Data này vừa được người khác nhận.');
+
+    const acceptedOffer = { ...offer.body, status: 'ACCEPTED', saleId: user.id, resolvedAt: nowStamp };
+    await connection.execute(
+      `UPDATE crm_documents SET body = ? WHERE collection = 'dataOffers' AND id = ?`,
+      [JSON.stringify(acceptedOffer), offer.id]
+    );
+    await connection.commit();
+    console.info('[Telegram Bot] Data accepted:', customerId, 'by', user.id);
+    return { customer, user, nowStamp };
+  } catch (err) {
+    await connection.rollback().catch(() => {});
+    throw err;
+  } finally {
+    connection.release();
+  }
+}
+
 async function handleCallbackQuery(query) {
+  const queryId = query.id;
+  const data = String(query.data || '');
+  const chatId = query.message?.chat?.id;
+  const messageId = query.message?.message_id;
+
+  if (!data.startsWith('accept_data:')) return handleCallbackQueryLegacy(query);
+  if (!chatId || !messageId) {
+    await answerCallbackQuery(queryId);
+    return;
+  }
+
+  // Stop the Telegram button spinner before the database transaction begins.
+  await answerCallbackQuery(queryId, 'Đang nhận data...');
+  try {
+    const { customer, user, nowStamp } = await acceptDataFromTelegram(chatId, data);
+    const updatedText = `✅ <b>ĐÃ TIẾP NHẬN DATA THÀNH CÔNG!</b>\n\n` +
+      `• <b>Khách hàng:</b> ${escapeHtml(customer.name)}\n` +
+      `• 📞 <b>Số điện thoại:</b> <code>${escapeHtml(customer.phone)}</code> (Bấm để gọi)\n` +
+      `• <b>Nguồn:</b> ${escapeHtml(customer.source || 'Landing Page')}\n` +
+      `• <b>Thời điểm tiếp nhận:</b> ${formatDateTimeVN(nowStamp)}\n` +
+      `• 👤 <b>Sale phụ trách:</b> ${escapeHtml(user.name)}\n\n` +
+      `👉 <i>Vui lòng chủ động gọi điện tư vấn khách hàng ngay!</i> 🚀`;
+    const edited = await editMessageText(chatId, messageId, updatedText, { reply_markup: { inline_keyboard: [] } });
+    if (!edited?.ok) await sendMessage(chatId, updatedText);
+  } catch (err) {
+    console.error('[Telegram Bot] accept data callback error:', err.message);
+    await sendMessage(chatId, `⚠️ <b>Chưa nhận được data</b>\n${escapeHtml(err.message || 'Hệ thống đang bận. Vui lòng bấm lại sau ít phút.')}`);
+  }
+}
+
+async function handleCallbackQueryLegacy(query) {
   const queryId = query.id;
   const data = String(query.data || '');
   const chatId = query.message?.chat?.id;

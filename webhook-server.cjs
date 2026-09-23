@@ -231,7 +231,7 @@ async function handleDemoApi(request, response, pathname) {
   if (pathname === '/api/auth/login' && request.method === 'POST') {
     const body = await readDbBody(request);
     const identifier = String(body.identifier || '').trim().toLowerCase();
-    const user = demoState.members.find(item => item.phone === identifier&&item.active!==false);
+    const user = demoState.members.find(item => item.active!==false && [item.phone,item.email,item.accountId].some(value => String(value || '').trim().toLowerCase() === identifier));
     if (!user || demoPasswords[user.email] !== String(body.password || '')) {
       return dbJson(request, response, 401, { error: 'Thông tin đăng nhập demo không đúng' });
     }
@@ -765,6 +765,41 @@ function stamp() {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
 }
 
+async function notificationWebsiteForSlug(slug) {
+  if (DEMO_MODE) return demoState.websites.find(website => String(website.webhookSlug || '').toUpperCase() === String(slug).toUpperCase()) || null;
+  if (!dbConfigured) return null;
+  const rows = await dbQuery("SELECT body FROM crm_documents WHERE collection='websites' AND deleted=0");
+  for (const row of rows) {
+    try { const website = typeof row.body === 'string' ? JSON.parse(row.body) : row.body; if (String(website?.webhookSlug || '').toUpperCase() === String(slug).toUpperCase()) return website; } catch {}
+  }
+  return null;
+}
+function notificationPayloadText(payload) {
+  const value = payload?.message ?? payload?.content ?? payload?.text ?? payload?.body ?? payload?.description;
+  if (value != null && typeof value !== 'object') return String(value).slice(0, 8000);
+  return JSON.stringify(payload).slice(0, 8000);
+}
+async function handleNotificationWebhook(request, response, slug, website, payload) {
+  const title = String(payload.title ?? payload.subject ?? payload.event ?? payload.type ?? ('Thông báo từ ' + (website.name || 'Webhook'))).trim().slice(0, 200) || 'Thông báo mới';
+  const text = notificationPayloadText(payload) || 'Webhook đã nhận một thông báo mới.';
+  const notification = { id: 'NT-WEB-' + Date.now() + '-' + crypto.randomBytes(3).toString('hex').toUpperCase(), title, text, role: 'ALL', at: stamp(), readBy: [], source: 'WEBHOOK', webhookSlug: slug.toUpperCase(), webhookId: website.id, payload };
+  const fields = [];
+  if (dbConfigured) {
+    const docs = await dbQuery("SELECT body FROM crm_documents WHERE collection='customFieldDefinitions' AND deleted=0");
+    for (const row of docs) { try { const field = typeof row.body === 'string' ? JSON.parse(row.body) : row.body; if (field?.notificationWebhookId === website.id) fields.push({ id: field.id, label: field.label }); } catch {} }
+    notification.targetFields = fields;
+    await pool.execute('INSERT INTO crm_documents(collection,id,body,deleted) VALUES (?,?,?,0)', ['notifications', notification.id, JSON.stringify(notification)]);
+  } else if (DEMO_MODE) {
+    notification.targetFields = (demoState.customFieldDefinitions || []).filter(field => field.notificationWebhookId === website.id).map(field => ({ id: field.id, label: field.label }));
+    demoState.notifications.unshift(notification);
+  } else {
+    throw new Error('Webhook Thông Báo cần MySQL hoặc DEMO_MODE.');
+  }
+  notifyInboxListeners({ kind: 'notification', id: notification.id });
+  console.log('[notification-webhook] ' + slug + ' · ' + title);
+  sendJson(response, 200, { received: true, type: 'notification', id: notification.id, title, targetFields: notification.targetFields || [] });
+}
+
 /* ------------------------------------------------------------ webhook POST */
 
 async function handleWebhook(request, response, slug) {
@@ -814,6 +849,12 @@ async function handleWebhook(request, response, slug) {
 
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
     sendJson(response, 400, { received: false, error: 'Body phải là object các trường form' });
+    return;
+  }
+
+  const website = await notificationWebsiteForSlug(slug);
+  if (website?.provider === 'NOTIFICATION') {
+    try { await handleNotificationWebhook(request, response, slug, website, payload); } catch (error) { console.error('[notification-webhook]', error.message); sendJson(response, 503, { received: false, error: 'Chưa lưu được thông báo webhook.' }); }
     return;
   }
 
@@ -979,7 +1020,7 @@ async function serveStatic(request, response, urlPathname) {
     }
     return;
   }
-  if (!['/','/index.html','/crm.js','/crm.css','/crm-modern.css','/crm-boot.css','/logo.jpg','/login-background.jpg','/customer-journey.svg','/care-ui.js','/crm-runtime.html','/crm-runtime-api.js','/reference-view.js','/reference-crm.js','/nvt-mobile-auth.css','/commission_tree_demo.html','/commission-apex-mindmap.svg'].includes(decoded)) return sendJson(response,404,{error:'Không tìm thấy tài nguyên'});
+  if (!['/','/index.html','/crm.js','/crm.css','/crm-modern.css','/crm-boot.css','/logo.jpg','/login-background.jpg','/customer-journey.svg','/care-ui.js','/crm-runtime.html','/crm-runtime-api.js','/reference-view.js','/reference-crm.js','/nvt-mobile-auth.css','/team-tree-hierarchy.css','/commission_tree_demo.html','/commission-apex-mindmap.svg'].includes(decoded)) return sendJson(response,404,{error:'Không tìm thấy tài nguyên'});
 
   let relative = decoded === '/' ? '/index.html' : decoded;
   const absolute = path.resolve(REPO_ROOT, `.${path.posix.normalize(relative)}`);

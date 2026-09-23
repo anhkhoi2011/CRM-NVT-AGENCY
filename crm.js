@@ -17,7 +17,9 @@ const TRAFFIC_META = [
   { source: 'Google Ads', medium: 'cpc', campaign: 'GG-SEARCH-09', color: '#e8572a', spend: 680000 },
   { source: 'Google Organic', medium: 'organic', campaign: 'SEO-COURSE', color: '#157a4b', spend: 0 },
   { source: 'Zalo OA', medium: 'social', campaign: 'ZALO-SEP', color: '#19a4df', spend: 120000 },
-  { source: 'Direct / Referral', medium: 'referral', campaign: 'DIRECT', color: '#a3650b', spend: 0 }
+  { source: 'Direct / Referral', medium: 'referral', campaign: 'DIRECT', color: '#a3650b', spend: 0 },
+  { source: 'Khách hàng cũ', medium: 'crm', campaign: 'OLD_CUSTOMER', color: '#64748b', spend: 0 },
+  { source: 'Khách hàng ngoài data', medium: 'crm', campaign: 'OUTSIDE_DATA', color: '#475569', spend: 0 }
 ];
 
 const STATUS_META = {
@@ -153,8 +155,8 @@ function initialState() {
     notifications: [],
     audit: [],
     websites: [
-      { id: 'WEB-NVT', name: 'NVT Agency', domain: 'hoangphucacademy.vn', sourceUrl: 'https://www.hoangphucacademy.vn/', status: 'ACTIVE', provider: 'CUSTOM_WEBHOOK', endpoint: '', externalAccountId: '', campaignId: '', formId: '', webhookSlug: 'ds-1789180581447-IIM6U3AAD1R', webhookUrlOverride: '', connectionStatus: 'PENDING_BACKEND', domainVerificationStatus: 'UNVERIFIED', credentialConfigured: false, credentialLast4: '', lastVerifiedAt: '', lastError: '', lastSync: 'Chưa đồng bộ' },
-      { id: 'WEB-NVT-2', name: 'web 2 - 3 buổi Vùng Phản Ứng', domain: 'dautuhanghoa.tech', sourceUrl: 'https://dautuhanghoa.tech/', status: 'ACTIVE', provider: 'CUSTOM_WEBHOOK', endpoint: '', externalAccountId: '', campaignId: '', formId: '', webhookSlug: 'ds-1789611803019-I7Q0GRUTNAS', webhookUrlOverride: '', connectionStatus: 'PENDING_BACKEND', domainVerificationStatus: 'UNVERIFIED', credentialConfigured: false, credentialLast4: '', lastVerifiedAt: '', lastError: '', lastSync: 'Chưa đồng bộ' },
+      { id: 'WEB-NVT', name: 'NVT Agency', domain: 'hoangphucacademy.vn', sourceUrl: 'https://www.hoangphucacademy.vn/', status: 'ACTIVE', provider: 'LANDING_API', endpoint: '', externalAccountId: '', campaignId: '', formId: '', webhookSlug: 'ds-1789180581447-IIM6U3AAD1R', webhookUrlOverride: '', connectionStatus: 'PENDING_BACKEND', domainVerificationStatus: 'UNVERIFIED', credentialConfigured: false, credentialLast4: '', lastVerifiedAt: '', lastError: '', lastSync: 'Chưa đồng bộ' },
+      { id: 'WEB-NVT-2', name: 'web 2 - 3 buổi Vùng Phản Ứng', domain: 'dautuhanghoa.tech', sourceUrl: 'https://dautuhanghoa.tech/', status: 'ACTIVE', provider: 'LANDING_API', endpoint: '', externalAccountId: '', campaignId: '', formId: '', webhookSlug: 'ds-1789611803019-I7Q0GRUTNAS', webhookUrlOverride: '', connectionStatus: 'PENDING_BACKEND', domainVerificationStatus: 'UNVERIFIED', credentialConfigured: false, credentialLast4: '', lastVerifiedAt: '', lastError: '', lastSync: 'Chưa đồng bộ' },
     ],
     integrations: [],
     leaderDistribution: {
@@ -236,7 +238,7 @@ function defaultCustomFieldValue(field) {
 
 function normalizeCustomFieldDefinition(field) {
   const id = cleanId(field.id);
-  const type = ['TEXT', 'NOTE', 'SELECT', 'MULTI_SELECT', 'CHECKBOX', 'DATE', 'NUMBER', 'URL'].includes(field.type) ? field.type : null;
+  const type = ['TEXT', 'NOTE', 'SELECT', 'MULTI_SELECT', 'CHECKBOX', 'NOTIFICATION', 'DATE', 'NUMBER', 'URL'].includes(field.type) ? field.type : null;
   if (!id || !type) return null;
   const seen = new Set();
   const options = ['SELECT', 'MULTI_SELECT'].includes(type) && Array.isArray(field.options)
@@ -258,7 +260,8 @@ function normalizeCustomFieldDefinition(field) {
     showInTable: field.showInTable === true,
     required: field.required === true,
     active: field.active !== false,
-    options
+    options,
+    notificationWebhookId: cleanId(field.notificationWebhookId)
   };
 }
 
@@ -685,7 +688,7 @@ function normalizeWebsiteRecord(item) {
     domain: cleanText(item.domain || (() => { try { return new URL(cleanSourceUrl(item.sourceUrl)).hostname; } catch { return ''; } })(), '', 253).toLowerCase(),
     sourceUrl: cleanSourceUrl(item.sourceUrl) || (cleanText(item.domain, '', 253) ? `https://${cleanText(item.domain, '', 253).replace(/^https?:\/\//, '').replace(/\/+$/, '')}/` : ''),
     status: item.status === 'ACTIVE' && connectionStatus === 'VERIFIED' ? 'ACTIVE' : 'PAUSED',
-    provider: ['LANDING_API', 'FACEBOOK_FORMS', 'TIKTOK_FORMS', 'CUSTOM_WEBHOOK'].includes(item.provider) ? item.provider : 'LANDING_API',
+    provider: ['LANDING_API', 'NOTIFICATION'].includes(item.provider) ? item.provider : 'LANDING_API',
     endpoint: cleanText(item.endpoint, '', 500),
     externalAccountId: cleanText(item.externalAccountId, '', 160),
     campaignId: cleanText(item.campaignId, '', 160),
@@ -1224,6 +1227,8 @@ let customDateEnd = dayIso(0);
 let orderStatusFilter = 'ALL';
 let customerStatusFilter = 'ALL';
 let customerOwnerFilter = 'ALL';
+let customerPage = 1;
+const customerPageSize = 20;
 let globalQuery = '';
 let selectedPoolIds = new Set();
 let drawerReturnFocus = null;
@@ -1660,9 +1665,15 @@ function scopedTraffic() {
 function canViewCustomer(customer) { return !!customer && scopedCustomers().includes(customer); }
 function isPoolCustomer(customer) {
   if (!customer || !currentAccount) return false;
+  if (isManualCustomer(customer)) return false;
   if (currentAccount.role === 'ADMIN') return customer.saleId === null && customer.leaderId === null && customer.teamId === null;
   return currentAccount.role === 'LEADER' && !state.dataOffers.some(o=>o.customerId===customer.id&&o.status==='PENDING') && customer.saleId === null && customer.leaderId === currentAccount.leaderId && customer.teamId === currentAccount.teamId;
 }
+function isManualCustomer(customer) {
+  const source = normalize(customer?.source);
+  return customer?.manualEntry === true || source === 'khachhangcu' || source === 'khachhangngoaidata';
+}
+function isWebhookIntakeCustomer(customer) { return !!customer && !isManualCustomer(customer); }
 function slaBreachedCustomers() {
   const overdueCustomerIds = new Set(scopedTasks().filter(task => task.slaBased && task.status === 'OVERDUE').map(task => task.customerId));
   return scopedCustomers().filter(customer => overdueCustomerIds.has(customer.id));
@@ -2171,6 +2182,15 @@ function customFieldOption(field, value) {
   return field?.options?.find(option => option.value === value) || null;
 }
 
+function customFieldColor(value) {
+  return /^#[0-9a-f]{6}$/i.test(String(value || '')) ? String(value).toUpperCase() : '#64748B';
+}
+
+function customFieldTextColor(value) {
+  const hex=customFieldColor(value).slice(1),red=parseInt(hex.slice(0,2),16),green=parseInt(hex.slice(2,4),16),blue=parseInt(hex.slice(4,6),16);
+  return (red*299+green*587+blue*114)>=150000?'#0F172A':'#FFFFFF';
+}
+
 function customFieldValueLabel(field, value) {
   if (Array.isArray(value)) return value.map(item => customFieldOption(field, item)?.label || item).join(', ');
   if (field?.type === 'CHECKBOX') return value ? 'Có' : 'Không';
@@ -2183,7 +2203,9 @@ function customFieldCell(field, value) {
   }
   if (field.type === 'SELECT') {
     const option = customFieldOption(field, value);
-    return option ? `<span class="field-pill" style="--pill:${escapeHtml(option.color)}">${escapeHtml(option.label)}</span>` : '<span class="cell-sub">—</span>';
+    if (!option) return '<span class="cell-sub">—</span>';
+    const color=customFieldColor(option.color);
+    return `<span class="field-pill field-pill-solid" style="--pill:${color};background:${color};border-color:${color};color:${customFieldTextColor(color)}">${escapeHtml(option.label)}</span>`;
   }
   if (field.type === 'CHECKBOX') return value ? '<span class="status status-paid">Có</span>' : '<span class="cell-sub">Không</span>';
   if (field.type === 'URL') return value ? `<a class="field-link" href="${escapeHtml(value)}" target="_blank" rel="noopener noreferrer">Mở tài liệu ↗</a>` : '<span class="cell-sub">—</span>';
@@ -2196,7 +2218,9 @@ function customFieldTableControl(field, customer) {
   if (!canUpdateCustomer(customer)) return customFieldCell(field, value);
   if (field.type === 'SELECT') {
     const selectedOption = customFieldOption(field, value);
-    return `<select class="quick-custom-field" style="--field-color:${escapeHtml(selectedOption?.color || '#64748b')}" data-quick-custom-field="${escapeHtml(customer.id)}" data-field-id="${escapeHtml(field.id)}" aria-label="${escapeHtml(field.label)} của ${escapeHtml(customer.name)}"><option value="">— Chưa chọn —</option>${field.options.map(option => `<option value="${escapeHtml(option.value)}" style="color:${escapeHtml(option.color)}" ${value === option.value ? 'selected' : ''}>${escapeHtml(option.label)}</option>`).join('')}</select>`;
+    const selectedColor=customFieldColor(selectedOption?.color),selectedText=customFieldTextColor(selectedColor);
+    const selectedStyle=selectedOption?`background-color:${selectedColor};border-color:${selectedColor};color:${selectedText}`:'--field-color:#64748B';
+    return `<select class="quick-custom-field" style="--field-color:${selectedColor};${selectedStyle}" data-quick-custom-field="${escapeHtml(customer.id)}" data-field-id="${escapeHtml(field.id)}" aria-label="${escapeHtml(field.label)} của ${escapeHtml(customer.name)}"><option value="">— Chưa chọn —</option>${field.options.map(option => { const color=customFieldColor(option.color); return `<option value="${escapeHtml(option.value)}" style="color:${customFieldTextColor(color)};background-color:${color}" ${value === option.value ? 'selected' : ''}>${escapeHtml(option.label)}</option>`; }).join('')}</select>`;
   }
   if (field.type === 'CHECKBOX') {
     return `<label class="quick-checkbox"><input type="checkbox" data-quick-custom-checkbox="${escapeHtml(customer.id)}" data-field-id="${escapeHtml(field.id)}" ${value ? 'checked' : ''}><span>${value ? 'Có' : 'Không'}</span></label>`;
@@ -2434,6 +2458,13 @@ function matchesCustomerOwnerFilter(customer) {
 function customersView() {
   const query = normalize(globalQuery);
   const customers = uniqueCustomerRows(scopedCustomers()).filter(customer => customerStatusFilter === 'ALL' || customer.status === customerStatusFilter).filter(matchesCustomerOwnerFilter).filter(customer => !query || normalize(customerSearchText(customer)).includes(query)).sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));
+  const customerPages = Math.max(1, Math.ceil(customers.length / customerPageSize));
+  customerPage = Math.min(Math.max(customerPage, 1), customerPages);
+  const customerStart = (customerPage - 1) * customerPageSize;
+  const visibleCustomers = customers.slice(customerStart, customerStart + customerPageSize);
+  const customerFrom = customers.length ? customerStart + 1 : 0;
+  const customerTo = Math.min(customerStart + customerPageSize, customers.length);
+  const customerPagination = customerPages > 1 ? `<div class="customer-pagination" style="display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;padding:12px 14px;border-top:1px solid var(--border-light);color:var(--text-muted);font-size:11px"><span class="customer-pagination-summary" style="margin-right:auto">Hiển thị ${customerFrom}–${customerTo} / ${customers.length} khách</span><button type="button" class="button button-small" data-customer-page="prev" ${customerPage <= 1 ? 'disabled' : ''} aria-label="Trang trước">‹</button><span class="customer-pagination-current" style="min-width:72px;text-align:center;font-weight:700;color:var(--text-main)">Trang ${customerPage} / ${customerPages}</span><button type="button" class="button button-small" data-customer-page="next" ${customerPage >= customerPages ? 'disabled' : ''} aria-label="Trang sau">›</button></div>` : '';
   const importButton = currentAccount.role === 'ADMIN' ? '<button class="button" id="importCustomersButton" type="button">Kết nối / nhập data</button>' : '';
   const fieldButton = currentAccount.role === 'ADMIN' ? '<button class="button" id="manageCustomerFieldsButton" type="button">Quản lý cột</button>' : '';
   const createButton = `${currentAccount.role !== 'SALE' ? '<button class="button" id="exportCustomersButton" type="button">Xuất CSV</button>' : ''}${fieldButton}${importButton}<button class="button button-primary" id="newCustomerButton" type="button">+ Thêm khách hàng</button>`;
@@ -2443,7 +2474,7 @@ function customersView() {
   const sourceCell = customer => currentAccount.role === 'ADMIN' ? (() => { const source = customerSourceDetails(customer); const meta = [customer.source, customer.campaign].filter(Boolean).join(' · '); return `<td><div class="cell-main">${escapeHtml(source.name)}</div><div class="cell-sub mono">${source.url ? escapeHtml(source.url) : escapeHtml(source.domain || 'Nguồn chưa được gắn')}</div><div class="cell-sub">${escapeHtml(meta)}</div></td>`; })() : '';
   const columnCount = 7 + tableFields.length + (currentAccount.role === 'ADMIN' ? 1 : 0);
   return pageHead(title, 'Quản lý trạng thái, Sale phụ trách, ghi chú, lịch chăm sóc và sản phẩm đã mua trên cùng hồ sơ.', createButton) +
-    `<section class="panel customer-table-panel"><div class="toolbar"><input id="customerSearch" type="search" placeholder="Ten, SDT, email, Level, ghi chu..." value="${escapeHtml(globalQuery)}"><select id="customerStatusFilter"><option value="ALL">Tất cả trạng thái</option>${Object.entries(STATUS_META).map(([key, meta]) => `<option value="${key}" ${customerStatusFilter === key ? 'selected' : ''}>${escapeHtml(meta.label)}</option>`).join('')}</select>${customerOwnerOptions()}<span class="spacer"></span><span class="data-note">${customers.length} khách · ${tableFields.length} cột nghiệp vụ</span></div><div class="table-wrap"><table class="customer-data-table"><thead><tr><th>Ngày data</th><th>Khách hàng</th>${sourceHeader}<th>Team / Leader</th><th>Sale phụ trách</th>${tableFields.map(field => `<th>${escapeHtml(field.label)}</th>`).join('')}<th>Trạng thái</th><th>Ghi chú mới nhất</th><th></th></tr></thead><tbody>${customers.map(customer => { const leader = STAFF.find(person => person.id === customer.leaderId); const dataDate = dataDateParts(customer.createdAt); return `<tr><td class="data-date-cell"><b>${escapeHtml(dataDate.date)}</b><small>${escapeHtml(dataDate.time)}</small></td><td><div class="cell-main">${escapeHtml(customer.name)}</div><div class="cell-sub">${currentAccount.role === 'SALE' && !customer.saleAcceptedAt ? (() => { const offer = state.dataOffers.find(o => o.customerId === customer.id && o.saleId === currentAccount.saleId && o.status === 'PENDING'); return offer ? `<span class="status status-pending">⏱ còn ${Math.floor(offerMinutesLeft(offer) / 60)}h${offerMinutesLeft(offer) % 60}p</span>` : '<span class="status status-pending">Chờ nhận data</span>'; })() : escapeHtml(customer.phone)}</div></td>${sourceCell(customer)}<td><div class="cell-main">${escapeHtml(leader?.name || 'Chưa phân Leader')}</div>${leader ? `<div class="cell-sub">Team ${escapeHtml(customer.teamId)}</div>` : ''}</td><td class="col-staff">${quickSaleControl(customer)}</td>${tableFields.map(field => `<td>${customFieldTableControl(field, customer)}</td>`).join('')}<td>${quickStatusControl(customer)}</td><td><div class="cell-main mono">${escapeHtml(customer.updatedAt.slice(5))}</div><div class="cell-sub note-preview">${escapeHtml(customer.note)}</div></td><td>${currentAccount.role === 'SALE' && !customer.saleAcceptedAt ? `<button class="button button-small button-primary" data-accept-data="${escapeHtml(customer.id)}">Nhận data</button>` : ''}<button class="button button-small" data-open-customer="${escapeHtml(customer.id)}">Chi tiết</button></td></tr>`; }).join('') || `<tr><td colspan="${columnCount}"><div class="empty"><b>Không tìm thấy khách hàng</b><span>Hãy thử từ khóa hoặc bộ lọc khác.</span></div></td></tr>`}</tbody></table></div></section>${currentAccount.role === 'ADMIN' ? `<section class="panel" style="margin-top:14px"><div class="panel-head"><div><div class="panel-title">Lịch sử kết nối & cập nhật data</div></div><button class="button button-small" id="importCustomersSecondaryButton">+ Nguồn data</button></div><div class="table-wrap"><table><thead><tr><th>Thời gian</th><th>Nguồn</th><th>File / Endpoint</th><th>Số bản ghi</th><th>Người thực hiện</th><th>Trạng thái</th></tr></thead><tbody>${state.imports.slice(0, 8).map(item => `<tr><td class="mono">${escapeHtml(item.importedAt)}</td><td><b>${escapeHtml(item.source)}</b></td><td>${escapeHtml(item.filename)}</td><td>${number(item.records)}</td><td>${escapeHtml(item.actor)}</td><td>${item.status === 'SUCCESS' ? '<span class="status status-paid">Thành công</span>' : '<span class="status status-cancelled">Thất bại</span>'}</td></tr>`).join('')}</tbody></table></div></section>` : ''}`;
+    `<section class="panel customer-table-panel"><div class="toolbar"><input id="customerSearch" type="search" placeholder="Ten, SDT, email, Level, ghi chu..." value="${escapeHtml(globalQuery)}"><select id="customerStatusFilter"><option value="ALL">Tất cả trạng thái</option>${Object.entries(STATUS_META).map(([key, meta]) => `<option value="${key}" ${customerStatusFilter === key ? 'selected' : ''}>${escapeHtml(meta.label)}</option>`).join('')}</select>${customerOwnerOptions()}<span class="spacer"></span><span class="data-note">${customers.length} khách · ${tableFields.length} cột nghiệp vụ</span></div><div class="table-wrap"><table class="customer-data-table"><thead><tr><th>Ngày data</th><th>Khách hàng</th>${sourceHeader}<th>Team / Leader</th><th>Sale phụ trách</th>${tableFields.map(field => `<th>${escapeHtml(field.label)}</th>`).join('')}<th>Trạng thái</th><th>Ghi chú mới nhất</th><th></th></tr></thead><tbody>${visibleCustomers.map(customer => { const leader = STAFF.find(person => person.id === customer.leaderId); const dataDate = dataDateParts(customer.createdAt); return `<tr><td class="data-date-cell"><b>${escapeHtml(dataDate.date)}</b><small>${escapeHtml(dataDate.time)}</small></td><td><div class="cell-main">${escapeHtml(customer.name)}</div><div class="cell-sub">${currentAccount.role === 'SALE' && !customer.saleAcceptedAt ? (() => { const offer = state.dataOffers.find(o => o.customerId === customer.id && o.saleId === currentAccount.saleId && o.status === 'PENDING'); return offer ? `<span class="status status-pending">⏱ còn ${Math.floor(offerMinutesLeft(offer) / 60)}h${offerMinutesLeft(offer) % 60}p</span>` : '<span class="status status-pending">Chờ nhận data</span>'; })() : escapeHtml(customer.phone)}</div></td>${sourceCell(customer)}<td><div class="cell-main">${escapeHtml(leader?.name || 'Chưa phân Leader')}</div>${leader ? `<div class="cell-sub">Team ${escapeHtml(customer.teamId)}</div>` : ''}</td><td class="col-staff">${quickSaleControl(customer)}</td>${tableFields.map(field => `<td>${customFieldTableControl(field, customer)}</td>`).join('')}<td>${quickStatusControl(customer)}</td><td><div class="cell-main mono">${escapeHtml(customer.updatedAt.slice(5))}</div><div class="cell-sub note-preview">${escapeHtml(customer.note)}</div></td><td>${currentAccount.role === 'SALE' && !customer.saleAcceptedAt ? `<button class="button button-small button-primary" data-accept-data="${escapeHtml(customer.id)}">Nhận data</button>` : ''}<button class="button button-small" data-open-customer="${escapeHtml(customer.id)}">Chi tiết</button></td></tr>`; }).join('') || `<tr><td colspan="${columnCount}"><div class="empty"><b>Không tìm thấy khách hàng</b><span>Hãy thử từ khóa hoặc bộ lọc khác.</span></div></td></tr>`}</tbody></table></div>${customerPagination}</section>${currentAccount.role === 'ADMIN' ? `<section class="panel" style="margin-top:14px"><div class="panel-head"><div><div class="panel-title">Lịch sử kết nối & cập nhật data</div></div><button class="button button-small" id="importCustomersSecondaryButton">+ Nguồn data</button></div><div class="table-wrap"><table><thead><tr><th>Thời gian</th><th>Nguồn</th><th>File / Endpoint</th><th>Số bản ghi</th><th>Người thực hiện</th><th>Trạng thái</th></tr></thead><tbody>${state.imports.slice(0, 8).map(item => `<tr><td class="mono">${escapeHtml(item.importedAt)}</td><td><b>${escapeHtml(item.source)}</b></td><td>${escapeHtml(item.filename)}</td><td>${number(item.records)}</td><td>${escapeHtml(item.actor)}</td><td>${item.status === 'SUCCESS' ? '<span class="status status-paid">Thành công</span>' : '<span class="status status-cancelled">Thất bại</span>'}</td></tr>`).join('')}</tbody></table></div></section>` : ''}`;
 }
 
 // Ty trong rieng trong Team, khong thay doi ty trong Admin chia xuong Leader.
@@ -2464,7 +2495,7 @@ function updateTeamRecipient(id, field, value) {
 }
 function scopedRoleDataView() {
   const role=currentAccount.actualRole||currentAccount.role;
-  const rows=scopedCustomers().filter(customer=>!['ARCHIVED','LOST','PAID'].includes(customer.status)).sort((a,b)=>String(b.updatedAt||b.createdAt).localeCompare(String(a.updatedAt||a.createdAt)));
+  const rows=scopedCustomers().filter(customer=>isWebhookIntakeCustomer(customer)&&!['ARCHIVED','LOST','PAID'].includes(customer.status)).sort((a,b)=>String(b.updatedAt||b.createdAt).localeCompare(String(a.updatedAt||a.createdAt)));
   const visibleRows=rows.map((customer,index)=>{const offer=state.dataOffers.filter(item=>item.customerId===customer.id).sort((a,b)=>String(b.offeredAt||'').localeCompare(String(a.offeredAt||'')))[0];const type=offer?.status==='EXPIRED'&&!customer.saleId?'DATA TR\u1ea2 V\u1ec0':customer.updatedAt!==customer.createdAt?'DATA \u0110I\u1ec0N L\u1ea0I FORM':'DATA M\u1edaI';const status=offer?.status==='PENDING'?'Ch\u1edd Sale nh\u1eadn':offer?.status==='EXPIRED'&&!customer.saleId?'Data Sale kh\u00f4ng nh\u1eadn':customer.saleId?'Sale \u0111\u00e3 nh\u1eadn':'Ch\u01b0a ch\u1ecdn Sale';const typeClass=type==='DATA TR\u1ea2 V\u1ec0'?'status-cancelled':type==='DATA \u0110I\u1ec0N L\u1ea0I FORM'?'status-info':'status-pending';return '<tr><td><b>#'+(index+1)+'</b></td><td><b>'+escapeHtml(dataDateParts(customer.createdAt).date)+'</b><small>'+escapeHtml(dataDateParts(customer.createdAt).time)+'</small></td><td><b>'+escapeHtml(customer.name)+'</b><small>'+escapeHtml(customer.phone||'')+'</small></td><td><span class="status '+typeClass+'">'+type+'</span></td><td>'+quickSaleControl(customer)+'</td><td><span class="status '+(status==='Sale \u0111\u00e3 nh\u1eadn'?'status-paid':status==='Data Sale kh\u00f4ng nh\u1eadn'?'status-cancelled':'status-pending')+'">'+escapeHtml(status)+'</span></td></tr>';}).join('')||'<tr><td colspan="6"><div class="empty"><b>Kh\u00f4ng c\u00f3 data ch\u01b0a x\u1eed l\u00fd</b></div></td></tr>';
   return pageHead('Data','Data trong ph\u1ea1m vi '+(role==='MANAGER'?'tuy\u1ebfn Manager':'Team Leader'),'')+'<section class="panel customer-table-panel"><div class="panel-head"><div><div class="panel-title">Data ch\u01b0a x\u1eed l\u00fd</div></div></div><div class="table-wrap"><table class="intake-order-table"><thead><tr><th>TH\u1ee8 T\u1ef0</th><th>NG\u00c0Y DATA</th><th>KH\u00c1CH H\u00c0NG</th><th>LO\u1ea0I DATA</th><th>SALE NH\u1eacN</th><th>TR\u1ea0NG TH\u00c1I</th></tr></thead><tbody>${visibleRows}</tbody></table></div></section>';
 }
@@ -2496,7 +2527,7 @@ function distributionView() {
   const enabledSales = new Set(saleConfig.enabledSaleIds);
   const pool = state.customers.filter(customer => !customer.saleId && !customer.leaderId && !customer.teamId).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   const intakeRows = [
-    ...state.customers.map(customer => ({ id: `NEW:${customer.id}`, at: customer.createdAt, customer, kind: 'NEW', source: customer.source, campaign: customer.campaign })),
+    ...state.customers.filter(isWebhookIntakeCustomer).map(customer => ({ id: `NEW:${customer.id}`, at: customer.createdAt, customer, kind: 'NEW', source: customer.source, campaign: customer.campaign })),
     ...state.resubmissions.map(item => ({ id: `RETURN:${item.id}`, at: item.at, customer: customerById(item.customerId), kind: 'RETURN', source: item.source, campaign: item.campaign, registeredAccount: item.registeredAccount }))
   ].filter(item => item.customer).sort((a, b) => b.at.localeCompare(a.at) || b.id.localeCompare(a.id)).slice(0, 60);
   const tabs = [[`QUEUE`, `Thứ tự data mới vào (${pool.length})`], [`AUTO`, `Tự động`], [`LEADERS`, `Danh sách Leader`], [`SALES`, `Sale theo Leader`]];
@@ -2988,7 +3019,7 @@ function websitesView() {
     VERIFIED: ['Đã xác minh', 'paid'],
     ERROR: ['Lỗi kết nối', 'cancelled']
   };
-  const providerLabel = { LANDING_API: 'Landing Page', FACEBOOK_FORMS: 'Facebook Forms', TIKTOK_FORMS: 'TikTok Forms', CUSTOM_WEBHOOK: 'Custom Webhook' };
+  const providerLabel = { LANDING_API: 'Landing API', NOTIFICATION: 'Thông Báo' };
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
   const cards = state.websites.map(website => {
     const customers = websiteCustomerRows(website.id);
@@ -3474,7 +3505,7 @@ function closeModal() {
 
 function customFieldsModal() {
   if (currentAccount.role !== 'ADMIN') { toast('FORBIDDEN · chỉ Admin được quản lý cột khách hàng'); return; }
-  const typeLabels = { TEXT: 'Nhập nội dung', NOTE: 'Ghi chú', SELECT: 'Chọn một', MULTI_SELECT: 'Chọn nhiều', CHECKBOX: 'Tích chọn' };
+  const typeLabels = { TEXT: 'Nhập nội dung', NOTE: 'Ghi chú', SELECT: 'Chọn một', MULTI_SELECT: 'Chọn nhiều', CHECKBOX: 'Tích chọn', NOTIFICATION: 'Nhận thông báo' };
   openModal('Quản lý cột khách hàng', `<div class="field-manager"><div class="credential-hint"><b>Cột Level khách hàng có lịch sử bất biến.</b> Các cột mới tự xuất hiện trong bảng theo đúng kiểu dữ liệu.</div><button class="button button-primary" id="newCustomFieldButton" type="button">+ Thêm cột mới</button>${state.customFieldDefinitions.map(field => `<div class="field-manager-row ${field.active ? '' : 'is-archived'}"><div><b>${escapeHtml(field.label)}</b><small>${escapeHtml(typeLabels[field.type] || field.type)} · ${field.type === 'MULTI_SELECT' || field.type === 'NOTE' ? 'Hiện trong chi tiết' : 'Hiện trong bảng'}${field.active ? '' : ' · Đã lưu trữ'}</small></div><span class="field-pill" style="--pill:${escapeHtml(field.options?.[0]?.color || '#687771')}">${field.options?.length || 0} lựa chọn</span><button class="button button-small" data-edit-custom-field="${escapeHtml(field.id)}">Sửa</button><button class="button button-small ${field.active ? 'button-danger' : ''}" data-toggle-custom-field="${escapeHtml(field.id)}">${field.active ? 'Lưu trữ' : 'Khôi phục'}</button>${field.id !== 'customerLevel' ? `<button class="button button-small button-danger" data-delete-custom-field="${escapeHtml(field.id)}">Xóa</button>` : ''}</div>`).join('')}</div>`);
   $('#newCustomFieldButton').onclick = () => customFieldEditorModal();
   $$('[data-edit-custom-field]').forEach(button => button.onclick = () => customFieldEditorModal(button.dataset.editCustomField));
@@ -3496,12 +3527,17 @@ function customFieldEditorModal(id = null) {
   if (currentAccount.role !== 'ADMIN') { toast('FORBIDDEN · chỉ Admin được quản lý cột'); return; }
   const existing = id ? state.customFieldDefinitions.find(field => field.id === id) : null;
   if (id && !existing) return;
-  const field = existing || { label: '', type: 'TEXT', showInTable: false, required: false, options: [] };
+  const field = existing || { label: '', type: 'TEXT', showInTable: false, required: false, options: [], notificationWebhookId: '' };
+  const fieldType = field.notificationWebhookId ? 'NOTIFICATION' : field.type;
+  const notificationWebhooks = state.websites.filter(website => website.provider === 'NOTIFICATION');
   const optionRows = (field.options || []).map(option => `<div class="field-option-row"><input data-option-label data-option-value="${escapeHtml(option.value)}" value="${escapeHtml(option.label)}" placeholder="Nội dung lựa chọn"><input data-option-color type="color" value="${escapeHtml(/^#[0-9a-f]{6}$/i.test(option.color) ? option.color : '#64748b')}" title="Màu lựa chọn"><button class="button button-small button-danger" type="button" data-remove-option>Xóa</button></div>`).join('');
-  openModal(existing ? `Sửa cột · ${existing.label}` : 'Thêm cột khách hàng', `<form id="customFieldForm"><div class="form-grid"><label class="form-field">Tên cột<input id="customFieldLabel" maxlength="160" required value="${escapeHtml(field.label)}" placeholder="Ví dụ: Gọi kết nối"></label><label class="form-field">Kiểu dữ liệu<select id="customFieldType"><option value="TEXT" ${field.type === 'TEXT' ? 'selected' : ''}>Nhập nội dung</option><option value="SELECT" ${field.type === 'SELECT' ? 'selected' : ''}>Chọn một</option><option value="MULTI_SELECT" ${field.type === 'MULTI_SELECT' ? 'selected' : ''}>Chọn nhiều</option><option value="CHECKBOX" ${field.type === 'CHECKBOX' ? 'selected' : ''}>Tích chọn</option><option value="NOTE" ${field.type === 'NOTE' ? 'selected' : ''}>Ghi chú</option></select></label><div class="form-field full option-editor"><span>Nội dung lựa chọn <small>(chỉ dùng cho Chọn một / Chọn nhiều)</small></span><div id="customFieldOptions">${optionRows}</div><textarea id="customFieldOptionsLegacy" class="is-hidden">${escapeHtml((field.options || []).map(option => `${option.value}|${option.label}|${option.color}`).join('\n'))}</textarea><input id="customFieldShowTable" class="is-hidden" type="checkbox" checked><input id="customFieldRequired" class="is-hidden" type="checkbox"><button class="button button-small" type="button" id="addCustomFieldOption">+ Thêm nội dung</button></div></div><div class="modal-actions"><button class="button" type="button" id="backToFieldManager">Quay lại</button><button class="button button-primary" type="submit">Tạo cột</button></div></form>`);
+  openModal(existing ? `Sửa cột · ${existing.label}` : 'Thêm cột khách hàng', `<form id="customFieldForm"><div class="form-grid"><label class="form-field">Tên cột<input id="customFieldLabel" maxlength="160" required value="${escapeHtml(field.label)}" placeholder="Ví dụ: Gọi kết nối"></label><label class="form-field">Kiểu dữ liệu<select id="customFieldType"><option value="TEXT" ${fieldType === 'TEXT' ? 'selected' : ''}>Nhập nội dung</option><option value="SELECT" ${fieldType === 'SELECT' ? 'selected' : ''}>Chọn một</option><option value="MULTI_SELECT" ${fieldType === 'MULTI_SELECT' ? 'selected' : ''}>Chọn nhiều</option><option value="CHECKBOX" ${fieldType === 'CHECKBOX' ? 'selected' : ''}>Tích chọn</option><option value="NOTE" ${fieldType === 'NOTE' ? 'selected' : ''}>Ghi chú</option><option value="NOTIFICATION" ${fieldType === 'NOTIFICATION' ? 'selected' : ''}>Nhận thông báo</option></select></label><label class="form-field full" id="customFieldNotificationWebhookWrap">Webhook nhận thông báo<select id="customFieldNotificationWebhook">${notificationWebhooks.length ? `<option value="">— Chọn webhook —</option>${notificationWebhooks.map(website => `<option value="${escapeHtml(website.id)}" ${field.notificationWebhookId === website.id ? 'selected' : ''}>${escapeHtml(website.name)}</option>`).join('')}` : '<option value="">Chưa có webhook Thông Báo</option>'}</select></label><div class="form-field full option-editor"><span>Nội dung lựa chọn <small>(chỉ dùng cho Chọn một / Chọn nhiều)</small></span><div id="customFieldOptions">${optionRows}</div><textarea id="customFieldOptionsLegacy" class="is-hidden">${escapeHtml((field.options || []).map(option => `${option.value}|${option.label}|${option.color}`).join('\n'))}</textarea><input id="customFieldShowTable" class="is-hidden" type="checkbox" checked><input id="customFieldRequired" class="is-hidden" type="checkbox"><button class="button button-small" type="button" id="addCustomFieldOption">+ Thêm nội dung</button></div></div><div class="modal-actions"><button class="button" type="button" id="backToFieldManager">Quay lại</button><button class="button button-primary" type="submit">Tạo cột</button></div></form>`);
   $('#backToFieldManager').onclick = customFieldsModal;
   $('#addCustomFieldOption').onclick = () => { $('#customFieldOptions').insertAdjacentHTML('beforeend', '<div class="field-option-row"><input data-option-label placeholder="Nội dung lựa chọn"><input data-option-color type="color" value="#64748b"><button class="button button-small button-danger" type="button" data-remove-option>Xóa</button></div>'); bindFieldOptionRows(); };
   bindFieldOptionRows();
+  const syncFieldEditor = () => { const notification = $('#customFieldType').value === 'NOTIFICATION'; $('#customFieldNotificationWebhookWrap').hidden = !notification; $('#customFieldNotificationWebhook').required = notification; $('.option-editor').hidden = notification; };
+  $('#customFieldType').onchange = syncFieldEditor;
+  syncFieldEditor();
   $('#customFieldForm').onsubmit = event => { event.preventDefault(); saveCustomFieldDefinition(id); };
 }
 
@@ -3527,10 +3563,12 @@ function saveCustomFieldDefinition(id = null) {
   const rowInputs = $$('[data-option-label]');
   const optionRaw = rowInputs.length ? rowInputs.map((input, index) => `${input.dataset.optionValue || input.value.trim()}|${input.value.trim()}|${$$('[data-option-color]')[index]?.value || '#64748b'}`).join('\n') : ($('#customFieldOptions')?.value || $('#customFieldOptionsLegacy')?.value || '');
   const options = parseCustomFieldOptions(optionRaw, type);
-  if (!label || !['TEXT', 'NOTE', 'SELECT', 'MULTI_SELECT', 'CHECKBOX'].includes(type)) { toast('Tên hoặc kiểu cột không hợp lệ'); return; }
+  if (!label || !['TEXT', 'NOTE', 'SELECT', 'MULTI_SELECT', 'CHECKBOX', 'NOTIFICATION'].includes(type)) { toast('Tên hoặc kiểu cột không hợp lệ'); return; }
   if (['SELECT', 'MULTI_SELECT'].includes(type) && !options.length) { toast('Cột lựa chọn cần ít nhất một phương án'); return; }
   if (state.customFieldDefinitions.some(field => field.id !== id && normalize(field.label) === normalize(label))) { toast('Tên cột đã tồn tại'); return; }
-  const next = { id: existing?.id || `field-${Date.now()}`, label, type, showInTable: true, required: false, active: existing?.active !== false, options };
+  const notificationWebhookId = type === 'NOTIFICATION' ? String($('#customFieldNotificationWebhook')?.value || '') : '';
+  if (type === 'NOTIFICATION' && !notificationWebhookId) { toast('Hãy chọn webhook nhận thông báo'); return; }
+  const next = { id: existing?.id || `field-${Date.now()}`, label, type, showInTable: true, required: false, active: existing?.active !== false, options, notificationWebhookId };
   if (existing) {
     const previousDefinition = structuredClone(existing);
     Object.assign(existing, next);
@@ -4320,6 +4358,8 @@ function handleDuplicateSubmission(existing, incoming, context = {}) {
     at: stamp(),
     intakeType: ['MANUAL', 'FORM', 'IMPORT', 'API'].includes(context.intakeType) ? context.intakeType : 'FORM'
   };
+  existing.lastIntakeAt = event.at;
+  existing.lastIntakeType = 'RESUBMISSION';
   state.resubmissions.unshift(event);
   if (oldSale) state.notifications.unshift({ id: `NT-DUP-${Date.now()}-${existing.id}`, role: 'OWN', saleId: oldSale.id, title: registeredAccount ? 'DATA TRÙNG - DATA đã đăng ký TK' : 'Khách cũ điền lại form', text: `${existing.name} · ${existing.phone} · tiếp tục do bạn phụ trách`, at: stamp(), readBy: [] });
   audit('DUPLICATE_SUBMISSION', existing.id, `${registeredAccount ? 'DATA đã đăng ký TK' : 'Khách điền lại'} · ${oldSale ? `giữ ${oldSale.name}` : 'chưa có Sale cũ'}`);
@@ -4337,6 +4377,7 @@ function ingestCustomer(record, context = {}) {
   if (!name || phone.length < 9 || phone.length > 11) return { created: false, error: 'Tên hoặc số điện thoại không hợp lệ' };
   if (!website) return { created: false, error: 'Landing page nguồn không hợp lệ' };
   const customFields = Object.fromEntries(state.customFieldDefinitions.map(field => [field.id, sanitizeCustomFieldValue(record.customFields?.[field.id] ?? defaultCustomFieldValue(field), field)]));
+  const createdAt = stamp();
   const customer = {
     id: cleanId(record.id) && !state.customers.some(item => item.id === record.id) ? record.id : makeRecordId('CUS'),
     name,
@@ -4350,12 +4391,15 @@ function ingestCustomer(record, context = {}) {
     landingPageDomain: cleanText(record.landingPageDomain || website.domain, website.domain, 253),
     productName: cleanText(record.productName || record.product || record.sanpham, 'Chưa xác định sản phẩm', 200),
     websiteId: website.id,
+    manualEntry: context.intakeType === 'MANUAL',
     status: Object.hasOwn(STATUS_META, record.status) ? record.status : 'NEW',
     saleId: null,
     leaderId: null,
     teamId: null,
-    createdAt: stamp(),
-    updatedAt: stamp(),
+    createdAt,
+    updatedAt: createdAt,
+    lastIntakeAt: createdAt,
+    lastIntakeType: ['MANUAL', 'FORM', 'IMPORT', 'API'].includes(context.intakeType) ? context.intakeType : 'FORM',
     note: dataTerminology(cleanText(record.note, `Data từ ${website.domain}`, 2000)),
     customFields
   };
@@ -4368,7 +4412,7 @@ function ingestCustomer(record, context = {}) {
   });
   if (currentAccount?.role === 'SALE') applyCustomerAssignment(customer, activeStaff().find(member => member.id === currentAccount.saleId), 'Sale tạo khách trực tiếp', 'MANUAL');
   else if (currentAccount?.role === 'LEADER') applyCustomerAssignment(customer, activeStaff().find(member => member.id === currentAccount.leaderId), 'Leader tạo khách trong Team', 'MANUAL');
-  else autoAssignCustomer(customer);
+  else if (context.intakeType !== 'MANUAL') autoAssignCustomer(customer);
   createInitialTask(customer);
   audit('CREATE_CUSTOMER', customer.id, `Tạo khách ${name} · ${website.domain}`);
   return { created: true, duplicate: false, customer, message: 'Đã tạo khách hàng mới' };
@@ -4670,6 +4714,8 @@ function offerOrAssignSale(customer, target, reason, source, previous, direct = 
   customer.note = reason;
   state.notes.unshift({ id: `NOTE-${Date.now()}-${customer.id}-${target.id}`, customerId: customer.id, authorId: currentAccount?.id || 'SYSTEM', author: currentAccount?.name || 'Hệ thống phân data', role: currentAccount?.role || 'SYSTEM', text: `${reason} · chờ ${target.name} nhận`, at: stamp() });
   recordAssignmentChange(customer, previous, `${reason} · chờ ${target.name} nhận`, 'OFFER', true);
+  const offerHistory=state.assignmentHistory[0];
+  if(offerHistory&&offerHistory.customerId===customer.id)offerHistory.offeredSaleId=target.id;
   audit('OFFER_DATA', customer.id, `${target.name} · chờ nhận ${hours}h`);
   return true;
 }
@@ -4992,7 +5038,7 @@ function revokeCustomer(id) {
 
 function newWebsiteModal() {
   if (currentAccount.role !== 'ADMIN') { toast('FORBIDDEN · chỉ Admin được thêm website'); return; }
-  openModal('Thêm website / landing page', `<form id="newWebsiteForm"><div class="form-grid"><label class="form-field">Tên tài sản<input id="websiteName" required maxlength="200" placeholder="Landing chiến dịch"></label><label class="form-field full">URL nguồn / Landing page<input id="websiteSourceUrl" type="url" required maxlength="500" placeholder="https://www.hoangphucacademy.vn/"></label><label class="form-field full">Nguồn nhận data<select id="websiteProvider"><option value="LANDING_API">Landing API</option><option value="FACEBOOK_FORMS">Facebook Forms</option><option value="TIKTOK_FORMS">TikTok Forms</option><option value="CUSTOM_WEBHOOK">Custom Webhook</option></select></label></div><div class="credential-hint">URL nguồn là trang khách điền form. Website mới mặc định tắt nhận data cho đến khi backend xác minh kết nối.</div><div class="modal-actions"><button class="button" type="button" data-close-modal>Huỷ</button><button class="button button-primary" type="submit">Thêm website</button></div></form>`);
+  openModal('Thêm website / landing page', `<form id="newWebsiteForm"><div class="form-grid"><label class="form-field">Tên tài sản<input id="websiteName" required maxlength="200" placeholder="Landing chiến dịch"></label><label class="form-field full">URL nguồn / Landing page<input id="websiteSourceUrl" type="url" required maxlength="500" placeholder="https://www.hoangphucacademy.vn/"></label><label class="form-field full">Nguồn nhận data<select id="websiteProvider"><option value="LANDING_API">Landing API</option><option value="NOTIFICATION">Thông Báo</option></select></label></div><div class="credential-hint">Thông Báo dùng để nhận thông báo từ website khác và hiển thị trong CRM. Website mới mặc định tắt nhận data cho đến khi backend xác minh kết nối.</div><div class="modal-actions"><button class="button" type="button" data-close-modal>Huỷ</button><button class="button button-primary" type="submit">Thêm website</button></div></form>`);
   $('#newWebsiteForm').onsubmit = event => {
     event.preventDefault();
     const name = $('#websiteName').value.trim();
@@ -5281,7 +5327,7 @@ function openSearchDrawer(value) {
 function bindQueryInput(selector) {
   const input = $(selector);
   if (!input) return;
-  input.oninput = () => { globalQuery = input.value; };
+  input.oninput = () => { globalQuery = input.value; if (selector === '#customerSearch') customerPage = 1; };
   input.onkeydown = event => { if (event.key === 'Enter') render(); };
 }
 
@@ -5388,8 +5434,9 @@ function bindViewActions() {
   $('#exportReportButton')?.addEventListener('click', exportFullReport);
   bindQueryInput('#customerSearch');
   bindQueryInput('#orderSearch');
-  $('#customerStatusFilter')?.addEventListener('change', event => { customerStatusFilter = event.target.value; render(); });
-  $('#customerOwnerFilter')?.addEventListener('change', event => { customerOwnerFilter = event.target.value; render(); });
+  $('#customerStatusFilter')?.addEventListener('change', event => { customerStatusFilter = event.target.value; customerPage = 1; render(); });
+  $('#customerOwnerFilter')?.addEventListener('change', event => { customerOwnerFilter = event.target.value; customerPage = 1; render(); });
+  $$('[data-customer-page]').forEach(button => button.onclick = () => { const direction = button.dataset.customerPage === 'next' ? 1 : -1; customerPage += direction; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
   $('#orderStatusFilter')?.addEventListener('change', event => { orderStatusFilter = event.target.value; render(); });
   $$('[data-distribution-tab]').forEach(button => button.onclick = () => { distributionTab = button.dataset.distributionTab; render(); });
   $('#toggleLeaderDistribution')?.addEventListener('click', toggleLeaderDistribution);
@@ -5502,6 +5549,7 @@ async function startSession(account, restored = false, token = serverSyncToken, 
   customDateEnd = dayIso(0);
   orderStatusFilter = 'ALL';
   customerStatusFilter = 'ALL';
+  customerPage = 1;
   globalQuery = '';
   selectedPoolIds.clear();
   customerOwnerFilter = 'ALL';

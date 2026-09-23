@@ -32,7 +32,7 @@
     const allowed=['customer','order','editOrder','newOrder','import','categories','fields','settings','createTeam','password','profile','products','distribution','customers','pool','accept','attendance','revenue','businessReport','accounting','marketing','reports','orders','emailTest','newCustomer'];
     if(!allowed.includes(kind))throw Error('Chức năng không hợp lệ.');
     if(['profile','customers','pool','accept','attendance','revenue','businessReport','accounting','marketing','orders'].includes(kind)&&!allowedViews().includes(kind)&&!(kind==='pool'&&roles==='ADMIN'))throw Error('Không có quyền truy cập.');
-    if(['newCustomer','newOrder','editOrder'].includes(kind))requireRole(['ADMIN','LEADER','SALE']);
+    if(['newCustomer','newOrder','editOrder'].includes(kind))requireRole(['ADMIN','MANAGER','LEADER','SALE']);
     if(kind==='reports'&&!['ADMIN','LEADER'].includes(roles))throw Error('Không có quyền báo cáo.');
     if(kind==='customer'&&roles==='SALE'&&!customerById(id)?.saleAcceptedAt)throw Error('Phải nhận data trước khi xem thông tin khách.');
     closeModal();closeDrawer();workflowActive=true;workflowView=false;lastNotice='';
@@ -164,15 +164,19 @@
         const selectedWebsite=websites.find(website=>website.id===input.websiteId||website.name===input.websiteId||website.domain===input.websiteId)||websites[0];
         if(!selectedWebsite)throw Error('Chưa có Landing page/website nguồn để tạo data.');
         const normalizedInput={...input,websiteId:selectedWebsite.id};
-        const recipient=normalizedInput.saleId?activeStaff().find(m=>m.id===normalizedInput.saleId && ['SALE','LEADER'].includes(m.role) && (currentAccount.role==='ADMIN'||m.teamId===currentAccount.teamId)):null;
-        if(normalizedInput.saleId && currentAccount.role!=='SALE' && !recipient) throw Error('Sale không nằm trong phạm vi tài khoản.');
+        const recipient=normalizedInput.saleId?activeStaff().find(m=>m.id===normalizedInput.saleId && ['MANAGER','SALE','LEADER'].includes(m.role)):null;
+        const managerLeaders=currentAccount.role==='MANAGER'?new Set(activeStaff().filter(m=>m.role==='LEADER'&&m.managerId===currentAccount.id&&m.active!==false).map(m=>m.id)):new Set();
+        const managerSales=currentAccount.role==='MANAGER'?new Set(activeStaff().filter(m=>m.role==='SALE'&&m.active!==false&&(m.managerId===currentAccount.id||managerLeaders.has(m.leaderId))).map(m=>m.id)):new Set();
+        const recipientAllowed=!normalizedInput.saleId||currentAccount.role==='ADMIN'||currentAccount.role==='MANAGER'&&(recipient?.id===currentAccount.id||managerLeaders.has(recipient?.id)||managerSales.has(recipient?.id))||currentAccount.role==='LEADER'&&(recipient?.id===currentAccount.id||recipient?.role==='SALE'&&recipient.leaderId===currentAccount.id);
+        if(normalizedInput.saleId&&(!recipient||!recipientAllowed))throw Error('Người phụ trách không nằm trong phạm vi tài khoản.');
         const result=ingestCustomer(normalizedInput,{intakeType:'MANUAL',sourceLabel:'Nhập thủ công'});
         if (!result.created&&!result.duplicate) throw Error(result.error);
         if (result.created && normalizedInput.saleId && currentAccount.role !== 'SALE') {
           const c=result.customer;
-          const recipient=activeStaff().find(m=>m.id===normalizedInput.saleId && (currentAccount.role==='ADMIN'||m.teamId===currentAccount.teamId));
-          if (!recipient) throw Error('Sale không nằm trong phạm vi tài khoản.');
-          applyCustomerAssignment(c,recipient,'Phân công khi tạo khách từ CRM');
+          const recipient=activeStaff().find(m=>m.id===normalizedInput.saleId);
+          if (!recipient||!recipientAllowed) throw Error('Người phụ trách không nằm trong phạm vi tài khoản.');
+          const assignmentTarget=recipient.role==='MANAGER'?{...recipient,actualRole:'MANAGER',managerRecipient:true,leaderId:null,teamId:''}:recipient;
+          applyCustomerAssignment(c,assignmentTarget,'Phân công khi tạo khách từ CRM');
         }
         return {id:result.customer.id,duplicate:result.duplicate};
       },'customer');
@@ -273,12 +277,15 @@
         const existing=state.customFieldDefinitions.find(f=>f.id===id);
         if(id&&!existing)throw Error('Cột không còn tồn tại.');
         const label=String(input.label||'').trim(),type=id==='customerLevel'?'SELECT':input.type;
-        if(!label||label.length>160||!['TEXT','NOTE','SELECT','MULTI_SELECT','CHECKBOX'].includes(type))throw Error('Tên hoặc kiểu cột không hợp lệ.');
+        if(!label||label.length>160||!['TEXT','NOTE','SELECT','MULTI_SELECT','CHECKBOX','NOTIFICATION'].includes(type))throw Error('Tên hoặc kiểu cột không hợp lệ.');
+         const notificationWebhookId=String(input.notificationWebhookId||'').trim();
+         if(type==='NOTIFICATION'&&!notificationWebhookId)throw Error('Hãy chọn webhook nhận thông báo.');
+         if(notificationWebhookId&&!state.websites.some(website=>website.id===notificationWebhookId&&website.provider==='NOTIFICATION'))throw Error('Webhook Thông Báo không hợp lệ.');
         if(state.customFieldDefinitions.some(f=>f.id!==id&&normalize(f.label)===normalize(label)))throw Error('Tên cột đã tồn tại.');
         const options=['SELECT','MULTI_SELECT'].includes(type)?(input.options||[]).map(o=>({value:String(o.value||o.label||'').trim(),label:String(o.label||'').trim(),color:/^#[a-f0-9]{6}$/i.test(o.color)?o.color:'#64748b'})):[];
         if(['SELECT','MULTI_SELECT'].includes(type)&&(!options.length||options.some(o=>!o.value||!o.label||o.value.length>160||o.label.length>200)||new Set(options.map(o=>o.value)).size!==options.length))throw Error('Nhập các lựa chọn khác nhau, không để trống.');
         if(id&&(state.careGroups||[]).some(g=>g.fieldId===id&&(!['SELECT','MULTI_SELECT'].includes(type)||g.values.some(v=>!options.some(o=>o.value===v)))))throw Error('Lựa chọn đang dùng trong mục chăm sóc. Hãy cập nhật mục chăm sóc trước.');
-        const next={id:id||makeRecordId('field'),label,type,options,active:existing?.active!==false,showInTable:true,required:existing?.required===true};
+        const next={id:id||makeRecordId('field'),label,type,options,notificationWebhookId,active:existing?.active!==false,showInTable:true,required:existing?.required===true};
         if(existing){
           const previous=structuredClone(existing);Object.assign(existing,next);
           state.customers.forEach(c=>{c.customFields||={};const before=c.customFields[id]??defaultCustomFieldValue(previous),after=sanitizeCustomFieldValue(before,existing);if(JSON.stringify(before)!==JSON.stringify(after))recordFieldChange(c,previous,before,after,'SYSTEM');c.customFields[id]=after;});
@@ -322,11 +329,12 @@
     async saveWebsite(id,input) {
       requireRole(['ADMIN']);return persist(()=>{
         const existing=state.websites.find(w=>w.id===id);if(id&&!existing)throw Error('Website không còn tồn tại.');
-        const name=String(input.name||'').trim(),sourceUrl=cleanSourceUrl(input.sourceUrl);let domain='';try{domain=new URL(sourceUrl).hostname.toLowerCase();}catch{}
-        if(!name||name.length>200||!sourceUrl||!domain||!['LANDING_API','FACEBOOK_FORMS','TIKTOK_FORMS','CUSTOM_WEBHOOK'].includes(input.provider))throw Error('Tên, URL nguồn hoặc nhà cung cấp không hợp lệ.');
+        const name=String(input.name||'').trim(),sourceUrl=cleanSourceUrl(input.sourceUrl),requestedProvider=String(input.provider||'').trim();let domain='';try{domain=new URL(sourceUrl).hostname.toLowerCase();}catch{}
+        const provider=['LANDING_API','NOTIFICATION'].includes(requestedProvider)?requestedProvider:['FACEBOOK_FORMS','TIKTOK_FORMS','CUSTOM_WEBHOOK'].includes(requestedProvider)?'LANDING_API':'';
+        if(!name||name.length>200||!sourceUrl||!domain||!provider)throw Error('Tên, URL nguồn hoặc loại webhook không hợp lệ.');
         if(state.websites.some(w=>w.id!==id&&w.sourceUrl===sourceUrl))throw Error('URL nguồn đã tồn tại.');
-        const website=existing||normalizeWebsiteRecord({id:makeRecordId('WEB'),name,sourceUrl,provider:input.provider,webhookSlug:generateWebhookSlug()});
-        Object.assign(website,{name,sourceUrl,domain,provider:input.provider});
+        const website=existing||normalizeWebsiteRecord({id:makeRecordId('WEB'),name,sourceUrl,provider,webhookSlug:generateWebhookSlug()});
+        Object.assign(website,{name,sourceUrl,domain,provider});
         if(!existing)state.websites.unshift(website);
         audit(existing?'UPDATE_SOURCE_URL':'CREATE_WEBSITE',website.id,sourceUrl);return {id:website.id};
       },'website:'+ (id||'new'));

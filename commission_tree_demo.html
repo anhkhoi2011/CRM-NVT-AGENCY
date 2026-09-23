@@ -789,21 +789,18 @@
  <!-- Mode switcher buttons -->
  <div class="view-mode-tabs">
  <button class="mode-tab-btn active" id="btnTabMindmap" onclick="switchView('tab-mindmap')">
- Cây Mindmap (Lv1 - Lv3)
+ Cây Mindmap (Manager - Leader - Sale)
  </button>
  <button class="mode-tab-btn" id="btnTabReport" onclick="switchView('tab-report')">
  Báo Cáo Doanh Thu (23 Nhân Sự)
  </button>
  </div>
 
- <div class="header-actions">
- <button class="tool-btn" onclick="openConfigModal()" title="Cấu hình hệ số quy đổi 1 MINI = 0.8, 1 Micro = 0.35, định mức 80k/60k/50k">
- Biến Số Quy Đổi Lot
- </button>
- <button class="tool-btn primary" onclick="exportToCSV()">
- Xuất Báo Cáo CSV
- </button>
- </div>
+ <div class="header-actions" id="topHeaderActions">
+      <button class="tool-btn" onclick="openConfigModal()" title="Cấu hình hệ số quy đổi 1 MINI = 0.8, 1 Micro = 0.35, tỷ lệ % hoa hồng sản phẩm">
+        Biến Số Quy Đổi Lot
+      </button>
+    </div>
  </header>
 
  <!-- 3. KPI SUMMARY BAR (23 NHÂN SỰ LV1 - LV2 - LV3) -->
@@ -816,7 +813,7 @@
  <div class="kpi-card blue">
  <div class="kpi-label">Tổng HH Lot Cá Nhân</div>
  <div class="kpi-val" id="kpiTotalHhLot" style="color:#2563eb;">21.845.000 đ</div>
- <div class="kpi-sub" id="kpiSubHhLot">Lv1: 80k • Lv2: 60k • Lv3: 50k</div>
+ <div class="kpi-sub" id="kpiSubHhLot">Manager: 80k • Leader: 60k • Sale: 50k</div>
  </div>
  <div class="kpi-card purple">
  <div class="kpi-label">HH Tuyến Dưới (Chênh Lệch Lot)</div>
@@ -824,9 +821,9 @@
  <div class="kpi-sub" id="kpiSubDownline">Leader +10k/lot • Manager +20k/lot</div>
  </div>
  <div class="kpi-card emerald">
- <div class="kpi-label">Doanh Thu Sản Phẩm Nhân Sự</div>
- <div class="kpi-val" id="kpiTotalIndicator" style="color:#059669;">264.500.000 đ</div>
- <div class="kpi-sub">Chỉ báo trading & Khóa học đào tạo</div>
+ <div class="kpi-label">Tổng HH Sản Phẩm (23 Nhân Sự)</div>
+ <div class="kpi-val" id="kpiTotalIndicator" style="color:#059669;">26.450.000 đ</div>
+ <div class="kpi-sub" id="kpiSubProduct">Doanh số: 264.500.000 đ • TB 10.0%</div>
  </div>
  <div class="kpi-card emerald">
  <div class="kpi-label">Tổng Thực Nhận Chi Trả</div>
@@ -835,31 +832,19 @@
  </div>
  </section>
 
- <!-- 5. CONTENT TABS -->
- <div class="content-container">
+  <!-- 5. CONTENT TABS -->
+  <div class="content-container">
 
-    
-    </div>
-
-
- <!-- ==========================================================
- VIEW 1: CÂY MINDMAP HOA HỒNG (ẨN 2 ADMIN - PHÂN CẤP LV1, LV2, LV3)
- ========================================================== -->
- <div id="tab-mindmap" class="tab-content-panel active">
- 
- </div>
-
- 
- <div class="mindmap-box">
+    <!-- ==========================================================
+         VIEW 1: CÂY MINDMAP HOA HỒNG (ẨN 2 ADMIN - PHÂN CẤP LV1, LV2, LV3)
+         ========================================================== -->
+    <div id="tab-mindmap" class="tab-content-panel active">
+      <div class="mindmap-box">
  <!-- Toolbar -->
  <div class="mindmap-toolbar">
  <div class="mindmap-title">
- <span>CÂY MÔI GIỚI APEX (23 NHÂN SỰ)</span>
- <span class="badge-count" style="background:#2563eb;" id="badgeCountLv1">2 VỊ TRÍ LV1 (80K/LOT)</span>
- <span class="badge-count" style="background:#ea580c;" id="badgeCountLv2">5 VỊ TRÍ LV2 (60K/LOT)</span>
- <span class="badge-count" style="background:#059669;" id="badgeCountLv3">16 VỊ TRÍ LV3 (50K/LOT)</span>
- <span style="font-size:11.5px; color:#94a3b8; font-weight:500;">(Đã ẩn 2 Admin)</span>
- </div>
+          <span>CÂY MÔI GIỚI APEX (23 NHÂN SỰ)</span>
+        </div>
  <div class="mindmap-controls">
  <button class="tool-btn" onclick="zoomMindmap(1.15)"> Phóng to</button>
  <button class="tool-btn" onclick="zoomMindmap(0.85)"> Thu nhỏ</button>
@@ -901,9 +886,6 @@
  <span style="background:#e0f2fe; color:#0284c7; font-size:11.5px; font-weight:700; padding:3px 8px; border-radius:6px;">
  Tháng 09/2026
  </span>
- <span style="background:#f1f5f9; color:#475569; font-size:11px; font-weight:700; padding:3px 8px; border-radius:6px;">
- Đã ẩn 2 Admin
- </span>
  </div>
 
  <div style="display:flex; align-items:center; gap:10px;">
@@ -911,8 +893,12 @@
  <span></span>
  <input type="text" id="reportSearchInput" placeholder="Tìm tên nhân sự, ID, vị trí..." oninput="handleSearch(this.value)">
  </div>
- <button class="tool-btn" onclick="openConfigModal()"> Tùy Chỉnh Biến Số Lot</button>
- <button class="tool-btn primary" onclick="exportToCSV()"> Xuất Excel/CSV</button>
+ <button class="tool-btn" onclick="openSendToPersonnelModal()" style="background:#f5f3ff; color:#7c3aed; border:1px solid #ddd6fe; font-weight:700;">
+            ✉️ Gửi Đến Nhân Viên
+          </button>
+          <button class="tool-btn primary" onclick="exportToCSV()">
+            📊 Xuất Excel
+          </button>
  </div>
  </div>
 
@@ -920,9 +906,9 @@
  <div class="role-filter-strip">
  <span style="font-size:11.5px; font-weight:800; color:#64748b; text-transform:uppercase;">Lọc Vị Trí:</span>
  <button class="filter-btn active" onclick="filterByRole('ALL', this)">Tất cả (23)</button>
- <button class="filter-btn" id="filterBtnLv1" onclick="filterByRole('LV1', this)">VỊ TRÍ LV1 (2) • 80k/lot</button>
- <button class="filter-btn" id="filterBtnLv2" onclick="filterByRole('LV2', this)">VỊ TRÍ LV2 (5) • 60k/lot</button>
- <button class="filter-btn" id="filterBtnLv3" onclick="filterByRole('LV3', this)">VỊ TRÍ LV3 (16) • 50k/lot</button>
+ <button class="filter-btn" id="filterBtnLv1" onclick="filterByRole('LV1', this)">MANAGER (2) • 80k/lot</button>
+ <button class="filter-btn" id="filterBtnLv2" onclick="filterByRole('LV2', this)">LEADER (5) • 60k/lot</button>
+ <button class="filter-btn" id="filterBtnLv3" onclick="filterByRole('LV3', this)">SALE (16) • 50k/lot</button>
  <span style="margin-left:auto; font-size:11.5px; color:#64748b;">
  <em>Khách Sale 1 lot: Sale 50k, Leader 10k, Manager 20k. Sale không có tuyến dưới hiển thị (—).</em>
  </span>
@@ -978,16 +964,12 @@
             </tr>
           </tfoot>
  </table>
- </div>
- </div>
-
- </div>
-
- </div>
-
- </div>
- </main>
-</div>
+        </div> <!-- end .table-responsive -->
+      </div> <!-- end .report-card -->
+    </div> <!-- end #tab-report -->
+  </div> <!-- end .content-container -->
+</main>
+</div> <!-- end .app-layout -->
 
 <!-- ====================================================================
  MODAL 1: CHỈNH SỬA CƠ CHẾ, SỐ LOT & CHÊNH LỆCH TUYẾN DƯỚI TỪNG NHÂN SỰ
@@ -1208,46 +1190,9 @@
  </div>
  </div>
 
- <div style="background:#eff6ff; border:1px solid #bfdbfe; padding:12px; border-radius:8px;">
- <div style="font-size:11.5px; font-weight:800; color:#1e40af; margin-bottom:8px; text-transform:uppercase;">
- 2. Định Mức Hoa Hồng Theo Vị Trí (VNĐ / Lot):
- </div>
- <div class="form-grid-3">
- <div class="form-group">
- <label>Vị trí Lv1 (Manager)</label>
- <input type="number" id="cfgRateLv1" step="5000" value="80000">
- <small style="color:#2563eb; font-weight:700;">80k/lot</small>
- </div>
- <div class="form-group">
- <label>Vị trí Lv2 (Leader)</label>
- <input type="number" id="cfgRateLv2" step="5000" value="60000">
- <small style="color:#ea580c; font-weight:700;">60k/lot</small>
- </div>
- <div class="form-group">
- <label>Vị trí Lv3 (Sale)</label>
- <input type="number" id="cfgRateLv3" step="5000" value="50000">
- <small style="color:#10b981; font-weight:700;">50k/lot</small>
- </div>
- </div>
-
- <div class="form-grid-2" style="margin-top:10px;">
- <div class="form-group">
- <label>Chênh lệch Leader nhận từ Sale (VNĐ / Lot)</label>
- <input type="number" id="cfgDiffLeader" step="1000" value="10000">
- <small style="color:#ea580c; font-weight:700;">60k - 50k = 10k/lot</small>
- </div>
- <div class="form-group">
- <label>Chênh lệch Manager nhận từ Leader/Sale (VNĐ / Lot)</label>
- <input type="number" id="cfgDiffManager" step="1000" value="20000">
- <small style="color:#2563eb; font-weight:700;">80k - 60k = 20k/lot</small>
- </div>
- </div>
- </div>
-
- 
- <div style="background:#f0f9ff; border:1px solid #bae6fd; padding:12px; border-radius:8px; margin-top:12px;">
+ <div style="background:#f0f9ff; border:1px solid #bae6fd; padding:12px; border-radius:8px;">
  <div style="font-size:11.5px; font-weight:800; color:#0369a1; margin-bottom:8px; text-transform:uppercase;">
- 3. Tỷ Lệ Hoa Hồng Sản Phẩm Toàn Hệ Thống:
+ 2. Tỷ Lệ Hoa Hồng Sản Phẩm Toàn Hệ Thống:
  </div>
  <div class="form-grid-2">
  <div class="form-group">
@@ -1269,6 +1214,71 @@
  <button class="tool-btn primary" onclick="applyLotConfig()">Áp Dụng Toàn Hệ Thống</button>
  </div>
  </div>
+</div>
+
+<!-- ====================================================================
+     MODAL 3: GỬI BÁO CÁO & BẢNG KÊ THU NHẬP ĐẾN NHÂN VIÊN
+     ==================================================================== -->
+<div class="modal-backdrop" id="sendPersonnelModal" style="z-index: 1060;">
+  <div class="modal-card" style="max-width: 920px;">
+    <div class="modal-header" style="background:#f5f3ff; border-bottom:1px solid #ddd6fe;">
+      <div>
+        <h3 style="color:#6d28d9; margin:0; font-size:16px;">✉️ Gửi Báo Cáo & Bảng Kê Thu Nhập Đến Từng Nhân Viên</h3>
+        <span style="font-size:12px; color:#64748b;">Gửi thông báo xác nhận doanh thu & hoa hồng tháng 09/2026 đến nhân sự qua hệ thống / Zalo / SMS</span>
+      </div>
+      <button class="modal-close" onclick="closeSendToPersonnelModal()">✕</button>
+    </div>
+    
+    <div class="modal-body" style="padding:16px;">
+      <!-- Action & Filter Bar -->
+      <div style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; border:1px solid #e2e8f0; padding:10px 14px; border-radius:8px; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <label style="display:flex; align-items:center; gap:6px; font-weight:700; font-size:12.5px; cursor:pointer; color:#0f172a;">
+            <input type="checkbox" id="sendSelectAllCheckbox" onchange="toggleSelectAllPersonnel(this.checked)" checked style="width:16px; height:16px; cursor:pointer;">
+            Chọn tất cả (23 nhân sự)
+          </label>
+          <div style="display:flex; gap:6px; margin-left:10px;">
+            <button type="button" class="filter-btn" style="padding:3px 8px; font-size:11px;" onclick="filterSendPersonnelRole('ALL')">Tất cả</button>
+            <button type="button" class="filter-btn" style="padding:3px 8px; font-size:11px;" onclick="filterSendPersonnelRole('LV1')">Chỉ Manager (2)</button>
+            <button type="button" class="filter-btn" style="padding:3px 8px; font-size:11px;" onclick="filterSendPersonnelRole('LV2')">Chỉ Leader (5)</button>
+            <button type="button" class="filter-btn" style="padding:3px 8px; font-size:11px;" onclick="filterSendPersonnelRole('LV3')">Chỉ Sale (16)</button>
+          </div>
+        </div>
+        <div style="font-size:12px; font-weight:700; color:#475569;">
+          Đã chọn: <span id="sendSelectedCount" style="color:#7c3aed; font-size:14px; font-weight:900;">23</span>/23 nhân sự | 
+          Tổng gửi: <span id="sendSelectedTotalMoney" style="color:#059669; font-size:14px; font-weight:900; font-family:'JetBrains Mono';">0 đ</span>
+        </div>
+      </div>
+
+      <!-- Personnel Table -->
+      <div class="table-responsive" style="max-height: 380px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px;">
+        <table class="crm-table" style="margin-bottom:0;">
+          <thead style="position:sticky; top:0; z-index:10; background:#f1f5f9;">
+            <tr>
+              <th style="width:36px; text-align:center;">✓</th>
+              <th style="width:40px;">STT</th>
+              <th>Nhân Sự Nhận Báo Cáo</th>
+              <th>Cấp Bậc</th>
+              <th>Quản Lý Trực Tiếp</th>
+              <th style="text-align:right;">Tổng Lot</th>
+              <th style="text-align:right;">Thực Nhận</th>
+              <th style="text-align:center;">Trạng Thái</th>
+            </tr>
+          </thead>
+          <tbody id="sendPersonnelListBody">
+            <!-- Dynamic generated by JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="modal-footer" style="background:#f8fafc; display:flex; justify-content:space-between; align-items:center;">
+      <button type="button" class="tool-btn" onclick="closeSendToPersonnelModal()">Đóng Cửa Sổ</button>
+      <button type="button" class="tool-btn primary" onclick="confirmSendToPersonnel()" style="background:linear-gradient(135deg, #7c3aed, #4f46e5); color:#fff; font-weight:800; padding:9px 18px; font-size:13px; box-shadow:0 4px 12px rgba(124,58,237,0.3);">
+        ✉️ Xác Nhận Gửi Đến Từng Nhân Viên
+      </button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -1301,7 +1311,7 @@
  name: "Phương Anh",
  phone: "0329093366",
  roleLevel: "LV1",
- roleTitle: "Vị trí Lv1",
+ roleTitle: "Manager",
  team: "Nhánh Phương Anh",
  directManager: "—",
  parentId: null,
@@ -1320,7 +1330,7 @@
  name: "Nguyễn Hoàng Khánh",
  phone: "09397724768",
  roleLevel: "LV1",
- roleTitle: "Vị trí Lv1",
+ roleTitle: "Manager",
  team: "Nhánh Nguyễn Hoàng Khánh",
  directManager: "—",
  parentId: null,
@@ -1341,7 +1351,7 @@
  name: "Trần Thị Tuyết",
  phone: "0858237687",
  roleLevel: "LV2",
- roleTitle: "Vị trí Lv2",
+ roleTitle: "Leader",
  team: "Nhóm Trần Thị Tuyết",
  directManager: "Phương Anh - ID: 08049866",
  parentId: "08049866",
@@ -1360,7 +1370,7 @@
  name: "Đỗ Mạnh Hùng",
  phone: "0842278856",
  roleLevel: "LV2",
- roleTitle: "Vị trí Lv2",
+ roleTitle: "Leader",
  team: "Nhóm Đỗ Mạnh Hùng",
  directManager: "—",
  parentId: null,
@@ -1379,7 +1389,7 @@
  name: "Đỗ Việt Cường",
  phone: "0849938395",
  roleLevel: "LV2",
- roleTitle: "Vị trí Lv2",
+ roleTitle: "Leader",
  team: "Nhóm Đỗ Việt Cường",
  directManager: "Phương Anh - ID: 08049866",
  parentId: "08049866",
@@ -1398,7 +1408,7 @@
  name: "Vũ Thị Quỳnh",
  phone: "0975629969",
  roleLevel: "LV2",
- roleTitle: "Vị trí Lv2",
+ roleTitle: "Leader",
  team: "Nhóm Vũ Thị Quỳnh",
  directManager: "—",
  parentId: null,
@@ -1417,7 +1427,7 @@
  name: "Đặng Tấn Tử",
  phone: "0356563141",
  roleLevel: "LV2",
- roleTitle: "Vị trí Lv2",
+ roleTitle: "Leader",
  team: "Nhóm Đặng Tấn Tử",
  directManager: "Nguyễn Hoàng Khánh - ID: 08014278",
  parentId: "08014278",
@@ -1438,7 +1448,7 @@
  name: "Lê Ngân",
  phone: "03894386325",
  roleLevel: "LV3",
- roleTitle: "Vị trí Lv3",
+ roleTitle: "Sale",
  team: "Nhóm Đặng Tấn Tử",
  directManager: "Đặng Tấn Tử - ID: 08035000",
  parentId: "08035000",
@@ -1456,7 +1466,7 @@
  name: "Lê Trung Kiên",
  phone: "0979998269",
  roleLevel: "LV3",
- roleTitle: "Vị trí Lv3",
+ roleTitle: "Sale",
  team: "Nhóm Đặng Tấn Tử",
  directManager: "Đặng Tấn Tử - ID: 08035000",
  parentId: "08035000",
@@ -1474,7 +1484,7 @@
  name: "Võ Thị Diễm Tiên",
  phone: "0974768804",
  roleLevel: "LV3",
- roleTitle: "Vị trí Lv3",
+ roleTitle: "Sale",
  team: "Nhóm Vũ Thị Quỳnh",
  directManager: "Vũ Thị Quỳnh - ID: 08095532",
  parentId: "08095532",
@@ -1492,7 +1502,7 @@
  name: "Đỗ Mạnh Dũng",
  phone: "0394558544",
  roleLevel: "LV3",
- roleTitle: "Vị trí Lv3",
+ roleTitle: "Sale",
  team: "Nhóm Đỗ Mạnh Hùng",
  directManager: "Đỗ Mạnh Hùng - ID: 08080804",
  parentId: "08080804",
@@ -1510,7 +1520,7 @@
  name: "Đức Thị Ngọc",
  phone: "0982766562",
  roleLevel: "LV3",
- roleTitle: "Vị trí Lv3",
+ roleTitle: "Sale",
  team: "Nhóm Vũ Thị Quỳnh",
  directManager: "Vũ Thị Quỳnh - ID: 08095532",
  parentId: "08095532",
@@ -1528,7 +1538,7 @@
  name: "Cáp Trọng Sơn Tùng",
  phone: "0982325893",
  roleLevel: "LV3",
- roleTitle: "Vị trí Lv3",
+ roleTitle: "Sale",
  team: "Nhóm Đỗ Việt Cường",
  directManager: "Đỗ Việt Cường - ID: 08020609",
  parentId: "08020609",
@@ -1546,7 +1556,7 @@
  name: "Lê Thanh Ngân",
  phone: "0936133428",
  roleLevel: "LV3",
- roleTitle: "Vị trí Lv3",
+ roleTitle: "Sale",
  team: "Nhóm Đặng Tấn Tử",
  directManager: "Đặng Tấn Tử - ID: 08035000",
  parentId: "08035000",
@@ -1564,7 +1574,7 @@
  name: "Nguyễn Minh Thế",
  phone: "0333454326",
  roleLevel: "LV3",
- roleTitle: "Vị trí Lv3",
+ roleTitle: "Sale",
  team: "Nhóm Đặng Tấn Tử",
  directManager: "Đặng Tấn Tử - ID: 08035000",
  parentId: "08035000",
@@ -1582,7 +1592,7 @@
  name: "Phạm Hoài Ngọc Đức",
  phone: "0793769272",
  roleLevel: "LV3",
- roleTitle: "Vị trí Lv3",
+ roleTitle: "Sale",
  team: "Nhóm Đặng Tấn Tử",
  directManager: "Đặng Tấn Tử - ID: 08035000",
  parentId: "08035000",
@@ -1600,7 +1610,7 @@
  name: "Nguyễn Văn Sung",
  phone: "0963429844",
  roleLevel: "LV3",
- roleTitle: "Vị trí Lv3",
+ roleTitle: "Sale",
  team: "Nhóm Đỗ Mạnh Hùng",
  directManager: "Đỗ Mạnh Hùng - ID: 08080804",
  parentId: "08080804",
@@ -1618,7 +1628,7 @@
  name: "Đinh Hoàng Tuấn Trí",
  phone: "0939743785",
  roleLevel: "LV3",
- roleTitle: "Vị trí Lv3",
+ roleTitle: "Sale",
  team: "Nhóm Đặng Tấn Tử",
  directManager: "Đặng Tấn Tử - ID: 08035000",
  parentId: "08035000",
@@ -1636,7 +1646,7 @@
  name: "Trần Thị Mai",
  phone: "0356275538",
  roleLevel: "LV3",
- roleTitle: "Vị trí Lv3",
+ roleTitle: "Sale",
  team: "Nhóm Trần Thị Tuyết",
  directManager: "Trần Thị Tuyết - ID: 08077592",
  parentId: "08077592",
@@ -1654,7 +1664,7 @@
  name: "Đặng Hương Thuỷ",
  phone: "0768283269",
  roleLevel: "LV3",
- roleTitle: "Vị trí Lv3",
+ roleTitle: "Sale",
  team: "Nhánh Phương Anh",
  directManager: "Phương Anh - ID: 08049866",
  parentId: "08049866",
@@ -1672,7 +1682,7 @@
  name: "Hồ Tấn Anh Tài",
  phone: "0839492750",
  roleLevel: "LV3",
- roleTitle: "Vị trí Lv3",
+ roleTitle: "Sale",
  team: "Nhóm Đặng Tấn Tử",
  directManager: "Đặng Tấn Tử - ID: 08035000",
  parentId: "08035000",
@@ -1690,7 +1700,7 @@
  name: "Hoàng Tấn Nguyên",
  phone: "0347892110",
  roleLevel: "LV3",
- roleTitle: "Vị trí Lv3",
+ roleTitle: "Sale",
  team: "Nhóm Đặng Tấn Tử",
  directManager: "Đặng Tấn Tử - ID: 08035000",
  parentId: "08035000",
@@ -1708,7 +1718,7 @@
  name: "Nguyễn Thị Vân Huyền",
  phone: "0968341905",
  roleLevel: "LV3",
- roleTitle: "Vị trí Lv3",
+ roleTitle: "Sale",
  team: "Nhóm Vũ Thị Quỳnh",
  directManager: "Vũ Thị Quỳnh - ID: 08095532",
  parentId: "08095532",
@@ -1737,81 +1747,103 @@
  return Number(std.toFixed(2));
  }
 
- // Tính chi tiết tuyến dưới dựa trên cây nhân sự
- function getDownlineDetails(person, dataList) {
- if (person.roleLevel === 'LV3') {
- return {
- downlineLots: null,
- overrideRateStr: '—',
- downlineCommission: 0,
- subordinatesCount: 0
- };
- }
+  // Tính chi tiết tuyến dưới dựa trên cây nhân sự (Tính động theo chênh lệch định mức / lot)
+  function getDownlineDetails(person, dataList, tempPersonRate = null) {
+    if (person.roleLevel === 'LV3') {
+      return {
+        downlineLots: null,
+        overrideRateStr: '—',
+        downlineCommission: 0,
+        subordinatesCount: 0
+      };
+    }
 
- if (person.roleLevel === 'LV2') {
- // Leader: Tìm các Sale (LV3) trực thuộc
- const directSales = dataList.filter(s => s.parentId === person.id);
- const downlineLots = directSales.reduce((acc, s) => acc + getPersonalStdLot(s), 0);
- const diffRate = (person.customDiffRate !== undefined && person.customDiffRate !== null) 
- ? person.customDiffRate 
- : LOT_CONFIG.diffLeader; // 10k/lot
- const downlineCommission = Math.round(downlineLots * diffRate);
- 
- return {
- downlineLots: Number(downlineLots.toFixed(2)),
- overrideRateStr: '+' + (diffRate / 1000) + 'k/lot',
- downlineCommission: downlineCommission,
- subordinatesCount: directSales.length
- };
- }
+    const currentRate = (tempPersonRate !== null) 
+      ? Number(tempPersonRate) 
+      : ((person.ratePerLot !== undefined && person.ratePerLot !== null) 
+          ? Number(person.ratePerLot) 
+          : (person.roleLevel === 'LV1' ? 80000 : 60000));
 
- if (person.roleLevel === 'LV1') {
- // Manager: Tìm các Leader (LV2) và Sale trực thuộc
- const directSubs = dataList.filter(s => s.parentId === person.id);
- let totalLots = 0;
- let totalCommission = 0;
- let count = 0;
+    if (person.roleLevel === 'LV2') {
+      // Leader: Tìm các Sale (LV3) trực thuộc
+      const directSales = dataList.filter(s => s.parentId === person.id);
+      let totalLots = 0;
+      let totalCommission = 0;
 
- const mgrDiffRate = (person.customDiffRate !== undefined && person.customDiffRate !== null)
- ? person.customDiffRate
- : LOT_CONFIG.diffManager; // 20k/lot
+      directSales.forEach(s => {
+        const sLot = getPersonalStdLot(s);
+        const sRate = (s.ratePerLot !== undefined && s.ratePerLot !== null) ? Number(s.ratePerLot) : LOT_CONFIG.rateLv3;
+        // Chênh lệch Leader hưởng từ Sale = Max(0, LeaderRate - SaleRate)
+        const diffRate = Math.max(0, currentRate - sRate);
+        totalLots += sLot;
+        totalCommission += sLot * diffRate;
+      });
 
- directSubs.forEach(sub => {
- if (sub.roleLevel === 'LV2') {
- // 1 lot của Leader: Manager hưởng chênh lệch 20k
- const lLot = getPersonalStdLot(sub);
- totalLots += lLot;
- totalCommission += lLot * mgrDiffRate;
- count++;
+      const avgDiff = totalLots > 0 ? (totalCommission / totalLots) : Math.max(0, currentRate - LOT_CONFIG.rateLv3);
 
- // 1 lot của Sale dưới quyền Leader: Manager hưởng chênh lệch 20k
- const teamSales = dataList.filter(s => s.parentId === sub.id);
- teamSales.forEach(s => {
- const sLot = getPersonalStdLot(s);
- totalLots += sLot;
- totalCommission += sLot * mgrDiffRate;
- count++;
- });
- } else if (sub.roleLevel === 'LV3') {
- // Sale trực thuộc Manager không qua Leader (ví dụ Đặng Hương Thuỷ):
- // Manager hưởng phần chênh lệch trực tiếp 80k - 50k = 30k/lot
- const sLot = getPersonalStdLot(sub);
- totalLots += sLot;
- totalCommission += sLot * LOT_CONFIG.diffManagerDirectSale;
- count++;
- }
- });
+      return {
+        downlineLots: Number(totalLots.toFixed(2)),
+        overrideRateStr: '+' + (avgDiff / 1000).toFixed(0) + 'k/lot',
+        downlineCommission: Math.round(totalCommission),
+        subordinatesCount: directSales.length
+      };
+    }
 
- return {
- downlineLots: Number(totalLots.toFixed(2)),
- overrideRateStr: '+' + (mgrDiffRate / 1000) + 'k/lot',
- downlineCommission: Math.round(totalCommission),
- subordinatesCount: count
- };
- }
+    if (person.roleLevel === 'LV1') {
+      // Manager: Tìm các Leader (LV2) và Sale trực thuộc
+      const directSubs = dataList.filter(s => s.parentId === person.id);
+      let totalLots = 0;
+      let totalCommission = 0;
+      let count = 0;
 
- return { downlineLots: null, overrideRateStr: '—', downlineCommission: 0, subordinatesCount: 0 };
- }
+      directSubs.forEach(sub => {
+        if (sub.roleLevel === 'LV2') {
+          // 1 lot cá nhân của Leader: Manager hưởng chênh lệch = currentRate - LeaderRate
+          const lRate = (sub.ratePerLot !== undefined && sub.ratePerLot !== null) ? Number(sub.ratePerLot) : LOT_CONFIG.rateLv2;
+          const lLot = getPersonalStdLot(sub);
+          const diffFromLeader = Math.max(0, currentRate - lRate);
+          totalLots += lLot;
+          totalCommission += lLot * diffFromLeader;
+          count++;
+
+          // Sales dưới quyền Leader này:
+          // Manager hưởng phần chênh lệch còn lại: currentRate - Max(LeaderRate, SaleRate)
+          // Ví dụ: Manager 90k, Leader 60k, Sale 50k -> 90k - 60k = 30k/lot
+          // Ví dụ: Manager 90k, Leader 60k, Sale 60k -> 90k - 60k = 30k/lot (đúng ví dụ của User)
+          const teamSales = dataList.filter(s => s.parentId === sub.id);
+          teamSales.forEach(s => {
+            const sRate = (s.ratePerLot !== undefined && s.ratePerLot !== null) ? Number(s.ratePerLot) : LOT_CONFIG.rateLv3;
+            const sLot = getPersonalStdLot(s);
+            const diffFromSale = Math.max(0, currentRate - Math.max(lRate, sRate));
+            totalLots += sLot;
+            totalCommission += sLot * diffFromSale;
+            count++;
+          });
+        } else if (sub.roleLevel === 'LV3') {
+          // Sale trực thuộc Manager (không qua Leader):
+          // Manager hưởng trực tiếp: currentRate - SaleRate
+          // Ví dụ: Manager 90k, Sale 60k -> 90k - 60k = 30k/lot!
+          const sRate = (sub.ratePerLot !== undefined && sub.ratePerLot !== null) ? Number(sub.ratePerLot) : LOT_CONFIG.rateLv3;
+          const sLot = getPersonalStdLot(sub);
+          const diffDirect = Math.max(0, currentRate - sRate);
+          totalLots += sLot;
+          totalCommission += sLot * diffDirect;
+          count++;
+        }
+      });
+
+      const avgDiff = totalLots > 0 ? (totalCommission / totalLots) : Math.max(0, currentRate - LOT_CONFIG.rateLv2);
+
+      return {
+        downlineLots: Number(totalLots.toFixed(2)),
+        overrideRateStr: '+' + (avgDiff / 1000).toFixed(0) + 'k/lot',
+        downlineCommission: Math.round(totalCommission),
+        subordinatesCount: count
+      };
+    }
+
+    return { downlineLots: null, overrideRateStr: '—', downlineCommission: 0, subordinatesCount: 0 };
+  }
 
  function calculatePersonnelFinance(item) {
  const stdLot = getPersonalStdLot(item);
@@ -1852,10 +1884,10 @@
  }
 
  function getRoleBadgeHtml(level) {
- if (level === 'LV1') return '<span class="role-badge role-lv1">VỊ TRÍ LV1</span>';
- if (level === 'LV2') return '<span class="role-badge role-lv2">VỊ TRÍ LV2</span>';
- return '<span class="role-badge role-lv3">VỊ TRÍ LV3</span>';
- }
+    if (level === 'LV1') return '<span class="role-badge role-lv1">MANAGER</span>';
+    if (level === 'LV2') return '<span class="role-badge role-lv2">LEADER</span>';
+    return '<span class="role-badge role-lv3">SALE</span>';
+  }
 
  // ====================================================================
  // 4. RENDER CÂY MINDMAP SVG (ẨN 2 ADMIN, BẮT ĐẦU TỪ ROOT -> LV1 -> LV2 -> LV3)
@@ -2115,10 +2147,21 @@
       <td style="font-family:'JetBrains Mono'; font-size:11.5px;">${formatMoney(item.indicatorRev)}</td>
       <td style="font-family:'JetBrains Mono'; font-size:11.5px;">${formatMoney(item.courseRev)}</td>
       <td style="text-align:center; background:#f0f9ff;">
-        <span style="font-family:'JetBrains Mono'; font-weight:800; color:#0284c7; background:#e0f2fe; padding:2px 6px; border-radius:4px; font-size:11px;">${prodRate}%</span>
+        <div style="display:inline-flex; align-items:center; gap:2px;">
+          <input type="number" min="0" max="100" step="1" value="${prodRate}" 
+                 onchange="updatePersonnelProductRate('${item.id}', this.value)"
+                 title="Nhập % hoa hồng sản phẩm cho ${item.name} và bấm Enter để tính lại toàn hệ thống"
+                 style="width:52px; text-align:center; padding:3px 2px; font-family:'JetBrains Mono'; font-weight:800; font-size:11.5px; color:#0284c7; border:1px solid #7dd3fc; border-radius:5px; background:#ffffff;">
+          <span style="font-weight:800; font-size:11px; color:#0284c7;">%</span>
+        </div>
       </td>
-      <td style="font-family:'JetBrains Mono'; font-weight:600;">${formatMoney(fin.hhProduct)}</td>
-      <td style="font-family:'JetBrains Mono'; color:#7e22ce; font-weight:700;">${formatMoney(item.bonus || 0)}</td>
+      <td style="font-family:'JetBrains Mono'; font-weight:700; color:#0369a1;">${formatMoney(fin.hhProduct)}</td>
+      <td style="text-align:center; background:#faf5ff;">
+        <input type="number" step="100000" min="0" value="${item.bonus || 0}"
+               onchange="updatePersonnelBonus('${item.id}', this.value)"
+               title="Nhập thưởng KPI cho ${item.name} và bấm Enter để tính lại toàn hệ thống"
+               style="width:96px; text-align:right; padding:3px 4px; font-family:'JetBrains Mono'; font-weight:700; font-size:11px; color:#7e22ce; border:1px solid #e9d5ff; border-radius:5px; background:#ffffff;">
+      </td>
       <td style="font-family:'JetBrains Mono'; font-weight:900; font-size:13.5px; color:#059669; background:#f0fdf4;">${formatMoney(fin.netIncome)}</td>
       <td style="text-align:center;">
         <button class="btn-edit-lot" onclick="openEditPersonnelModal('${item.id}')">Sửa Cơ Chế</button>
@@ -2127,29 +2170,32 @@
     tbody.appendChild(tr);
   });
 
- document.getElementById('footBasicLot').textContent = totalBasicLot.toFixed(1);
- document.getElementById('footMicroLot').textContent = totalMicroLot.toFixed(1);
- document.getElementById('footMiniLot').textContent = totalMiniLot.toFixed(1);
- document.getElementById('footStdLot').textContent = totalStdLot.toFixed(2);
- document.getElementById('footHhLot').textContent = formatMoney(totalHhLot);
- document.getElementById('footDownlineLot').textContent = totalDownlineLot.toFixed(2) + ' lot';
- document.getElementById('footHhDownline').textContent = formatMoney(totalHhDownline);
- document.getElementById('footIndRev').textContent = formatMoney(totalIndRev);
- document.getElementById('footCouRev').textContent = formatMoney(totalCouRev);
- const avgRate = filtered.length > 0 ? (filtered.reduce((acc, p) => acc + ((p.productRate !== undefined) ? p.productRate : 10), 0) / filtered.length).toFixed(1) : '10.0';
- const footRateEl = document.getElementById('footProdRate');
- if (footRateEl) footRateEl.textContent = avgRate + '%';
- document.getElementById('footHhProd').textContent = formatMoney(totalHhProd);
- document.getElementById('footBonus').textContent = formatMoney(totalBonus);
- document.getElementById('footNetIncome').textContent = formatMoney(totalNet);
+  document.getElementById('footBasicLot').textContent = totalBasicLot.toFixed(1);
+  document.getElementById('footMicroLot').textContent = totalMicroLot.toFixed(1);
+  document.getElementById('footMiniLot').textContent = totalMiniLot.toFixed(1);
+  document.getElementById('footStdLot').textContent = totalStdLot.toFixed(2);
+  document.getElementById('footHhLot').textContent = formatMoney(totalHhLot);
+  document.getElementById('footDownlineLot').textContent = totalDownlineLot.toFixed(2) + ' lot';
+  document.getElementById('footHhDownline').textContent = formatMoney(totalHhDownline);
+  document.getElementById('footIndRev').textContent = formatMoney(totalIndRev);
+  document.getElementById('footCouRev').textContent = formatMoney(totalCouRev);
+  const avgRate = filtered.length > 0 ? (filtered.reduce((acc, p) => acc + ((p.productRate !== undefined) ? p.productRate : 10), 0) / filtered.length).toFixed(1) : '10.0';
+  const footRateEl = document.getElementById('footProdRate');
+  if (footRateEl) footRateEl.textContent = avgRate + '%';
+  document.getElementById('footHhProd').textContent = formatMoney(totalHhProd);
+  document.getElementById('footBonus').textContent = formatMoney(totalBonus);
+  document.getElementById('footNetIncome').textContent = formatMoney(totalNet);
 
- // 5 KPIs
- document.getElementById('kpiTotalLot').textContent = totalStdLot.toFixed(2);
- document.getElementById('kpiTotalHhLot').textContent = formatMoney(totalHhLot);
- document.getElementById('kpiTotalDownline').textContent = formatMoney(totalHhDownline);
- document.getElementById('kpiTotalIndicator').textContent = formatMoney(totalIndRev + totalCouRev);
- document.getElementById('kpiTotalNet').textContent = formatMoney(totalNet);
- }
+  // 5 KPIs
+  document.getElementById('kpiTotalLot').textContent = totalStdLot.toFixed(2);
+  document.getElementById('kpiTotalHhLot').textContent = formatMoney(totalHhLot);
+  document.getElementById('kpiTotalDownline').textContent = formatMoney(totalHhDownline);
+  const kpiInd = document.getElementById('kpiTotalIndicator');
+  if (kpiInd) kpiInd.textContent = formatMoney(totalHhProd);
+  const kpiSub = document.getElementById('kpiSubProduct');
+  if (kpiSub) kpiSub.textContent = `Doanh số: ${formatMoney(totalIndRev + totalCouRev)} • TB ${avgRate}%`;
+  document.getElementById('kpiTotalNet').textContent = formatMoney(totalNet);
+  }
 
  // ====================================================================
  // 6. RENDER BẢNG XẾP HẠNG THỰC NHẬN
@@ -2200,8 +2246,8 @@
       const hintEl = document.getElementById('txtDownlineHint');
       if (hintEl) {
         hintEl.textContent = (person.roleLevel === 'LV1') 
-          ? 'Manager hưởng +20k/lot từ Leader/Sale (+30k/lot từ Sale trực tiếp)'
-          : 'Leader hưởng +10k/lot từ khách của Sale trực thuộc';
+          ? `Manager (${(fin.ratePerLot/1000)}k/lot) hưởng chênh lệch động: [${(fin.ratePerLot/1000)}k - định mức cấp dưới]`
+          : `Leader (${(fin.ratePerLot/1000)}k/lot) hưởng chênh lệch động: [${(fin.ratePerLot/1000)}k - định mức Sale]`;
       }
     } else {
       // Vị trí LV3 (Sale)
@@ -2260,13 +2306,21 @@
     const stdLot = Number((basicLot * LOT_CONFIG.standardMultiplier + miniLot * LOT_CONFIG.miniMultiplier + microLot * LOT_CONFIG.microMultiplier).toFixed(2));
     const hhLot = Math.round(stdLot * ratePerLot);
     
-    // Tuyến Dưới
+    // Tuyến Dưới (tính động trực tiếp theo ratePerLot đang nhập trong ô)
     let hhDownline = 0;
     if (person.roleLevel === 'LV1' || person.roleLevel === 'LV2') {
-      const dl = getDownlineDetails(person, APEX_DATA);
+      const dl = getDownlineDetails(person, APEX_DATA, ratePerLot);
       hhDownline = dl.downlineCommission;
       const previewDl = document.getElementById('previewHhDownline');
       if (previewDl) previewDl.textContent = formatMoney(hhDownline);
+      const dlLotsEl = document.getElementById('displayDownlineLots');
+      if (dlLotsEl) dlLotsEl.value = `${dl.downlineLots} lot tiêu chuẩn (${dl.overrideRateStr})`;
+      const hintEl = document.getElementById('txtDownlineHint');
+      if (hintEl) {
+        hintEl.textContent = (person.roleLevel === 'LV1') 
+          ? `Manager (${(ratePerLot/1000)}k/lot) hưởng chênh lệch động: [${(ratePerLot/1000)}k - định mức cấp dưới]`
+          : `Leader (${(ratePerLot/1000)}k/lot) hưởng chênh lệch động: [${(ratePerLot/1000)}k - định mức Sale]`;
+      }
     }
 
     const totalProductRev = indicatorRev + courseRev;
@@ -2340,12 +2394,17 @@
     let totalMoney = 0;
     let stt = 1;
 
+    const personRate = (person.ratePerLot !== undefined && person.ratePerLot !== null)
+      ? Number(person.ratePerLot)
+      : (person.roleLevel === 'LV1' ? 80000 : 60000);
+
     if (person.roleLevel === 'LV2') {
       // Leader: Các Sale (LV3) trực thuộc
       const sales = APEX_DATA.filter(s => s.parentId === person.id);
       sales.forEach(sale => {
         const sLot = getPersonalStdLot(sale);
-        const diffRate = (person.customDiffRate !== undefined && person.customDiffRate !== null) ? person.customDiffRate : LOT_CONFIG.diffLeader;
+        const sRate = (sale.ratePerLot !== undefined && sale.ratePerLot !== null) ? Number(sale.ratePerLot) : LOT_CONFIG.rateLv3;
+        const diffRate = Math.max(0, personRate - sRate);
         const comm = Math.round(sLot * diffRate);
         totalLots += sLot;
         totalMoney += comm;
@@ -2355,12 +2414,12 @@
           <td>${stt++}</td>
           <td>
             <strong>${sale.name}</strong>
-            <div style="font-size:10px; color:#64748b;">ID: ${sale.id}</div>
+            <div style="font-size:10px; color:#64748b;">ID: ${sale.id} • Định mức: ${(sRate/1000)}k/lot</div>
           </td>
           <td>${getRoleBadgeHtml(sale.roleLevel)}</td>
           <td style="font-size:11.5px; color:#475569;">Sale trực thuộc Leader</td>
           <td style="font-family:'JetBrains Mono'; font-weight:700;">${sLot.toFixed(2)} lot</td>
-          <td style="color:#ea580c; font-weight:800; font-family:'JetBrains Mono';">+${(diffRate/1000)}k/lot</td>
+          <td style="color:#ea580c; font-weight:800; font-family:'JetBrains Mono';">+${(diffRate/1000).toFixed(0)}k/lot <span style="font-size:10px; font-weight:400; color:#64748b;">(${(personRate/1000)}k - ${(sRate/1000)}k)</span></td>
           <td style="color:#059669; font-weight:800; font-family:'JetBrains Mono';">+${formatMoney(comm)}</td>
         `;
         tbody.appendChild(tr);
@@ -2371,8 +2430,9 @@
       directSubs.forEach(sub => {
         if (sub.roleLevel === 'LV2') {
           // Leader
+          const lRate = (sub.ratePerLot !== undefined && sub.ratePerLot !== null) ? Number(sub.ratePerLot) : LOT_CONFIG.rateLv2;
           const lLot = getPersonalStdLot(sub);
-          const mgrDiff = (person.customDiffRate !== undefined && person.customDiffRate !== null) ? person.customDiffRate : LOT_CONFIG.diffManager;
+          const mgrDiff = Math.max(0, personRate - lRate);
           const commL = Math.round(lLot * mgrDiff);
           totalLots += lLot;
           totalMoney += commL;
@@ -2383,12 +2443,12 @@
             <td>${stt++}</td>
             <td>
               <strong>${sub.name}</strong>
-              <div style="font-size:10px; color:#c2410c;">Leader Trực Thuộc • ID: ${sub.id}</div>
+              <div style="font-size:10px; color:#c2410c;">Leader Trực Thuộc • ID: ${sub.id} • ${(lRate/1000)}k/lot</div>
             </td>
             <td>${getRoleBadgeHtml(sub.roleLevel)}</td>
             <td style="font-size:11.5px; color:#c2410c; font-weight:700;">Leader cấp 1</td>
             <td style="font-family:'JetBrains Mono'; font-weight:700;">${lLot.toFixed(2)} lot</td>
-            <td style="color:#2563eb; font-weight:800; font-family:'JetBrains Mono';">+${(mgrDiff/1000)}k/lot</td>
+            <td style="color:#2563eb; font-weight:800; font-family:'JetBrains Mono';">+${(mgrDiff/1000).toFixed(0)}k/lot <span style="font-size:10px; font-weight:400; color:#64748b;">(${(personRate/1000)}k - ${(lRate/1000)}k)</span></td>
             <td style="color:#059669; font-weight:800; font-family:'JetBrains Mono';">+${formatMoney(commL)}</td>
           `;
           tbody.appendChild(trL);
@@ -2396,8 +2456,10 @@
           // Sales của Leader này
           const teamSales = APEX_DATA.filter(s => s.parentId === sub.id);
           teamSales.forEach(sale => {
+            const sRate = (sale.ratePerLot !== undefined && sale.ratePerLot !== null) ? Number(sale.ratePerLot) : LOT_CONFIG.rateLv3;
             const sLot = getPersonalStdLot(sale);
-            const commS = Math.round(sLot * mgrDiff);
+            const diffFromSale = Math.max(0, personRate - Math.max(lRate, sRate));
+            const commS = Math.round(sLot * diffFromSale);
             totalLots += sLot;
             totalMoney += commS;
 
@@ -2406,20 +2468,22 @@
               <td>${stt++}</td>
               <td style="padding-left:24px;">
                 ↳ <span>${sale.name}</span>
-                <div style="font-size:10px; color:#64748b;">ID: ${sale.id} • Dưới quyền ${sub.name}</div>
+                <div style="font-size:10px; color:#64748b;">ID: ${sale.id} • Dưới ${sub.name} • ${(sRate/1000)}k/lot</div>
               </td>
               <td>${getRoleBadgeHtml(sale.roleLevel)}</td>
               <td style="font-size:11.5px; color:#64748b;">Sale qua Leader ${sub.name}</td>
               <td style="font-family:'JetBrains Mono'; font-weight:700;">${sLot.toFixed(2)} lot</td>
-              <td style="color:#2563eb; font-weight:800; font-family:'JetBrains Mono';">+${(mgrDiff/1000)}k/lot</td>
+              <td style="color:#2563eb; font-weight:800; font-family:'JetBrains Mono';">+${(diffFromSale/1000).toFixed(0)}k/lot <span style="font-size:10px; font-weight:400; color:#64748b;">(${(personRate/1000)}k - ${(Math.max(lRate, sRate)/1000)}k)</span></td>
               <td style="color:#059669; font-weight:800; font-family:'JetBrains Mono';">+${formatMoney(commS)}</td>
             `;
             tbody.appendChild(trS);
           });
         } else if (sub.roleLevel === 'LV3') {
           // Sale trực thuộc Manager
+          const sRate = (sub.ratePerLot !== undefined && sub.ratePerLot !== null) ? Number(sub.ratePerLot) : LOT_CONFIG.rateLv3;
           const sLot = getPersonalStdLot(sub);
-          const commDirect = Math.round(sLot * LOT_CONFIG.diffManagerDirectSale);
+          const diffDirect = Math.max(0, personRate - sRate);
+          const commDirect = Math.round(sLot * diffDirect);
           totalLots += sLot;
           totalMoney += commDirect;
 
@@ -2429,12 +2493,12 @@
             <td>${stt++}</td>
             <td>
               <strong>${sub.name}</strong>
-              <div style="font-size:10px; color:#15803d;">Sale Trực Tiếp (Không qua Leader) • ID: ${sub.id}</div>
+              <div style="font-size:10px; color:#15803d;">Sale Trực Tiếp (Không qua Leader) • ID: ${sub.id} • ${(sRate/1000)}k/lot</div>
             </td>
             <td>${getRoleBadgeHtml(sub.roleLevel)}</td>
-            <td style="font-size:11.5px; color:#15803d; font-weight:700;">Trực thuộc Manager (+30k/lot)</td>
+            <td style="font-size:11.5px; color:#15803d; font-weight:700;">Trực thuộc Manager</td>
             <td style="font-family:'JetBrains Mono'; font-weight:700;">${sLot.toFixed(2)} lot</td>
-            <td style="color:#15803d; font-weight:800; font-family:'JetBrains Mono';">+${(LOT_CONFIG.diffManagerDirectSale/1000)}k/lot</td>
+            <td style="color:#15803d; font-weight:800; font-family:'JetBrains Mono';">+${(diffDirect/1000).toFixed(0)}k/lot <span style="font-size:10px; font-weight:400; color:#64748b;">(${(personRate/1000)}k - ${(sRate/1000)}k)</span></td>
             <td style="color:#059669; font-weight:800; font-family:'JetBrains Mono';">+${formatMoney(commDirect)}</td>
           `;
           tbody.appendChild(trD);
@@ -2459,61 +2523,73 @@
  // ====================================================================
  // 8. CẤU HÌNH BIẾN SỐ TOÀN HỆ THỐNG
  // ====================================================================
- function openConfigModal() {
- document.getElementById('cfgMini').value = LOT_CONFIG.miniMultiplier;
- document.getElementById('cfgMicro').value = LOT_CONFIG.microMultiplier;
- document.getElementById('cfgRateLv1').value = LOT_CONFIG.rateLv1;
- document.getElementById('cfgRateLv2').value = LOT_CONFIG.rateLv2;
- document.getElementById('cfgRateLv3').value = LOT_CONFIG.rateLv3;
- document.getElementById('cfgDiffLeader').value = LOT_CONFIG.diffLeader;
- document.getElementById('cfgDiffManager').value = LOT_CONFIG.diffManager;
- document.getElementById('configModal').classList.add('active');
- }
+  function openConfigModal() {
+    const miniEl = document.getElementById('cfgMini');
+    if (miniEl) miniEl.value = LOT_CONFIG.miniMultiplier;
+    const microEl = document.getElementById('cfgMicro');
+    if (microEl) microEl.value = LOT_CONFIG.microMultiplier;
+    const prodEl = document.getElementById('cfgProductRate');
+    if (prodEl) prodEl.value = LOT_CONFIG.defaultProductRate || 10;
+    
+    document.getElementById('configModal').classList.add('active');
+  }
 
- function closeConfigModal() {
- document.getElementById('configModal').classList.remove('active');
- }
+  function closeConfigModal() {
+    document.getElementById('configModal').classList.remove('active');
+  }
 
- function applyLotConfig() {
- LOT_CONFIG.miniMultiplier = Number(document.getElementById('cfgMini').value) || 0.8;
- LOT_CONFIG.microMultiplier = Number(document.getElementById('cfgMicro').value) || 0.35;
- LOT_CONFIG.rateLv1 = Number(document.getElementById('cfgRateLv1').value) || 80000;
- LOT_CONFIG.rateLv2 = Number(document.getElementById('cfgRateLv2').value) || 60000;
- LOT_CONFIG.rateLv3 = Number(document.getElementById('cfgRateLv3').value) || 50000;
- LOT_CONFIG.diffLeader = Number(document.getElementById('cfgDiffLeader').value) || 10000;
- LOT_CONFIG.diffManager = Number(document.getElementById('cfgDiffManager').value) || 20000;
+  function applyLotConfig() {
+    const miniEl = document.getElementById('cfgMini');
+    if (miniEl) LOT_CONFIG.miniMultiplier = Number(miniEl.value) || 0.8;
+    const microEl = document.getElementById('cfgMicro');
+    if (microEl) LOT_CONFIG.microMultiplier = Number(microEl.value) || 0.35;
+    const prodEl = document.getElementById('cfgProductRate');
+    if (prodEl) {
+      const newRate = Math.max(0, Math.min(100, Number(prodEl.value) || 10));
+      LOT_CONFIG.defaultProductRate = newRate;
+      APEX_DATA.forEach(p => {
+        p.productRate = newRate;
+      });
+    }
 
- // Cập nhật lại định mức cho toàn bộ nhân sự theo vị trí
- APEX_DATA.forEach(p => {
- if (p.roleLevel === 'LV1') p.ratePerLot = LOT_CONFIG.rateLv1;
- else if (p.roleLevel === 'LV2') p.ratePerLot = LOT_CONFIG.rateLv2;
- else if (p.roleLevel === 'LV3') p.ratePerLot = LOT_CONFIG.rateLv3;
- });
+    closeConfigModal();
+    renderAllViews();
+    alert(`Đã cập nhật hệ số quy đổi Lot và áp dụng tỷ lệ ${LOT_CONFIG.defaultProductRate}% sản phẩm cho toàn bộ 23 nhân sự!`);
+  }
 
- closeConfigModal();
- renderAllViews();
- alert('Đã áp dụng định mức mới (Manager 80k, Leader 60k, Sale 50k, Mini 0.8, Micro 0.35) cho toàn bộ hệ thống!');
- }
+  function resetAllProductRateTo10() {
+    LOT_CONFIG.defaultProductRate = 10;
+    const prodEl = document.getElementById('cfgProductRate');
+    if (prodEl) prodEl.value = 10;
+    APEX_DATA.forEach(p => {
+      p.productRate = 10;
+    });
+    renderAllViews();
+    alert('Đã đặt lại tỷ lệ hoa hồng sản phẩm của toàn bộ 23 nhân sự về 10% chuẩn!');
+  }
 
  // ====================================================================
  // 9. FILTER, SEARCH, TABS, ZOOM, EXPORT
  // ====================================================================
  function switchView(tabId) {
- document.querySelectorAll('.tab-content-panel').forEach(el => el.classList.remove('active'));
- document.querySelectorAll('.mode-tab-btn').forEach(el => el.classList.remove('active'));
- document.querySelectorAll('.sidebar-nav .nav-btn').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-content-panel').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.mode-tab-btn').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.sidebar-nav .nav-btn').forEach(el => el.classList.remove('active'));
 
- document.getElementById(tabId).classList.add('active');
+    document.getElementById(tabId).classList.add('active');
 
- if (tabId === 'tab-mindmap') {
- document.getElementById('btnTabMindmap').classList.add('active');
- document.getElementById('btnSideMindmap').classList.add('active');
- document.getElementById('breadcrumbCurrent').textContent = 'Cơ chế Cây Mindmap (Vị Trí Lv1 - Lv2 - Lv3)';
- renderMindmapTree();
+    const topActions = document.getElementById('topHeaderActions');
+    if (tabId === 'tab-mindmap') {
+      if (topActions) topActions.style.display = 'flex';
+      document.getElementById('btnTabMindmap').classList.add('active');
+      document.getElementById('btnSideMindmap').classList.add('active');
+      document.getElementById('breadcrumbCurrent').textContent = 'Cơ chế Cây Mindmap (Manager - Leader - Sale)';
+      renderMindmapTree();
     } else if (tabId === 'tab-report') {
+      if (topActions) topActions.style.display = 'none';
       document.getElementById('btnTabReport').classList.add('active');
       document.getElementById('btnSideReport').classList.add('active');
-      document.getElementById('breadcrumbCurrent').textContent = 'Báo Cáo Doanh Thu (23 Nhân Sự Lv1 - Lv2 - Lv3)';
+      document.getElementById('breadcrumbCurrent').textContent = 'Báo Cáo Doanh Thu (23 Nhân Sự)';
       renderReportTable();
     }
   }
@@ -2602,6 +2678,142 @@
  window.addEventListener('DOMContentLoaded', () => {
  renderAllViews();
  });
+
+  // ====================================================================
+  // 8.1 MODAL GỬI BÁO CÁO ĐẾN TỪNG NHÂN VIÊN
+  // ====================================================================
+  let personnelSentStatus = {};
+  let sendSelectedPersonnelIds = new Set();
+
+  function openSendToPersonnelModal() {
+    // Mặc định chọn tất cả 23 nhân sự khi mở modal lần đầu
+    if (sendSelectedPersonnelIds.size === 0) {
+      APEX_DATA.forEach(p => sendSelectedPersonnelIds.add(p.id));
+    }
+    renderSendPersonnelList();
+    document.getElementById('sendPersonnelModal').classList.add('active');
+  }
+
+  function closeSendToPersonnelModal() {
+    document.getElementById('sendPersonnelModal').classList.remove('active');
+  }
+
+  function toggleSelectAllPersonnel(checked) {
+    if (checked) {
+      APEX_DATA.forEach(p => sendSelectedPersonnelIds.add(p.id));
+    } else {
+      sendSelectedPersonnelIds.clear();
+    }
+    renderSendPersonnelList();
+  }
+
+  function filterSendPersonnelRole(role) {
+    sendSelectedPersonnelIds.clear();
+    if (role === 'ALL') {
+      APEX_DATA.forEach(p => sendSelectedPersonnelIds.add(p.id));
+    } else {
+      APEX_DATA.filter(p => p.roleLevel === role).forEach(p => sendSelectedPersonnelIds.add(p.id));
+    }
+    renderSendPersonnelList();
+  }
+
+  function toggleSinglePersonnel(id, checked) {
+    if (checked) {
+      sendSelectedPersonnelIds.add(id);
+    } else {
+      sendSelectedPersonnelIds.delete(id);
+    }
+    updateSendModalStats();
+  }
+
+  function updateSendModalStats() {
+    const totalCount = APEX_DATA.length;
+    const selectedCount = sendSelectedPersonnelIds.size;
+    const countEl = document.getElementById('sendSelectedCount');
+    if (countEl) countEl.textContent = selectedCount;
+
+    const allChk = document.getElementById('sendSelectAllCheckbox');
+    if (allChk) {
+      allChk.checked = (selectedCount === totalCount);
+      allChk.indeterminate = (selectedCount > 0 && selectedCount < totalCount);
+    }
+
+    let totalMoney = 0;
+    APEX_DATA.forEach(p => {
+      if (sendSelectedPersonnelIds.has(p.id)) {
+        const fin = calculatePersonnelFinance(p);
+        totalMoney += fin.netIncome;
+      }
+    });
+
+    const moneyEl = document.getElementById('sendSelectedTotalMoney');
+    if (moneyEl) moneyEl.textContent = formatMoney(totalMoney);
+  }
+
+  function renderSendPersonnelList() {
+    const tbody = document.getElementById('sendPersonnelListBody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    APEX_DATA.forEach((item, idx) => {
+      const fin = calculatePersonnelFinance(item);
+      const isSelected = sendSelectedPersonnelIds.has(item.id);
+      const isSent = personnelSentStatus[item.id];
+
+      const tr = document.createElement('tr');
+      if (isSelected) tr.style.background = '#fcfaff';
+
+      const statusBadge = isSent 
+        ? '<span style="background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; font-size:10.5px; font-weight:800; padding:2px 8px; border-radius:12px;">✓ ' + isSent + '</span>'
+        : '<span style="background:#f1f5f9; color:#64748b; font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:12px;">Chưa gửi</span>';
+
+      tr.innerHTML = `
+        <td style="text-align:center;">
+          <input type="checkbox" ${isSelected ? 'checked' : ''} onchange="toggleSinglePersonnel('${item.id}', this.checked)" style="width:15px; height:15px; cursor:pointer;">
+        </td>
+        <td style="color:#64748b; font-weight:700;">${idx + 1}</td>
+        <td>
+          <div style="font-weight:800; color:#0f172a;">${item.name}</div>
+          <div style="font-size:10.5px; color:#64748b; font-family:'JetBrains Mono';">SĐT: ${item.phone} • ID: ${item.id}</div>
+        </td>
+        <td>${getRoleBadgeHtml(item.roleLevel)}</td>
+        <td style="font-size:11.5px; color:#475569;">${item.directManager}</td>
+        <td style="text-align:right; font-family:'JetBrains Mono'; font-weight:700;">${fin.stdLot.toFixed(2)} lot</td>
+        <td style="text-align:right; font-family:'JetBrains Mono'; font-weight:800; color:#059669;">${formatMoney(fin.netIncome)}</td>
+        <td style="text-align:center;">${statusBadge}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    updateSendModalStats();
+  }
+
+  function confirmSendToPersonnel() {
+    const selectedCount = sendSelectedPersonnelIds.size;
+    if (selectedCount === 0) {
+      alert('Vui lòng tích chọn ít nhất 1 nhân sự để gửi báo cáo!');
+      return;
+    }
+
+    const confirmed = confirm(
+      'XÁC NHẬN GỬI BÁO CÁO THU NHẬP\n\n' +
+      'Bạn có chắc chắn muốn gửi bảng kê chi tiết thu nhập & hoa hồng tháng 09/2026 đến ' + selectedCount + ' nhân sự đã chọn qua hệ thống/Zalo/SMS không?'
+    );
+    if (!confirmed) return;
+
+    const timeStr = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    sendSelectedPersonnelIds.forEach(id => {
+      personnelSentStatus[id] = 'Đã gửi ' + timeStr;
+    });
+
+    renderSendPersonnelList();
+
+    alert(
+      '✓ ĐÃ GỬI THÀNH CÔNG!\n\n' +
+      'Hệ thống đã gửi thông báo xác nhận và bảng kê chi tiết thu nhập tháng 09/2026 đến từng nhân sự (' + selectedCount + ' nhân viên) thành công.'
+    );
+  }
+
 </script>
 
 </body>

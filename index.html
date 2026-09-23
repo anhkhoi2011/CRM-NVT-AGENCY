@@ -1435,17 +1435,45 @@
   <link rel="stylesheet" href="crm-boot.css?v=20260918-manager-fix-2">
   <link rel="stylesheet" href="./team-tree-hierarchy.css?v=20260918-nested-tree-1">
     <style id="dataDateFilterStyles">
-      .data-date-filter-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-      .data-date-filter-field{display:flex;flex-direction:column;gap:6px;min-width:0}
-      .data-date-filter-field span{font-size:10px;font-weight:800;letter-spacing:.02em;color:var(--text-muted);text-transform:uppercase}
-      .data-date-filter-field input{width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid var(--border);border-radius:7px;background:var(--bg-surface);color:var(--text-main);font:600 12px var(--font-sans,Arial,sans-serif);color-scheme:light}
-      .data-date-filter-field input:focus{outline:0;border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.12)}
-      .data-date-filter-actions{display:flex;gap:8px;margin-top:12px}
-      .data-date-filter-actions button{min-height:34px;padding:7px 12px;border-radius:7px;font:700 11px var(--font-sans,Arial,sans-serif);cursor:pointer}
-      .data-date-filter-apply{border:1px solid #2563eb;background:#2563eb;color:#fff}.data-date-filter-apply:hover{background:#1d4ed8}
-      .data-date-filter-clear{border:1px solid var(--border);background:var(--bg-surface);color:var(--text-main)}.data-date-filter-clear:hover{background:var(--bg-subtle)}
-      .data-date-filter-summary{min-height:16px;margin-top:10px;color:var(--text-muted);font-size:11px;font-weight:600}
-      @media(max-width:860px){.data-date-filter-grid{grid-template-columns:1fr 1fr}.data-date-filter-actions button{flex:1}}
+      .data-date-filter-panel{padding:0!important;overflow:hidden;border:1px solid #e2e8f0!important;border-radius:16px!important;background:#fff!important;box-shadow:0 12px 30px rgba(15,23,42,.08)!important;transition:box-shadow .2s ease}
+      .data-date-filter-panel:hover{box-shadow:0 16px 36px rgba(15,23,42,.11)!important}
+      .data-date-filter-head{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:18px 20px 16px;border-bottom:1px solid #edf1f5}
+      .data-date-filter-heading{min-width:0}
+      .data-date-filter-title{font-size:15px;font-weight:800;line-height:1.25;color:#172033;letter-spacing:-.01em}
+      .data-date-filter-subtitle{margin-top:4px;font-size:11px;line-height:1.4;color:#7b8798}
+      .data-date-filter-close{display:grid;place-items:center;flex:0 0 auto;width:34px;height:34px;padding:0;border:1px solid #d7dee8;border-radius:10px;background:#f8fafc;color:#718096;font-size:22px;font-weight:400;line-height:1;cursor:pointer;transition:background .15s ease,border-color .15s ease,color .15s ease,transform .15s ease}
+      .data-date-filter-close:hover{border-color:#bfd0e4;background:#eef4fb;color:#1f5fae;transform:rotate(90deg)}
+      .data-date-filter-body{padding:18px 20px 20px}
+      .data-date-filter-presets{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:19px}
+      .data-date-filter-preset{min-height:34px;padding:7px 13px;border:1px solid #e2e8f0;border-radius:999px;background:#f8fafc;color:#596579;font:600 11.5px var(--font-sans,Arial,sans-serif);cursor:pointer;transition:background .15s ease,border-color .15s ease,color .15s ease,box-shadow .15s ease,transform .15s ease}
+      .data-date-filter-preset:hover{border-color:#b9cbe1;background:#f1f6fc;color:#245b94}
+      .data-date-filter-preset:active{transform:scale(.98)}
+      .data-date-filter-preset.is-active{border-color:#3b82c9;background:#eff6ff;color:#1d5f9f;box-shadow:0 0 0 2px rgba(59,130,201,.12)}
+      .data-date-filter-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+      .data-date-filter-field{display:flex;flex-direction:column;gap:7px;min-width:0}
+      .data-date-filter-field span{font-size:11px;font-weight:800;color:#253246}
+      .data-date-filter-input{position:relative;display:flex;align-items:center;min-width:0}
+      .data-date-filter-calendar{position:absolute;left:11px;display:grid;place-items:center;width:17px;height:17px;color:#526276;pointer-events:none}
+      .data-date-filter-calendar svg{width:17px;height:17px}
+      .data-date-filter-field input{width:100%;height:42px;box-sizing:border-box;padding:8px 11px 8px 35px;border:1px solid #d5dde7;border-radius:11px;background:#fbfcfe;color:#263449;font:600 12px var(--font-sans,Arial,sans-serif);color-scheme:light;transition:border-color .15s ease,box-shadow .15s ease,background .15s ease}
+      .data-date-filter-field input:focus{outline:0;border-color:#4387c7;background:#fff;box-shadow:0 0 0 3px rgba(67,135,199,.14)}
+      .data-date-filter-field input::-webkit-calendar-picker-indicator{opacity:.65;cursor:pointer}
+      .data-date-filter-footer{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 20px;background:#f8fafc;border-top:1px solid #edf1f5}
+      .data-date-filter-summary{display:flex;align-items:center;gap:8px;min-height:18px;margin:0;color:#768195;font-size:11px;font-weight:600;line-height:1.35}
+      .data-date-filter-summary::before{content:"";width:7px;height:7px;flex:0 0 auto;border-radius:50%;background:#a8b1bf;box-shadow:0 0 0 3px rgba(168,177,191,.16)}
+      .data-date-filter-summary.is-applied{color:#287b56}
+      .data-date-filter-summary.is-applied::before{background:#26a269;box-shadow:0 0 0 3px rgba(38,162,105,.15)}
+      .data-date-filter-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin:0}
+      .data-date-filter-actions button{min-height:38px;padding:8px 14px;border-radius:10px;font:700 11.5px var(--font-sans,Arial,sans-serif);cursor:pointer;transition:background .15s ease,border-color .15s ease,box-shadow .15s ease,transform .15s ease}
+      .data-date-filter-actions button:active{transform:translateY(1px)}
+      .data-date-filter-apply{border:1px solid #2366a6;background:#2366a6;color:#fff;box-shadow:0 5px 12px rgba(35,102,166,.2)}
+      .data-date-filter-apply:hover{border-color:#1c568f;background:#1c568f;box-shadow:0 7px 15px rgba(35,102,166,.25)}
+      .data-date-filter-clear{border:1px solid #cfd8e3;background:#fff;color:#425168}
+      .data-date-filter-clear:hover{border-color:#b8c5d5;background:#f1f5f9}
+      .data-date-filter-panel.is-collapsed .data-date-filter-body,.data-date-filter-panel.is-collapsed .data-date-filter-footer{display:none}
+      .data-date-filter-panel.is-collapsed .data-date-filter-head{border-bottom:0}
+      @media(max-width:860px){.data-date-filter-grid{grid-template-columns:1fr 1fr}.data-date-filter-footer{align-items:flex-start;flex-direction:column}.data-date-filter-actions{width:100%}.data-date-filter-actions button{flex:1}}
+      @media(max-width:480px){.data-date-filter-head,.data-date-filter-body,.data-date-filter-footer{padding-left:15px;padding-right:15px}.data-date-filter-grid{grid-template-columns:1fr}.data-date-filter-presets{gap:6px}.data-date-filter-preset{flex:1 1 calc(50% - 6px);padding-left:8px;padding-right:8px}.data-date-filter-footer{gap:12px}}
     </style>
 </head>
 <body>
@@ -2139,8 +2167,8 @@
                 <option value="UNASSIGNED">Chưa phân Sale</option>
                 <option value="ASSIGNED">Đã phân Sale</option>
               </select>
-              <select id="custOwnerFilter" class="btn-secondary" aria-label="Xem khach theo nhan su" style="height: 38px; padding: 0 12px; border-radius: 8px; font-size: 12.5px; min-width: 190px;">
-                <option value="ALL">Xem theo nhan su</option>
+              <select id="custOwnerFilter" class="btn-secondary" aria-label="Xem khách theo nhân sự" style="height: 38px; padding: 0 12px; border-radius: 8px; font-size: 12.5px; min-width: 190px;">
+                <option value="ALL">Xem theo nhân sự</option>
               </select>
             </div>
             <div style="font-size: 12px; color: var(--text-muted); font-weight: 700;">
@@ -2346,23 +2374,30 @@
               </div>
             </div>
 
-            <div id="dataDateFilterPanel" class="widget-box" style="padding: 18px 20px;">
-              <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px;">
-                <div>
-                  <b style="font-size: 14.5px; display: block;">Lọc data theo ngày</b>
-                  <div style="font-size: 11.5px; color: var(--text-muted); margin-top: 3px;">Chọn một ngày hoặc khoảng ngày data về</div>
+            <div id="dataDateFilterPanel" class="widget-box data-date-filter-panel">
+              <div class="data-date-filter-head">
+                <div class="data-date-filter-heading"><div class="data-date-filter-title">Lọc data theo ngày</div><div class="data-date-filter-subtitle">Chọn một ngày hoặc khoảng ngày data về</div></div>
+                <button type="button" id="dataDateFilterClose" class="data-date-filter-close" aria-label="Thu gọn bộ lọc" aria-expanded="true">×</button>
+              </div>
+              <div class="data-date-filter-body">
+                <div class="data-date-filter-presets" role="group" aria-label="Khoảng thời gian nhanh">
+                  <button type="button" class="data-date-filter-preset" data-date-preset="today">Hôm nay</button>
+                  <button type="button" class="data-date-filter-preset" data-date-preset="7days">7 ngày qua</button>
+                  <button type="button" class="data-date-filter-preset" data-date-preset="30days">30 ngày qua</button>
+                  <button type="button" class="data-date-filter-preset" data-date-preset="thisMonth">Tháng này</button>
                 </div>
-                <span aria-hidden="true" style="font-size: 20px; line-height: 1; color: #2563eb;">▣</span>
+                <div class="data-date-filter-grid">
+                  <label class="data-date-filter-field"><span>Từ ngày</span><div class="data-date-filter-input"><span class="data-date-filter-calendar" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2.5"></rect><path d="M16 2.5v4M8 2.5v4M3 9.5h18"></path><path d="M8 13h.01M12 13h.01M16 13h.01M8 17h.01M12 17h.01M16 17h.01"></path></svg></span><input type="date" id="dataDateFrom" aria-label="Từ ngày"></div></label>
+                  <label class="data-date-filter-field"><span>Đến ngày</span><div class="data-date-filter-input"><span class="data-date-filter-calendar" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2.5"></rect><path d="M16 2.5v4M8 2.5v4M3 9.5h18"></path><path d="M8 13h.01M12 13h.01M16 13h.01M8 17h.01M12 17h.01M16 17h.01"></path></svg></span><input type="date" id="dataDateTo" aria-label="Đến ngày"></div></label>
+                </div>
               </div>
-              <div class="data-date-filter-grid">
-                <label class="data-date-filter-field"><span>Từ ngày</span><input type="date" id="dataDateFrom" aria-label="Từ ngày"></label>
-                <label class="data-date-filter-field"><span>Đến ngày</span><input type="date" id="dataDateTo" aria-label="Đến ngày"></label>
+              <div class="data-date-filter-footer">
+                <div id="dataDateFilterSummary" class="data-date-filter-summary" aria-live="polite">Chưa áp dụng bộ lọc</div>
+                <div class="data-date-filter-actions"><button type="button" id="dataDateClear" class="data-date-filter-clear">Xóa lọc</button><button type="button" id="dataDateApply" class="data-date-filter-apply">Áp dụng</button></div>
               </div>
-              <div class="data-date-filter-actions"><button type="button" id="dataDateApply" class="data-date-filter-apply">Áp dụng</button><button type="button" id="dataDateClear" class="data-date-filter-clear">Xóa lọc</button></div>
-              <div id="dataDateFilterSummary" class="data-date-filter-summary" aria-live="polite">Chưa lọc theo ngày</div>
             </div>
 
-            <div class="widget-box" style="padding: 18px 20px;">
+            <div id="dataDistributionStatusPanel" class="widget-box" style="padding: 18px 20px;">
               <b style="font-size: 14.5px; display: block; margin-bottom: 12px;">Trạng thái bộ chia</b>
               <div style="display: flex; flex-direction: column; gap: 10px; font-size: 12px;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -4210,11 +4245,17 @@
           <label>Số điện thoại *</label>
           <input type="tel" id="newCustPhone" placeholder="Nhập SĐT 10 số...">
         </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="newCustEmail" placeholder="Nhập Gmail (không bắt buộc)">
+        </div>
       </div>
       <div class="grid-2-col">
         <div class="form-group">
           <label>Nguồn dữ liệu</label>
           <select id="newCustSource">
+            <option value="SOURCE:OLD_CUSTOMER">Khách hàng cũ</option>
+            <option value="SOURCE:OUTSIDE_DATA">Khách hàng ngoài data</option>
             <option value="Landing Page">Landing Page Webhook (nvtagency.top)</option>
             <option value="Landing Page RSI">LP Khóa học RSI</option>
             <option value="Landing Page Breakout">LP Chỉ báo Breakout</option>
@@ -4616,15 +4657,51 @@
       if(!session?.token)return;
       const saved=sessionStorage.getItem('nvt-crm-active-tab-v1')||'tab-dashboard';
       const target=document.getElementById(saved)||document.getElementById('tab-dashboard');
-      document.getElementById('crmBootScreen')?.setAttribute('hidden','');
-      document.querySelector('.app-shell')?.style.setProperty('visibility','visible');
-      document.querySelectorAll('.tab-section').forEach(section=>section.classList.toggle('active',section===target));
-      document.querySelectorAll('.nav-link[data-tab]').forEach(link=>link.classList.toggle('active',link.dataset.tab===target?.id));
+      // The Data tab has a legacy static template. Keep the boot screen until
+      // the live renderer replaces it, so F5 never flashes the retired view.
+      if(saved!=='tab-data'){
+        document.getElementById('crmBootScreen')?.setAttribute('hidden','');
+        document.querySelector('.app-shell')?.style.setProperty('visibility','visible');
+        document.querySelectorAll('.tab-section').forEach(section=>section.classList.toggle('active',section===target));
+        document.querySelectorAll('.nav-link[data-tab]').forEach(link=>link.classList.toggle('active',link.dataset.tab===target?.id));
+      }
     }catch{}
   })();
 </script>
 <script src="reference-view.js?v=20260922-personnel-hierarchy-1"></script>
-<script src="reference-crm.js?v=20260922-fast-reload-2"></script>
+<script src="reference-crm.js?v=20260923-kpi-premium-1"></script>
+<script>
+  (() => {
+    const roles = new Set(['MANAGER', 'LEADER', 'SALE']);
+    const syncTeamMemberKpi = () => {
+      const tab = document.getElementById('tab-team');
+      const cards = tab ? Array.from(tab.querySelectorAll('.kpi-bento-card')) : [];
+      const rosterTable = Array.from(tab?.querySelectorAll('table') || []).find(table =>
+        Array.from(table.tBodies[0]?.rows || []).some(row => roles.has(row.cells[1]?.textContent.trim()))
+      );
+      if (!rosterTable || !cards[0]) return;
+
+      const roster = Array.from(rosterTable.tBodies[0].rows).map(row => row.cells[1]?.textContent.trim()).filter(role => roles.has(role));
+      if (!roster.length) return;
+
+      const memberCard = cards[0];
+      const total = memberCard.querySelector('.kpi-hero-num');
+      const foot = memberCard.querySelectorAll('.kpi-foot-stat .value');
+      const online = memberCard.querySelector('.kpi-trend-pill');
+      const setText = (node, value) => { if (node && node.textContent !== value) node.textContent = value; };
+      setText(total, String(roster.length));
+      setText(foot[0], roster.filter(role => role === 'LEADER').length + ' người');
+      setText(foot[1], roster.filter(role => role === 'SALE').length + ' người');
+      setText(foot[2], '100%');
+      setText(online, roster.length + ' Online');
+    };
+
+    const tab = document.getElementById('tab-team');
+    if (tab) new MutationObserver(syncTeamMemberKpi).observe(tab, {childList: true, subtree: true});
+    requestAnimationFrame(syncTeamMemberKpi);
+    window.setTimeout(syncTeamMemberKpi, 400);
+  })();
+</script>
 
 </body>
 </html>
