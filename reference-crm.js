@@ -2356,6 +2356,7 @@
       return '<div class="distribution-person-row level-'+level+'"><div class="distribution-person-main"><span class="distribution-avatar">'+esc(initials(member))+'</span><span><b>'+esc(member.name||'Chua dat ten')+'</b><small>'+esc(kind)+' · '+esc(member.teamId||'Chua gan Team')+' · '+load+' khach</small></span></div><div class="distribution-person-controls">'+controls+'</div></div>';
     };
     // One shared cycle for the complete agency.
+    let globalCycleSummary=null;
     const globalCycle=()=>{
       const storedGlobal=data.saleDistributionByLeader?.['$']||{};
       const activeRound=storedGlobal.rounds?.[0]||storedGlobal;
@@ -2381,7 +2382,7 @@
       leaders.filter(leader=>!leader.managerId).forEach(leader=>addLeaderBranch(leader,data.saleDistributionByLeader?.[leader.id]||{}));
       const config={leaderEnabled:true,enabledSaleIds:people.map(person=>person.id),weights};
       if(!people.length)return '';
-      const activeSummary=cycleSummary(people,[config],'global');
+      const activeSummary=cycleSummary(people,[config],'global');globalCycleSummary=activeSummary;
       const currentMarkup=cycleMarkup(activeSummary);
       const queuedRounds=Array.isArray(storedGlobal.rounds)?storedGlobal.rounds.slice(1):[];
       const queuedMarkup=queuedRounds.map((round,index)=>{
@@ -2411,8 +2412,8 @@
     roundFooter.innerHTML='<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><b style="font-size:13px;color:var(--text-main)">Vòng tỷ trọng đã lưu</b><small style="display:block;margin-top:4px;color:var(--text-muted)">Vòng mới chỉ bắt đầu sau khi vòng hiện tại chạy hết.</small></div><button type="button" class="btn-action btn-primary" data-save-distribution-round>Lưu tỷ trọng · tạo vòng mới</button></div><div data-distribution-round-list style="display:grid;gap:7px"></div>';
     const roundList=roundFooter.querySelector('[data-distribution-round-list]');
     if(roundList){
-      const currentLabel='<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;border:1px solid #bfdbfe;border-radius:8px;background:#eff6ff;color:#1d4ed8;font-size:11px;font-weight:800"><span>Vòng 1 · đang chạy</span><span>'+((globalRounds[0]?.id||'ROUND-1'))+'</span></div>';
-      roundList.innerHTML=currentLabel+queued.map((round,index)=>'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;border:1px solid var(--border-light);border-radius:8px;background:var(--bg-subtle);font-size:11px"><span><b>Vòng '+(index+2)+'</b><small style="display:block;margin-top:3px;color:var(--text-muted)">Sẽ thành Vòng 1 sau khi vòng trước hoàn tất</small></span><button type="button" class="btn-action btn-secondary" data-delete-distribution-round="'+esc(round.id)+'">Xóa</button></div>').join('');
+      const currentRound=globalRounds[0]||{};const currentStats=globalCycleSummary||{index:0,length:0};const currentLabel='<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;border:1px solid #bfdbfe;border-radius:8px;background:#eff6ff;color:#1d4ed8;font-size:11px;font-weight:800"><span>Vòng 1 · đang chạy <small style="display:block;margin-top:3px;color:#2563eb;font-weight:700">'+currentStats.index+'/'+currentStats.length+' lượt</small></span><span>'+((currentRound.id||'ROUND-1'))+'</span></div>';
+      roundList.innerHTML=currentLabel+queued.map((round,index)=>{const enabled=Array.isArray(round.enabledSaleIds)?round.enabledSaleIds:new Array(members.length).fill('');const total=enabled.reduce((sum,id)=>sum+weightOf(round.weights?.[id]),0);return '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;border:1px solid var(--border-light);border-radius:8px;background:var(--bg-subtle);font-size:11px"><span><b>Vòng '+(index+2)+'</b><small style="display:block;margin-top:3px;color:var(--text-muted)">0/'+total+' lượt · Sẽ thành Vòng 1 sau khi vòng trước hoàn tất</small></span><button type="button" class="btn-action btn-secondary" data-delete-distribution-round="'+esc(round.id)+'">Xóa</button></div>';}).join('');
     }
     host.firstElementChild?.appendChild(roundFooter);
     host.querySelectorAll('[data-cycle-detail]').forEach(button=>button.onclick=()=>showCycleDetails(button.dataset.cycleDetail,button));
