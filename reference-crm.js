@@ -2420,8 +2420,19 @@
     }
     host.firstElementChild?.appendChild(roundFooter);
     host.querySelectorAll('[data-cycle-detail]').forEach(button=>button.onclick=()=>showCycleDetails(button.dataset.cycleDetail,button));
-    host.querySelectorAll('[data-ref-distribution-weight]').forEach(input=>input.onchange=()=>{});
-    host.querySelectorAll('[data-ref-distribution-member]').forEach(input=>input.onchange=()=>{});
+    host.querySelectorAll('[data-ref-distribution-weight]').forEach(input=>input.onchange=()=>{
+      const [kind,id]=String(input.dataset.refDistributionWeight||'').split(':');
+      if(!kind||!id)return;
+      run(()=>api.distributionWeight(kind,id,input.value),()=>referenceNotice('Da luu ty trong.'));
+    });
+    host.querySelectorAll('[data-ref-distribution-member]').forEach(input=>input.onchange=()=>{
+      const [kind,id]=String(input.dataset.refDistributionMember||'').split(':');
+      if(!kind||!id)return;
+      const label=input.closest('label')?.querySelector('span');
+      const previous=!input.checked;
+      if(label)label.textContent=input.checked?'Dang nhan':'Tam tat';
+      run(()=>api.distributionMember(kind,id,input.checked),()=>referenceNotice(input.checked?'Da bat nhan data.':'Da tam tat nhan data.'));
+    });
     roundFooter.querySelector('[data-save-distribution-round]')?.addEventListener('click',()=>{
       const weights={},enabledIds=[];
       host.querySelectorAll('[data-ref-distribution-weight]').forEach(input=>{const [,id]=input.dataset.refDistributionWeight.split(':');weights[id]=input.value;});
