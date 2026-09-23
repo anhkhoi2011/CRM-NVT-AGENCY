@@ -2302,15 +2302,12 @@
         const recipientId=recipientOf(item);
         return activeIds.has(recipientId);
       }).sort((a,b)=>String(a.at||'').localeCompare(String(b.at||''))||String(a.id||'').localeCompare(String(b.id||'')));
-      const absoluteIndex=assignments.length;
-      const index=sequence.length?absoluteIndex%sequence.length:0;
-      const cycleStart=sequence.length?Math.floor(absoluteIndex/sequence.length)*sequence.length:0;
-      const received=assignments.slice(cycleStart).map(item=>{
-        const recipientId=recipientOf(item);
-        return active.find(person=>person.id===recipientId)||people.find(person=>person.id===recipientId);
-      }).filter(Boolean);
+      const hasCursor=raw&&typeof raw==='object'&&Number.isInteger(raw.index);
+      const cursorIndex=hasCursor?Math.max(0,raw.index):0;
+      const index=sequence.length?Math.min(cursorIndex,sequence.length):0;
+      const received=sequence.slice(0,index);
       const upcoming=sequence.slice(index);
-      return {key,length:sequence.length,index,round:sequence.length?Math.floor(absoluteIndex/sequence.length)+1:0,received,upcoming:upcoming.length?upcoming:next,completed:sequence.length>0&&absoluteIndex>0&&absoluteIndex%sequence.length===0};
+      return {key,length:sequence.length,index,round:sequence.length?Math.floor(cursorIndex/sequence.length)+1:0,received,upcoming:upcoming.length?upcoming:next,completed:sequence.length>0&&index===sequence.length};
     };
     const cycleMarkup=(summary)=>{
       cycleDetails.set(summary.key,summary);

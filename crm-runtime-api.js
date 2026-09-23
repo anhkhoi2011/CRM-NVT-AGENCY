@@ -19,6 +19,12 @@
     if (!await flushServerPersistence()) throw Error('Chưa lưu được dữ liệu. Giữ trang mở để thử lại.');
     pendingResult=null;return result;
   }
+  function resetDistributionCursor() {
+    state.settings.assignmentCursor ||= {};
+    state.settings.assignmentCursor.global = {index:0,ids:[]};
+    state.settings.assignmentCursor.leaders = {index:0,ids:[]};
+    state.settings.assignmentCursor.salesByTeam = {};
+  }
   const fieldOptionsValid=value=>value===''||state.customFieldDefinitions.find(f=>f.id==='customerClass')?.options.some(o=>o.value===value);
   // Chỉ mở danh sách nghiệp vụ đã cho phép, không nhận tên hàm tùy ý từ giao diện.
   let workflowActive=false,workflowView=false,workflowPending=false;
@@ -479,8 +485,11 @@
       const rawWeight=Number(value),weight=Number.isFinite(rawWeight)?Math.max(0,Math.min(100,Math.round(rawWeight))):1;
       const config=state.saleDistributionByLeader['$'] ||= {globalCycle:true,enabledSaleIds:[],weights:{}};
       config.globalCycle=true;config.weights||={};if(config.weights[id]===undefined)config.enabledSaleIds=Array.from(new Set([...(config.enabledSaleIds||[]),id]));config.weights[id]=weight;
-      const legacyKey=member.role==='SALE'?(member.managerId?'manager:'+member.managerId:(member.leaderId||null)):member.role==='LEADER'?member.id:'manager:'+member.id;
-      if(legacyKey){const legacy=state.saleDistributionByLeader[legacyKey] ||= {globalCycle:true,enabledSaleIds:[],weights:{}};legacy.weights||={};if(legacy.weights[id]===undefined)legacy.enabledSaleIds=Array.from(new Set([...(legacy.enabledSaleIds||[]),id]));legacy.weights[id]=weight;}
+      const legacyKeys=member.role==='MANAGER'
+        ? ['manager:'+member.id,...state.members.filter(item=>item.role==='LEADER'&&item.managerId===member.id).map(item=>item.id)]
+        : [member.role==='SALE'?(member.managerId?'manager:'+member.managerId:(member.leaderId||null)):member.id];
+      legacyKeys.filter(Boolean).forEach(legacyKey=>{const legacy=state.saleDistributionByLeader[legacyKey] ||= {globalCycle:true,enabledSaleIds:[],weights:{}};legacy.weights||={};if(legacy.weights[id]===undefined)legacy.enabledSaleIds=Array.from(new Set([...(legacy.enabledSaleIds||[]),id]));legacy.weights[id]=weight;});
+      if(effectivePermissionRole()==='ADMIN')resetDistributionCursor();
       audit('UPDATE_DISTRIBUTION_WEIGHT',id,normalizedKind+' - ty trong '+weight);
       if(!await flushServerPersistence())throw Error('Chua luu ty trong phan data.');
       return {ok:true};
@@ -503,8 +512,11 @@
       }
       const config=state.saleDistributionByLeader['$'] ||= {globalCycle:true,enabledSaleIds:[],weights:{}};
       config.globalCycle=true;config.weights||={};const ids=new Set(config.enabledSaleIds||[]);enabled?ids.add(id):ids.delete(id);config.enabledSaleIds=Array.from(ids);if(config.weights[id]===undefined)config.weights[id]=1;
-      const legacyKey=member.role==='SALE'?(member.managerId?'manager:'+member.managerId:(member.leaderId||null)):member.role==='LEADER'?member.id:'manager:'+member.id;
-      if(legacyKey){const legacy=state.saleDistributionByLeader[legacyKey] ||= {globalCycle:true,enabledSaleIds:[],weights:{}};legacy.weights||={};const legacyIds=new Set(legacy.enabledSaleIds||[]);enabled?legacyIds.add(id):legacyIds.delete(id);legacy.enabledSaleIds=Array.from(legacyIds);if(legacy.weights[id]===undefined)legacy.weights[id]=1;}
+      const legacyKeys=member.role==='MANAGER'
+        ? ['manager:'+member.id,...state.members.filter(item=>item.role==='LEADER'&&item.managerId===member.id).map(item=>item.id)]
+        : [member.role==='SALE'?(member.managerId?'manager:'+member.managerId:(member.leaderId||null)):member.id];
+      legacyKeys.filter(Boolean).forEach(legacyKey=>{const legacy=state.saleDistributionByLeader[legacyKey] ||= {globalCycle:true,enabledSaleIds:[],weights:{}};legacy.weights||={};const legacyIds=new Set(legacy.enabledSaleIds||[]);enabled?legacyIds.add(id):legacyIds.delete(id);legacy.enabledSaleIds=Array.from(legacyIds);if(legacy.weights[id]===undefined)legacy.weights[id]=1;});
+      if(effectivePermissionRole()==='ADMIN')resetDistributionCursor();
       audit('UPDATE_DISTRIBUTION_MEMBER',id,normalizedKind+' - '+(enabled?'bat':'tat'));
       if(!await flushServerPersistence())throw Error('Chua luu trang thai nhan data.');
       return {ok:true};
