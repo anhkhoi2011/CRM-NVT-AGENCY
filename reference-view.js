@@ -719,7 +719,11 @@ window.setCarePage = setCarePage;
   document.querySelectorAll('.nav-link').forEach(l => {
     l.addEventListener('click', () => {
       const tab = l.getAttribute('data-tab');
-      if (tab) switchTab(tab);
+      if (tab) {
+        const runtimeSwitchTab = window.switchTab;
+        if (typeof runtimeSwitchTab === 'function' && runtimeSwitchTab !== switchTab) runtimeSwitchTab(tab);
+        else switchTab(tab);
+      }
     });
   });
 
