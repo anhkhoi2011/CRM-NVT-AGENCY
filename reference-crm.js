@@ -1784,12 +1784,16 @@
     `;document.head.appendChild(style);
   }
   function attendanceMonthIso(base,offset){const d=new Date(String(base).slice(0,10)+'T00:00:00Z');d.setUTCDate(1);d.setUTCMonth(d.getUTCMonth()-offset);return {year:d.getUTCFullYear(),month:d.getUTCMonth()};}
-  function attendanceDetailMarkup(memberId){
+  function attendanceDetailMarkup(memberId,selectedMonth=''){
     const member=data.members.find(item=>item.id===memberId);if(!member)return '';
+    window.__nvtAttendanceMonthChange=select=>{const body=select.closest('.modal-body');if(body)body.innerHTML=attendanceDetailMarkup(select.dataset.attendanceMember,select.value);};
     const today=String(data.today).slice(0,10),records=data.attendance.filter(item=>item.accountId===memberId&&item.date<=today).sort((a,b)=>String(b.date).localeCompare(String(a.date))||String(b.at).localeCompare(String(a.at)));
-    const from=new Date(today+'T00:00:00Z');from.setUTCDate(1);from.setUTCMonth(from.getUTCMonth()-2);const fromIso=from.toISOString().slice(0,10);const scoped=records.filter(item=>item.date>=fromIso);
+    const currentMonth=today.slice(0,7),monthValue=/^\d{4}-\d{2}$/.test(selectedMonth)?selectedMonth:currentMonth;
+    const monthOptions=Array.from({length:12},(_,offset)=>{const d=new Date(today+'T00:00:00Z');d.setUTCDate(1);d.setUTCMonth(d.getUTCMonth()-offset);const value=d.toISOString().slice(0,7),label=d.toLocaleDateString('vi-VN',{month:'long',year:'numeric',timeZone:'UTC'});return `<option value="${value}" ${value===monthValue?'selected':''}>${esc(label)}</option>`;}).join('');
+    const scoped=records.filter(item=>String(item.date||'').slice(0,7)===monthValue);
     const late=scoped.filter(item=>item.late),outside=scoped.filter(item=>item.ipValid===false),weekdays=['T2','T3','T4','T5','T6','T7','CN'];
-    const months=Array.from({length:3},(_,offset)=>{const {year,month}=attendanceMonthIso(today,offset),days=new Date(Date.UTC(year,month+1,0)).getUTCDate(),offsetDay=(new Date(Date.UTC(year,month,1)).getUTCDay()+6)%7;let cells=weekdays.map(day=>`<div class="attendance-weekday">${day}</div>`).join('');let present=0,lateCount=0,missing=0;
+    const [selectedYear,selectedMonthNumber]=monthValue.split('-').map(Number),selectedMonthIndex=selectedMonthNumber-1;
+    const months=[{year:selectedYear,month:selectedMonthIndex}].map(({year,month})=>{const days=new Date(Date.UTC(year,month+1,0)).getUTCDate(),offsetDay=(new Date(Date.UTC(year,month,1)).getUTCDay()+6)%7;let cells=`<div class="attendance-month-picker"><label>Chá»n thÃ¡ng<select data-attendance-month data-attendance-member="${esc(memberId)}" onchange="window.__nvtAttendanceMonthChange(this)">${monthOptions}</select></label></div>`+weekdays.map(day=>`<div class="attendance-weekday">${day}</div>`).join('');let present=0,lateCount=0,missing=0;
       for(let i=0;i<offsetDay;i++)cells+='<div class="attendance-day attendance-empty"></div>';
       for(let day=1;day<=days;day++){const date=`${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`,rec=records.find(item=>item.date===date),dow=(offsetDay+day-1)%7,weekend=dow>=5,future=date>today;let cls='attendance-day',label='';if(future||weekend)cls+=' '+(future?'is-future':'is-weekend');else if(rec){present++;if(rec.late){lateCount++;cls+=' is-late';label=`Muộn ${Number(rec.lateMinutes||0)}p`;}else{cls+=' is-present';label='Đúng giờ';}}else{missing++;cls+=' is-missing';label='Chưa điểm danh';}cells+=`<div class="${cls}" title="${esc(date)}"><b>${day}</b><small>${esc(label)}</small></div>`;}
       const monthName=new Date(Date.UTC(year,month,1)).toLocaleDateString('vi-VN',{month:'long',year:'numeric',timeZone:'UTC'});return `<div class="attendance-month"><div class="attendance-month-head"><div><b>${esc(monthName)}</b><small>${present} có mặt · ${lateCount} muộn · ${missing} chưa điểm danh</small></div></div><div class="attendance-month-grid">${cells}</div></div>`;}).join('');
