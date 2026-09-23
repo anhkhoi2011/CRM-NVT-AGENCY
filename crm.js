@@ -1228,7 +1228,7 @@ let orderStatusFilter = 'ALL';
 let customerStatusFilter = 'ALL';
 let customerOwnerFilter = 'ALL';
 let customerPage = 1;
-const customerPageSize = 20;
+let customerPageSize = 20;
 let globalQuery = '';
 let selectedPoolIds = new Set();
 let drawerReturnFocus = null;
@@ -2464,7 +2464,7 @@ function customersView() {
   const visibleCustomers = customers.slice(customerStart, customerStart + customerPageSize);
   const customerFrom = customers.length ? customerStart + 1 : 0;
   const customerTo = Math.min(customerStart + customerPageSize, customers.length);
-  const customerPagination = customerPages > 1 ? `<div class="customer-pagination" style="display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;padding:12px 14px;border-top:1px solid var(--border-light);color:var(--text-muted);font-size:11px"><span class="customer-pagination-summary" style="margin-right:auto">Hiển thị ${customerFrom}–${customerTo} / ${customers.length} khách</span><button type="button" class="button button-small" data-customer-page="prev" ${customerPage <= 1 ? 'disabled' : ''} aria-label="Trang trước">‹</button><span class="customer-pagination-current" style="min-width:72px;text-align:center;font-weight:700;color:var(--text-main)">Trang ${customerPage} / ${customerPages}</span><button type="button" class="button button-small" data-customer-page="next" ${customerPage >= customerPages ? 'disabled' : ''} aria-label="Trang sau">›</button></div>` : '';
+  const customerPagination = `<div class="customer-pagination" style="display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;padding:12px 14px;border-top:1px solid var(--border-light);color:var(--text-muted);font-size:11px"><span class="customer-pagination-summary" style="margin-right:auto">Hiển thị ${customerFrom}–${customerTo} / ${customers.length} khách</span><label style="display:inline-flex;align-items:center;gap:6px;white-space:nowrap">Số dòng <select id="customerPageSize" aria-label="Số khách hàng mỗi trang" style="min-height:30px;padding:5px 8px;border:1px solid var(--border);border-radius:7px;background:var(--bg-surface);color:var(--text-main);font:inherit"><option value="10" ${customerPageSize === 10 ? 'selected' : ''}>10</option><option value="20" ${customerPageSize === 20 ? 'selected' : ''}>20</option></select></label><button type="button" class="button button-small" data-customer-page="prev" ${customerPage <= 1 ? 'disabled' : ''} aria-label="Trang trước">‹</button><span class="customer-pagination-current" style="min-width:72px;text-align:center;font-weight:700;color:var(--text-main)">Trang ${customerPage} / ${customerPages}</span><button type="button" class="button button-small" data-customer-page="next" ${customerPage >= customerPages ? 'disabled' : ''} aria-label="Trang sau">›</button></div>`;
   const importButton = currentAccount.role === 'ADMIN' ? '<button class="button" id="importCustomersButton" type="button">Kết nối / nhập data</button>' : '';
   const fieldButton = currentAccount.role === 'ADMIN' ? '<button class="button" id="manageCustomerFieldsButton" type="button">Quản lý cột</button>' : '';
   const createButton = `${currentAccount.role !== 'SALE' ? '<button class="button" id="exportCustomersButton" type="button">Xuất CSV</button>' : ''}${fieldButton}${importButton}<button class="button button-primary" id="newCustomerButton" type="button">+ Thêm khách hàng</button>`;
@@ -5438,6 +5438,7 @@ function bindViewActions() {
   bindQueryInput('#orderSearch');
   $('#customerStatusFilter')?.addEventListener('change', event => { customerStatusFilter = event.target.value; customerPage = 1; render(); });
   $('#customerOwnerFilter')?.addEventListener('change', event => { customerOwnerFilter = event.target.value; customerPage = 1; render(); });
+  $('#customerPageSize')?.addEventListener('change', event => { customerPageSize = [10, 20].includes(Number(event.target.value)) ? Number(event.target.value) : 20; customerPage = 1; render(); });
   $$('[data-customer-page]').forEach(button => button.onclick = () => { const direction = button.dataset.customerPage === 'next' ? 1 : -1; customerPage += direction; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
   $('#orderStatusFilter')?.addEventListener('change', event => { orderStatusFilter = event.target.value; render(); });
   $$('[data-distribution-tab]').forEach(button => button.onclick = () => { distributionTab = button.dataset.distributionTab; render(); });
