@@ -26,6 +26,12 @@
     state.settings.assignmentCursor.leaders = {index:0,ids:[]};
     state.settings.assignmentCursor.salesByTeam = {};
   }
+  function distributionRoundViews(){
+    const roster=CrmDistributionRounds.recipients(state.members,state.leaderDistribution,state.saleDistributionByLeader);
+    const config=state.saleDistributionByLeader.$||{id:'ROUND-1',enabledSaleIds:roster.people.map(p=>p.id),weights:roster.weights};
+    const store=state.settings.assignmentCursor||{};
+    return CrmDistributionRounds.preview(config,CrmDistributionRounds.cursorFrom(store),roster.people,state.settings.assignmentMode);
+  }
   const fieldOptionsValid=value=>value===''||state.customFieldDefinitions.find(f=>f.id==='customerClass')?.options.some(o=>o.value===value);
   // Chỉ mở danh sách nghiệp vụ đã cho phép, không nhận tên hàm tùy ý từ giao diện.
   let workflowActive=false,workflowView=false,workflowPending=false;
@@ -132,7 +138,7 @@
         : scopedOrders();
       const visibleCustomerIds=new Set(customers.map(customer=>customer.id));
       const assignmentHistory=state.assignmentHistory.filter(item=>visibleCustomerIds.has(item.customerId));
-      return structuredClone({user:currentAccount,managerHierarchy,fonts:referenceFonts,assignedDataStats:currentAccount.role==='SALE'?assignedDataStatsForMe():null,pendingOffers:currentAccount.role==='SALE'?pendingOffersForMe().map(o=>({id:o.id,name:customerById(o.customerId)?.name||'',offeredAt:o.offeredAt,minutesLeft:offerMinutesLeft(o)})):[],customers,orders:visibleOrders,products:state.products,productCategories:state.productCategories,members:state.members,registeredAccounts:state.registeredAccounts,fields:state.customFieldDefinitions,careGroups:state.careGroups,imports:currentAccount.role==='ADMIN'?state.imports:[],resubmissions:state.resubmissions,assignmentHistory,websites:state.websites.map(w=>({...w,publicWebhookUrl:webhookUrlFor(w)})),webhookPending,webhookTransport:{...webhookTransport,label:(WEBHOOK_TRANSPORT_META[webhookTransport.mode]||WEBHOOK_TRANSPORT_META.idle)[0]},settings:state.settings,notifications:visibleNotifications(),audit:state.audit,attendance:state.attendance,brokerageMetrics:state.brokerageMetrics,tasks:scopedTasks(),leaderDistribution:state.leaderDistribution,saleDistributionByLeader:state.saleDistributionByLeader,offers:state.dataOffers,financialEvents:financialEvents(visibleOrders),navigation:allowedViews(),today:dayIso(0)});
+      return structuredClone({user:currentAccount,distributionRoundViews:distributionRoundViews(),managerHierarchy,fonts:referenceFonts,assignedDataStats:currentAccount.role==='SALE'?assignedDataStatsForMe():null,pendingOffers:currentAccount.role==='SALE'?pendingOffersForMe().map(o=>({id:o.id,name:customerById(o.customerId)?.name||'',offeredAt:o.offeredAt,minutesLeft:offerMinutesLeft(o)})):[],customers,orders:visibleOrders,products:state.products,productCategories:state.productCategories,members:state.members,registeredAccounts:state.registeredAccounts,fields:state.customFieldDefinitions,careGroups:state.careGroups,imports:currentAccount.role==='ADMIN'?state.imports:[],resubmissions:state.resubmissions,assignmentHistory,websites:state.websites.map(w=>({...w,publicWebhookUrl:webhookUrlFor(w)})),webhookPending,webhookTransport:{...webhookTransport,label:(WEBHOOK_TRANSPORT_META[webhookTransport.mode]||WEBHOOK_TRANSPORT_META.idle)[0]},settings:state.settings,notifications:visibleNotifications(),audit:state.audit,attendance:state.attendance,brokerageMetrics:state.brokerageMetrics,tasks:scopedTasks(),leaderDistribution:state.leaderDistribution,saleDistributionByLeader:state.saleDistributionByLeader,offers:state.dataOffers,financialEvents:financialEvents(visibleOrders),navigation:allowedViews(),today:dayIso(0)});
     },
     async logout() { await endSession(); },
     async refresh() { return syncServerState(); },
@@ -496,6 +502,39 @@
       if(!await flushServerPersistence())throw Error('Chua luu ty trong phan data.');
       return {ok:true};
     },
+    async distributionRoundSkip(input){
+      requireRole(['ADMIN']);
+      const kind='skip-round:'+String(input?.roundId)+':'+String(input?.token)+':'+String(input?.position);
+      return persist(()=>{
+        const roster=CrmDistributionRounds.recipients(state.members,state.leaderDistribution,state.saleDistributionByLeader);
+        const config=state.saleDistributionByLeader.$||{id:'ROUND-1',enabledSaleIds:roster.people.map(p=>p.id),weights:roster.weights};
+        const store=state.settings.assignmentCursor ||= {};
+        const result=CrmDistributionRounds.skip(config,CrmDistributionRounds.cursorFrom(store),roster.people,state.settings.assignmentMode,input||{});
+        state.saleDistributionByLeader.$=result.config;
+        if(input.roundId===distributionRoundViews()[0].roundId){store.global=result.cursor;if(store.salesByTeam)delete store.salesByTeam.global;}
+        audit('SKIP_DISTRIBUTION_SLOT',input.memberId,'Skipped an unassigned slot in round '+input.roundId);
+        return {ok:true};
+      },kind);
+    },
+    async distributionRoundRemoveMember(input){
+      if(!serverStateLoaded||!['ADMIN','MANAGER'].includes(effectivePermissionRole()))throw Error('Khong co quyen chinh thanh vien vong ty trong.');
+      if(effectivePermissionRole()==='MANAGER'){
+        const scope=managerScope(),allowed=new Set([scope.manager?.id,...scope.leaderIds,...scope.saleIds].filter(Boolean));
+        if(!allowed.has(String(input?.memberId||'')))throw Error('Manager chi duoc loai nhan su trong tuyen cua minh.');
+      }
+      const kind='remove-round-member:'+String(input?.roundId)+':'+String(input?.memberId);
+      return persist(()=>{
+        const roster=CrmDistributionRounds.recipients(state.members,state.leaderDistribution,state.saleDistributionByLeader);
+        const config=state.saleDistributionByLeader.$;
+        if(!config)throw Error('Khong tim thay vong ty trong.');
+        const store=state.settings.assignmentCursor ||= {};
+        const result=CrmDistributionRounds.removeMember(config,CrmDistributionRounds.cursorFrom(store),roster.people,state.settings.assignmentMode,input||{});
+        state.saleDistributionByLeader.$=result.config;
+        if(input.roundId===distributionRoundViews()[0]?.roundId){store.global=result.cursor;if(store.salesByTeam)delete store.salesByTeam.global;}
+        audit('REMOVE_DISTRIBUTION_ROUND_MEMBER',input.memberId,'Loai khoi vong '+input.roundId+'; giu nguyen data da phan');
+        return {ok:true};
+      },kind);
+    },
     async distributionRoundSave(input) {
       if(!serverStateLoaded||!['ADMIN','MANAGER'].includes(effectivePermissionRole()))throw Error('Khong co quyen luu vong ty trong.');
       const source=input&&typeof input==='object'?input:{};
@@ -503,6 +542,25 @@
       const members=state.members.filter(item=>item.active!==false&&['MANAGER','LEADER','SALE'].includes(item.role));
       const scope=effectivePermissionRole()==='MANAGER'?managerScope():null;
       const allowed=effectivePermissionRole()==='MANAGER'?new Set([scope.manager?.id,...scope.leaderIds,...scope.saleIds].filter(Boolean)):new Set(members.map(item=>item.id));
+      if(source.roundId){
+        const rounds=Array.isArray(config.rounds)?config.rounds:[];
+        const index=rounds.findIndex(round=>round.id===String(source.roundId));
+        if(index<1)throw Error('Chi co the sua vong dang cho; vong dang chay duoc giu nguyen.');
+        const round=rounds[index],weights={...(round.weights||{})},enabled=new Set(Array.isArray(round.enabledSaleIds)?round.enabledSaleIds:[]);
+        for(const member of members){
+          if(!allowed.has(member.id))continue;
+          const raw=source.weights?.[member.id];
+          if(raw!==undefined)weights[member.id]=Number.isFinite(Number(raw))?Math.max(0,Math.min(100,Math.round(Number(raw)))):1;
+          if(Array.isArray(source.enabledIds)&&source.enabledIds.includes(member.id))enabled.add(member.id);
+          if(Array.isArray(source.enabledIds)&&!source.enabledIds.includes(member.id))enabled.delete(member.id);
+        }
+        const enabledIds=Array.from(enabled).filter(id=>members.some(member=>member.id===id));
+        if(!enabledIds.some(id=>Number(weights[id])>0))throw Error('Vong can it nhat mot nhan su dang bat va co ty trong lon hon 0.');
+        rounds[index]={...round,omittedSlots:[],enabledSaleIds:enabledIds,weights:Object.fromEntries(members.map(member=>[member.id,Number.isFinite(Number(weights[member.id]))?Math.max(0,Math.min(100,Math.round(Number(weights[member.id])))):1]))};
+        audit('UPDATE_DISTRIBUTION_ROUND',round.id,`Cap nhat ${enabledIds.length} nhan su trong vong cho`);
+        saveState();
+        return {ok:true,round:rounds[index]};
+      }
       const current=config.rounds?.[0]||config;
       const weights={...(current.weights||{})};
       const enabled=new Set(Array.isArray(current.enabledSaleIds)?current.enabledSaleIds:members.map(item=>item.id));
@@ -522,11 +580,25 @@
     async distributionRoundDelete(id) {
       if(!serverStateLoaded||!['ADMIN','MANAGER'].includes(effectivePermissionRole()))throw Error('Khong co quyen xoa vong ty trong.');
       const config=state.saleDistributionByLeader['$'];
-      if(!config||!Array.isArray(config.rounds)||config.rounds.length<2)throw Error('Khong co vong cho de xoa.');
+      if(!config||!Array.isArray(config.rounds)||!config.rounds.length)throw Error('Khong co vong de xoa.');
       const target=String(id||'');
-      if(target===config.rounds[0].id)throw Error('Khong the xoa vong dang chay.');
+      const deletingActive=target===config.rounds[0].id;
+      if(effectivePermissionRole()==='MANAGER'){
+        if(deletingActive)throw Error('Chi Admin duoc xoa Vong 1 toan he thong.');
+        const round=config.rounds.find(item=>item.id===target),scope=managerScope();
+        const allowed=new Set([scope.manager?.id,...scope.leaderIds,...scope.saleIds].filter(Boolean));
+        if(!round||!(round.enabledSaleIds||[]).every(memberId=>allowed.has(memberId)))throw Error('Manager chi duoc xoa vong nam trong tuyen cua minh.');
+      }
+      if(deletingActive&&config.rounds.length<2)throw Error('Can co vong ke tiep truoc khi xoa Vong 1.');
       const before=config.rounds.length;config.rounds=config.rounds.filter(round=>round.id!==target);if(config.rounds.length===before)throw Error('Khong tim thay vong cho.');
       config.weights=config.rounds[0].weights;config.enabledSaleIds=config.rounds[0].enabledSaleIds;audit('DELETE_DISTRIBUTION_ROUND',target,'Xoa vong cho');
+      if(deletingActive){
+        const roster=CrmDistributionRounds.recipients(state.members,state.leaderDistribution,state.saleDistributionByLeader);
+        const nextView=CrmDistributionRounds.preview(config,null,roster.people,state.settings.assignmentMode)[0];
+        state.settings.assignmentCursor||={};state.settings.assignmentCursor.global={index:0,ids:nextView.ids,cycleId:String(Date.now())};
+        if(state.settings.assignmentCursor.salesByTeam)delete state.settings.assignmentCursor.salesByTeam.global;
+        audit('PROMOTE_DISTRIBUTION_ROUND',config.rounds[0].id,'Dua vong ke tiep len Vong 1');
+      }
       saveState();
       return {ok:true};
     },

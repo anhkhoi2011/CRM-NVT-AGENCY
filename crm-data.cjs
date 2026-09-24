@@ -1,6 +1,7 @@
 "use strict";
 // Kho dữ liệu nghiệp vụ: một giao dịch cho cả khách/đơn và lịch sử liên quan.
 const crypto = require('node:crypto');
+const distributionRounds = require('./distribution-rounds.js');
 const { pool } = require('./db.js');
 const LISTS = ['customers','orders','products','members','registrations','customFieldDefinitions','customerFieldHistory','assignmentHistory','resubmissions','notes','imports','attendance','dataOffers','traffic','tasks','notifications','audit','websites','integrations','webhookPending','brokerageMetrics'];
 const OBJECTS = ['settings','leaderDistribution','saleDistributionByLeader','productCategories','careGroups'];
@@ -33,6 +34,7 @@ async function ensureTelegramColumns(){
  const existing=new Set(cols.map(c=>c?.column_name));
  if(!existing.has('telegram_chat_id'))await pool.query('ALTER TABLE users ADD COLUMN telegram_chat_id VARCHAR(64) NULL AFTER active');
  if(!existing.has('telegram_username'))await pool.query('ALTER TABLE users ADD COLUMN telegram_username VARCHAR(128) NULL AFTER telegram_chat_id');
+ await pool.query('CREATE TABLE IF NOT EXISTS telegram_link_tokens (token_hash CHAR(64) PRIMARY KEY, user_id VARCHAR(96) NOT NULL, expires_at DATETIME NOT NULL, consumed_at DATETIME NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, INDEX idx_telegram_link_user (user_id), INDEX idx_telegram_link_expiry (expires_at)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
 }
 
 async function ensureCustomerAppointmentsTable(){
@@ -454,28 +456,10 @@ async function distributeAutomatic(c, data = null) {
   if (team) cursor.salesByTeam[key]=stateCursor; else cursor.leaders=stateCursor;
   return person;
  };
- const globalRecipients=[];
- const globalWeights={};
- const globalSeen=new Set();
- const globalLeaderWeights=data.leaderDistribution.get('$')?.weights||{};
- const globalWeight=raw=>{const n=Number(raw);return Number.isFinite(n)?Math.max(0,Math.min(100,Math.round(n))):1;};
- const addGlobal=(person,raw)=>{const value=globalWeight(raw);if(!person||globalSeen.has(person.id)||value<=0)return;globalSeen.add(person.id);globalRecipients.push(person);globalWeights[person.id]=value;};
- for(const leader of leaders){
-  const saleKey=leader.directManagerBranch?'manager:'+leader.id:leader.id;
-  const config=saleConfigs[saleKey]||{};
-  if(leader.directManagerBranch){
-   const managerRecipient={...leader,role:'SALE',actualRole:'MANAGER',managerRecipient:true,leaderId:null,teamId:leader.teamId};
-   if(config.leaderEnabled!==false)addGlobal(managerRecipient,config.weights?.[leader.id]);
-   const configured=Array.isArray(config.enabledSaleIds)&&config.enabledSaleIds.length>0;
-   directSales(leader.id).filter(p=>!configured||config.enabledSaleIds.includes(p.id)).forEach(p=>addGlobal({...p,directManagerBranch:true,managerId:leader.id,leaderId:null},config.weights?.[p.id]));
-   continue;
-  }
-  if(config.leaderEnabled!==false)addGlobal({...leader,role:'LEADER',teamLeaderRecipient:true},config.weights?.[leader.id]??globalLeaderWeights[leader.id]);
-  const configured=Array.isArray(config.enabledSaleIds)&&config.enabledSaleIds.length>0;
-  members.filter(p=>p.role==='SALE'&&p.leaderId===leader.id&&(!configured||config.enabledSaleIds.includes(p.id))).forEach(p=>addGlobal(p,config.weights?.[p.id]));
-  const manager=leader.managerId&&members.find(p=>p.role==='MANAGER'&&p.id===leader.managerId);
-  if(manager&&(!configured||config.enabledSaleIds.includes(manager.id)))addGlobal({...manager,role:'SALE',actualRole:'MANAGER',managerRecipient:true,leaderId:leader.id,teamId:leader.teamId},config.weights?.[manager.id]);
- }
+ const roster=distributionRounds.recipients(members,config,saleConfigs);
+ const globalRecipients=roster.people,globalWeights=roster.weights;
+ let globalConfig=saleConfigs.$||{id:'ROUND-1',enabledSaleIds:globalRecipients.map(p=>p.id),weights:globalWeights};
+ let roundsChanged=false;
  const put = async (key,id,value) => {
   history.push({key,id,before:data[key].get(id) || null,after:value});
   await project(c,key,id,value);
@@ -492,8 +476,13 @@ async function distributeAutomatic(c, data = null) {
    const value = rule.matchType === 'WEBSITE' ? row.websiteId : rule.matchType === 'CAMPAIGN' ? row.campaign : row.source;
    return normalize(value) === normalize(rule.matchValue);
   });
-  if (automatic && !sourceRule && globalRecipients.length) {
-   const recipient=pick(globalRecipients,globalWeights,'global',true);
+  const explicitGlobalRounds=Array.isArray(saleConfigs.$?.rounds)&&saleConfigs.$.rounds.length>0;
+  if (automatic && (!sourceRule || explicitGlobalRounds)) {
+   const step=distributionRounds.take(globalConfig,distributionRounds.cursorFrom(cursor),globalRecipients,mode);
+   globalConfig=step.config;roundsChanged ||= step.changed;
+   cursor.global=step.cursor;
+   delete cursor.salesByTeam.global;
+   const recipient=globalRecipients.find(p=>p.id===step.id);
    if(!recipient)continue;
    const direct=recipient.teamLeaderRecipient===true;
    const managerDirect=recipient.managerRecipient===true;
@@ -553,11 +542,12 @@ async function distributeAutomatic(c, data = null) {
   await put('notifications',notificationId,{id:notificationId,role:managerDirect?'MANAGER':recipient?'OWN':'LEADER',saleId:managerDirect?null:recipient?.id||null,managerId:leader.directManagerBranch?leader.id:managerDirect?recipient.id:null,leaderId:assignedLeaderId,teamId:assignedTeamId,title:recipient?'Data m\u1edbi \u0111\u01b0\u1ee3c ph\u00e2n':'Kh\u00e1ch m\u1edbi trong Team',text:row.name,at,readBy:[]});
   count++;
  }
- if (count) {
+ if (count || roundsChanged) {
+  if(roundsChanged)await put('saleDistributionByLeader','$',{...saleConfigs,$:globalConfig});
   await put('settings','$',settings);
   await c.execute('INSERT INTO crm_changes(request_id,actor_id,changes_json) VALUES (?,?,?)',['auto-'+crypto.randomUUID(),'SYSTEM',JSON.stringify(history)]);
  }
- return count;
+ return count || (roundsChanged?1:0);
 }
 
 async function read(user){await prepare();const c=await pool.getConnection();try{await c.beginTransaction();await c.query('SELECT id FROM crm_write_lock WHERE id=1 FOR UPDATE');const data=await allData(c);await expireOffers(c,data);const assigned=await distributeAutomatic(c,data);await warnRentalExpiry(c,data);const result=snapshot(user,assigned?await allData(c):data);await c.commit();return result;}catch(e){await c.rollback();throw e;}finally{c.release();}}

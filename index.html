@@ -567,14 +567,16 @@
     .kpi-label-title {
       font-size: 11px;
       font-weight: 800;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      color: #64748b;
+      letter-spacing: 0;
+      text-transform: none;
+      line-height: 1.25;
+      color: #475569;
     }
     .kpi-label-sub {
-      font-size: 10px;
-      font-weight: 600;
-      color: #94a3b8;
+      font-size: 10.5px;
+      font-weight: 500;
+      line-height: 1.3;
+      color: #64748b;
     }
     .kpi-trend-pill {
       font-size: 10.5px;
@@ -603,15 +605,16 @@
     }
     .kpi-hero-num {
       font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-      font-size: 28px;
+      font-size: 30px;
       font-weight: 800;
-      line-height: 1;
-      letter-spacing: -0.03em;
+      line-height: 1.05;
+      letter-spacing: 0;
       color: #0f172a;
     }
     .kpi-hero-unit {
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 600;
+      line-height: 1.2;
       color: #64748b;
     }
     .kpi-sparkline-wrap {
@@ -654,8 +657,9 @@
     }
     .kpi-foot-stat .label {
       color: #64748b;
-      font-size: 8.5px;
-      text-transform: uppercase;
+      font-size: 9px;
+      text-transform: none;
+      line-height: 1.25;
       font-weight: 700;
       white-space: nowrap;
       overflow: hidden;
@@ -681,10 +685,11 @@
     }
     .kpi-bento-foot.two-cols .kpi-foot-stat .label {
       font-size: 9px;
-      letter-spacing: 0.03em;
+      letter-spacing: 0;
     }
     .kpi-bento-foot.two-cols .kpi-foot-stat .value {
-      font-size: 12px;
+      font-size: 11.5px;
+      line-height: 1.25;
       margin-top: 1px;
     }
 
@@ -1479,7 +1484,7 @@
 <body>
 <div id=crmBootScreen role=status aria-label=Loading><div class=crm-boot-mark><span class=crm-boot-spinner aria-hidden=true></span><span>NVT-AGENCY</span></div></div>
 <!-- Ẩn lớp đăng nhập trong lúc khôi phục phiên để F5 không nhấp nháy về form login. -->
-<iframe id="crmRuntimeFrame" title="Đăng nhập CRM" src="crm-runtime.html?v=20260923-pending-save-retry-1" style="display:none;position:fixed;inset:0;width:100%;height:100%;border:0;z-index:2147483647;background:white"></iframe>
+<iframe id="crmRuntimeFrame" title="Đăng nhập CRM" src="crm-runtime.html?v=20260924-round-load-3" style="display:none;position:fixed;inset:0;width:100%;height:100%;border:0;z-index:2147483647;background:white"></iframe>
 
 
 <div class="bg-aura" style="visibility:hidden"></div>
@@ -4668,7 +4673,7 @@
   })();
 </script>
 <script src="reference-view.js?v=20260923-distribution-rounds-2"></script>
-<script src="reference-crm.js?v=20260924-distribution-toggle-1"></script>
+<script src="reference-crm.js?v=20260924-attendance-detail-1"></script>
 <script>
   (() => {
     const roles = new Set(['MANAGER', 'LEADER', 'SALE']);

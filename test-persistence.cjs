@@ -488,6 +488,18 @@ test('Source rule overrides rotation; disabled team recipients receive no offer'
  assert.equal(result.state.customers[0].saleId,null);
  assert.equal(result.state.dataOffers.length,0);
 });
+test('Explicit global rounds take precedence over matching source rules for incoming webhook data',async()=>{
+ const f=await automaticFixture();f.db.users.push({id:'lead2',name:'Leader 2',role:'LEADER',team_id:'T2',active:1});
+ const snapshot=await f.api.read(admin);
+ await f.api.write(admin,'global-round-source-rule',[
+  {key:'leaderDistribution',id:'$',base:snapshot.versions['leaderDistribution/$'],value:{...snapshot.state.leaderDistribution,enabledLeaderIds:['lead','lead2'],sourceRules:[{active:true,matchType:'SOURCE',matchValue:'Landing Page',targetLeaderId:'lead2'}]}},
+  {key:'saleDistributionByLeader',id:'$',base:snapshot.versions['saleDistributionByLeader/$'],value:{...snapshot.state.saleDistributionByLeader,'$':{globalCycle:true,rounds:[{id:'explicit-round-1',enabledSaleIds:['s2'],weights:{s2:1}}]}}}
+ ]);
+ await f.webhook.persistWebhook(landingRecord(1));
+ const result=await f.api.read(admin);
+ assert.equal(result.state.customers[0].leaderId,'lead');
+ assert.deepEqual(recipientCounts(result),{lead:0,s1:0,s2:1,s3:0,s4:0});
+});
 test('UI mode and toggle save to server and allocate queue without client distribution',async()=>{
  const f=await automaticFixture();let snapshot=await f.api.read(admin);
  await f.api.write(admin,'ui-off',[{key:'leaderDistribution',id:'$',base:snapshot.versions['leaderDistribution/$'],value:{...snapshot.state.leaderDistribution,enabled:false}}]);
@@ -555,9 +567,13 @@ test('Distribution rounds stay visible when the current round has no enabled rec
  assert.ok(start>=0&&end>start,'global cycle renderer exists');
  const renderer=source.slice(start,end);
  assert.doesNotMatch(renderer,/if\s*\(!people\.length\)\s*return\s*''/);
- assert.match(renderer,/const roundRoster=/);
- assert.match(renderer,/roundRoster\.filter\(person=>hasRoundMemberMatch\?/);
- assert.match(source,/key==='global'\?1:/);
+ assert.match(renderer,/data.distributionRoundViews/);
+ const rounds=require('./distribution-rounds.js');
+ const config={rounds:[{id:'one',enabledSaleIds:[],weights:{}},{id:'two',enabledSaleIds:['a'],weights:{a:2}}]};
+ const views=rounds.preview(config,null,[{id:'a'}],'BALANCED');
+ assert.equal(views.length,2);assert.deepEqual(views[0].ids,[]);assert.deepEqual(views[1].ids,['a','a']);
+ assert.match(renderer,/views.map/);
+
 });
 test('Reference care save retries the same group and denies a different operation while pending',async()=>{
  const c=frontend();vm.runInContext(fs.readFileSync('crm-runtime-api.js','utf8'),c);
@@ -901,4 +917,103 @@ test('Personnel customer filter includes each hierarchy and excludes sibling bra
  const rows=[{id:'own',managerId:'m'},{id:'leader',leaderId:'l'},{id:'sale',saleId:'s'},{id:'direct',saleId:'d'},{id:'outside',saleId:'out'}];
  const filter=id=>rows.filter(row=>c.matchesPersonnelCustomer(row,id,members)).map(row=>row.id);
  assert.deepEqual(filter('m'),['own','leader','sale','direct']);assert.deepEqual(filter('l'),['leader','sale']);assert.deepEqual(filter('s'),['sale']);assert.deepEqual(filter('d'),['direct']);assert.deepEqual(filter('ALL'),rows.map(r=>r.id));
+});
+
+test('Admin edits queued round members without changing the active round',async()=>{
+ const c=referenceBridge(),api=c.window.crmApi;
+ vm.runInContext(`state.members=[{id:'m1',name:'One',role:'SALE',active:true},{id:'m2',name:'Two',role:'SALE',active:true},{id:'m3',name:'Three',role:'SALE',active:true}];state.saleDistributionByLeader={'$':{globalCycle:true,rounds:[{id:'active',enabledSaleIds:['m1','m2'],weights:{m1:1,m2:1}},{id:'queued',enabledSaleIds:['m1','m2'],weights:{m1:1,m2:1}}]}};saveState=()=>{};`,c);
+ await api.distributionRoundSave({roundId:'queued',enabledIds:['m2','m3'],weights:{m1:4,m2:2,m3:1}});
+ assert.deepEqual(Array.from(vm.runInContext(`state.saleDistributionByLeader['$'].rounds[0].enabledSaleIds`,c)),['m1','m2']);
+ assert.deepEqual(Array.from(vm.runInContext(`state.saleDistributionByLeader['$'].rounds[1].enabledSaleIds`,c)),['m2','m3']);
+ assert.equal(vm.runInContext(`state.saleDistributionByLeader['$'].rounds[1].weights.m2`,c),2);
+ await assert.rejects(()=>api.distributionRoundSave({roundId:'active',enabledIds:['m3'],weights:{m3:1}}),/vong dang chay/);
+ await assert.rejects(()=>api.distributionRoundSave({roundId:'queued',enabledIds:[],weights:{m1:0,m2:0,m3:0}}),/it nhat mot nhan su/);
+ });
+
+function roundInput(state,roundIndex=0,position){
+ const rounds=require('./distribution-rounds.js');
+ const roster=rounds.recipients(state.members,state.leaderDistribution,state.saleDistributionByLeader);
+ const config=state.saleDistributionByLeader.$||{id:'ROUND-1',enabledSaleIds:roster.people.map(p=>p.id),weights:roster.weights};
+ const view=rounds.preview(config,rounds.cursorFrom(state.settings.assignmentCursor),roster.people,state.settings.assignmentMode)[roundIndex];
+ position ??= view.index;
+ return {roundId:view.roundId,token:view.token,position,memberId:view.ids[position]};
+}
+test('Skipping a slot persists through the existing state API without changing assigned customers',async()=>{
+ const f=await automaticFixture();await f.webhook.persistWebhook(landingRecord(701));
+ const before=await f.api.read(admin),roster=require('./distribution-rounds.js').recipients(before.state.members,before.state.leaderDistribution,before.state.saleDistributionByLeader);
+ const config=before.state.saleDistributionByLeader.$||{id:'ROUND-1',enabledSaleIds:roster.people.map(p=>p.id),weights:roster.weights},view=require('./distribution-rounds.js').preview(config,before.state.settings.assignmentCursor.global,roster.people,before.state.settings.assignmentMode)[0];
+ assert.equal(view.ids[0],'lead');
+ const skipped=require('./distribution-rounds.js').skip(config,before.state.settings.assignmentCursor.global,roster.people,before.state.settings.assignmentMode,{roundId:view.roundId,token:view.token,position:1,memberId:'s1'});
+ const settings={...before.state.settings,assignmentCursor:{...before.state.settings.assignmentCursor,global:skipped.cursor}};
+ const saved=await f.api.write(admin,'skip-through-state',[{key:'settings',id:'$',base:before.versions['settings/$'],value:settings},{key:'saleDistributionByLeader',id:'$',base:before.versions['saleDistributionByLeader/$'],value:skipped.config}]);
+ assert.deepEqual(saved.state.customers,before.state.customers);assert.deepEqual(saved.state.dataOffers,before.state.dataOffers);
+ assert.deepEqual(saved.state.settings.assignmentCursor.global.ids,['lead','s2','s3','s4']);
+ await f.webhook.persistWebhook(landingRecord(702));
+ const after=await f.api.read(admin);assert.equal(recipientCounts(after).s2,recipientCounts(saved).s2+1);
+});
+test('Admin can remove a member from the active round without changing assigned slots',async()=>{
+ const c=referenceBridge(),api=c.window.crmApi;
+ vm.runInContext(`state.members=[{id:'m1',name:'One',role:'SALE',active:true},{id:'m2',name:'Two',role:'SALE',active:true}];state.saleDistributionByLeader={'$':{globalCycle:true,rounds:[{id:'active',enabledSaleIds:['m1','m2'],weights:{m1:1,m2:1}},{id:'queued',enabledSaleIds:['m1','m2'],weights:{m1:1,m2:1}}]}};state.settings.assignmentMode='ROUND_ROBIN';state.settings.assignmentCursor.global={index:1,ids:['m1','m2'],cycleId:'1'};saveState=()=>{};`,c);
+ const view=api.snapshot().distributionRoundViews[0];
+ await api.distributionRoundRemoveMember({roundId:view.roundId,token:view.token,memberId:'m2'});
+ assert.deepEqual(Array.from(vm.runInContext(`state.saleDistributionByLeader['$'].rounds[0].enabledSaleIds`,c)),['m1']);
+ assert.deepEqual(Array.from(vm.runInContext(`state.settings.assignmentCursor.global.ids`,c)),['m1']);
+ assert.equal(vm.runInContext(`state.settings.assignmentCursor.global.index`,c),1);
+ assert.deepEqual(Array.from(vm.runInContext(`state.saleDistributionByLeader['$'].rounds[1].enabledSaleIds`,c)),['m1','m2']);
+});
+test('Deleting active round promotes queued round to round one and resets its cursor',async()=>{
+ const c=referenceBridge(),api=c.window.crmApi;
+ vm.runInContext(`state.members=[{id:'lead',name:'Leader',role:'LEADER',teamId:'T',active:true},{id:'m1',name:'One',role:'SALE',leaderId:'lead',teamId:'T',active:true},{id:'m2',name:'Two',role:'SALE',leaderId:'lead',teamId:'T',active:true}];state.leaderDistribution={enabledLeaderIds:['lead']};state.saleDistributionByLeader={'$':{globalCycle:true,rounds:[{id:'active',enabledSaleIds:['m1'],weights:{m1:1}},{id:'queued',enabledSaleIds:['m2'],weights:{m2:1}}]},lead:{leaderEnabled:true,enabledSaleIds:['m1','m2'],weights:{lead:1,m1:1,m2:1}}};state.settings.assignmentMode='ROUND_ROBIN';state.settings.assignmentCursor.global={index:1,ids:['m1'],cycleId:'1'};saveState=()=>{};`,c);
+ vm.runInContext(`state.saleDistributionByLeader['$'].rounds=state.saleDistributionByLeader['$'].rounds.slice(0,1)`,c);
+ await assert.rejects(()=>api.distributionRoundDelete('active'),/vong ke tiep/);
+ vm.runInContext(`state.saleDistributionByLeader['$'].rounds.push({id:'queued',enabledSaleIds:['m2'],weights:{m2:1}})`,c);
+ await api.distributionRoundDelete('active');
+ assert.deepEqual(Array.from(vm.runInContext(`state.saleDistributionByLeader['$'].rounds.map(round=>round.id)`,c)),['queued']);
+ assert.deepEqual(Array.from(vm.runInContext(`state.settings.assignmentCursor.global.ids`,c)),['m2']);
+ assert.equal(vm.runInContext(`state.settings.assignmentCursor.global.index`,c),0);
+ const promoted=vm.runInContext(`state.saleDistributionByLeader['$']`,c),people=[{id:'m1'},{id:'m2'}],rounds=require('./distribution-rounds.js');
+ const first=rounds.take(promoted,vm.runInContext(`state.settings.assignmentCursor.global`,c),people,'ROUND_ROBIN');
+ const second=rounds.take(first.config,first.cursor,people,'ROUND_ROBIN');
+ assert.equal(first.id,'m2');assert.equal(second.id,'m2');
+});
+test('A concurrent webhook invalidates a stale slot skip through normal state revisions',async()=>{
+ const f=await automaticFixture();const before=await f.api.read(admin);
+ await f.webhook.persistWebhook(landingRecord(703));
+ await assert.rejects(()=>f.api.write(admin,'skip-stale',[{key:'settings',id:'$',base:before.versions['settings/$'],value:{...before.state.settings,assignmentCursor:{...before.state.settings.assignmentCursor,global:{index:1,ids:['lead','s2','s3','s4']}}}}]),e=>e.status===409);
+});
+test('Skipping one weighted duplicate or final slot never removes previous allocations',()=>{
+ const r=require('./distribution-rounds.js'),people=[{id:'a'},{id:'b'}],config={rounds:[{id:'one',enabledSaleIds:['a','b'],weights:{a:2,b:1}}]};
+ let cursor={index:1,ids:['a','a','b'],cycleId:'9'};
+ let view=r.preview(config,cursor,people,'ROUND_ROBIN')[0];
+ let result=r.skip(config,cursor,people,'ROUND_ROBIN',{roundId:'one',token:view.token,position:1,memberId:'a'});
+ assert.deepEqual(result.cursor.ids,['a','b']);assert.equal(result.cursor.index,1);
+ view=r.preview(config,result.cursor,people,'ROUND_ROBIN')[0];
+ result=r.skip(config,result.cursor,people,'ROUND_ROBIN',{roundId:'one',token:view.token,position:1,memberId:'b'});
+ assert.deepEqual(result.cursor.ids,['a']);assert.equal(result.cursor.index,1);
+ const next=r.take(config,result.cursor,people,'ROUND_ROBIN');
+ assert.equal(next.id,'a');assert.deepEqual(next.cursor.ids,['a','a','b']);
+ assert.equal(r.cursorFrom({global:0,salesByTeam:{global:{index:2,ids:['a','a','b']}}}).index,2);
+});
+test('Skip action persists config and cursor with regular CRM state save',async()=>{
+ const c=referenceBridge();vm.runInContext(
+  "currentAccount={id:'admin',role:'ADMIN'};state.members=[{id:'lead',role:'LEADER',teamId:'T',active:true},{id:'s1',role:'SALE',leaderId:'lead',teamId:'T',active:true},{id:'s2',role:'SALE',leaderId:'lead',teamId:'T',active:true}];state.leaderDistribution={enabledLeaderIds:['lead']};state.saleDistributionByLeader={'$':{rounds:[{id:'one',enabledSaleIds:['lead','s1','s2'],weights:{lead:1,s1:1,s2:1}}]}};state.settings.assignmentMode='ROUND_ROBIN';state.settings.assignmentCursor.global={index:1,ids:['lead','s1','s2'],cycleId:'1'};state.customers=[{id:'kept'}];let saved=0;saveState=()=>saved++;flushServerPersistence=async()=>true;",
+  c);
+ const snapshot=c.window.crmApi.snapshot(),view=snapshot.distributionRoundViews[0];
+ await c.window.crmApi.distributionRoundSkip({roundId:view.roundId,token:view.token,position:1,memberId:'s1'});
+ assert.deepEqual(Array.from(vm.runInContext("state.settings.assignmentCursor.global.ids",c)),['lead','s2']);
+ assert.equal(vm.runInContext('state.customers[0].id',c),'kept');assert.equal(vm.runInContext('saved',c),1);
+ assert.equal(vm.runInContext("state.audit.at(-1).action",c),'SKIP_DISTRIBUTION_SLOT');
+ vm.runInContext("currentAccount={id:'sale',role:'SALE'};",c);
+ await assert.rejects(()=>c.window.crmApi.distributionRoundSkip({}));
+});
+test('Runtime bundles round helper before consumers without a new static route',()=>{
+ const source=fs.readFileSync('crm.js','utf8');
+ const bundled=source.split('/* BEGIN BUNDLED DISTRIBUTION ROUNDS - source: distribution-rounds.js */')[1].split('/* END BUNDLED DISTRIBUTION ROUNDS */')[0].trim();
+ assert.equal(bundled,fs.readFileSync('distribution-rounds.js','utf8').trim());
+ assert.doesNotMatch(fs.readFileSync('crm-runtime.html','utf8'),/<script[^>]+src="[^"]*distribution-rounds/);
+ const c=referenceBridge();
+ assert.equal(vm.runInContext('typeof CrmDistributionRounds.preview',c),'function');
+ const snapshot=c.window.crmApi.snapshot();
+ assert.ok(snapshot.distributionRoundViews.length>0);
+ assert.equal(snapshot.distributionRoundViews[0].roundId,'ROUND-1');
 });

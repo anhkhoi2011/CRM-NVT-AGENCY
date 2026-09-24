@@ -1,3 +1,115 @@
+/* BEGIN BUNDLED DISTRIBUTION ROUNDS - source: distribution-rounds.js */
+'use strict';
+// One source of truth for global round previews, skipped slots and allocation.
+(function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.CrmDistributionRounds=api;})(typeof globalThis!=='undefined'?globalThis:this,function(){
+  const weight=value=>Number.isFinite(Number(value))?Math.max(0,Math.min(100,Math.round(Number(value)))):1;
+  function slots(round,people,mode){
+    const enabled=new Set(Array.isArray(round?.enabledSaleIds)?round.enabledSaleIds:people.map(p=>p.id));
+    const ids=people.filter(p=>enabled.has(p.id)&&weight(round?.weights?.[p.id])>0).sort((a,b)=>a.id.localeCompare(b.id)).flatMap(p=>Array(mode==='EQUAL'?1:weight(round?.weights?.[p.id])).fill(p.id));
+    const omitted=new Set(round?.omittedSlots||[]);
+    return ids.filter((id,i)=>!omitted.has(i));
+  }
+  function preview(config,raw,people,mode){
+    const rounds=Array.isArray(config?.rounds)&&config.rounds.length?config.rounds:[config||{}];
+    return rounds.map((round,i)=>{
+      const initialized=i===0&&raw&&typeof raw==='object'&&Array.isArray(raw.ids)&&(raw.ids.length>0||raw.cycleId);
+      const ids=initialized?raw.ids.slice():slots(round,people,mode);
+      const index=i===0?Math.min(ids.length,Math.max(0,Number(initialized?raw.index:typeof raw==='number'?raw:0)||0)):0;
+      const roundId=round.id||'ROUND-1';
+      const cycleId=initialized?raw.cycleId||'legacy':'';
+      return {roundId,index,ids,cycleId,token:JSON.stringify([roundId,index,ids,cycleId,mode,round.omittedSlots||[]])};
+    });
+  }
+  function skip(config,raw,people,mode,input){
+    const views=preview(config,raw,people,mode);
+    const i=views.findIndex(v=>v.roundId===input.roundId),view=views[i];
+    if(!view||view.token!==input.token)throw Error('Thứ tự vòng đã thay đổi. Đóng chi tiết và mở lại để cập nhật.');
+    const position=input.position;
+    if(!Number.isInteger(position)||position<view.index||position>=view.ids.length||view.ids[position]!==input.memberId)throw Error('Lượt này đã được phân hoặc không còn trong hàng chờ.');
+    const next=JSON.parse(JSON.stringify(config));
+    if(i===0){const ids=view.ids.slice();ids.splice(position,1);return {config:next,cursor:{index:view.index,ids,cycleId:String((Number(view.cycleId)||0)+1)}};}
+    let original=-1,visible=-1;while(visible<position){original++;if(!(next.rounds[i].omittedSlots||[]).includes(original))visible++;}next.rounds[i].omittedSlots=[...new Set([...(next.rounds[i].omittedSlots||[]),original])].sort((a,b)=>a-b);
+    return {config:next,cursor:raw};
+  }
+  function take(config,raw,people,mode){
+    const next=JSON.parse(JSON.stringify(config));
+    let cursor=raw;let changed=false;
+    for(let attempt=0;attempt<(config?.rounds?.length||1)+2;attempt++){
+      const view=preview(next,cursor,people,mode)[0];
+      const eligible=new Set(people.map(p=>p.id));
+      let index=view.index;
+      while(index<view.ids.length&&!eligible.has(view.ids[index]))index++;
+      if(index<view.ids.length)return {id:view.ids[index],config:next,changed,cursor:{index:index+1,ids:view.ids,cycleId:view.cycleId||'cycle'}};
+      if(next.rounds?.length>1){next.rounds.shift();next.weights=next.rounds[0].weights;next.enabledSaleIds=next.rounds[0].enabledSaleIds;changed=true;}
+      else {
+        const round=next.rounds?.[0]||next;
+        if(round.omittedSlots?.length){delete round.omittedSlots;changed=true;}
+        if(!slots(round,people,mode).length)return {id:null,config:next,changed,cursor:{index:view.ids.length,ids:view.ids,cycleId:view.cycleId||'empty'}};
+      }
+      const round=next.rounds?.[0]||next;
+      cursor={index:0,ids:slots(round,people,mode),cycleId:String((Number(view.cycleId)||0)+1)};
+    }
+    return {id:null,config:next,changed,cursor};
+  }
+  function recipients(members,leaderConfig={},saleConfigs={}){
+    members=members.filter(p=>p.active!==false);
+    const leaders=members.filter(p=>p.role==='LEADER'&&p.teamId&&(leaderConfig.enabledLeaderIds||[]).includes(p.id));
+    const directSales=managerId=>members.filter(p=>p.role==='SALE'&&(p.leaderId===managerId||p.managerId===managerId&&!members.some(l=>l.role==='LEADER'&&l.id===p.leaderId)));
+    for(const manager of members.filter(p=>p.role==='MANAGER')){
+      const own=saleConfigs['manager:'+manager.id]||{};
+      const configured=Array.isArray(own.enabledSaleIds)&&own.enabledSaleIds.length>0;
+      if(directSales(manager.id).some(p=>!configured||own.enabledSaleIds.includes(p.id)))leaders.push({...manager,directManagerBranch:true});
+    }
+    leaders.sort((a,b)=>a.id.localeCompare(b.id));
+ const globalRecipients=[];
+ const globalWeights={};
+ const globalSeen=new Set();
+ const globalLeaderWeights=leaderConfig.weights||{};
+ const globalWeight=raw=>{const n=Number(raw);return Number.isFinite(n)?Math.max(0,Math.min(100,Math.round(n))):1;};
+ const addGlobal=(person,raw)=>{const value=globalWeight(raw);if(!person||globalSeen.has(person.id)||(!saleConfigs.$&&value<=0))return;globalSeen.add(person.id);globalRecipients.push(person);globalWeights[person.id]=value;};
+ for(const leader of leaders){
+  const saleKey=leader.directManagerBranch?'manager:'+leader.id:leader.id;
+  const config=saleConfigs[saleKey]||{};
+  if(leader.directManagerBranch){
+   const managerRecipient={...leader,role:'SALE',actualRole:'MANAGER',managerRecipient:true,leaderId:null,teamId:leader.teamId};
+   if(config.leaderEnabled!==false)addGlobal(managerRecipient,config.weights?.[leader.id]);
+   const configured=Array.isArray(config.enabledSaleIds)&&config.enabledSaleIds.length>0;
+   directSales(leader.id).filter(p=>!configured||config.enabledSaleIds.includes(p.id)).forEach(p=>addGlobal({...p,directManagerBranch:true,managerId:leader.id,leaderId:null},config.weights?.[p.id]));
+   continue;
+  }
+  if(config.leaderEnabled!==false)addGlobal({...leader,role:'SALE',actualRole:'LEADER',leaderId:leader.id,teamLeaderRecipient:true},config.weights?.[leader.id]??globalLeaderWeights[leader.id]);
+  const configured=Array.isArray(config.enabledSaleIds)&&config.enabledSaleIds.length>0;
+  members.filter(p=>p.role==='SALE'&&p.leaderId===leader.id&&(!configured||config.enabledSaleIds.includes(p.id))).forEach(p=>addGlobal(p,config.weights?.[p.id]));
+  const manager=leader.managerId&&members.find(p=>p.role==='MANAGER'&&p.id===leader.managerId);
+  if(manager&&(!configured||config.enabledSaleIds.includes(manager.id)))addGlobal({...manager,role:'SALE',actualRole:'MANAGER',managerRecipient:true,leaderId:leader.id,teamId:leader.teamId},config.weights?.[manager.id]);
+ }
+
+    return {people:globalRecipients.sort((a,b)=>a.id.localeCompare(b.id)),weights:globalWeights};
+  }
+  function cursorFrom(store={}){return store.global&&typeof store.global==='object'?store.global:store.salesByTeam?.global??store.global;}
+  function removeMember(config,raw,people,mode,input){
+    const views=preview(config,raw,people,mode);
+    const i=views.findIndex(v=>v.roundId===input.roundId),view=views[i];
+    if(!view||view.token!==input.token)throw Error('Round order changed. Reopen the detail view.');
+    if(!view.ids.includes(input.memberId))throw Error('Member is no longer in this round.');
+    const next=JSON.parse(JSON.stringify(config));
+    const round=next.rounds?.[i]||next;
+    round.enabledSaleIds=(Array.isArray(round.enabledSaleIds)?round.enabledSaleIds:people.map(p=>p.id)).filter(id=>id!==input.memberId);
+    round.weights={...(round.weights||{}),[input.memberId]:0};
+    if(!round.enabledSaleIds.some(id=>weight(round.weights[id])>0))throw Error('Mỗi vòng cần giữ ít nhất một thành viên có tỷ trọng lớn hơn 0.');
+    if(i===0){
+      next.enabledSaleIds=round.enabledSaleIds;
+      next.weights=round.weights;
+      const cursor=raw&&typeof raw==='object'?raw:{index:0,ids:view.ids,cycleId:'legacy'};
+      const index=Math.max(0,Math.min(view.ids.length,Number(cursor.index)||0));
+      const ids=[...view.ids.slice(0,index),...view.ids.slice(index).filter(id=>id!==input.memberId)];
+      return {config:next,cursor:{...cursor,index,ids}};
+    }
+    return {config:next,cursor:raw};
+  }
+  return {slots,preview,skip,removeMember,take,recipients,cursorFrom};
+});
+/* END BUNDLED DISTRIBUTION ROUNDS */
 let orderTypeFilter = 'ALL';
 'use strict';
 
@@ -382,7 +494,7 @@ function sanitizeSaleDistribution(input, members, defaults) {
     if (!round || typeof round !== 'object') return null;
     const weights = Object.fromEntries(globalRecipients.map(member => [member.id, cleanNumber(round.weights?.[member.id] === undefined ? globalWeights[member.id] : round.weights[member.id], 1, 0, 100, true)]));
     const enabledSaleIds = Array.from(new Set((Array.isArray(round.enabledSaleIds) ? round.enabledSaleIds : globalEnabled).filter(id => globalIds.has(id))));
-    return { id: cleanId(round.id) || `ROUND-${index + 1}`, createdAt: cleanTimestamp(round.createdAt, stamp()), enabledSaleIds, weights };
+    return { id: cleanId(round.id) || `ROUND-${index + 1}`, createdAt: cleanTimestamp(round.createdAt, stamp()), enabledSaleIds, weights, omittedSlots: Array.isArray(round.omittedSlots) ? [...new Set(round.omittedSlots.filter(n=>Number.isInteger(n)&&n>=0&&n<100000))] : [] };
   }).filter(Boolean);
   if (!globalRounds.length) globalRounds.push({ id: cleanId(globalSource.activeRoundId) || 'ROUND-1', createdAt: cleanTimestamp(globalSource.createdAt, stamp()), enabledSaleIds: globalEnabled, weights: globalWeights });
   output.$ = { globalCycle: true, enabledSaleIds: globalRounds[0].enabledSaleIds, weights: globalRounds[0].weights, rounds: globalRounds };
@@ -426,7 +538,7 @@ function sanitizeSettings(settings, defaults) {
     leaderAttendanceRequired: input.leaderAttendanceRequired !== false,
     assignmentMode,
     saleAssignmentModes,
-    assignmentCursor: { leaders: cleanNumber(rawCursor.leaders, defaults.assignmentCursor.leaders, 0, Number.MAX_SAFE_INTEGER, true), global: Number.isInteger(rawCursor.global) && rawCursor.global >= 0 ? rawCursor.global : rawCursor.global && typeof rawCursor.global === 'object' && Number.isInteger(rawCursor.global.index) && rawCursor.global.index >= 0 && Array.isArray(rawCursor.global.ids) ? { index: rawCursor.global.index, ids: rawCursor.global.ids.map(String).slice(0, 10000) } : 0, salesByTeam },
+    assignmentCursor: { leaders: cleanNumber(rawCursor.leaders, defaults.assignmentCursor.leaders, 0, Number.MAX_SAFE_INTEGER, true), global: Number.isInteger(rawCursor.global) && rawCursor.global >= 0 ? rawCursor.global : rawCursor.global && typeof rawCursor.global === 'object' && Number.isInteger(rawCursor.global.index) && rawCursor.global.index >= 0 && Array.isArray(rawCursor.global.ids) ? { index: rawCursor.global.index, ids: rawCursor.global.ids.map(String).slice(0, 10000), cycleId: String(rawCursor.global.cycleId||'').slice(0,100) } : 0, salesByTeam },
     slaMinutes: cleanNumber(input.slaMinutes, defaults.slaMinutes, 5, 1440, true),
     customAccent: /^#[0-9a-f]{6}$/i.test(input.customAccent) ? input.customAccent : (defaults.customAccent || '#e8572a'),
     fontFamily: cleanText(input.fontFamily, defaults.fontFamily || 'aptos', 40),
@@ -4617,7 +4729,8 @@ function globalDistributionRound() {
 function promoteGlobalDistributionRound() {
   const config = state.saleDistributionByLeader['$'];
   if (!config || !Array.isArray(config.rounds) || config.rounds.length < 2) return false;
-  const next = config.rounds.shift();
+  config.rounds.shift();
+  const next = config.rounds[0];
   config.weights = next.weights || {};
   config.enabledSaleIds = next.enabledSaleIds || [];
   state.settings.assignmentCursor.global = { index: 0, ids: [] };
@@ -4686,6 +4799,16 @@ function weightedCandidateList(candidates) {
 }
 
 function chooseAssignmentTarget(customer, mode) {
+  if(!customer.leaderId&&['EQUAL','ROUND_ROBIN','BALANCED'].includes(mode)){
+    const roster=CrmDistributionRounds.recipients(activeStaff(),state.leaderDistribution,state.saleDistributionByLeader);
+    const config=state.saleDistributionByLeader.$||{id:'ROUND-1',enabledSaleIds:roster.people.map(p=>p.id),weights:roster.weights};
+    const store=state.settings.assignmentCursor;
+    const step=CrmDistributionRounds.take(config,CrmDistributionRounds.cursorFrom(store),roster.people,mode);
+    store.global=step.cursor;
+    if(store.salesByTeam)delete store.salesByTeam.global;
+    if(step.changed)state.saleDistributionByLeader.$=step.config;
+    return roster.people.find(p=>p.id===step.id)||null;
+  }
   let globalRound = customer.leaderId ? null : globalDistributionRound();
   let candidates = assignmentCandidates(customer, globalRound);
   if (!candidates.length) return null;
@@ -5848,6 +5971,7 @@ VIEW_RENDERERS.profile = function profileViewModern() {
           </div>
           <div class="profile-security-note"><span aria-hidden="true">🔒</span><div><strong>Bảo mật tài khoản</strong><small>Đổi mật khẩu được thực hiện ở mục riêng trong hồ sơ.</small></div></div>
           <div class="modal-actions profile-actions"><button class="button button-primary" type="submit">Lưu hồ sơ</button></div>
+          <section class="profile-security-note" aria-labelledby="telegramLinkTitle"><span aria-hidden="true">LINK</span><div><strong id="telegramLinkTitle">Liên kết Telegram</strong><small data-telegram-link-status>Đang kiểm tra trạng thái liên kết...</small><div class="modal-actions" style="margin-top:10px"><button class="button button-small button-primary" type="button" data-telegram-link>Tạo mã liên kết</button><button class="button button-small button-danger is-hidden" type="button" data-telegram-unlink>Hủy liên kết</button><a class="button button-small is-hidden" data-telegram-open target="_blank" rel="noopener noreferrer">Mở bot Telegram</a></div><small data-telegram-link-expiry></small></div></section>
         </form>
       </div>
     </section>`;
@@ -5906,6 +6030,21 @@ bindViewActions = function bindViewActionsWithProfileAndTypography() {
     const member = activeStaff().find(person => person.id === (currentAccount.actualRole==='MANAGER'?currentAccount.id:(currentAccount.saleId || currentAccount.leaderId)));
     if (member) { synchronizeAccountIdentity(member); saveState(); }
   });
+  const linkStatus=$('[data-telegram-link-status]'),linkButton=$('[data-telegram-link]'),unlinkButton=$('[data-telegram-unlink]'),openBot=$('[data-telegram-open]'),expiry=$('[data-telegram-link-expiry]');
+  const telegramRequest=async(path,method='GET')=>{
+    const response=await fetch(webhookApiBase()+path,{method,headers:{Authorization:'Bearer '+serverSyncToken,'Content-Type':'application/json'},cache:'no-store'});
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(result.error||'Không thực hiện được thao tác Telegram.');
+    return result;
+  };
+  if(linkStatus&&serverSyncToken){
+    telegramRequest('/api/telegram/link-status').then(result=>{
+      linkStatus.textContent=result.linked?'Telegram đang được liên kết với hồ sơ này.':'Chưa liên kết Telegram.';
+      linkButton.classList.toggle('is-hidden',result.linked);unlinkButton.classList.toggle('is-hidden',!result.linked);
+    }).catch(error=>{linkStatus.textContent=error.message;});
+    linkButton.onclick=async()=>{linkButton.disabled=true;try{const result=await telegramRequest('/api/telegram/link-code','POST');openBot.href=result.url;openBot.classList.remove('is-hidden');expiry.textContent='Mã dùng một lần, hết hạn sau 5 phút. Mở bot để hoàn tất liên kết.';linkStatus.textContent='Đang chờ bạn xác nhận trên Telegram.';}catch(error){toast(error.message);}finally{linkButton.disabled=false;}};
+    unlinkButton.onclick=async()=>{if(!confirm('Hủy liên kết Telegram của tài khoản này?'))return;unlinkButton.disabled=true;try{await telegramRequest('/api/telegram/unlink','POST');linkStatus.textContent='Đã hủy liên kết Telegram.';unlinkButton.classList.add('is-hidden');linkButton.classList.remove('is-hidden');openBot.classList.add('is-hidden');expiry.textContent='';}catch(error){toast(error.message);}finally{unlinkButton.disabled=false;}};
+  }
 };
 
 const baseSaveTeamMember = saveTeamMember;

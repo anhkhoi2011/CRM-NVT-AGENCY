@@ -306,6 +306,26 @@ async function handleDbApi(request, response, pathname) {
     if(!user)return dbJson(request,response,401,{error:'Phiên đã hết hạn. Đăng nhập lại để tiếp tục.'});
     if(pathname==='/api/auth/me')return dbJson(request,response,200,{user});
     if(pathname==='/api/auth/logout' && request.method==='POST'){await dbQuery('DELETE FROM crm_sessions WHERE token_hash=?',[tokenHash(request)]);return dbJson(request,response,200,{ok:true});}
+    if(pathname==='/api/telegram/link-status' && request.method==='GET'){
+      const rows=await dbQuery('SELECT telegram_chat_id FROM users WHERE id=? LIMIT 1',[user.id]);
+      return dbJson(request,response,200,{linked:Boolean(rows[0]?.telegram_chat_id)});
+    }
+    if(pathname==='/api/telegram/link-code' && request.method==='POST'){
+      const rows=await dbQuery('SELECT telegram_chat_id FROM users WHERE id=? AND active=1 LIMIT 1',[user.id]);
+      if(!rows.length)return dbJson(request,response,404,{error:'Tài khoản không còn hoạt động.'});
+      if(rows[0].telegram_chat_id)return dbJson(request,response,409,{error:'Hãy hủy liên kết Telegram hiện tại trước khi đổi.'});
+      const code=crypto.randomBytes(24).toString('base64url');
+      const hash=crypto.createHash('sha256').update(code).digest('hex');
+      await dbQuery('DELETE FROM telegram_link_tokens WHERE user_id=? OR expires_at<NOW() OR consumed_at IS NOT NULL',[user.id]);
+      await dbQuery('INSERT INTO telegram_link_tokens(token_hash,user_id,expires_at) VALUES(?,?,DATE_ADD(NOW(),INTERVAL 5 MINUTE))',[hash,user.id]);
+      const botName=(process.env.TELEGRAM_BOT_USERNAME||'HeThongCRMNVT_BOT').replace(/^@/,'');
+      return dbJson(request,response,200,{code,expiresIn:300,url:'https://t.me/'+botName+'?start='+encodeURIComponent(code)});
+    }
+    if(pathname==='/api/telegram/unlink' && request.method==='POST'){
+      await dbQuery('UPDATE users SET telegram_chat_id=NULL,telegram_username=NULL WHERE id=?',[user.id]);
+      await dbQuery('DELETE FROM telegram_link_tokens WHERE user_id=?',[user.id]);
+      return dbJson(request,response,200,{ok:true});
+    }
     if(pathname==='/api/navigation-counts' && request.method==='GET'){
       if(user.role!=='ADMIN')return dbJson(request,response,403,{error:'Chỉ Admin được xem số data và tài khoản chờ'});
       // API đếm riêng giúp badge cập nhật ngay mà không ghi đè form Admin đang nhập.
@@ -918,6 +938,7 @@ async function handleWebhook(request, response, slug) {
   if (record.status === 'NEW' && record.customerId && !record.duplicate) {
     (async () => {
       try {
+        await telegramBot.notifyWebhookLeadAdmins(record.customer, record.receivedAt);
         const [custRows] = await pool.execute('SELECT * FROM customers WHERE id = ?', [record.customerId]);
         if (custRows && custRows.length) {
           const cust = custRows[0];
@@ -1162,7 +1183,7 @@ const server = http.createServer(async (request, response) => {
       await dbQuery('UPDATE customer_appointments SET status = ?, note = COALESCE(?, note) WHERE id = ?', [status, body.note || null, id]);
       return sendJson(response, 200, { ok: true }, corsHeaders(request));
     }
-    if (pathname === '/api/db/health' || pathname === '/api/navigation-counts' || pathname.startsWith('/api/auth/') || pathname.startsWith('/api/users') || pathname.startsWith('/api/customers') || pathname.startsWith('/api/orders') || pathname.startsWith('/api/products') || pathname.startsWith('/api/settings') || pathname === '/api/state') return handleDbApi(request, response, pathname);
+    if (pathname === '/api/db/health' || pathname === '/api/navigation-counts' || pathname.startsWith('/api/auth/') || pathname.startsWith('/api/telegram/') || pathname.startsWith('/api/users') || pathname.startsWith('/api/customers') || pathname.startsWith('/api/orders') || pathname.startsWith('/api/products') || pathname.startsWith('/api/settings') || pathname === '/api/state') return handleDbApi(request, response, pathname);
     if (pathname === '/api/health') return sendJson(response, 200, { ok: true, inbox: inbox.length, token: Boolean(WEBHOOK_TOKEN) });
 
     if (pathname.startsWith('/api/')) {

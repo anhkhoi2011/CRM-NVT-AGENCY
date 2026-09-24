@@ -9,12 +9,13 @@
 
 const { pool, dbQuery } = require('./db.js');
 
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '8801097357:AAF3JB-nAlBJvNknI8AMiPgcOEv73sFd6mY';
+const BOT_TOKEN = (process.env.TELEGRAM_BOT_TOKEN || '').trim();
 const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
 
 // ==================== CÁC HÀM GỌI TELEGRAM BOT API ====================
 
 async function callTelegram(method, body = {}) {
+  if (!BOT_TOKEN) return { ok: false, error: 'TELEGRAM_BOT_TOKEN is not configured' };
   try {
     const res = await fetch(`${TELEGRAM_API}/${method}`, {
       method: 'POST',
@@ -123,51 +124,66 @@ async function handleIncomingMessage(msg) {
 
   // Lệnh /start
   if (rawText.startsWith('/start')) {
-    // Kiểm tra xem chat_id này đã liên kết tài khoản nào chưa
-    const existing = await dbQuery('SELECT id, name, role, phone, email, team_id FROM users WHERE telegram_chat_id = ? AND active = 1 LIMIT 1', [String(chatId)]);
-    if (existing && existing.length > 0) {
-      const u = existing[0];
-      const text = `👋 <b>Xin chào ${escapeHtml(u.name)}!</b>\n` +
-        `Tài khoản CRM của bạn đã được kết nối thành công.\n` +
-        `• <b>Chức vụ:</b> ${escapeHtml(u.role)}\n` +
-        `• <b>SĐT:</b> <code>${escapeHtml(u.phone)}</code>\n` +
-        `• <b>Team:</b> ${escapeHtml(u.team_id || 'Chưa gán')}\n\n` +
-        `Gõ <b>/me</b> để xem chi tiết hoặc <b>/help</b> để xem các tính năng hỗ trợ.`;
-      await sendMessage(chatId, text);
+    const linkCode = rawText.split(/\s+/, 2)[1] || '';
+    if (msg.chat?.type && msg.chat.type !== 'private') {
+      await sendMessage(chatId, 'Liên kết tài khoản chỉ được phép trong cuộc trò chuyện riêng với bot.');
       return;
     }
-
-    const welcome = `🤖 <b>CHÀO MỪNG BẠN ĐẾN VỚI BOT CRM NVT AGENCY!</b>\n\n` +
-      `Hệ thống sẽ gửi thông báo <b>Data mới Realtime</b>, nhắc nhở <b>Lịch hẹn khách hàng</b> và điểm danh trực tiếp qua đây.\n\n` +
-      `👉 <b>Vui lòng nhập Số điện thoại hoặc Email</b> đăng ký trên CRM của bạn để hoàn tất liên kết:`;
-    await sendMessage(chatId, welcome);
+    if (!linkCode) {
+      await sendMessage(chatId, '🤖 Để bảo mật, hãy đăng nhập CRM → Hồ sơ cá nhân → Liên kết Telegram để tạo mã kết nối. Bot không liên kết bằng số điện thoại, email hoặc ID tài khoản.');
+      return;
+    }
+    try {
+      const connection = await pool.getConnection();
+      let linkedUser;
+      try {
+        await connection.beginTransaction();
+        const [tokens] = await connection.execute(
+          'SELECT user_id FROM telegram_link_tokens WHERE token_hash = ? AND expires_at > NOW() AND consumed_at IS NULL LIMIT 1 FOR UPDATE',
+          [require('node:crypto').createHash('sha256').update(linkCode).digest('hex')]
+        );
+        if (!tokens.length) throw new Error('Mã liên kết không hợp lệ hoặc đã hết hạn. Hãy tạo mã mới trong Hồ sơ cá nhân.');
+        const [users] = await connection.execute('SELECT id, name, role, telegram_chat_id FROM users WHERE id = ? AND active = 1 LIMIT 1 FOR UPDATE', [tokens[0].user_id]);
+        if (!users.length) throw new Error('Tài khoản CRM không còn hoạt động.');
+        if (users[0].telegram_chat_id) throw new Error('Tài khoản này đang liên kết Telegram. Hãy hủy liên kết trong Hồ sơ cá nhân trước khi đổi.');
+        const [chatOwners] = await connection.execute('SELECT id FROM users WHERE telegram_chat_id = ? AND active = 1 LIMIT 1 FOR UPDATE', [String(chatId)]);
+        if (chatOwners.length) throw new Error('Telegram này đã liên kết với một tài khoản CRM khác.');
+        const [claimed] = await connection.execute('UPDATE users SET telegram_chat_id = ?, telegram_username = ? WHERE id = ? AND telegram_chat_id IS NULL', [String(chatId), fromUsername || null, users[0].id]);
+        if (claimed.affectedRows !== 1) throw new Error('Tài khoản vừa được liên kết ở nơi khác.');
+        await connection.execute('UPDATE telegram_link_tokens SET consumed_at = NOW() WHERE token_hash = ?', [require('node:crypto').createHash('sha256').update(linkCode).digest('hex')]);
+        linkedUser = users[0];
+        await connection.commit();
+      } catch (error) {
+        await connection.rollback().catch(() => {});
+        throw error;
+      } finally { connection.release(); }
+      await sendMessage(chatId, `✅ Đã liên kết Telegram với hồ sơ CRM của <b>${escapeHtml(linkedUser.name)}</b> (${escapeHtml(linkedUser.role)}).`);
+    } catch (error) {
+      await sendMessage(chatId, `⚠️ ${escapeHtml(error.message || 'Không liên kết được. Hãy thử tạo mã mới trong CRM.')}`);
+    }
     return;
   }
 
   // Lệnh /me
   if (rawText === '/me') {
-    const rows = await dbQuery('SELECT id, account_code, name, role, phone, email, team_id FROM users WHERE telegram_chat_id = ? AND active = 1 LIMIT 1', [String(chatId)]);
+    const rows = await dbQuery('SELECT id, name, role, team_id FROM users WHERE telegram_chat_id = ? AND active = 1 LIMIT 1', [String(chatId)]);
     if (!rows || rows.length === 0) {
-      await sendMessage(chatId, `⚠️ Bạn chưa liên kết tài khoản. Vui lòng nhập Số điện thoại hoặc Email để liên kết.`);
+      await sendMessage(chatId, `⚠️ Bạn chưa liên kết tài khoản. Hãy tạo mã trong CRM → Hồ sơ cá nhân.`);
       return;
     }
     const u = rows[0];
     const text = `👤 <b>THÔNG TIN TÀI KHOẢN LIÊN KẾT:</b>\n\n` +
       `• <b>Họ tên:</b> ${escapeHtml(u.name)}\n` +
       `• <b>Chức vụ:</b> <code>${escapeHtml(u.role)}</code>\n` +
-      `• <b>Số điện thoại:</b> <code>${escapeHtml(u.phone)}</code>\n` +
-      `• <b>Email:</b> ${escapeHtml(u.email || '—')}\n` +
       `• <b>Team:</b> ${escapeHtml(u.team_id || '—')}\n` +
-      `• <b>Telegram Chat ID:</b> <code>${chatId}</code>\n\n` +
-      `<i>Gõ /huylienket nếu bạn muốn chuyển sang tài khoản khác.</i>`;
+      `\n<i>Muốn đổi tài khoản Telegram, hãy hủy liên kết tại CRM → Hồ sơ cá nhân.</i>`;
     await sendMessage(chatId, text);
     return;
   }
 
   // Lệnh /huylienket
   if (rawText === '/huylienket') {
-    await dbQuery('UPDATE users SET telegram_chat_id = NULL, telegram_username = NULL WHERE telegram_chat_id = ?', [String(chatId)]);
-    await sendMessage(chatId, `✅ <b>ĐÃ HỦY LIÊN KẾT TÀI KHOẢN THÀNH CÔNG!</b>\nBạn có thể gõ <b>/start</b> để liên kết với tài khoản nhân sự khác.`);
+    await sendMessage(chatId, `🔒 Để bảo vệ tài khoản, bot không thể tự hủy liên kết. Vui lòng đăng nhập CRM → Hồ sơ cá nhân để thực hiện.`);
     return;
   }
 
@@ -187,41 +203,7 @@ async function handleIncomingMessage(msg) {
     return;
   }
 
-  // Nếu người dùng nhập thông tin để liên kết (SĐT hoặc Email hoặc Account Code)
-  const identifier = rawText.replace(/\s+/g, '');
-  const cleanPhone = identifier.replace(/\D/g, '');
-  const cleanEmail = identifier.toLowerCase();
-
-  const userMatch = await dbQuery(
-    `SELECT * FROM users WHERE (phone = ? OR phone = ? OR LOWER(email) = ? OR UPPER(account_code) = ? OR id = ?) AND active = 1 LIMIT 1`,
-    [identifier, cleanPhone, cleanEmail, identifier.toUpperCase(), identifier]
-  );
-
-  if (!userMatch || userMatch.length === 0) {
-    await sendMessage(chatId, `❌ <b>Không tìm thấy tài khoản</b> với thông tin: <code>${escapeHtml(rawText)}</code>\n\nVui lòng kiểm tra lại Số điện thoại hoặc Email bạn đã đăng ký trên CRM, hoặc liên hệ Admin để được cấp quyền.`);
-    return;
-  }
-
-  const user = userMatch[0];
-  if (user.role === 'UNASSIGNED') {
-    await sendMessage(chatId, `⚠️ Tài khoản <b>${escapeHtml(user.name)}</b> đã đăng ký nhưng đang chờ Admin phân quyền chức vụ trước khi có thể kích hoạt Bot.`);
-    return;
-  }
-
-  // Cập nhật telegram_chat_id và telegram_username
-  await dbQuery(
-    `UPDATE users SET telegram_chat_id = ?, telegram_username = ? WHERE id = ?`,
-    [String(chatId), fromUsername || null, user.id]
-  );
-
-  const successText = `🎉 <b>XÁC THỰC THÀNH CÔNG!</b>\n\n` +
-    `Xin chào <b>${escapeHtml(user.name)}</b>!\n` +
-    `• <b>Chức vụ:</b> ${escapeHtml(user.role)}\n` +
-    `• <b>Team:</b> ${escapeHtml(user.team_id || 'Chưa gán')}\n` +
-    `• <b>SĐT:</b> <code>${escapeHtml(user.phone)}</code>\n\n` +
-    `✅ Bạn đã kết nối thành công với <b>CRM NVT Agency</b>.\n` +
-    `Từ bây giờ mọi thông báo Data mới, nhắc lịch hẹn và điểm danh sẽ được gửi trực tiếp đến đây! 🚀`;
-  await sendMessage(chatId, successText);
+  await sendMessage(chatId, 'Để liên kết an toàn, hãy tạo mã dùng một lần trong CRM → Hồ sơ cá nhân rồi mở liên kết bot từ đó.');
 }
 
 // ==================== XỬ LÝ NÚT BẤM INLINE (CALLBACK QUERIES) ====================
@@ -487,6 +469,25 @@ async function notifyNewLead(customer, offer = null) {
     }
   } catch (err) {
     console.error('[Telegram Bot] notifyNewLead error:', err.message);
+  }
+}
+
+async function notifyWebhookLeadAdmins(customer, receivedAt) {
+  try {
+    const admins = await dbQuery("SELECT telegram_chat_id FROM users WHERE role = 'ADMIN' AND active = 1 AND telegram_chat_id IS NOT NULL");
+    const chatIds = [...new Set(admins.map(row => String(row.telegram_chat_id)).filter(Boolean))];
+    if (!chatIds.length) return { sent: 0, skipped: true };
+    const text = '<b>DATA MỚI TỪ WEBHOOK</b>\n\n' +
+      '• <b>Họ tên:</b> ' + escapeHtml(customer.name || 'Chưa có') + '\n' +
+      '• <b>SĐT:</b> <code>' + escapeHtml(customer.phone || 'Chưa có') + '</code>\n' +
+      '• <b>Gmail:</b> ' + escapeHtml(customer.email || 'Chưa có') + '\n' +
+      '• <b>Thời gian data về:</b> ' + escapeHtml(formatDateTimeVN(receivedAt));
+    let sent = 0;
+    for (const chatId of chatIds) if ((await sendMessage(chatId, text))?.ok) sent++;
+    return { sent, total: chatIds.length };
+  } catch (error) {
+    console.error('[Telegram Bot] notifyWebhookLeadAdmins error:', error.message);
+    return { sent: 0, error: error.message };
   }
 }
 
@@ -846,6 +847,7 @@ module.exports = {
   setWebhook,
   handleTelegramUpdate,
   notifyNewLead,
+  notifyWebhookLeadAdmins,
   notifyReassignedLead,
   notifyAppointmentReminder,
   notifyStaleLeadWarning,
