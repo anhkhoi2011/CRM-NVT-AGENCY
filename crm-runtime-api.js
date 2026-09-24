@@ -578,12 +578,16 @@
       return {ok:true,round};
     },
     async distributionRoundDelete(id) {
-      if(!serverStateLoaded||!['ADMIN','MANAGER'].includes(effectivePermissionRole()))throw Error('Khong co quyen xoa vong ty trong.');
+      if(!currentAccount)throw Error('Phien dang nhap khong con hieu luc. Hay dang nhap lai.');
+      if(!serverStateLoaded&&!await syncServerState())throw Error('Du lieu CRM chua dong bo voi may chu. Hay tai lai trang va thu lai.');
+      if(!serverStateLoaded)throw Error('Du lieu CRM chua dong bo voi may chu. Hay tai lai trang va thu lai.');
+      const permissionRole=currentAccount.role==='ADMIN'||currentAccount.actualRole==='ADMIN'?'ADMIN':effectivePermissionRole();
+      if(!['ADMIN','MANAGER'].includes(permissionRole))throw Error('Tai khoan '+(permissionRole||'chua xac dinh')+' khong co quyen xoa vong ty trong.');
       const config=state.saleDistributionByLeader['$'];
       if(!config||!Array.isArray(config.rounds)||!config.rounds.length)throw Error('Khong co vong de xoa.');
       const target=String(id||'');
       const deletingActive=target===config.rounds[0].id;
-      if(effectivePermissionRole()==='MANAGER'){
+      if(permissionRole==='MANAGER'){
         if(deletingActive)throw Error('Chi Admin duoc xoa Vong 1 toan he thong.');
         const round=config.rounds.find(item=>item.id===target),scope=managerScope();
         const allowed=new Set([scope.manager?.id,...scope.leaderIds,...scope.saleIds].filter(Boolean));
@@ -600,6 +604,7 @@
         audit('PROMOTE_DISTRIBUTION_ROUND',config.rounds[0].id,'Dua vong ke tiep len Vong 1');
       }
       saveState();
+      if(!await flushServerPersistence())throw Error('Chua luu duoc thao tac xoa vong. Vui long giu trang mo va thu lai.');
       return {ok:true};
     },
     async bulkAssignWaitingSales(mode) {

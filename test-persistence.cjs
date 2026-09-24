@@ -978,9 +978,10 @@ test('Deleting active round promotes queued round to round one and resets its cu
 });
 test('Explicit Admin role is not downgraded by a colliding Manager staff record',async()=>{
  const c=referenceBridge(),api=c.window.crmApi;
- vm.runInContext(`state.members=[{id:'admin',name:'Manager collision',role:'MANAGER',active:true},{id:'a',role:'SALE',active:true},{id:'b',role:'SALE',active:true}];state.leaderDistribution={enabledLeaderIds:[]};state.saleDistributionByLeader={'$':{rounds:[{id:'one',enabledSaleIds:['a'],weights:{a:1}},{id:'two',enabledSaleIds:['b'],weights:{b:1}}]}};saveState=()=>{};`,c);
+ vm.runInContext(`state.members=[{id:'admin',name:'Manager collision',role:'MANAGER',active:true},{id:'a',role:'SALE',active:true},{id:'b',role:'SALE',active:true}];state.leaderDistribution={enabledLeaderIds:[]};state.saleDistributionByLeader={'$':{rounds:[{id:'one',enabledSaleIds:['a'],weights:{a:1}},{id:'two',enabledSaleIds:['b'],weights:{b:1}}]}};serverStateLoaded=false;let synced=false;syncServerState=async()=>{synced=true;serverStateLoaded=true;return true;};saveState=()=>{};`,c);
  assert.equal(vm.runInContext('effectivePermissionRole()',c),'ADMIN');
  await api.distributionRoundDelete('one');
+ assert.equal(vm.runInContext('synced',c),true);
  assert.deepEqual(Array.from(vm.runInContext(`state.saleDistributionByLeader['$'].rounds.map(round=>round.id)`,c)),['two']);
 });
 test('A concurrent webhook invalidates a stale slot skip through normal state revisions',async()=>{
