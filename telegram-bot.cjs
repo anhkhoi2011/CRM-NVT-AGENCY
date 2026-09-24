@@ -451,7 +451,7 @@ async function notifyNewLead(customer, offer = null) {
     let targetChatIds = [];
 
     // Nếu đã có Sale cụ thể được gán hoặc trong offer
-    const targetSaleId = customer.sale_id || customer.saleId || offer?.saleId;
+    const targetSaleId = offer?.saleId || offer?.sale_id || customer.sale_id || customer.saleId;
     if (targetSaleId) {
       const sales = await dbQuery("SELECT telegram_chat_id FROM users WHERE id = ? AND role = 'SALE' AND active = 1 AND telegram_chat_id IS NOT NULL", [targetSaleId]);
       if (sales[0]?.telegram_chat_id) targetChatIds.push(sales[0].telegram_chat_id);

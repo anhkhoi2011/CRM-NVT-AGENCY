@@ -329,6 +329,23 @@ async function handleDbApi(request, response, pathname) {
       await dbQuery('DELETE FROM crm_sessions WHERE user_id=?',[id]);
       return dbJson(request,response,200,{ok:true});
     }
+async function notifyPendingOffersForCustomers(customerIds) {
+  if (!dbConfigured || !Array.isArray(customerIds) || !customerIds.length) return;
+  for (const customerId of [...new Set(customerIds.filter(Boolean).map(String))]) {
+    try {
+      const [custRows] = await pool.execute('SELECT * FROM customers WHERE id = ? LIMIT 1', [customerId]);
+      if (!custRows?.[0]) continue;
+      const [offerDocs] = await pool.query("SELECT body FROM crm_documents WHERE collection = 'dataOffers' AND deleted = 0 AND JSON_EXTRACT(body, '$.customerId') = ?", [customerId]);
+      const offers = (offerDocs || []).map(row => {
+        try { return typeof row.body === 'string' ? JSON.parse(row.body) : row.body; } catch { return null; }
+      }).filter(offer => offer?.status === 'PENDING' && (offer.saleId || offer.sale_id));
+      for (const offer of offers) await telegramBot.notifyNewLead(custRows[0], offer);
+    } catch (error) {
+      console.warn('[Telegram Bot] notify pending offer:', error.message);
+    }
+  }
+}
+
     if(pathname==='/api/state'){
       if(request.method==='GET')return dbJson(request,response,200,{...await crmData.read(user),user});
       if(request.method==='POST'){
@@ -336,20 +353,11 @@ async function handleDbApi(request, response, pathname) {
         const result=await crmData.write(user,body.requestId,body.changes);
         notifyInboxListeners({id:body.requestId,kind:'state',receivedAt:stamp()});
 
-        // Phân lại thủ công tạo offer PENDING cho Sale mới. Gửi Telegram sau
-        // khi giao dịch đã commit; request phát lại không gửi thêm lần nữa.
-        if(!result.replayed && Array.isArray(body.changes) && typeof telegramBot.notifyReassignedLead === 'function'){
-          const reassignedOffers=body.changes
-            .filter(change=>change?.key==='dataOffers'&&change.value?.status==='PENDING'&&change.value?.source==='MANUAL'&&change.value?.saleId)
-            .map(change=>change.value);
-          for(const offer of reassignedOffers){
-            try{
-              const [custRows]=await pool.execute('SELECT * FROM customers WHERE id = ? LIMIT 1',[offer.customerId]);
-              if(custRows?.[0]) await telegramBot.notifyReassignedLead(custRows[0],offer);
-            }catch(err){
-              console.warn('[Telegram Bot] notify reassigned lead notice:',err.message);
-            }
-          }
+        // Sau khi commit, báo Telegram cho mọi offer PENDING vừa được tạo bởi
+        // webhook, chia tự động hoặc phân lại thủ công; request replay không gửi trùng.
+        if(!result.replayed && Array.isArray(body.changes)){
+          const customerIds=body.changes.map(change=>change?.value?.customerId || (change?.key==='customers'?change.id:null));
+          await notifyPendingOffersForCustomers(customerIds);
         }
         return dbJson(request,response,200,result);
       }
