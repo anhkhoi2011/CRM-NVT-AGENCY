@@ -107,7 +107,19 @@
     }
     return {config:next,cursor:raw};
   }
-  return {slots,preview,skip,removeMember,take,recipients,cursorFrom};
+  function addExtraTurn(config,raw,people,mode,input){
+    const views=preview(config,raw,people,mode);
+    const i=views.findIndex(view=>view.roundId===input.roundId),view=views[i];
+    if(i!==0||!view)throw Error('Chỉ có thể thêm lượt vào vòng đang chạy.');
+    if(view.token!==input.token)throw Error('Thứ tự vòng đã thay đổi. Mở lại chi tiết vòng rồi thử lại.');
+    const memberId=String(input.memberId||'');
+    if(!memberId||!people.some(person=>person.id===memberId))throw Error('Nhân sự không còn đủ điều kiện nhận data.');
+    if(view.ids.length>=1000)throw Error('Vòng đã đạt giới hạn 1.000 lượt.');
+    const next=JSON.parse(JSON.stringify(config));
+    const cursor=raw&&typeof raw==='object'?raw:{};
+    return {config:next,cursor:{...cursor,index:view.index,ids:[...view.ids,memberId],cycleId:view.cycleId||String(Date.now())}};
+  }
+  return {slots,preview,skip,removeMember,addExtraTurn,take,recipients,cursorFrom};
 });
 /* END BUNDLED DISTRIBUTION ROUNDS */
 let orderTypeFilter = 'ALL';

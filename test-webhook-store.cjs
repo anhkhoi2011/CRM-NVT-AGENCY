@@ -26,7 +26,7 @@ function fixture(failCustomer = false, websites = [{ id: 'WEB-TEST', name: 'Hoan
   };
   const module = { exports: {} };
   vm.runInNewContext(fs.readFileSync(require.resolve('./webhook-store.cjs'), 'utf8'), {
-    module, URL, require: name => name === './db.js' ? { dbConfigured: true, pool: { async query() {}, async getConnection() { return connection; } } } : name === './crm-data.cjs' ? {prepare:async()=>{},distributeAutomatic:async c=>{assert.equal(c,connection);calls.push('assign');}} : name === './crm-defaults.json' ? { websites: [] } : require(name)
+    module, URL, require: name => name === './db.js' ? { dbConfigured: true, pool: { async query() {}, async getConnection() { return connection; } } } : name === './crm-data.cjs' ? {queueTelegramNotice:async()=>{},prepare:async()=>{},distributeAutomatic:async c=>{assert.equal(c,connection);calls.push('assign');}} : name === './crm-defaults.json' ? { websites: [] } : require(name)
   });
   return { ...module.exports, customers, events, calls };
 }

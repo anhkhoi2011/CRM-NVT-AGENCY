@@ -1025,3 +1025,56 @@ test('Runtime bundles round helper before consumers without a new static route',
  assert.ok(snapshot.distributionRoundViews.length>0);
  assert.equal(snapshot.distributionRoundViews[0].roundId,'ROUND-1');
 });
+
+test('Extra turn appends once without changing weights, assigned prefix or next cycle',()=>{
+ const r=require('./distribution-rounds.js'),people=[{id:'a'},{id:'b'}],config={rounds:[{id:'one',weights:{a:1,b:1},enabledSaleIds:['a','b']}]};
+ const raw={index:1,ids:['a','b'],cycleId:'cycle'},view=r.preview(config,raw,people,'BALANCED')[0];
+ const result=r.addExtraTurn(config,raw,people,'BALANCED',{roundId:'one',token:view.token,memberId:'a'});
+ assert.deepEqual(result.cursor.ids,['a','b','a']);assert.equal(result.cursor.index,1);assert.deepEqual(result.config,config);assert.deepEqual(raw.ids,['a','b']);
+ let step=r.take(result.config,result.cursor,people,'BALANCED');assert.equal(step.id,'b');
+ step=r.take(step.config,step.cursor,people,'BALANCED');assert.equal(step.id,'a');
+ step=r.take(step.config,step.cursor,people,'BALANCED');assert.deepEqual(step.cursor.ids,['a','b']);
+ assert.throws(()=>r.addExtraTurn(config,result.cursor,people,'BALANCED',{roundId:'one',token:view.token,memberId:'a'}),/thay đổi/);
+ assert.throws(()=>r.addExtraTurn(config,raw,people,'BALANCED',{roundId:'one',token:view.token,memberId:'unknown'}),/điều kiện/);
+});
+test('Extra turn finishes before queued round promotion and does not mutate queued round',()=>{
+ const r=require('./distribution-rounds.js'),people=[{id:'a'},{id:'b'}],config={rounds:[{id:'one',weights:{a:1},enabledSaleIds:['a']},{id:'two',weights:{b:1},enabledSaleIds:['b']}]};
+ const raw={index:1,ids:['a'],cycleId:'1'},v=r.preview(config,raw,people,'EQUAL');
+ const added=r.addExtraTurn(config,raw,people,'EQUAL',{roundId:'one',token:v[0].token,memberId:'b'});
+ let step=r.take(added.config,added.cursor,people,'EQUAL');assert.equal(step.id,'b');assert.equal(step.config.rounds[0].id,'one');
+ step=r.take(step.config,step.cursor,people,'EQUAL');assert.equal(step.config.rounds[0].id,'two');assert.deepEqual(step.cursor.ids,['b']);
+ assert.throws(()=>r.addExtraTurn(config,raw,people,'EQUAL',{roundId:'two',token:v[1].token,memberId:'a'}),/đang chạy/);
+});
+test('Extra turn API retries failed save without appending twice and denies Sale',async()=>{
+ const c=referenceBridge();vm.runInContext("state.members=[{id:'l',role:'LEADER',teamId:'T',active:true},{id:'s',name:'Sale',role:'SALE',leaderId:'l',teamId:'T',active:true}];state.leaderDistribution={enabledLeaderIds:['l']};state.saleDistributionByLeader={'$':{rounds:[{id:'one',enabledSaleIds:['s'],weights:{s:1}}]}};state.settings.assignmentMode='BALANCED';state.settings.assignmentCursor.global={index:0,ids:['s'],cycleId:'1'};saveState=()=>{};let attempts=0;flushServerPersistence=async()=>++attempts!==2;",c);
+ const api=c.window.crmApi,v=api.snapshot().distributionRoundViews[0],input={roundId:v.roundId,token:v.token,memberId:'s'};
+ await assert.rejects(()=>api.distributionRoundAddExtraTurn(input),/Chưa lưu/);
+ await api.distributionRoundAddExtraTurn(input);
+ assert.deepEqual(Array.from(vm.runInContext('state.settings.assignmentCursor.global.ids',c)),['s','s']);
+ vm.runInContext("currentAccount={id:'s',role:'SALE'}",c);await assert.rejects(()=>api.distributionRoundAddExtraTurn(input),/quyền/);
+});
+test('Extra turn persists and real webhook allocation consumes exactly the previewed sequence',async()=>{
+ const f=await automaticFixture();await f.webhook.persistWebhook(landingRecord(801));
+ const before=await f.api.read(admin),r=require('./distribution-rounds.js'),roster=r.recipients(before.state.members,before.state.leaderDistribution,before.state.saleDistributionByLeader);
+ const config=before.state.saleDistributionByLeader.$||{id:'ROUND-1',enabledSaleIds:roster.people.map(p=>p.id),weights:roster.weights};
+ const v=r.preview(config,r.cursorFrom(before.state.settings.assignmentCursor),roster.people,before.state.settings.assignmentMode)[0];
+ const added=r.addExtraTurn(config,r.cursorFrom(before.state.settings.assignmentCursor),roster.people,before.state.settings.assignmentMode,{roundId:v.roundId,token:v.token,memberId:'s1'});
+ const saved=await f.api.write(admin,'extra-turn-save',[
+ {key:'settings',id:'$',base:before.versions['settings/$'],value:{...before.state.settings,assignmentCursor:{...before.state.settings.assignmentCursor,global:added.cursor}}},
+ {key:'saleDistributionByLeader',id:'$',base:before.versions['saleDistributionByLeader/$'],value:{...before.state.saleDistributionByLeader,$:added.config}}]);
+ assert.deepEqual(saved.state.customers,before.state.customers);
+ for(const [index,id] of added.cursor.ids.slice(added.cursor.index).entries()){
+  const record=landingRecord(810+index);await f.webhook.persistWebhook(record);const snapshot=await f.api.read(admin);const cid='CUS-'+record.id;
+  const customer=snapshot.state.customers.find(c=>c.id===cid),offer=snapshot.state.dataOffers.find(o=>o.customerId===cid&&o.status==='PENDING');assert.equal(offer?.saleId||customer.saleId||customer.managerId,id);
+ }
+ const notices=f.db.docs.filter(d=>d.collection==='telegramOutbox');assert.ok(notices.some(d=>d.body.kind==='WEBHOOK_ADMIN'));assert.ok(notices.some(d=>d.body.offerId));assert.ok(notices.some(d=>d.body.acceptedAt));
+ const publicState=await f.api.read(sale);assert.equal(publicState.state.telegramOutbox,undefined);
+});
+test('Telegram queue is atomic, replay-safe, and includes repeat-customer webhook events',async()=>{
+ const f=await automaticFixture(),record=landingRecord(850);await f.webhook.persistWebhook(record);
+ const before=f.db.docs.filter(d=>d.collection==='telegramOutbox').length;
+ await f.webhook.persistWebhook(record);assert.equal(f.db.docs.filter(d=>d.collection==='telegramOutbox').length,before);
+ await f.webhook.persistWebhook({...record,id:'new-repeat-event',dedupeKey:'different-payload'});
+ assert.equal(f.db.docs.filter(d=>d.collection==='telegramOutbox'&&d.body.kind==='WEBHOOK_ADMIN').length,2);
+ const g=await automaticFixture();g.fail();await assert.rejects(()=>g.webhook.persistWebhook(landingRecord(851)));assert.equal(g.db.docs.filter(d=>d.collection==='telegramOutbox').length,0);
+});

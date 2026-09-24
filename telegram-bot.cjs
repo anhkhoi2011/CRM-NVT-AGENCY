@@ -20,7 +20,8 @@ async function callTelegram(method, body = {}) {
     const res = await fetch(`${TELEGRAM_API}/${method}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(10000)
     });
     const data = await res.json();
     if (!data.ok) {
@@ -90,7 +91,8 @@ function formatVND(amount) {
 function formatDateTimeVN(dt) {
   if (!dt) return '';
   try {
-    const d = new Date(dt);
+    const localStamp=typeof dt==='string'&&/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2})?$/.test(dt);
+    const d = new Date(localStamp?dt.replace(' ','T')+'+07:00':dt);
     if (isNaN(d.getTime())) return String(dt);
     return d.toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour12: false });
   } catch {
@@ -214,13 +216,22 @@ async function acceptDataFromTelegram(chatId, callbackData) {
   const user = userRows[0];
   if (String(user.role || '').toUpperCase() !== 'SALE') throw new Error('Chức năng nhận data chỉ dành cho Sale được phân công.');
 
-  const payload = String(callbackData || '').slice('accept_data:'.length);
-  const [customerId, requestedOfferId = ''] = payload.split(':', 2);
+  let customerId,requestedOfferId='';
+  if(String(callbackData).startsWith('accept_offer:')){
+    requestedOfferId=String(callbackData).slice('accept_offer:'.length);
+    const docs=await dbQuery("SELECT body FROM crm_documents WHERE collection='dataOffers' AND id=? AND deleted=0",[requestedOfferId]);
+    const requested=docs[0]?(typeof docs[0].body==='string'?JSON.parse(docs[0].body):docs[0].body):null;
+    if(!requested||requested.saleId!==user.id)throw Error('Lượt phân không còn dành cho bạn.');
+    customerId=requested.customerId;
+  }else{
+    [customerId,requestedOfferId='']=String(callbackData||'').slice('accept_data:'.length).split(':',2);
+  }
   if (!customerId) throw new Error('Nút nhận data không hợp lệ. Vui lòng mở thông báo mới nhất.');
 
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
+    await connection.query('SELECT id FROM crm_write_lock WHERE id=1 FOR UPDATE');
     const [customerRows] = await connection.execute('SELECT * FROM customers WHERE id = ? LIMIT 1 FOR UPDATE', [customerId]);
     if (!customerRows?.length) throw new Error('Khách hàng không còn tồn tại.');
     const customer = customerRows[0];
@@ -248,12 +259,14 @@ async function acceptDataFromTelegram(chatId, callbackData) {
       throw new Error('Data này không còn chờ bạn nhận hoặc đã hết hạn.');
     }
 
+    const offeredMs=Date.parse(String(offer.body.offeredAt||'').replace(' ','T')+'+07:00');
+    if(!Number.isFinite(offeredMs)||Date.now()-offeredMs>=86400000)throw Error('Lượt nhận data đã hết hạn.');
     const nowStamp = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' }).slice(0, 19);
     const [updated] = await connection.execute(
       `UPDATE customers
        SET sale_id = ?, leader_id = COALESCE(leader_id, ?), team_id = COALESCE(team_id, ?), sale_accepted_at = ?, updated_at = ?
        WHERE id = ? AND (sale_id IS NULL OR sale_id = ?)`,
-      [user.id, user.leader_id || offer.body.leaderId || user.id, user.team_id || offer.body.teamId || '', nowStamp, nowStamp, customerId, user.id]
+      [user.id, offer.body.leaderId || null, user.team_id || offer.body.teamId || '', nowStamp, nowStamp, customerId, user.id]
     );
     if (updated.affectedRows !== 1) throw new Error('Data này vừa được người khác nhận.');
 
@@ -262,6 +275,9 @@ async function acceptDataFromTelegram(chatId, callbackData) {
       `UPDATE crm_documents SET body = ? WHERE collection = 'dataOffers' AND id = ?`,
       [JSON.stringify(acceptedOffer), offer.id]
     );
+    const fields=typeof customer.custom_fields_json==='string'?JSON.parse(customer.custom_fields_json||'{}'):(customer.custom_fields_json||{});
+    fields.__crmMeta={...(fields.__crmMeta||{}),saleId:user.id,saleAcceptedAt:nowStamp,updatedAt:nowStamp};
+    await connection.execute('UPDATE customers SET custom_fields_json=? WHERE id=?',[JSON.stringify(fields),customerId]);
     await connection.commit();
     console.info('[Telegram Bot] Data accepted:', customerId, 'by', user.id);
     return { customer, user, nowStamp };
@@ -279,7 +295,7 @@ async function handleCallbackQuery(query) {
   const chatId = query.message?.chat?.id;
   const messageId = query.message?.message_id;
 
-  if (!data.startsWith('accept_data:')) return handleCallbackQueryLegacy(query);
+  if (!data.startsWith('accept_data:')&&!data.startsWith('accept_offer:')) return handleCallbackQueryLegacy(query);
   if (!chatId || !messageId) {
     await answerCallbackQuery(queryId);
     return;
@@ -288,6 +304,7 @@ async function handleCallbackQuery(query) {
   // Stop the Telegram button spinner before the database transaction begins.
   await answerCallbackQuery(queryId, 'Đang nhận data...');
   try {
+    if(query.message?.chat?.type!=='private'||String(query.from?.id)!==String(chatId))throw Error('Chỉ nhận data trong cuộc trò chuyện riêng đã liên kết với bot.');
     const { customer, user, nowStamp } = await acceptDataFromTelegram(chatId, data);
     const updatedText = `✅ <b>ĐÃ TIẾP NHẬN DATA THÀNH CÔNG!</b>\n\n` +
       `• <b>Khách hàng:</b> ${escapeHtml(customer.name)}\n` +
@@ -430,20 +447,15 @@ async function handleCallbackQueryLegacy(query) {
  */
 async function notifyNewLead(customer, offer = null) {
   try {
-    let targetChatIds = [];
-
-    // Nếu đã có Sale cụ thể được gán hoặc trong offer
-    const targetSaleId = offer?.saleId || offer?.sale_id || customer.sale_id || customer.saleId;
-    if (targetSaleId) {
-      const sales = await dbQuery("SELECT telegram_chat_id FROM users WHERE id = ? AND role = 'SALE' AND active = 1 AND telegram_chat_id IS NOT NULL", [targetSaleId]);
-      if (sales[0]?.telegram_chat_id) targetChatIds.push(sales[0].telegram_chat_id);
-    }
-
-    // Nếu chưa có Sale hoặc cần báo thêm Leader
-    if (!targetSaleId) return;
-
-    targetChatIds = [...new Set(targetChatIds.filter(Boolean))];
-    if (targetChatIds.length === 0) return;
+    const targetUserId = offer?.saleId || offer?.sale_id || customer?.sale_id || customer?.saleId || customer?.managerId || customer?.ownerId;
+    if (!targetUserId) return { sent: 0, skipped: true, reason: 'missing-recipient' };
+    const targets = await dbQuery('SELECT id, name, role, telegram_chat_id FROM users WHERE id = ? AND active = 1 AND telegram_chat_id IS NOT NULL LIMIT 1', [targetUserId]);
+    const recipient = targets?.[0];
+    if (!recipient?.telegram_chat_id) return { sent: 0, skipped: true, reason: 'missing-chat-id' };
+    if(!['SALE','LEADER','MANAGER'].includes(recipient.role))return {sent:0,skipped:true,reason:'invalid-role'};
+    if(offer&&offer.status!=='PENDING')return {sent:0,skipped:true,reason:'resolved-offer'};
+    const targetChatIds = [recipient.telegram_chat_id];
+    const pendingSaleOffer = offer?.status === 'PENDING' && String(recipient.role).toUpperCase() === 'SALE';
 
     // Kiểm tra xem data có quan tâm khóa học / chỉ báo không
     const noteOrCampaign = `${customer.note || ''} ${customer.campaign || ''} ${customer.source || ''}`.toLowerCase();
@@ -458,24 +470,34 @@ async function notifyNewLead(customer, offer = null) {
       `• <b>Thời gian:</b> ${formatDateTimeVN(customer.created_at || customer.createdAt || new Date())}\n\n` +
       `👉 <i>Bấm nút bên dưới để nhận data và bắt đầu tư vấn ngay:</i>`;
 
+    if (!pendingSaleOffer) {
+      msgText = msgText.replace('👉 <i>Bấm nút bên dưới để nhận data và bắt đầu tư vấn ngay:</i>',
+        '• <b>SĐT:</b> <code>' + escapeHtml(customer.phone || 'Chưa có') + '</code>' + String.fromCharCode(10) +
+        '• <b>Gmail:</b> ' + escapeHtml(customer.email || 'Chưa có'));
+    }
     const inlineKeyboard = {
       inline_keyboard: [
-        [{ text: '📥 BẤM NHẬN DATA & XỬ LÝ', callback_data: `accept_data:${customer.id}` }]
+        [{ text: '📥 BẤM NHẬN DATA & XỬ LÝ', callback_data: offer?.id ? `accept_offer:${offer.id}` : `accept_data:${customer.id}` }]
       ]
     };
 
+    let sent=0;
     for (const chatId of targetChatIds) {
-      await sendMessage(chatId, msgText, { reply_markup: inlineKeyboard });
+      const result=await sendMessage(chatId,msgText,pendingSaleOffer?{reply_markup:inlineKeyboard}:{});
+      if(result?.ok)sent++;
     }
+    return { sent, total:targetChatIds.length, recipientRole: recipient.role, requiresAcceptance: pendingSaleOffer };
   } catch (err) {
     console.error('[Telegram Bot] notifyNewLead error:', err.message);
+    return { sent: 0, error: err.message };
   }
 }
 
-async function notifyWebhookLeadAdmins(customer, receivedAt) {
+async function notifyWebhookLeadAdmins(customer, receivedAt, deliveredChatIds = []) {
   try {
     const admins = await dbQuery("SELECT telegram_chat_id FROM users WHERE role = 'ADMIN' AND active = 1 AND telegram_chat_id IS NOT NULL");
-    const chatIds = [...new Set(admins.map(row => String(row.telegram_chat_id)).filter(Boolean))];
+    const chatIds = [...new Set(admins.map(row => row.telegram_chat_id).filter(Boolean).map(String))];
+    const delivered=new Set(deliveredChatIds.map(String));
     if (!chatIds.length) return { sent: 0, skipped: true };
     const text = '<b>DATA MỚI TỪ WEBHOOK</b>\n\n' +
       '• <b>Họ tên:</b> ' + escapeHtml(customer.name || 'Chưa có') + '\n' +
@@ -483,8 +505,11 @@ async function notifyWebhookLeadAdmins(customer, receivedAt) {
       '• <b>Gmail:</b> ' + escapeHtml(customer.email || 'Chưa có') + '\n' +
       '• <b>Thời gian data về:</b> ' + escapeHtml(formatDateTimeVN(receivedAt));
     let sent = 0;
-    for (const chatId of chatIds) if ((await sendMessage(chatId, text))?.ok) sent++;
-    return { sent, total: chatIds.length };
+    for (const chatId of chatIds) {
+      if(delivered.has(chatId))continue;
+      if((await sendMessage(chatId,text))?.ok){sent++;delivered.add(chatId);}
+    }
+    return { sent,total:chatIds.length,deliveredChatIds:[...delivered],complete:chatIds.every(id=>delivered.has(id)) };
   } catch (error) {
     console.error('[Telegram Bot] notifyWebhookLeadAdmins error:', error.message);
     return { sent: 0, error: error.message };
@@ -839,7 +864,76 @@ async function runTelegramScheduler() {
   }
 }
 
+
+// Persist before send; retry failures across restarts. A database advisory lock
+// serializes workers across Passenger processes. Delivery is at-least-once:
+// a crash after Telegram accepts but before SQL acknowledgment may repeat a notice.
+let drainingNotices=false;
+async function drainLeadNotifications(){
+ if(!BOT_TOKEN||drainingNotices)return {skipped:true};
+ drainingNotices=true;
+ let connection,locked=false,processed=0;
+ const parse=value=>typeof value==='string'?JSON.parse(value):value;
+ try{
+  connection=await pool.getConnection();
+  const [locks]=await connection.query("SELECT GET_LOCK(CONCAT('crm-telegram-',DATABASE()),0) AS acquired");
+  locked=Number(locks[0]?.acquired)===1;
+  if(!locked)return {skipped:true};
+  const [rows]=await connection.query("SELECT id,body FROM crm_documents WHERE collection='telegramOutbox' AND deleted=0 AND JSON_UNQUOTE(JSON_EXTRACT(body,'$.status'))='PENDING' AND (JSON_EXTRACT(body,'$.nextAttemptAt') IS NULL OR CAST(JSON_UNQUOTE(JSON_EXTRACT(body,'$.nextAttemptAt')) AS UNSIGNED)<=UNIX_TIMESTAMP()*1000) ORDER BY id LIMIT 20");
+  for(const row of rows){
+   let notice;
+   try{notice=parse(row.body);}catch{continue;}
+   try{
+    if(notice.kind==='WEBHOOK_ADMIN'){
+     const result=await notifyWebhookLeadAdmins(notice.customer,notice.receivedAt,notice.deliveredChatIds||[]);
+     notice.deliveredChatIds=result.deliveredChatIds||notice.deliveredChatIds||[];
+     if(result.complete)notice.status='SENT';
+     else notice.lastError=result.skipped?'ADMIN_NOT_LINKED':'TELEGRAM_DELIVERY_FAILED';
+    }else if(notice.kind==='ASSIGNMENT'){
+     const [customers]=await connection.execute('SELECT * FROM customers WHERE id=? LIMIT 1',[notice.customerId]);
+     const sql=customers[0];
+     if(!sql||sql.status==='ARCHIVED'){notice.status='SKIPPED';}
+     else {
+      const fields=parse(sql.custom_fields_json||'{}');
+      const customer={...(fields.__crmMeta||{}),...sql,saleId:sql.sale_id||null};
+      let offer=null,valid=true;
+      if(notice.offerId){
+       const [offers]=await connection.execute("SELECT body FROM crm_documents WHERE collection='dataOffers' AND id=? AND deleted=0",[notice.offerId]);
+       offer=offers[0]?parse(offers[0].body):null;
+       const offered=Date.parse(String(offer?.offeredAt||'').replace(' ','T')+'+07:00');
+       valid=offer?.status==='PENDING'&&offer.saleId===notice.recipientId&&offer.customerId===notice.customerId&&Number.isFinite(offered)&&Date.now()-offered<86400000&&(!customer.sale_id||customer.sale_id===notice.recipientId);
+      }else{
+       const owner=customer.sale_id||customer.saleId||customer.ownerId||customer.managerId;
+       valid=owner===notice.recipientId&&String(customer.saleAcceptedAt||customer.sale_accepted_at||'')===String(notice.acceptedAt||'');
+       const [pending]=await connection.execute("SELECT id FROM crm_documents WHERE collection='dataOffers' AND deleted=0 AND JSON_UNQUOTE(JSON_EXTRACT(body,'$.customerId'))=? AND JSON_UNQUOTE(JSON_EXTRACT(body,'$.status'))='PENDING' LIMIT 1",[notice.customerId]);
+       if(pending.length)valid=false;
+      }
+      if(!valid)notice.status='SKIPPED';
+      else{
+       const result=await notifyNewLead(customer,offer);
+       if(result?.sent>0)notice.status='SENT';
+       else if(result?.reason==='invalid-role')notice.status='SKIPPED';
+       else notice.lastError=result?.reason||'TELEGRAM_DELIVERY_FAILED';
+      }
+     }
+    }else notice.status='SKIPPED';
+   }catch(error){notice.lastError='DELIVERY_ERROR';console.warn('[Telegram Bot] Notice retry:',row.id,error.code||'ERROR');}
+   notice.attempts=(Number(notice.attempts)||0)+1;
+   notice.nextAttemptAt=Date.now()+Math.min(300000,15000*2**Math.min(notice.attempts,5));
+   if(notice.status==='SENT'){notice.sentAt=new Date().toISOString();delete notice.lastError;}
+   await connection.execute("UPDATE crm_documents SET body=? WHERE collection='telegramOutbox' AND id=?",[JSON.stringify(notice),row.id]);
+   processed++;
+  }
+  return {processed};
+ }catch(error){console.warn('[Telegram Bot] Outbox unavailable:',error.code||'ERROR');return {processed,error:'OUTBOX_UNAVAILABLE'};}
+ finally{
+  if(locked)await connection.query("SELECT RELEASE_LOCK(CONCAT('crm-telegram-',DATABASE()))").catch(()=>{});
+  connection?.release();drainingNotices=false;
+ }
+}
+
 module.exports = {
+  drainLeadNotifications,
   callTelegram,
   sendMessage,
   editMessageText,

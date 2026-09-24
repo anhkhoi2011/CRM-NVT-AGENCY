@@ -360,7 +360,20 @@ function validate(key,value,id){
  }
  if(['password','password_hash','adminPassword','twoFactorCode'].some(k=>Object.hasOwn(value,k)))error(400,'Mật khẩu phải gửi qua API xác thực');
 }
+// Server-only durable notices: excluded from snapshots and public state writes.
+async function queueTelegramNotice(c,key,notice){
+ const id='TG-'+crypto.createHash('sha256').update(key).digest('hex');
+ await c.execute('INSERT INTO crm_documents(collection,id,body,deleted) VALUES (?,?,?,0) ON DUPLICATE KEY UPDATE id=id', ['telegramOutbox',id,JSON.stringify({...notice,status:'PENDING',attempts:0,createdAt:new Date().toISOString()})]);
+}
 async function project(c,key,id,r){
+ if(key==='dataOffers'&&r?.status==='PENDING'&&r.saleId){
+  await queueTelegramNotice(c,'offer:'+id+':'+r.saleId,{kind:'ASSIGNMENT',customerId:r.customerId,offerId:id,recipientId:r.saleId});
+ }
+ if(key==='customers'&&r?.saleAcceptedAt&&(r.saleId||r.ownerId||r.managerId)){
+  const recipientId=r.saleId||r.ownerId||r.managerId;
+  await queueTelegramNotice(c,'direct:'+id+':'+recipientId+':'+r.saleAcceptedAt,{kind:'ASSIGNMENT',customerId:id,recipientId,acceptedAt:r.saleAcceptedAt});
+ }
+
  if(key==='customers'){
   if(!r){await c.execute("UPDATE customers SET status='ARCHIVED' WHERE id=?",[id]);return;}
   const {custom_fields_json,...details}=r;
@@ -603,4 +616,4 @@ async function write(user,requestId,changes){
   const updated=await allData(c);const assigned=await distributeAutomatic(c,updated);const result=snapshot(user,assigned?await allData(c):updated);await c.commit();return {...result,ok:true};
  }catch(e){await c.rollback();throw e;}finally{c.release();}
 }
-module.exports={snapshot,distributeAutomatic,prepare,seedProductCatalog,read,write,revision,canonical,coreRow,userRow,authorize,readable,validate,LISTS,OBJECTS,SCHEMA};
+module.exports={queueTelegramNotice,snapshot,distributeAutomatic,prepare,seedProductCatalog,read,write,revision,canonical,coreRow,userRow,authorize,readable,validate,LISTS,OBJECTS,SCHEMA};

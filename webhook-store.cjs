@@ -143,6 +143,7 @@ async function persistWebhook(record) {
     const replay = eventId !== record.id;
     const customerId = `CUS-${eventId}`;
     if (record.status === 'NEW' && !replay) {
+      await crmData.queueTelegramNotice(connection,'webhook:'+eventId,{kind:'WEBHOOK_ADMIN',customer:record.customer,receivedAt:record.receivedAt,source:sourceSnapshot});
       const existing = await findExistingCustomer(connection, record.customer);
       if (existing) {
         await recordDuplicate(connection, eventId, record, existing, sourceSnapshot);

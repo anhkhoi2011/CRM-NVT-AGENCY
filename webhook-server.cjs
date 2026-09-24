@@ -349,36 +349,14 @@ async function handleDbApi(request, response, pathname) {
       await dbQuery('DELETE FROM crm_sessions WHERE user_id=?',[id]);
       return dbJson(request,response,200,{ok:true});
     }
-async function notifyPendingOffersForCustomers(customerIds) {
-  if (!dbConfigured || !Array.isArray(customerIds) || !customerIds.length) return;
-  for (const customerId of [...new Set(customerIds.filter(Boolean).map(String))]) {
-    try {
-      const [custRows] = await pool.execute('SELECT * FROM customers WHERE id = ? LIMIT 1', [customerId]);
-      if (!custRows?.[0]) continue;
-      const [offerDocs] = await pool.query("SELECT body FROM crm_documents WHERE collection = 'dataOffers' AND deleted = 0 AND JSON_EXTRACT(body, '$.customerId') = ?", [customerId]);
-      const offers = (offerDocs || []).map(row => {
-        try { return typeof row.body === 'string' ? JSON.parse(row.body) : row.body; } catch { return null; }
-      }).filter(offer => offer?.status === 'PENDING' && (offer.saleId || offer.sale_id));
-      for (const offer of offers) await telegramBot.notifyNewLead(custRows[0], offer);
-    } catch (error) {
-      console.warn('[Telegram Bot] notify pending offer:', error.message);
-    }
-  }
-}
-
     if(pathname==='/api/state'){
-      if(request.method==='GET')return dbJson(request,response,200,{...await crmData.read(user),user});
+      if(request.method==='GET'){const result=await crmData.read(user);void telegramBot.drainLeadNotifications();return dbJson(request,response,200,{...result,user});}
       if(request.method==='POST'){
         const body=await readDbBody(request);
         const result=await crmData.write(user,body.requestId,body.changes);
         notifyInboxListeners({id:body.requestId,kind:'state',receivedAt:stamp()});
 
-        // Sau khi commit, báo Telegram cho mọi offer PENDING vừa được tạo bởi
-        // webhook, chia tự động hoặc phân lại thủ công; request replay không gửi trùng.
-        if(!result.replayed && Array.isArray(body.changes)){
-          const customerIds=body.changes.map(change=>change?.value?.customerId || (change?.key==='customers'?change.id:null));
-          await notifyPendingOffersForCustomers(customerIds);
-        }
+        void telegramBot.drainLeadNotifications();
         return dbJson(request,response,200,result);
       }
     }
@@ -396,6 +374,7 @@ async function notifyPendingOffersForCustomers(customerIds) {
       const old=key==='settings'?snapshot.state.settings:[...(snapshot.state[key]||[]),...(key==='members'?snapshot.state.registeredAccounts:[])].find(r=>r.id===recordId);
       const value=request.method==='DELETE'?null:{...old,...fields,...(key==='settings'?{}:{id:recordId})};
       const result=await crmData.write(user,crypto.randomUUID(),[{key,id:recordId,base:_revision??null,value}]);
+      void telegramBot.drainLeadNotifications();
       return dbJson(request,response,request.method==='POST'?201:200,result);
     }
     return dbJson(request,response,404,{error:'API không tồn tại'});
@@ -893,6 +872,7 @@ async function handleWebhook(request, response, slug) {
   if (existing) {
     try {
       const saved = await persistWebhook(existing);
+      if(dbConfigured&&!DEMO_MODE)void telegramBot.drainLeadNotifications();
       sendJson(response, 200, { received: true, duplicate: true, id: saved.eventId });
     } catch (error) {
       console.error('[webhook-mysql]', error.message);
@@ -935,22 +915,7 @@ async function handleWebhook(request, response, slug) {
   scheduleFlush();
   notifyInboxListeners(record);
 
-  if (record.status === 'NEW' && record.customerId && !record.duplicate) {
-    (async () => {
-      try {
-        await telegramBot.notifyWebhookLeadAdmins(record.customer, record.receivedAt);
-        const [custRows] = await pool.execute('SELECT * FROM customers WHERE id = ?', [record.customerId]);
-        if (custRows && custRows.length) {
-          const cust = custRows[0];
-          const [offerDocs] = await pool.query("SELECT body FROM crm_documents WHERE collection = 'dataOffers' AND JSON_EXTRACT(body, '$.customerId') = ?", [record.customerId]);
-          const offer = (offerDocs || []).map(row => typeof row.body === 'string' ? JSON.parse(row.body) : row.body).find(item => item && item.status === 'PENDING') || null;
-          await telegramBot.notifyNewLead(cust, offer);
-        }
-      } catch (err) {
-        console.warn('[Telegram Bot] notify lead notice:', err.message);
-      }
-    })().catch(() => {});
-  }
+  if(dbConfigured&&!DEMO_MODE)void telegramBot.drainLeadNotifications();
 
   console.log(`[webhook] ${record.status} ${slug} · ${record.customer.name || '(không tên)'} · ${record.customer.phone || '(không sdt)'}`);
   sendJson(response, adapted.ok ? 200 : 422, {

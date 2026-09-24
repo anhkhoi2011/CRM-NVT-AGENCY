@@ -2359,6 +2359,19 @@
       const close=()=>{modal.remove();trigger?.focus();};
       modal.querySelector('button').onclick=close;modal.onclick=event=>{if(event.target===modal)close();};
       const hint=document.createElement('p');hint.className='distribution-cycle-note';hint.textContent='Dấu × chỉ bỏ một lượt chưa phân trong vòng này, không thu hồi data đã giao và không tắt nhận data ở những vòng sau.';modal.querySelector('.distribution-cycle-note').after(hint);
+      if(role==='ADMIN'&&key==='global'&&summary.token&&summary.extraTurnPeople?.length){
+        const control=document.createElement('div');control.style.cssText='display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin:0 0 18px;padding:12px;border:1px solid #dbeafe;border-radius:8px;background:#f8fbff';
+        control.innerHTML='<label style="display:grid;gap:5px;min-width:220px;flex:1;color:#334155;font-size:12px;font-weight:700">Thêm 1 lượt cho<select data-extra-turn-member style="height:36px;padding:0 10px;border:1px solid #cbd5e1;border-radius:7px;background:#fff;color:#0f172a;font:inherit">'+summary.extraTurnPeople.map(member=>'<option value="'+esc(member.id)+'">'+esc(member.name||member.id)+' · '+esc(member.actualRole||member.role||'SALE')+'</option>').join('')+'</select></label><button type="button" class="btn-action btn-primary" data-add-extra-turn>Thêm lượt vào cuối vòng</button>';
+        modal.querySelector('.distribution-cycle-columns').before(control);
+        control.querySelector('[data-add-extra-turn]').onclick=async()=>{
+          if(working)return;
+          const memberId=control.querySelector('[data-extra-turn-member]').value;
+          const member=summary.extraTurnPeople.find(person=>person.id===memberId);if(!member)return;
+          const button=control.querySelector('[data-add-extra-turn]');button.disabled=true;
+          const result=await run(()=>api.distributionRoundAddExtraTurn({roundId:summary.roundId,token:summary.token,memberId}),()=>referenceNotice('Đã thêm 1 lượt vào cuối Vòng 1.'));
+          if(result){close();refresh(true);const detail=Array.from(host.querySelectorAll('[data-cycle-detail]')).find(item=>item.dataset.cycleDetail===key);detail?.click();} else button.disabled=false;
+        };
+      }
       modal.querySelectorAll('[data-skip-slot]').forEach(button=>button.onclick=async()=>{
         if(working)return;
         const position=Number(button.dataset.skipSlot),person=summary.upcoming.find(p=>p.position===position);
@@ -2380,7 +2393,7 @@
       });
       modal.onkeydown=event=>{
         if(event.key==='Escape')close();
-        if(event.key==='Tab'){const buttons=Array.from(modal.querySelectorAll('button:not(:disabled)'));const first=buttons[0],last=buttons[buttons.length-1];if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}}
+        if(event.key==='Tab'){const buttons=Array.from(modal.querySelectorAll('button:not(:disabled),select:not(:disabled)'));const first=buttons[0],last=buttons[buttons.length-1];if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}}
       };
       document.body.appendChild(modal);modal.querySelector('button').focus();
     };
@@ -2415,7 +2428,7 @@
       const views=data.distributionRoundViews||[];
       return '<div class="distribution-cycle-stack">'+views.map((view,i)=>{
         const people=view.ids.map((id,position)=>({...members.find(p=>p.id===id),id,position,name:members.find(p=>p.id===id)?.name||'Nhân sự không còn hoạt động'}));
-        const summary={...view,key:i===0?'global':'global-round-'+view.roundId,length:people.length,round:i+1,received:people.slice(0,view.index),upcoming:people.slice(view.index),completed:people.length>0&&view.index===people.length};
+        const summary={...view,key:i===0?'global':'global-round-'+view.roundId,length:people.length,round:i+1,received:people.slice(0,view.index),upcoming:people.slice(view.index),completed:people.length>0&&view.index===people.length,extraTurnPeople:i===0?(data.distributionExtraTurnPeople||[]):[]};
         if(i===0)globalCycleSummary=summary;
         return cycleMarkup(summary);
       }).join('')+'</div>';

@@ -138,7 +138,7 @@
         : scopedOrders();
       const visibleCustomerIds=new Set(customers.map(customer=>customer.id));
       const assignmentHistory=state.assignmentHistory.filter(item=>visibleCustomerIds.has(item.customerId));
-      return structuredClone({user:currentAccount,distributionRoundViews:distributionRoundViews(),managerHierarchy,fonts:referenceFonts,assignedDataStats:currentAccount.role==='SALE'?assignedDataStatsForMe():null,pendingOffers:currentAccount.role==='SALE'?pendingOffersForMe().map(o=>({id:o.id,name:customerById(o.customerId)?.name||'',offeredAt:o.offeredAt,minutesLeft:offerMinutesLeft(o)})):[],customers,orders:visibleOrders,products:state.products,productCategories:state.productCategories,members:state.members,registeredAccounts:state.registeredAccounts,fields:state.customFieldDefinitions,careGroups:state.careGroups,imports:currentAccount.role==='ADMIN'?state.imports:[],resubmissions:state.resubmissions,assignmentHistory,websites:state.websites.map(w=>({...w,publicWebhookUrl:webhookUrlFor(w)})),webhookPending,webhookTransport:{...webhookTransport,label:(WEBHOOK_TRANSPORT_META[webhookTransport.mode]||WEBHOOK_TRANSPORT_META.idle)[0]},settings:state.settings,notifications:visibleNotifications(),audit:state.audit,attendance:state.attendance,brokerageMetrics:state.brokerageMetrics,tasks:scopedTasks(),leaderDistribution:state.leaderDistribution,saleDistributionByLeader:state.saleDistributionByLeader,offers:state.dataOffers,financialEvents:financialEvents(visibleOrders),navigation:allowedViews(),today:dayIso(0)});
+      return structuredClone({user:currentAccount,distributionRoundViews:distributionRoundViews(),distributionExtraTurnPeople:CrmDistributionRounds.recipients(state.members,state.leaderDistribution,state.saleDistributionByLeader).people,managerHierarchy,fonts:referenceFonts,assignedDataStats:currentAccount.role==='SALE'?assignedDataStatsForMe():null,pendingOffers:currentAccount.role==='SALE'?pendingOffersForMe().map(o=>({id:o.id,name:customerById(o.customerId)?.name||'',offeredAt:o.offeredAt,minutesLeft:offerMinutesLeft(o)})):[],customers,orders:visibleOrders,products:state.products,productCategories:state.productCategories,members:state.members,registeredAccounts:state.registeredAccounts,fields:state.customFieldDefinitions,careGroups:state.careGroups,imports:currentAccount.role==='ADMIN'?state.imports:[],resubmissions:state.resubmissions,assignmentHistory,websites:state.websites.map(w=>({...w,publicWebhookUrl:webhookUrlFor(w)})),webhookPending,webhookTransport:{...webhookTransport,label:(WEBHOOK_TRANSPORT_META[webhookTransport.mode]||WEBHOOK_TRANSPORT_META.idle)[0]},settings:state.settings,notifications:visibleNotifications(),audit:state.audit,attendance:state.attendance,brokerageMetrics:state.brokerageMetrics,tasks:scopedTasks(),leaderDistribution:state.leaderDistribution,saleDistributionByLeader:state.saleDistributionByLeader,offers:state.dataOffers,financialEvents:financialEvents(visibleOrders),navigation:allowedViews(),today:dayIso(0)});
     },
     async logout() { await endSession(); },
     async refresh() { return syncServerState(); },
@@ -513,6 +513,22 @@
         state.saleDistributionByLeader.$=result.config;
         if(input.roundId===distributionRoundViews()[0].roundId){store.global=result.cursor;if(store.salesByTeam)delete store.salesByTeam.global;}
         audit('SKIP_DISTRIBUTION_SLOT',input.memberId,'Skipped an unassigned slot in round '+input.roundId);
+        return {ok:true};
+      },kind);
+    },
+    async distributionRoundAddExtraTurn(input){
+      requireRole(['ADMIN']);
+      const kind='add-extra-round-turn:'+String(input?.roundId)+':'+String(input?.token)+':'+String(input?.memberId);
+      return persist(()=>{
+        const roster=CrmDistributionRounds.recipients(state.members,state.leaderDistribution,state.saleDistributionByLeader);
+        const config=state.saleDistributionByLeader.$||{id:'ROUND-1',enabledSaleIds:roster.people.map(person=>person.id),weights:roster.weights};
+        const store=state.settings.assignmentCursor||{};
+        const result=CrmDistributionRounds.addExtraTurn(config,CrmDistributionRounds.cursorFrom(store),roster.people,state.settings.assignmentMode,input||{});
+        state.saleDistributionByLeader.$=result.config;
+        state.settings.assignmentCursor||={};
+        state.settings.assignmentCursor.global=result.cursor;
+        if(state.settings.assignmentCursor.salesByTeam)delete state.settings.assignmentCursor.salesByTeam.global;
+        audit('ADD_DISTRIBUTION_EXTRA_TURN',input.memberId,'Append one extra turn to active round '+input.roundId);
         return {ok:true};
       },kind);
     },
