@@ -1678,6 +1678,7 @@ function scopeSaleIds() {
 
 function effectivePermissionRole() {
   if (!currentAccount) return '';
+  if (currentAccount.role === 'ADMIN' || currentAccount.actualRole === 'ADMIN') return 'ADMIN';
   if (currentAccount.actualRole === 'MANAGER') return 'MANAGER';
   // Manager được hydrate thành role Leader để dùng giao diện Team. Nếu một
   // snapshot cũ thiếu actualRole, nhận diện lại từ bản ghi nhân sự thật.
