@@ -4557,7 +4557,7 @@ function ingestCustomer(record, context = {}) {
   else if (currentAccount?.role === 'LEADER') applyCustomerAssignment(customer, activeStaff().find(member => member.id === currentAccount.leaderId), 'Leader tạo khách trong Team', 'MANUAL');
   else if (context.intakeType !== 'MANUAL') autoAssignCustomer(customer);
   createInitialTask(customer);
-  audit('CREATE_CUSTOMER', customer.id, `Tạo khách ${name} · ${website.domain}`);
+  audit('CREATE_CUSTOMER', customer.id, `Tạo khách ${name} · ${website?.domain || sourceLabel}`);
   return { created: true, duplicate: false, customer, message: 'Đã tạo khách hàng mới' };
 }
 

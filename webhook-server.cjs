@@ -59,6 +59,40 @@ const mailTransporter = SMTP_ENABLED ? nodemailer.createTransport({
 
 function dbJson(request, response, status, payload) { return sendJson(response, status, payload, { 'Access-Control-Allow-Origin': request.headers.origin || '*', Vary: 'Origin' }); }
 function tokenHash(request) { return crypto.createHash('sha256').update(String(request.headers.authorization || '').replace(/^Bearer\s+/i, '').trim()).digest('hex'); }
+const ACTIVITY_LABELS=Object.freeze({dashboard:'Đang xem Tổng quan',customers:'Đang xem Khách hàng tổng',care:'Đang chăm sóc khách hàng',data:'Đang xử lý Data',orders:'Đang xem Đơn hàng',products:'Đang quản lý Sản phẩm',team:'Đang xem Đội ngũ',attendance:'Đang xem Điểm danh',notifications:'Đang xem Thông báo',audit:'Đang xem User log',websites:'Đang quản lý Webhook',revenue:'Đang xem Doanh thu',businessReport:'Đang xem Báo cáo kinh doanh',accounting:'Đang xem Kế toán',settings:'Đang mở Cài đặt',profile:'Đang xem Hồ sơ cá nhân'});
+function clientIp(request){
+ const headers=request.headers||{};
+ const values=[String(headers['x-forwarded-for']||'').split(',')[0],headers['x-real-ip'],request.socket?.remoteAddress];
+ const value=values.map(item=>String(item||'').trim().replace(/^::ffff:/i,'')).find(Boolean)||'';
+ return value.slice(0,64);
+}
+function clientUserAgent(request){return String(request.headers?.['user-agent']||'').replace(/[\r\n]/g,' ').slice(0,512);}
+function activityLabel(view){return ACTIVITY_LABELS[String(view||'').replace(/^tab-/,'')]||'Đang sử dụng CRM';}
+async function recordUserActivity(user,request,action,detail){
+ try{await dbQuery('INSERT INTO user_activity_logs(user_id,action,detail,ip,user_agent) VALUES (?,?,?,?,?)',[user.id,String(action||'').slice(0,48),String(detail||'').slice(0,255),clientIp(request)||null,clientUserAgent(request)||null]);}
+ catch(error){console.warn('[user-activity] Không ghi được lịch sử:',error.code||error.message);}
+}
+async function touchUserSession(request){
+ const hash=tokenHash(request);if(!hash)return;
+ const ip=clientIp(request),agent=clientUserAgent(request);
+ await dbQuery(`UPDATE crm_sessions SET last_seen_at=NOW(),ip=IF(?<>'',?,ip),user_agent=IF(?<>'',?,user_agent) WHERE token_hash=? AND (last_seen_at IS NULL OR last_seen_at<DATE_SUB(NOW(),INTERVAL 20 SECOND))`,[ip,ip,agent,agent,hash]);
+}
+async function setUserActivity(request,view){
+ const hash=tokenHash(request),detail=activityLabel(view);if(!hash)return detail;
+ const rows=await dbQuery('SELECT last_activity FROM crm_sessions WHERE token_hash=? LIMIT 1',[hash]);
+ await dbQuery(`UPDATE crm_sessions SET last_seen_at=NOW(),last_activity=?,ip=IF(?<>'',?,ip),user_agent=IF(?<>'',?,user_agent) WHERE token_hash=?`,[detail,clientIp(request),clientIp(request),clientUserAgent(request),clientUserAgent(request),hash]);
+ return {detail,changed:rows[0]?.last_activity!==detail};
+}
+async function adminUserActivity(){
+ const [users,sessions,events]=await Promise.all([
+  dbQuery(`SELECT id,name,role,account_code,active FROM users WHERE active=1 ORDER BY FIELD(role,'ADMIN','MANAGER','LEADER','SALE','MARKETING','ACCOUNTING','UNASSIGNED'),name`),
+  dbQuery(`SELECT user_id,ip,last_seen_at,last_activity,TIMESTAMPDIFF(SECOND,last_seen_at,NOW()) AS idle_seconds FROM crm_sessions WHERE expires_at>NOW() ORDER BY last_seen_at DESC`),
+  dbQuery(`SELECT a.id,a.user_id,a.action,a.detail,a.ip,a.created_at AS at,u.name,u.role FROM user_activity_logs a JOIN users u ON u.id=a.user_id ORDER BY a.id DESC LIMIT 300`)
+ ]);
+ const latestSession=new Map();for(const session of sessions)if(!latestSession.has(session.user_id))latestSession.set(session.user_id,session);
+ const latestEvent=new Map();for(const event of events)if(!latestEvent.has(event.user_id))latestEvent.set(event.user_id,event);
+ return {generatedAt:stamp(),users:users.map(user=>{const session=latestSession.get(user.id),event=latestEvent.get(user.id),online=Number(session?.idle_seconds)<=120;return {id:user.id,name:user.name,role:user.role,accountId:user.account_code||'',online,lastSeen:session?.last_seen_at||null,activity:online?(session?.last_activity||'Đang sử dụng CRM'):'Đã ngoại tuyến',ip:session?.ip||event?.ip||'',lastEvent:event||null};}),events};
+}
 async function authUser(request) {
   const rows = await dbQuery('SELECT u.* FROM crm_sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>NOW() AND u.active=1 LIMIT 1', [tokenHash(request)]);
   return rows[0] ? crmData.userRow(rows[0]) : null;
@@ -85,6 +119,8 @@ const demoPasswords = {
   'sale.demo@local.test': 'SaleDemo2026!'
 };
 const demoSessions = new Map();
+const demoSessionActivity = new Map();
+const demoActivityLogs = [];
 const demoState = {
   version: 3,
   members: demoUsers.map(user => ({
@@ -201,6 +237,20 @@ function demoToken(request) {
 function demoUserFromToken(request) {
   return demoState.members.find(user => user.id === demoSessions.get(demoToken(request))&&user.active!==false) || null;
 }
+function demoRecordActivity(user,request,action,detail){
+ demoActivityLogs.unshift({id:`DEMO-ACT-${Date.now()}-${crypto.randomBytes(2).toString('hex')}`,user_id:user.id,name:user.name,role:user.role,action,detail,ip:clientIp(request)||'127.0.0.1',at:stamp()});
+ if(demoActivityLogs.length>300)demoActivityLogs.length=300;
+}
+function demoTouchSession(request,activity=''){
+ const token=demoToken(request),current=demoSessionActivity.get(token)||{};
+ demoSessionActivity.set(token,{...current,lastSeen:stamp(),activity:activity||current.activity||'Đang sử dụng CRM',ip:clientIp(request)||current.ip||'127.0.0.1'});
+}
+function demoAdminUserActivity(){
+ const sessions=[...demoSessions.entries()].map(([token,userId])=>({userId,...(demoSessionActivity.get(token)||{})})).sort((a,b)=>String(b.lastSeen||'').localeCompare(String(a.lastSeen||'')));
+ const latest=new Map();for(const session of sessions)if(!latest.has(session.userId))latest.set(session.userId,session);
+ const events=demoActivityLogs.slice(0,300),latestEvent=new Map();for(const event of events)if(!latestEvent.has(event.user_id))latestEvent.set(event.user_id,event);
+ return {generatedAt:stamp(),users:demoState.members.filter(user=>user.active!==false).map(user=>{const session=latest.get(user.id),event=latestEvent.get(user.id);return {id:user.id,name:user.name,role:user.role,accountId:user.accountId||'',online:Boolean(session),lastSeen:session?.lastSeen||null,activity:session?.activity||'Đã ngoại tuyến',ip:session?.ip||event?.ip||'',lastEvent:event||null};}),events};
+}
 function expireDemoOffers() {
   // Demo cung tuan theo han nhan 24 gio nhu MySQL, khong dem offer cu vao badge.
   const now=Date.now(),at=new Date(now).toLocaleString('sv-SE',{timeZone:'Asia/Ho_Chi_Minh'}).slice(0,16);
@@ -238,18 +288,26 @@ async function handleDemoApi(request, response, pathname) {
     if(user.role==='UNASSIGNED')return dbJson(request,response,403,{error:'Tài khoản đã đăng ký, đang chờ Admin phân chức vụ.'});
     const token = `demo-${crypto.randomBytes(12).toString('hex')}`;
     demoSessions.set(token, user.id);
+    demoTouchSession({...request,headers:{...request.headers,authorization:`Bearer ${token}`}},'Đang vào CRM');
+    demoRecordActivity(user,request,'LOGIN','Đăng nhập CRM');
     return dbJson(request, response, 200, { token, user });
   }
   if (pathname === '/api/auth/me' && request.method === 'GET') {
     const user = demoUserFromToken(request);
+    if(user)demoTouchSession(request);
     return user ? dbJson(request, response, 200, { user }) : dbJson(request, response, 401, { error: 'Phiên demo hết hạn' });
   }
   if (pathname === '/api/auth/logout') {
+    const user=demoUserFromToken(request);if(user)demoRecordActivity(user,request,'LOGOUT','Đăng xuất CRM');
     demoSessions.delete(demoToken(request));
+    demoSessionActivity.delete(demoToken(request));
     return dbJson(request, response, 200, { ok: true });
   }
   const user = demoUserFromToken(request);
   if (!user) return dbJson(request, response, 401, { error: 'Đăng nhập demo trước' });
+  demoTouchSession(request);
+  if(pathname==='/api/user-activity'&&request.method==='POST'){const body=await readDbBody(request),detail=activityLabel(body.view),token=demoToken(request),old=demoSessionActivity.get(token)?.activity;demoTouchSession(request,detail);if(old!==detail)demoRecordActivity(user,request,'OPEN_SCREEN',detail);return dbJson(request,response,200,{ok:true,activity:detail});}
+  if(pathname==='/api/admin/user-activity'&&request.method==='GET'){if(user.role!=='ADMIN')return dbJson(request,response,403,{error:'Chỉ Admin được xem User log'});return dbJson(request,response,200,demoAdminUserActivity());}
   if (pathname === '/api/state' && request.method === 'GET') return dbJson(request, response, 200, demoPayload(user));
   if (pathname === '/api/state' && request.method === 'POST') {
     const body = await readDbBody(request);
@@ -299,13 +357,24 @@ async function handleDbApi(request, response, pathname) {
       if(row.role==='UNASSIGNED')return dbJson(request,response,403,{error:'Tài khoản đã đăng ký, đang chờ Admin phân chức vụ.'});
       if(!/^\$2[aby]\$/.test(row.password_hash))await dbQuery('UPDATE users SET password_hash=? WHERE id=?',[await bcrypt.hash(password,12),row.id]);
       const token=crypto.randomBytes(32).toString('hex');
-      await dbQuery('INSERT INTO crm_sessions(token_hash,user_id,expires_at) VALUES (?,?,DATE_ADD(NOW(),INTERVAL 1 DAY))',[crypto.createHash('sha256').update(token).digest('hex'),row.id]);
+      await dbQuery('INSERT INTO crm_sessions(token_hash,user_id,ip,user_agent,expires_at,last_seen_at,last_activity) VALUES (?,?,?,?,DATE_ADD(NOW(),INTERVAL 1 DAY),NOW(),?)',[crypto.createHash('sha256').update(token).digest('hex'),row.id,clientIp(request)||null,clientUserAgent(request)||null,'Đang vào CRM']);
+      await recordUserActivity(row,request,'LOGIN','Đăng nhập CRM');
       return dbJson(request,response,200,{token,user:crmData.userRow(row)});
     }
     const user=await authUser(request);
     if(!user)return dbJson(request,response,401,{error:'Phiên đã hết hạn. Đăng nhập lại để tiếp tục.'});
+    await touchUserSession(request);
     if(pathname==='/api/auth/me')return dbJson(request,response,200,{user});
-    if(pathname==='/api/auth/logout' && request.method==='POST'){await dbQuery('DELETE FROM crm_sessions WHERE token_hash=?',[tokenHash(request)]);return dbJson(request,response,200,{ok:true});}
+    if(pathname==='/api/auth/logout' && request.method==='POST'){await recordUserActivity(user,request,'LOGOUT','Đăng xuất CRM');await dbQuery('DELETE FROM crm_sessions WHERE token_hash=?',[tokenHash(request)]);return dbJson(request,response,200,{ok:true});}
+    if(pathname==='/api/user-activity' && request.method==='POST'){
+      const body=await readDbBody(request),activity=await setUserActivity(request,body.view);
+      if(activity.changed)await recordUserActivity(user,request,'OPEN_SCREEN',activity.detail);
+      return dbJson(request,response,200,{ok:true,activity:activity.detail});
+    }
+    if(pathname==='/api/admin/user-activity' && request.method==='GET'){
+      if(user.role!=='ADMIN')return dbJson(request,response,403,{error:'Chỉ Admin được xem User log'});
+      return dbJson(request,response,200,await adminUserActivity());
+    }
     if(pathname==='/api/telegram/link-status' && request.method==='GET'){
       const rows=await dbQuery('SELECT telegram_chat_id FROM users WHERE id=? LIMIT 1',[user.id]);
       return dbJson(request,response,200,{linked:Boolean(rows[0]?.telegram_chat_id)});
@@ -1148,7 +1217,7 @@ const server = http.createServer(async (request, response) => {
       await dbQuery('UPDATE customer_appointments SET status = ?, note = COALESCE(?, note) WHERE id = ?', [status, body.note || null, id]);
       return sendJson(response, 200, { ok: true }, corsHeaders(request));
     }
-    if (pathname === '/api/db/health' || pathname === '/api/navigation-counts' || pathname.startsWith('/api/auth/') || pathname.startsWith('/api/telegram/') || pathname.startsWith('/api/users') || pathname.startsWith('/api/customers') || pathname.startsWith('/api/orders') || pathname.startsWith('/api/products') || pathname.startsWith('/api/settings') || pathname === '/api/state') return handleDbApi(request, response, pathname);
+    if (pathname === '/api/db/health' || pathname === '/api/navigation-counts' || pathname === '/api/user-activity' || pathname === '/api/admin/user-activity' || pathname.startsWith('/api/auth/') || pathname.startsWith('/api/telegram/') || pathname.startsWith('/api/users') || pathname.startsWith('/api/customers') || pathname.startsWith('/api/orders') || pathname.startsWith('/api/products') || pathname.startsWith('/api/settings') || pathname === '/api/state') return handleDbApi(request, response, pathname);
     if (pathname === '/api/health') return sendJson(response, 200, { ok: true, inbox: inbox.length, token: Boolean(WEBHOOK_TOKEN) });
 
     if (pathname.startsWith('/api/')) {
@@ -1200,6 +1269,13 @@ server.listen(PORT, HOST, () => {
   console.log(`       -d '{"Họ và tên":"Nguyễn Test","Số điện thoại":"0912345678","Email":"test@gmail.com"}'\n`);
   selfCheckHealth();
   if (dbConfigured && !DEMO_MODE) {
+    // Passenger may finish a webhook response before a background send has
+    // completed. Keep draining the durable outbox independently of browser
+    // traffic so Admin and assignee notices are retried after failures.
+    void telegramBot.drainLeadNotifications();
+    setInterval(() => {
+      void telegramBot.drainLeadNotifications();
+    }, 15000);
     setInterval(() => {
       telegramBot.runTelegramScheduler().catch(err => console.warn('[Telegram Scheduler]', err.message));
     }, 60000);

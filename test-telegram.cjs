@@ -38,6 +38,11 @@ test('Outbox retries failed delivery and never resends acknowledged events',asyn
  const f=fixture();f.notices.push({id:'n',body:{kind:'WEBHOOK_ADMIN',status:'PENDING',customer,receivedAt:now()}});f.fail(true);await f.api.drainLeadNotifications();assert.equal(f.notices[0].body.status,'PENDING');assert.equal(f.notices[0].body.attempts,1);
  f.fail(false);await f.api.drainLeadNotifications();assert.equal(f.notices[0].body.status,'SENT');assert.ok(f.notices[0].body.sentAt);const count=f.sent.length;await f.api.drainLeadNotifications();assert.equal(f.sent.length,count);assert.equal(f.locks.filter(x=>x==='acquire').length,f.locks.filter(x=>x==='release').length);
 });
+test('Telegram scheduler also drains pending Admin webhook notices',async()=>{
+ const f=fixture();f.notices.push({id:'admin-notice',body:{kind:'WEBHOOK_ADMIN',status:'PENDING',customer,receivedAt:now()}});
+ await f.api.runTelegramScheduler();
+ assert.equal(f.notices[0].body.status,'SENT');assert.equal(f.sent[0].chat_id,'4');
+});
 test('Outbox checks current offer and skips revoked offers instead of exposing customer data',async()=>{
  const f=fixture();f.customers.push({...customer,sale_id:null});f.offers.push({id:'o',body:{id:'o',saleId:'s',customerId:customer.id,status:'CANCELLED',offeredAt:now()}});f.notices.push({id:'n',body:{kind:'ASSIGNMENT',status:'PENDING',customerId:customer.id,recipientId:'s',offerId:'o'}});
  await f.api.drainLeadNotifications();assert.equal(f.notices[0].body.status,'SKIPPED');assert.equal(f.sent.length,0);

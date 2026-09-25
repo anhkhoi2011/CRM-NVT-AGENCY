@@ -173,15 +173,16 @@
     async assign(id, saleId) { if (!await quickAssignSale(id,saleId)) throw Error(lastNotice || 'Chưa phân công được Sale.'); },
     async createCustomer(input) {
       return persist(async()=>{
+        const actorRole=currentAccount.actualRole||currentAccount.role;
         const websites=state.websites||[];
-        const selectedWebsite=websites.find(website=>website.id===input.websiteId||website.name===input.websiteId||website.domain===input.websiteId)||websites[0];
+        const selectedWebsite=websites.find(website=>website.id===input.websiteId||website.name===input.websiteId||website.domain===input.websiteId);
         const defaultManualSource=['Khách hàng cũ','Khách hàng ngoài data'].includes(String(input.source||''));
         if(!selectedWebsite&&!defaultManualSource)throw Error('Chưa có Landing page/website nguồn để tạo data.');
         const normalizedInput={...input,websiteId:selectedWebsite?.id||null};
         const recipient=normalizedInput.saleId?activeStaff().find(m=>m.id===normalizedInput.saleId && ['MANAGER','SALE','LEADER'].includes(m.role)):null;
-        const managerLeaders=currentAccount.role==='MANAGER'?new Set(activeStaff().filter(m=>m.role==='LEADER'&&m.managerId===currentAccount.id&&m.active!==false).map(m=>m.id)):new Set();
-        const managerSales=currentAccount.role==='MANAGER'?new Set(activeStaff().filter(m=>m.role==='SALE'&&m.active!==false&&(m.managerId===currentAccount.id||managerLeaders.has(m.leaderId))).map(m=>m.id)):new Set();
-        const recipientAllowed=!normalizedInput.saleId||currentAccount.role==='ADMIN'||currentAccount.role==='MANAGER'&&(recipient?.id===currentAccount.id||managerLeaders.has(recipient?.id)||managerSales.has(recipient?.id))||currentAccount.role==='LEADER'&&(recipient?.id===currentAccount.id||recipient?.role==='SALE'&&recipient.leaderId===currentAccount.id);
+        const managerLeaders=actorRole==='MANAGER'?new Set(activeStaff().filter(m=>m.role==='LEADER'&&m.managerId===currentAccount.id&&m.active!==false).map(m=>m.id)):new Set();
+        const managerSales=actorRole==='MANAGER'?new Set(activeStaff().filter(m=>m.role==='SALE'&&m.active!==false&&(m.managerId===currentAccount.id||managerLeaders.has(m.leaderId))).map(m=>m.id)):new Set();
+        const recipientAllowed=!normalizedInput.saleId||actorRole==='ADMIN'||actorRole==='MANAGER'&&(recipient?.id===currentAccount.id||managerLeaders.has(recipient?.id)||managerSales.has(recipient?.id))||actorRole==='LEADER'&&(recipient?.id===currentAccount.id||recipient?.role==='SALE'&&recipient.leaderId===currentAccount.id);
         if(normalizedInput.saleId&&(!recipient||!recipientAllowed))throw Error('Người phụ trách không nằm trong phạm vi tài khoản.');
         const result=ingestCustomer(normalizedInput,{intakeType:'MANUAL',sourceLabel:'Nhập thủ công'});
         if (!result.created&&!result.duplicate) throw Error(result.error);
@@ -193,10 +194,11 @@
           applyCustomerAssignment(c,assignmentTarget,'Phân công khi tạo khách từ CRM');
         }
         if(result.created&&!result.duplicate&&!normalizedInput.saleId){
-          const owner=currentAccount.role==='MANAGER'?activeStaff().find(m=>m.id===currentAccount.id&&m.role==='MANAGER'):
-            currentAccount.role==='LEADER'?activeStaff().find(m=>m.id===currentAccount.id&&m.role==='LEADER'):
-            currentAccount.role==='SALE'?activeStaff().find(m=>m.id===currentAccount.saleId&&m.role==='SALE'):null;
+          const owner=actorRole==='MANAGER'?activeStaff().find(m=>m.id===currentAccount.id&&m.role==='MANAGER'):
+            actorRole==='LEADER'?activeStaff().find(m=>m.id===currentAccount.id&&m.role==='LEADER'):
+            actorRole==='SALE'?activeStaff().find(m=>m.id===currentAccount.saleId&&m.role==='SALE'):null;
           if(owner){
+            const c=result.customer;
             c.managerId=owner.role==='MANAGER'?owner.id:(owner.managerId||null);
             c.leaderId=owner.role==='LEADER'?owner.id:(owner.leaderId||null);
             c.teamId=owner.teamId||null;

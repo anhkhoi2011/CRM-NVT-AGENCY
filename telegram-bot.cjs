@@ -764,6 +764,8 @@ let lastWeeklyReportDate = '';
 
 async function runTelegramScheduler() {
   try {
+    // Retry durable lead notices before lower-priority periodic reminders.
+    await drainLeadNotifications();
     const now = new Date();
     const vnTimeStr = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Ho_Chi_Minh', hour12: false });
     const vnDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });

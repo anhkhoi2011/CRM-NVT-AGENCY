@@ -6,7 +6,7 @@
   const SNAPSHOT_CACHE_KEY='nvt-crm-snapshot-cache-v1';
   const frame=q('#crmRuntimeFrame');
   const bootScreen=q('#crmBootScreen');
-  let api=null, data=null, signature='', working=false, refreshTimer=null, bootFallbackTimer=null, selectedCustomer='', careKey='', dataQueuePage=1, dataQueuePageSize=20, dataQueueDateFrom='', dataQueueDateTo='', cachedSnapshotUsed=false;
+  let api=null, data=null, signature='', working=false, refreshTimer=null, bootFallbackTimer=null, selectedCustomer='', careKey='', dataQueuePage=1, dataQueuePageSize=20, dataQueueDateFrom='', dataQueueDateTo='', cachedSnapshotUsed=false, userActivitySnapshot=null, userActivityLoading=false, userActivityRequestedAt=0, lastReportedActivity='';
     const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));  function referenceNotice(message,type='success') {
     let host=document.getElementById('referenceNoticeHost');
     if(!host){
@@ -433,16 +433,16 @@
   function syncCustomerOwnerFilter(){
     const select=q('#custOwnerFilter');
     if(!select||!data)return;
-    const role=data.user?.actualRole||data.user?.role,currentId=data.user.id,all=data.members||[];
-    const leaders=role==='ADMIN'?all.filter(m=>m.active!==false&&m.role==='LEADER'):role==='MANAGER'?all.filter(m=>m.active!==false&&m.role==='LEADER'&&m.managerId===currentId):role==='LEADER'?all.filter(m=>m.active!==false&&m.role==='LEADER'&&m.id===currentId):[];
+    const role=data.user?.actualRole||data.user?.role,currentId=data.user.id,active=m=>m&&m.active!==false&&m.active!==0&&m.active!=='0',all=(data.members||[]).filter(active);
+    const leaders=role==='ADMIN'?all.filter(m=>m.role==='LEADER'):role==='MANAGER'?all.filter(m=>m.role==='LEADER'&&m.managerId===currentId):role==='LEADER'?all.filter(m=>m.role==='LEADER'&&m.id===currentId):[];
     const leaderIds=new Set(leaders.map(m=>m.id));
-    const managers=role==='ADMIN'?all.filter(m=>m.active!==false&&m.role==='MANAGER'):role==='MANAGER'?all.filter(m=>m.active!==false&&m.role==='MANAGER'&&m.id===currentId):[];
+    const managers=role==='ADMIN'?all.filter(m=>m.role==='MANAGER'):role==='MANAGER'?all.filter(m=>m.role==='MANAGER'&&m.id===currentId):[];
     if(role==='MANAGER'&&!managers.some(m=>m.id===currentId)&&data.user?.role==='MANAGER')managers.push({...data.user,role:'MANAGER',active:true});
-    const sales=all.filter(m=>m.active!==false&&m.role==='SALE'&&(role==='ADMIN'||role==='MANAGER'&&(m.managerId===currentId||m.leaderId===currentId||leaderIds.has(m.leaderId))||role==='LEADER'&&leaderIds.has(m.leaderId)));
+    const sales=all.filter(m=>m.role==='SALE'&&(role==='ADMIN'||role==='MANAGER'&&(m.managerId===currentId||m.leaderId===currentId||leaderIds.has(m.leaderId))||role==='LEADER'&&leaderIds.has(m.leaderId)));
     const previous=select.value;
     const option=(value,label)=>'<option value="'+esc(value)+'">'+esc(label)+'</option>';
     const group=(label,items)=>items.length?'<optgroup label="'+esc(label)+'">'+items.slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'vi')).map(m=>option(m.id,(m.name||'Chua dat ten')+' - '+(m.accountId||m.phone||m.id))).join('')+'</optgroup>':'';
-    select.innerHTML=option('ALL','Xem theo nhân sự')+group('Manager',managers)+group('Leader',leaders)+group('Sale',sales);
+    select.innerHTML=option('ALL','Tất cả nhân sự trong phạm vi')+option('UNASSIGNED','Chưa có người phụ trách')+group('Manager',managers)+group('Leader',leaders)+group('Sale',sales);
     select.value=[...select.options].some(item=>item.value===previous)?previous:'ALL';
     select.onchange=()=>renderCustomerTable();
   }
@@ -1526,6 +1526,46 @@
     toggleTelegramMeeting(root);
   }
   let noticeFilter=0;
+  const userActivityToken=()=>{try{return JSON.parse(sessionStorage.getItem('nvt-crm-session-v1')||'{}').token||'';}catch{return '';}};
+  const userActivityTime=value=>{const raw=String(value||'').replace('T',' ').replace(/\.\d+Z?$/,'');return raw&&raw!=='null'?raw.slice(0,19):'Chưa ghi nhận';};
+  const userRoleLabel=role=>({ADMIN:'Admin',MANAGER:'Manager',LEADER:'Leader',SALE:'Sale',MARKETING:'Marketing',ACCOUNTING:'Kế toán',UNASSIGNED:'Chờ phân quyền'})[role]||role||'Chưa xác định';
+  const userEventLabel=event=>({LOGIN:'Đăng nhập',LOGOUT:'Đăng xuất',OPEN_SCREEN:'Mở màn hình'})[event]||event||'Hoạt động hệ thống';
+  async function loadUserActivity(force=false){
+    if((data?.user?.actualRole||data?.user?.role)!=='ADMIN'||userActivityLoading)return userActivitySnapshot;
+    if(!force&&Date.now()-userActivityRequestedAt<12000)return userActivitySnapshot;
+    const token=userActivityToken();if(!token)return null;
+    userActivityLoading=true;
+    try{
+      const response=await fetch('/api/admin/user-activity',{headers:{Authorization:`Bearer ${token}`},cache:'no-store'});
+      const payload=await response.json().catch(()=>({}));if(!response.ok)throw Error(payload.error||'Không tải được User log.');
+      userActivitySnapshot=payload;userActivityRequestedAt=Date.now();
+      if(q('#tab-audit.active'))renderUserLog();
+      return payload;
+    }catch(error){if(q('#tab-audit.active'))q('#userActivityStatus').textContent=error.message;return null;}
+    finally{userActivityLoading=false;}
+  }
+  async function reportUserActivity(tabId,force=false){
+    if(!data||!api||document.hidden)return;
+    const token=userActivityToken(),view=String(tabId||'tab-dashboard').replace(/^tab-/,'');
+    if(!token||(!force&&view===lastReportedActivity))return;
+    lastReportedActivity=view;
+    try{await fetch('/api/user-activity',{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({view}),keepalive:true});}catch{}
+  }
+  function installUserActivityStyles(){
+    if(q('#userActivityStyles'))return;
+    const style=document.createElement('style');style.id='userActivityStyles';style.textContent=`
+      #tab-audit{min-width:0}.user-log-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:16px}.user-log-heading h1{margin:0}.user-log-heading p{margin:5px 0 0;color:var(--text-muted);font-size:12px}.user-log-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:16px}.user-log-kpi{min-height:88px;padding:15px 16px;border:1px solid var(--border);border-radius:8px;background:var(--bg-surface);box-shadow:0 2px 8px rgba(15,23,42,.04)}.user-log-kpi small{display:block;color:var(--text-muted);font-size:10px;font-weight:800;text-transform:uppercase}.user-log-kpi b{display:block;margin-top:7px;color:var(--text-main);font-size:24px;line-height:1}.user-log-kpi span{display:block;margin-top:7px;color:var(--text-muted);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.user-log-table-title{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 16px 10px}.user-log-table-title b{font-size:13px;color:var(--text-main)}.user-log-table-title small{display:block;margin-top:3px;color:var(--text-muted);font-size:11px}.user-log-table-title button{padding:7px 10px;font-size:11px}.user-log-status{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;font-size:11px;font-weight:800}.user-log-dot{width:8px;height:8px;border-radius:50%;background:#94a3b8}.user-log-status.online{color:#047857}.user-log-status.online .user-log-dot{background:#10b981;box-shadow:0 0 0 3px rgba(16,185,129,.13)}.user-log-status.offline{color:#64748b}.user-log-role{display:inline-flex;align-items:center;padding:4px 7px;border-radius:5px;background:#eef2ff;color:#3730a3;font-size:10px;font-weight:800}.user-log-activity{font-weight:700;color:#334155}.user-log-ip,.user-log-time{font-family:var(--font-mono);font-size:11px;white-space:nowrap}.user-log-event{font-size:11px;font-weight:800;color:#2563eb}.user-log-empty{padding:22px;text-align:center;color:var(--text-muted);font-size:12px}@media(max-width:900px){.user-log-summary{grid-template-columns:1fr}.user-log-table-title{align-items:flex-start}.user-log-table-title button{flex:0 0 auto}.user-log-table{min-width:860px}}
+    `;document.head.appendChild(style);
+  }
+  function renderUserLog(){
+    const tab=q('#tab-audit');if(!tab)return;installUserActivityStyles();
+    const snapshot=userActivitySnapshot,users=Array.isArray(snapshot?.users)?snapshot.users:[],events=Array.isArray(snapshot?.events)?snapshot.events:[];
+    const online=users.filter(item=>item.online).length,lastLogin=events.find(item=>item.action==='LOGIN');
+    const people=users.map(item=>`<tr><td><b>${esc(item.name||'Chưa đặt tên')}</b><small style='display:block;margin-top:3px;color:var(--text-muted);font-size:10px'>${esc(item.accountId||item.id)}</small></td><td><span class='user-log-role'>${esc(userRoleLabel(item.role))}</span></td><td><span class='user-log-status ${item.online?'online':'offline'}'><i class='user-log-dot'></i>${item.online?'Đang trực tuyến':'Ngoại tuyến'}</span></td><td class='user-log-activity'>${esc(item.activity||'Chưa ghi nhận')}</td><td class='user-log-ip'>${esc(item.ip||'Chưa ghi nhận')}</td><td class='user-log-time'>${esc(userActivityTime(item.lastSeen||item.lastEvent?.at))}</td></tr>`).join('')||`<tr><td colspan='6'><div class='user-log-empty'>Chưa có tài khoản hoạt động.</div></td></tr>`;
+    const history=events.map(item=>`<tr><td class='user-log-time'>${esc(userActivityTime(item.at))}</td><td><b>${esc(item.name||'Chưa đặt tên')}</b></td><td><span class='user-log-role'>${esc(userRoleLabel(item.role))}</span></td><td class='user-log-ip'>${esc(item.ip||'Chưa ghi nhận')}</td><td class='user-log-event'>${esc(userEventLabel(item.action))}</td><td>${esc(item.detail||'Không có mô tả')}</td></tr>`).join('')||`<tr><td colspan='6'><div class='user-log-empty'>Chưa có lịch sử đăng nhập hoặc hoạt động.</div></td></tr>`;
+    tab.innerHTML=`<div class='user-log-heading'><div><h1>User log</h1><p>Theo dõi phiên đăng nhập, IP và màn hình đang mở của toàn bộ nhân sự.</p></div><span id='userActivityStatus' class='chip'>${snapshot?`Cập nhật ${esc(userActivityTime(snapshot.generatedAt))}`:'Đang tải dữ liệu...'}</span></div><div class='user-log-summary'><div class='user-log-kpi'><small>Đang trực tuyến</small><b>${online}</b><span>Hoạt động trong 2 phút gần nhất</span></div><div class='user-log-kpi'><small>Tổng tài khoản</small><b>${users.length}</b><span>Tài khoản đang hoạt động trong CRM</span></div><div class='user-log-kpi'><small>Đăng nhập gần nhất</small><b style='font-size:14px;line-height:1.35'>${esc(lastLogin?.name||'Chưa ghi nhận')}</b><span>${esc(userActivityTime(lastLogin?.at))}</span></div></div><section class='table-container'><div class='user-log-table-title'><div><b>Trạng thái nhân sự</b><small>Danh sách hiển thị trạng thái thực tế từ phiên máy chủ.</small></div><button id='userActivityReload' class='btn-action btn-secondary' type='button'>Làm mới</button></div><div class='table-responsive'><table class='modern-table user-log-table'><thead><tr><th>NHÂN SỰ</th><th>VAI TRÒ</th><th>TRẠNG THÁI</th><th>ĐANG LÀM GÌ</th><th>IP</th><th>HOẠT ĐỘNG GẦN NHẤT</th></tr></thead><tbody>${people}</tbody></table></div></section><section class='table-container' style='margin-top:16px'><div class='user-log-table-title'><div><b>Lịch sử hoạt động</b><small>Ghi nhận bởi server: đăng nhập, đăng xuất và màn hình được mở.</small></div><span class='chip'>${events.length} sự kiện</span></div><div class='table-responsive'><table class='modern-table user-log-table'><thead><tr><th>THỜI GIAN</th><th>NHÂN SỰ</th><th>VAI TRÒ</th><th>IP</th><th>SỰ KIỆN</th><th>CHI TIẾT</th></tr></thead><tbody>${history}</tbody></table></div></section>`;
+    q('#userActivityReload')?.addEventListener('click',()=>loadUserActivity(true));
+  }
   const noticeFeed=q('#tab-notifications .pill-tab-group')?.parentElement?.nextElementSibling;
   const noticeTemplate=noticeFeed?.firstElementChild?.cloneNode(true);
   const noticeDropdownBody=q('#notificationDropdown')?.children[1],noticeDropdownTemplate=noticeDropdownBody?.firstElementChild?.cloneNode(true);
@@ -1534,8 +1574,6 @@
     q("#adminTelegramStudio")?.remove();
     const unseen=data.notifications.filter(n=>!(n.readBy||[]).includes(data.user.id)).length;text('topbarNotifBadge',unseen);const badge=q('.nav-link[data-tab="tab-notifications"] .nav-badge');if(badge)badge.textContent=unseen;
     if(noticeDropdownBody&&noticeDropdownTemplate){noticeDropdownBody.replaceChildren();data.notifications.slice(0,8).forEach(n=>{const row=noticeDropdownTemplate.cloneNode(true),content=row.children[1];content.querySelector('b').textContent=n.title;content.querySelector('small').textContent=fmtDate(n.at);content.children[1].textContent=n.text;row.onclick=()=>{switchTab('tab-notifications');closeNotificationDropdown();};noticeDropdownBody.appendChild(row);});q('#notificationDropdown').firstElementChild.querySelector('span').textContent=unseen;if(!noticeDropdownBody.children.length)noticeDropdownBody.textContent='Chưa có thông báo.';}
-    // Đúng thứ tự bảy cột; IP lấy từ nhật ký đã lưu, không dùng mã đối tượng.
-    table(q('#tab-audit tbody'),data.audit.map(a=>[a.at,a.actor,a.role,a.ip||'Chưa ghi nhận',a.action,a.entity,a.detail]));
     if(noticeFeed&&noticeTemplate){noticeFeed.replaceChildren();data.notifications.filter(n=>!noticeFilter||noticeKind(n)===noticeFilter).forEach(n=>{const row=noticeTemplate.cloneNode(true),content=row.firstElementChild.children[1],kind=noticeKind(n);content.querySelector('b').textContent=n.title;content.children[1].textContent=n.text;content.querySelector('.chip').textContent=['Tất cả','Tài chính','Hạn thuê','Data mới','Vận hành'][kind];row.lastElementChild.querySelector('span').textContent=fmtDate(n.at);const button=row.querySelector('button');button.removeAttribute('onclick');button.textContent=(n.readBy||[]).includes(data.user.id)?'Đã đọc':'Đánh dấu đã đọc';button.disabled=(n.readBy||[]).includes(data.user.id);button.onclick=()=>run(()=>api.readNotice(n.id));row.style.opacity=button.disabled?'.65':'1';noticeFeed.appendChild(row);});if(!noticeFeed.children.length){const empty=document.createElement('p');empty.textContent='Chưa có thông báo.';noticeFeed.appendChild(empty);}}
     qa('#tab-notifications .pill-tab-item').forEach((b,i)=>{b.textContent=['Tất cả','Tài chính','Hạn thuê','Data mới','Vận hành'][i]+' ('+data.notifications.filter(n=>!i||noticeKind(n)===i).length+')';b.classList.toggle('active',noticeFilter===i);b.onclick=()=>{noticeFilter=i;notices();};});
     const buttons=qa('#tab-notifications .headline-row button').filter(b=>b.id!=='refCreateNotice');buttons.forEach(b=>b.removeAttribute('onclick'));if(buttons[0]){buttons[0].id='markNotificationsReadButton';buttons[0].onclick=()=>run(()=>api.readNotifications());}if(buttons[1]){buttons[1].id='notificationSettingsButton';buttons[1].onclick=notificationSettings;buttons[1].hidden=data.user.role!=='ADMIN';buttons[1].style.display=data.user.role==='ADMIN'?'':'none';}
@@ -1962,7 +2000,7 @@
       'tab-products':[catalog,[data.products]],
       'tab-team':[team,[data.members,data.registeredAccounts,data.customers,data.orders,data.managerHierarchy]],
       'tab-notifications':[notices,[data.notifications,data.audit]],
-      'tab-audit':[notices,[data.audit,data.notifications]],
+      'tab-audit':[renderUserLog,[userActivitySnapshot,data.user]],
       'tab-revenue':[renderRevenue,[data.orders,data.financialEvents]],
       'tab-businessReport':[businessReport,[data.orders,data.products,data.members,data.brokerageMetrics]],
       'tab-accounting':[accountingReport,[data.orders,data.products,data.members,data.brokerageMetrics]],
@@ -2089,7 +2127,7 @@
   // Khi bat tu dong, mac dinh dung che do ty trong cho data moi.
   toggleAutoDist=enabled=>run(()=>api.distribution(enabled,enabled?'BALANCED':data.settings.assignmentMode));
   updateAssignmentMode=mode=>run(()=>api.distribution(data.leaderDistribution.enabled,mode));
-  switchTab=function(id){if(data){const view=id.replace('tab-',''),alias={data:data.user.role==='LEADER'?'pool':data.user.role==='SALE'?'accept':'distribution'},target=alias[view]||view;if(!data.navigation.includes(target)&&!data.navigation.includes(view))return;}rememberActiveTab(id);renders.switchTab(id);if(data){if(id==='tab-customers')clearAutofilledCustomerSearch();if(id==='tab-data'&&(data.user.actualRole||data.user.role)==='SALE'){const search=q('#dataQueueSearch');if(search)search.value='';}paintTab(id,id==='tab-data');wireParity();}};
+  switchTab=function(id){if(data){const view=id.replace('tab-',''),alias={data:data.user.role==='LEADER'?'pool':data.user.role==='SALE'?'accept':'distribution'},target=alias[view]||view;if(!data.navigation.includes(target)&&!data.navigation.includes(view))return;}rememberActiveTab(id);renders.switchTab(id);if(data){if(id==='tab-customers')clearAutofilledCustomerSearch();if(id==='tab-data'&&(data.user.actualRole||data.user.role)==='SALE'){const search=q('#dataQueueSearch');if(search)search.value='';}paintTab(id,id==='tab-data');if(id==='tab-audit'){renderUserLog();loadUserActivity();}reportUserActivity(id);wireParity();}};
   qa('.nav-link[data-tab]').forEach(button=>button.addEventListener('click',()=>rememberActiveTab(button.dataset.tab),true));
   filterTeamPeriod=(period,button)=>{q('#teamStartDate').value=fromDay(parseInt(period)||30);q('#teamEndDate').value=data.today;if(button){qa('.team-period-btn').forEach(b=>b.className='btn-secondary team-period-btn');button.className='btn-primary team-period-btn';}updateTeamDateLabel();};
   updateTeamDateLabel=()=>text('teamDateRangeLabel',fmtDate(q('#teamStartDate').value)+' - '+fmtDate(q('#teamEndDate').value));
@@ -2713,5 +2751,5 @@
     frame.classList.add('is-login-visible');
   };
   bootFallbackTimer=setTimeout(revealLoginFallback,250);
-  refreshTimer=setInterval(()=>{if(!document.hidden)refresh();},5000);frame.addEventListener('load',()=>refresh(true));
+  refreshTimer=setInterval(()=>{if(!document.hidden){refresh();if(q('#tab-audit.active'))loadUserActivity();}},5000);frame.addEventListener('load',()=>refresh(true));
 })();

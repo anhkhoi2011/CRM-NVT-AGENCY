@@ -77,9 +77,25 @@ CREATE TABLE IF NOT EXISTS system_settings (
 CREATE TABLE IF NOT EXISTS crm_sessions (
   token_hash CHAR(64) PRIMARY KEY,
   user_id VARCHAR(96) NOT NULL,
+  ip VARCHAR(64) NULL,
+  user_agent VARCHAR(512) NULL,
   expires_at DATETIME NOT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  last_seen_at DATETIME NULL,
+  last_activity VARCHAR(160) NULL,
   INDEX idx_sessions_expiry (expires_at), INDEX idx_sessions_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS user_activity_logs (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  user_id VARCHAR(96) NOT NULL,
+  action VARCHAR(48) NOT NULL,
+  detail VARCHAR(255) NOT NULL DEFAULT '',
+  ip VARCHAR(64) NULL,
+  user_agent VARCHAR(512) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_user_activity_user_time (user_id, created_at),
+  INDEX idx_user_activity_time (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Danh mục sản phẩm mặc định NVT Agency CRM.

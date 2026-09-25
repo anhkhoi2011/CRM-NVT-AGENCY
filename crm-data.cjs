@@ -15,7 +15,7 @@ const SCHEMA = [
 ];
 let prepared;
 function prepare() {
- if (!prepared) prepared = (async()=>{for(const sql of SCHEMA) await pool.query(sql);await ensureAccountCodeColumn();await ensureProductVatColumn();await ensureTelegramColumns();await ensureCustomerAppointmentsTable();await seedDefaults();await seedProductCatalog();})().catch(e=>{prepared=null;throw e;});
+ if (!prepared) prepared = (async()=>{for(const sql of SCHEMA) await pool.query(sql);await ensureAccountCodeColumn();await ensureProductVatColumn();await ensureTelegramColumns();await ensureUserActivityTables();await ensureCustomerAppointmentsTable();await seedDefaults();await seedProductCatalog();})().catch(e=>{prepared=null;throw e;});
  return prepared;
 }
 async function ensureAccountCodeColumn(){
@@ -364,6 +364,17 @@ function validate(key,value,id){
 async function queueTelegramNotice(c,key,notice){
  const id='TG-'+crypto.createHash('sha256').update(key).digest('hex');
  await c.execute('INSERT INTO crm_documents(collection,id,body,deleted) VALUES (?,?,?,0) ON DUPLICATE KEY UPDATE id=id', ['telegramOutbox',id,JSON.stringify({...notice,status:'PENDING',attempts:0,createdAt:new Date().toISOString()})]);
+}
+
+async function ensureUserActivityTables(){
+ const result=await pool.query(`SELECT column_name FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='crm_sessions' AND column_name IN ('ip','user_agent','last_seen_at','last_activity')`);
+ const rows=Array.isArray(result[0])?result[0]:[];
+ const columns=new Set(rows.map(row=>row.column_name));
+ if(!columns.has('ip'))await pool.query('ALTER TABLE crm_sessions ADD COLUMN ip VARCHAR(64) NULL AFTER user_id');
+ if(!columns.has('user_agent'))await pool.query('ALTER TABLE crm_sessions ADD COLUMN user_agent VARCHAR(512) NULL AFTER ip');
+ if(!columns.has('last_seen_at'))await pool.query('ALTER TABLE crm_sessions ADD COLUMN last_seen_at DATETIME NULL AFTER created_at');
+ if(!columns.has('last_activity'))await pool.query('ALTER TABLE crm_sessions ADD COLUMN last_activity VARCHAR(160) NULL AFTER last_seen_at');
+ await pool.query(`CREATE TABLE IF NOT EXISTS user_activity_logs (id BIGINT AUTO_INCREMENT PRIMARY KEY, user_id VARCHAR(96) NOT NULL, action VARCHAR(48) NOT NULL, detail VARCHAR(255) NOT NULL DEFAULT '', ip VARCHAR(64) NULL, user_agent VARCHAR(512) NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, INDEX idx_user_activity_user_time (user_id,created_at), INDEX idx_user_activity_time (created_at)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
 }
 async function project(c,key,id,r){
  if(key==='dataOffers'&&r?.status==='PENDING'&&r.saleId){

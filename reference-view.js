@@ -9,6 +9,7 @@ function setCarePage(groupId, page) {
 window.setCarePage = setCarePage;
   function matchesPersonnelCustomer(customer, ownerId, members) {
     if (!ownerId || ownerId === 'ALL') return true;
+    if (ownerId === 'UNASSIGNED') return !customer.saleId && !customer.leaderId && !customer.managerId && !customer.ownerId;
     const member = members.find(m => m.id === ownerId);
     if (!member) return false;
     const ids = new Set([ownerId]);

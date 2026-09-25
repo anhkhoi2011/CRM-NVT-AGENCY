@@ -63,6 +63,17 @@ test('Gửi lại cùng requestId không tạo bản sao; phiên bản cũ bị 
  await assert.rejects(f.api.write(admin,'three',[change('customers',{...first.state.customers[0],name:'Cũ'},first.versions['customers/c1'])]),e=>e.status===409);
  assert.equal((await f.api.read(admin)).state.customers[0].name,'Mới');
 });
+test('Khách thêm thủ công được lưu trong customers SQL và đọc lại sau F5',async()=>{
+ const f=fixture();
+ const manual={id:'manual-customer',name:'Khách nhập tay',phone:'0865976582',email:'quangha@example.vn',source:'Khách hàng cũ',campaign:'MANUAL-CRM',websiteId:null,status:'NEW',saleId:'manager',leaderId:null,teamId:null,managerId:'manager',saleAcceptedAt:'2026-09-25 09:49:00',manualEntry:true,note:'Tạo thủ công từ CRM',customFields:{customerClass:'Nóng',customerLevel:'L4.1: Hẹn nạp vốn'},createdAt:'2026-09-25 09:49:00',updatedAt:'2026-09-25 09:49:00'};
+ const saved=await f.api.write(admin,'manual-customer-save',[change('customers',manual)]);
+ const sql=f.db.customers.find(row=>row.id===manual.id);
+ assert.equal(sql.email,'quangha@example.vn');assert.equal(sql.source,'Khách hàng cũ');assert.equal(sql.website_id,null);assert.equal(sql.sale_id,'manager');
+ const metadata=JSON.parse(sql.custom_fields_json).__crmMeta;
+ assert.equal(metadata.manualEntry,true);assert.equal(metadata.managerId,'manager');
+ const reread=await f.api.read(admin),restored=reread.state.customers.find(row=>row.id===manual.id);
+ assert.equal(saved.ok,true);assert.equal(restored.email,'quangha@example.vn');assert.equal(restored.source,'Khách hàng cũ');assert.equal(restored.manualEntry,true);assert.equal(restored.managerId,'manager');assert.equal(restored.customFields.customerLevel,'L4.1: Hẹn nạp vốn');
+});
 test('Sale nhận data đang chờ phục hồi đầy đủ số điện thoại và lưu thành công',async()=>{
  const f=fixture();
  f.db.users.push({id:'lead',name:'Leader',role:'LEADER',team_id:'T',active:1},{id:'sale',name:'Sale',role:'SALE',team_id:'T',leader_id:'lead',active:1});
@@ -176,6 +187,11 @@ test('Đăng ký trùng trả 400 không phát tín hiệu thành công',async()
 });
 test('Tài khoản chưa phân quyền không được cấp phiên đăng nhập',async()=>{
  const f=authFixture([{id:'u1',phone:'0912345678',role:'UNASSIGNED',password_hash:'password123'}]);const result=await f.request('/api/auth/login',{identifier:'0912345678',password:'password123'});assert.equal(result.status,403);assert.equal(f.calls.some(x=>x.sql.startsWith('INSERT INTO crm_sessions')),false);
+});
+test('User log dùng phiên máy chủ để ghi IP, đăng nhập, đăng xuất và màn hình đang mở',()=>{
+ const server=fs.readFileSync('webhook-server.cjs','utf8'),ui=fs.readFileSync('reference-crm.js','utf8');
+ assert.match(server,/user_activity_logs/);assert.match(server,/api\/admin\/user-activity/);assert.match(server,/recordUserActivity\(row,request,'LOGIN','Đăng nhập CRM'\)/);assert.match(server,/recordUserActivity\(user,request,'LOGOUT','Đăng xuất CRM'\)/);assert.match(server,/clientIp\(request\)/);
+ assert.match(ui,/Trạng thái nhân sự/);assert.match(ui,/ĐANG LÀM GÌ/);assert.match(ui,/Lịch sử hoạt động/);assert.match(ui,/reportUserActivity\(id\)/);
 });
 
 test('Đồng bộ giữ tham chiếu của form đang mở để lần sửa tiếp theo được lưu',()=>{
@@ -589,9 +605,16 @@ test('Reference care save retries the same group and denies a different operatio
 });
 test('Reference customer form rejects an invalid assignee before mutating customer state',async()=>{
  const c=frontend();vm.runInContext(fs.readFileSync('crm-runtime-api.js','utf8'),c);
- vm.runInContext(`currentAccount={id:'admin',role:'ADMIN'};serverStateLoaded=true;state=initialState();flushServerPersistence=async()=>true;`,c);
- await assert.rejects(()=>c.window.crmApi.createCustomer({name:'Customer',phone:'0900000999',saleId:'missing'}),/phạm vi/);
+ vm.runInContext(`currentAccount={id:'admin',role:'ADMIN'};serverStateLoaded=true;state=initialState();state.websites=[{id:'website',name:'Landing',domain:'example.test'}];flushServerPersistence=async()=>true;`,c);
+ await assert.rejects(()=>c.window.crmApi.createCustomer({name:'Customer',phone:'0900000999',websiteId:'website',saleId:'missing'}),/phạm vi/);
  assert.equal(vm.runInContext('state.customers.length',c),0);
+});
+test('Manager thêm khách cũ không cần landing vẫn tạo bản ghi chờ lưu bền vững',async()=>{
+ const c=frontend();vm.runInContext(fs.readFileSync('crm-runtime-api.js','utf8'),c);
+ vm.runInContext(`currentAccount={id:'manager',name:'Manager',role:'LEADER',actualRole:'MANAGER',scope:'TEAM'};serverStateLoaded=true;state=initialState();state.websites=[];state.members=[{id:'manager',name:'Manager',role:'MANAGER',active:true,teamId:''}];STAFF=state.members;flushServerPersistence=async()=>true;`,c);
+ const result=await c.window.crmApi.createCustomer({name:'Khách cũ',phone:'0865976582',email:'old@example.vn',source:'Khách hàng cũ',websiteId:'SOURCE:OLD_CUSTOMER',saleId:'',customFields:{customerClass:'Nóng',customerLevel:'L4.1: Hẹn nạp vốn'}});
+ const saved=vm.runInContext('state.customers[0]',c);
+ assert.ok(result.id);assert.equal(saved.source,'Khách hàng cũ');assert.equal(saved.websiteId,null);assert.equal(saved.email,'old@example.vn');assert.equal(saved.manualEntry,true);assert.equal(saved.managerId,'manager');
 });
 
 test('Reference product validates before editing, preserves order history and denies Sale',async()=>{
@@ -914,9 +937,9 @@ for(const mode of ['BALANCED','ROUND_ROBIN'])test('Direct manager sales receive 
 test('Personnel customer filter includes each hierarchy and excludes sibling branches',()=>{
  const source=fs.readFileSync('reference-view.js','utf8'),a=source.indexOf('  function matchesPersonnelCustomer('),b=source.indexOf('\n  //',a),c=vm.createContext({});vm.runInContext(source.slice(a,b),c);
  const members=[{id:'m',role:'MANAGER'},{id:'l',role:'LEADER',managerId:'m'},{id:'s',role:'SALE',leaderId:'l'},{id:'d',role:'SALE',leaderId:'m',managerId:'m'},{id:'out',role:'SALE',leaderId:'other'}];
- const rows=[{id:'own',managerId:'m'},{id:'leader',leaderId:'l'},{id:'sale',saleId:'s'},{id:'direct',saleId:'d'},{id:'outside',saleId:'out'}];
+ const rows=[{id:'own',managerId:'m'},{id:'leader',leaderId:'l'},{id:'sale',saleId:'s'},{id:'direct',saleId:'d'},{id:'outside',saleId:'out'},{id:'waiting'}];
  const filter=id=>rows.filter(row=>c.matchesPersonnelCustomer(row,id,members)).map(row=>row.id);
- assert.deepEqual(filter('m'),['own','leader','sale','direct']);assert.deepEqual(filter('l'),['leader','sale']);assert.deepEqual(filter('s'),['sale']);assert.deepEqual(filter('d'),['direct']);assert.deepEqual(filter('ALL'),rows.map(r=>r.id));
+ assert.deepEqual(filter('m'),['own','leader','sale','direct']);assert.deepEqual(filter('l'),['leader','sale']);assert.deepEqual(filter('s'),['sale']);assert.deepEqual(filter('d'),['direct']);assert.deepEqual(filter('UNASSIGNED'),['waiting']);assert.deepEqual(filter('ALL'),rows.map(r=>r.id));
 });
 
 test('Admin edits queued round members without changing the active round',async()=>{
