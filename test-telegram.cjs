@@ -76,3 +76,14 @@ test('Unlinked members stay queued for retry; stale direct assignments are disca
  await f.api.drainLeadNotifications();assert.equal(f.notices[0].body.status,'PENDING');assert.equal(f.sent.length,0);
  f.customers[0].sale_id='l';await f.api.drainLeadNotifications();assert.equal(f.notices[0].body.status,'SKIPPED');assert.equal(f.sent.length,0);
 });
+test('Admin webhook message includes the configured source URL',async()=>{
+ const f=fixture();
+ const result=await f.api.notifyWebhookLeadAdmins(customer,'2026-09-24 19:00:00',[],{sourceUrl:'https://landing.example.test/form?utm_source=crm'});
+ assert.equal(result.sent,1);assert.match(f.sent[0].text,/https:\/\/landing\.example\.test\/form\?utm_source=crm/);
+});
+test('Admin webhook outbox forwards the configured source URL',async()=>{
+ const f=fixture();
+ f.notices.push({id:'source-url-notice',body:{kind:'WEBHOOK_ADMIN',status:'PENDING',customer,receivedAt:now(),source:{sourceUrl:'https://landing.example.test/from-outbox'}}});
+ await f.api.drainLeadNotifications();
+ assert.equal(f.notices[0].body.status,'SENT');assert.match(f.sent[0].text,/https:\/\/landing\.example\.test\/from-outbox/);
+});

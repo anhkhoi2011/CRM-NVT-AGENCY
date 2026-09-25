@@ -448,7 +448,7 @@ async function handleDbApi(request, response, pathname) {
       const hash=crypto.createHash('sha256').update(code).digest('hex');
       await dbQuery('DELETE FROM telegram_link_tokens WHERE user_id=? OR expires_at<NOW() OR consumed_at IS NOT NULL',[user.id]);
       await dbQuery('INSERT INTO telegram_link_tokens(token_hash,user_id,expires_at) VALUES(?,?,DATE_ADD(NOW(),INTERVAL 5 MINUTE))',[hash,user.id]);
-      const botName=(process.env.TELEGRAM_BOT_USERNAME||'HeThongCRMNVT_BOT').replace(/^@/,'');
+      const botName=(process.env.TELEGRAM_BOT_USERNAME||'HotroTinNhanCRM_bot').replace(/^@/,'');
       return dbJson(request,response,200,{code,expiresIn:300,url:'https://t.me/'+botName+'?start='+encodeURIComponent(code)});
     }
     if(pathname==='/api/telegram/unlink' && request.method==='POST'){

@@ -2,7 +2,7 @@
 
 /**
  * Module: telegram-bot.cjs
- * Hệ thống Bot Telegram NVT Agency (@HeThongCRMNVT_BOT)
+ * Hệ thống Bot Telegram NVT Agency (@HotroTinNhanCRM_bot)
  * Xử lý: Liên kết tài khoản, thông báo data mới realtime, nhận data 1 chạm,
  * nhắc lịch hẹn khách hàng, cảnh báo data nóng 12h, nhắc điểm danh 09h00.
  */
@@ -535,7 +535,7 @@ async function notifyNewLead(customer, offer = null) {
   }
 }
 
-async function notifyWebhookLeadAdmins(customer, receivedAt, deliveredChatIds = []) {
+async function notifyWebhookLeadAdmins(customer, receivedAt, deliveredChatIds = [], source = null) {
   try {
     const admins = await dbQuery("SELECT telegram_chat_id FROM users WHERE role = 'ADMIN' AND active = 1 AND telegram_chat_id IS NOT NULL");
     // Data webhook phải luôn về đúng hộp thư Admin đã cấu hình, không phụ thuộc
@@ -548,10 +548,12 @@ async function notifyWebhookLeadAdmins(customer, receivedAt, deliveredChatIds = 
       : [...new Set(linkedAdminChatIds)];
     const delivered=new Set(deliveredChatIds.map(String));
     if (!chatIds.length) return { sent: 0, skipped: true, reason: 'missing-admin-chat-id', deliveredChatIds: [...delivered] };
+    const sourceUrl = String(source?.sourceUrl || customer?.landingPageUrl || customer?.sourceUrl || '').trim();
     const text = '<b>DATA MỚI TỪ WEBHOOK</b>\n\n' +
       '• <b>Họ tên:</b> ' + escapeHtml(customer.name || 'Chưa có') + '\n' +
       '• <b>SĐT:</b> <code>' + escapeHtml(customer.phone || 'Chưa có') + '</code>\n' +
       '• <b>Gmail:</b> ' + escapeHtml(customer.email || 'Chưa có') + '\n' +
+      '• <b>Nguồn data:</b> ' + (sourceUrl ? `<a href='${escapeHtml(sourceUrl)}'>${escapeHtml(sourceUrl)}</a>` : 'Chưa gắn URL nguồn') + '\n' +
       '• <b>Thời gian data về:</b> ' + escapeHtml(formatDateTimeVN(receivedAt));
     let sent = 0;
     for (const chatId of chatIds) {
@@ -953,7 +955,7 @@ async function drainLeadNotifications(){
    try{notice=parse(row.body);}catch{continue;}
    try{
     if(notice.kind==='WEBHOOK_ADMIN'){
-     const result=await notifyWebhookLeadAdmins(notice.customer,notice.receivedAt,notice.deliveredChatIds||[]);
+     const result=await notifyWebhookLeadAdmins(notice.customer,notice.receivedAt,notice.deliveredChatIds||[],notice.source||null);
      notice.deliveredChatIds=result.deliveredChatIds||notice.deliveredChatIds||[];
      if(result.complete)notice.status='SENT';
      else notice.lastError=result.skipped?'ADMIN_CHAT_NOT_CONFIGURED':'TELEGRAM_DELIVERY_FAILED';
