@@ -2,6 +2,51 @@
 let appState = { customers: [], orders: [], careGroups: [] };
 const CARE_PAGE_SIZE = 20;
 const carePageByGroup = Object.create(null);
+let customerPage = 1;
+let customerPageSize = 20;
+let customerFilterSignature = '';
+
+function ensureCustomerPaginationStyles() {
+  if (document.getElementById('customerPaginationStyles')) return;
+  const style = document.createElement('style');
+  style.id = 'customerPaginationStyles';
+  style.textContent = '#customerPagination{display:flex;align-items:center;justify-content:flex-end;gap:10px;min-height:68px;padding:12px 16px;border-top:1px solid #dbe3ec;background:#fff;color:#64748b;font-size:12px;box-sizing:border-box}#customerPagination[hidden]{display:none}.customer-pagination-summary{margin-right:auto}.customer-pagination-size{display:inline-flex;align-items:center;gap:8px;white-space:nowrap}.customer-pagination-size select{height:34px;min-width:70px;padding:0 9px;border:1px solid #dbe3ec;border-radius:7px;background:#fff;color:#0f172a;font:inherit}.customer-pagination-button{display:grid;place-items:center;width:38px;height:38px;border:1px solid #dbe3ec;border-radius:8px;background:#fff;color:#1e293b;font-size:22px;line-height:1;cursor:pointer}.customer-pagination-button:hover:not(:disabled){border-color:#93c5fd;background:#eff6ff;color:#2563eb}.customer-pagination-button:disabled{cursor:not-allowed;opacity:.45}.customer-pagination-current{min-width:46px;text-align:center;font-weight:800;color:#0f172a;font-variant-numeric:tabular-nums}@media(max-width:680px){#customerPagination{justify-content:flex-start;gap:8px;flex-wrap:wrap;padding:10px 12px}.customer-pagination-summary{width:100%;margin-right:0}.customer-pagination-size{margin-right:auto}}';
+  document.head.appendChild(style);
+}
+
+function renderCustomerPagination(total) {
+  const host = document.getElementById('customerPagination');
+  if (!host) return;
+  ensureCustomerPaginationStyles();
+  const pages = Math.max(1, Math.ceil(total / customerPageSize));
+  customerPage = Math.min(customerPage, pages);
+  if (!total) {
+    host.hidden = true;
+    host.innerHTML = '';
+    return;
+  }
+  const from = (customerPage - 1) * customerPageSize + 1;
+  const to = Math.min(customerPage * customerPageSize, total);
+  host.hidden = false;
+  host.innerHTML = '<span class="customer-pagination-summary">Hiển thị ' + from + '–' + to + ' / ' + total + ' data</span><label class="customer-pagination-size">Số dòng <select aria-label="Số khách hàng mỗi trang">' + [10, 20, 50, 100, 200].map(size => '<option value="' + size + '" ' + (size === customerPageSize ? 'selected' : '') + '>' + size + '</option>').join('') + '</select></label><button type="button" class="customer-pagination-button" data-customer-page="prev" aria-label="Trang trước" ' + (customerPage === 1 ? 'disabled' : '') + '>‹</button><span class="customer-pagination-current">' + customerPage + ' / ' + pages + '</span><button type="button" class="customer-pagination-button" data-customer-page="next" aria-label="Trang sau" ' + (customerPage === pages ? 'disabled' : '') + '>›</button>';
+  host.querySelector('select').onchange = event => {
+    customerPageSize = Number(event.target.value) || 20;
+    customerPage = 1;
+    renderCustomerTable();
+  };
+  host.querySelector('[data-customer-page="prev"]').onclick = () => {
+    if (customerPage > 1) {
+      customerPage--;
+      renderCustomerTable();
+    }
+  };
+  host.querySelector('[data-customer-page="next"]').onclick = () => {
+    if (customerPage < pages) {
+      customerPage++;
+      renderCustomerTable();
+    }
+  };
+}
 function setCarePage(groupId, page) {
   carePageByGroup[groupId] = Math.max(1, Number(page) || 1);
   if (typeof window.renderCareView === 'function') window.renderCareView();
@@ -54,13 +99,20 @@ window.setCarePage = setCarePage;
     const statusVal = document.getElementById('custStatusFilter')?.value || 'ALL';
     const assignVal = document.getElementById('custAssignFilter')?.value || 'ALL';
     const ownerVal = document.getElementById('custOwnerFilter')?.value || 'ALL';
+    const saleVal = typeof window !== 'undefined' ? (window.customerSaleFilter || 'ALL') : 'ALL';
+    const filterSignature = [searchVal, statusVal, assignVal, ownerVal, saleVal].join('\u0001');
+    if (filterSignature !== customerFilterSignature) {
+      customerFilterSignature = filterSignature;
+      customerPage = 1;
+    }
 
     const filtered = appState.customers.filter(c => {
       const matchText = (c.name + ' ' + c.phone + ' ' + c.level + ' ' + c.note).toLowerCase().includes(searchVal);
       const matchStatus = statusVal === 'ALL' || c.status === statusVal;
       const matchAssign = assignVal === 'ALL' || (assignVal === 'UNASSIGNED' ? !c.saleId : Boolean(c.saleId));
       const matchOwner = matchesPersonnelCustomer(c, ownerVal, appState.members || []);
-      return matchText && matchStatus && matchAssign && matchOwner;
+      const matchSale = saleVal === 'ALL' || c.saleId === saleVal || c.ownerId === saleVal;
+      return matchText && matchStatus && matchAssign && matchOwner && matchSale;
     });
 
     document.getElementById('custCountText').innerText = `${filtered.length} khách · 5 cột nghiệp vụ`;
@@ -87,10 +139,14 @@ window.setCarePage = setCarePage;
 
     if (!filtered.length) {
       tbody.innerHTML = `<tr><td colspan="13" style="text-align: center; padding: 40px; color: var(--text-muted);"><b>Không tìm thấy khách hàng</b><div style="font-size: 11px; margin-top: 4px;">Hãy thử từ khóa hoặc bộ lọc khác.</div></td></tr>`;
+      renderCustomerPagination(0);
       return;
     }
 
-    tbody.innerHTML = filtered.map(c => {
+    const pages = Math.max(1, Math.ceil(filtered.length / customerPageSize));
+    customerPage = Math.min(customerPage, pages);
+    const pageRows = filtered.slice((customerPage - 1) * customerPageSize, customerPage * customerPageSize);
+    tbody.innerHTML = pageRows.map(c => {
       const classChip = c.customerClass === 'Nóng' ? '<span class="chip chip-hot">Khách Nóng</span>' :
                         c.customerClass === 'Ấm' ? '<span class="chip chip-warm">Khách Ấm</span>' :
                         c.customerClass === 'Premium' ? '<span class="chip chip-vip">Premium Whale</span>' :
@@ -126,6 +182,7 @@ window.setCarePage = setCarePage;
         </td>
       </tr>`;
     }).join('');
+    renderCustomerPagination(filtered.length);
   }
 
   // ── 3. RENDER CHĂM SÓC KHÁCH (CHUẨN ẢNH 1 & 2) ──

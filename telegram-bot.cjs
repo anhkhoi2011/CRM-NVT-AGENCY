@@ -8,9 +8,13 @@
  */
 
 const { pool, dbQuery } = require('./db.js');
+const fs = require('node:fs/promises');
+const path = require('node:path');
+const supportChat = require('./support-chat.cjs');
 
 const BOT_TOKEN = (process.env.TELEGRAM_BOT_TOKEN || '').trim();
 const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
+const SUPPORT_ADMIN_CHAT_ID = (process.env.TELEGRAM_ADMIN_CHAT_ID || '').trim();
 
 // ==================== CÁC HÀM GỌI TELEGRAM BOT API ====================
 
@@ -34,6 +38,19 @@ async function callTelegram(method, body = {}) {
   }
 }
 
+async function callTelegramForm(method, form) {
+  if (!BOT_TOKEN) return { ok: false, error: 'TELEGRAM_BOT_TOKEN is not configured' };
+  try {
+    const res = await fetch(`${TELEGRAM_API}/${method}`, { method: 'POST', body: form, signal: AbortSignal.timeout(15000) });
+    const data = await res.json();
+    if (!data.ok) console.warn(`[Telegram Bot] API call ${method} warning:`, data.description || data);
+    return data;
+  } catch (err) {
+    console.error(`[Telegram Bot] Fetch error on ${method}:`, err.message);
+    return { ok: false, error: err.message };
+  }
+}
+
 async function sendMessage(chatId, text, options = {}) {
   if (!chatId) return null;
   return callTelegram('sendMessage', {
@@ -43,6 +60,24 @@ async function sendMessage(chatId, text, options = {}) {
     reply_markup: options.reply_markup || undefined,
     disable_web_page_preview: options.disable_web_page_preview !== false
   });
+}
+
+async function sendPhoto(chatId, filePath, caption, options = {}) {
+  if (!chatId || !filePath) return null;
+  try {
+    const image = await fs.readFile(filePath);
+    const mime = options.mime || ({ '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif' })[path.extname(filePath).toLowerCase()] || 'application/octet-stream';
+    const form = new FormData();
+    form.set('chat_id', String(chatId));
+    form.set('photo', new Blob([image], { type: mime }), path.basename(filePath));
+    form.set('caption', String(caption || '').slice(0, 1024));
+    form.set('parse_mode', options.parse_mode || 'HTML');
+    if (options.reply_markup) form.set('reply_markup', JSON.stringify(options.reply_markup));
+    return callTelegramForm('sendPhoto', form);
+  } catch (error) {
+    console.error('[Telegram Bot] Không đọc được ảnh hỗ trợ:', error.message);
+    return { ok: false, error: error.message };
+  }
 }
 
 async function editMessageText(chatId, messageId, text, options = {}) {
@@ -107,7 +142,7 @@ async function handleTelegramUpdate(update) {
 
   // 1. Xử lý Message từ người dùng
   if (update.message) {
-    await handleIncomingMessage(update.message);
+    return { ok: true, support: await handleIncomingMessage(update.message) };
   }
   // 2. Xử lý Callback Query từ nút bấm Inline Keyboard
   else if (update.callback_query) {
@@ -123,6 +158,13 @@ async function handleIncomingMessage(msg) {
 
   const rawText = String(msg.text || '').trim();
   const fromUsername = msg.from?.username || '';
+
+  // Admin trả lời trực tiếp vào thông báo hỗ trợ: Telegram gửi lại message_id
+  // gốc, nhờ đó phản hồi luôn quay đúng hội thoại của nhân viên.
+  if (SUPPORT_ADMIN_CHAT_ID && String(chatId) === SUPPORT_ADMIN_CHAT_ID && msg.reply_to_message?.message_id) {
+    const supportReply = await supportChat.createTelegramAdminReply(chatId, msg.reply_to_message.message_id, rawText);
+    if (supportReply.matched) return supportReply;
+  }
 
   // Lệnh /start
   if (rawText.startsWith('/start')) {
@@ -496,9 +538,16 @@ async function notifyNewLead(customer, offer = null) {
 async function notifyWebhookLeadAdmins(customer, receivedAt, deliveredChatIds = []) {
   try {
     const admins = await dbQuery("SELECT telegram_chat_id FROM users WHERE role = 'ADMIN' AND active = 1 AND telegram_chat_id IS NOT NULL");
-    const chatIds = [...new Set(admins.map(row => row.telegram_chat_id).filter(Boolean).map(String))];
+    // Data webhook phải luôn về đúng hộp thư Admin đã cấu hình, không phụ thuộc
+    // việc Admin đã liên kết Telegram trong hồ sơ CRM hay chưa. Nếu chưa có
+    // biến môi trường thì mới dùng các tài khoản Admin đã liên kết làm fallback.
+    const configuredAdminChatId = String(SUPPORT_ADMIN_CHAT_ID || '').trim();
+    const linkedAdminChatIds = admins.map(row => row.telegram_chat_id).filter(Boolean).map(String);
+    const chatIds = configuredAdminChatId
+      ? [configuredAdminChatId]
+      : [...new Set(linkedAdminChatIds)];
     const delivered=new Set(deliveredChatIds.map(String));
-    if (!chatIds.length) return { sent: 0, skipped: true };
+    if (!chatIds.length) return { sent: 0, skipped: true, reason: 'missing-admin-chat-id', deliveredChatIds: [...delivered] };
     const text = '<b>DATA MỚI TỪ WEBHOOK</b>\n\n' +
       '• <b>Họ tên:</b> ' + escapeHtml(customer.name || 'Chưa có') + '\n' +
       '• <b>SĐT:</b> <code>' + escapeHtml(customer.phone || 'Chưa có') + '</code>\n' +
@@ -514,6 +563,23 @@ async function notifyWebhookLeadAdmins(customer, receivedAt, deliveredChatIds = 
     console.error('[Telegram Bot] notifyWebhookLeadAdmins error:', error.message);
     return { sent: 0, error: error.message };
   }
+}
+
+async function notifyInternalSupportMessage(message, imagePath = '') {
+  if (!SUPPORT_ADMIN_CHAT_ID) return { sent: false, configured: false, reason: 'missing-admin-chat-id' };
+  const requester = message.requester || {};
+  const content = String(message.content || '').trim() || 'Nhân viên gửi ảnh đính kèm, vui lòng xem chi tiết.';
+  const text = '🔔 <b>YÊU CẦU NỘI BỘ CRM</b>\n\n' +
+    '👤 <b>Nhân viên:</b> ' + escapeHtml(requester.name || 'Chưa xác định') +
+    ' (' + escapeHtml(requester.department || requester.role || 'Nhân viên') + ' - ' + escapeHtml(requester.accountId || requester.id || '—') + ')\n' +
+    '⏰ <b>Thời gian:</b> ' + escapeHtml(formatDateTimeVN(message.createdAt || new Date())) + '\n' +
+    '💬 <b>Nội dung:</b> ' + escapeHtml(content) +
+    '\n\n<i>Trả lời trực tiếp vào tin nhắn này để phản hồi về CRM của nhân viên.</i>';
+  const replyMarkup = { force_reply: true, input_field_placeholder: 'Nhập phản hồi cho nhân viên...' };
+  const result = imagePath
+    ? await sendPhoto(SUPPORT_ADMIN_CHAT_ID, imagePath, text, { reply_markup: replyMarkup, mime: message.imageMime })
+    : await sendMessage(SUPPORT_ADMIN_CHAT_ID, text, { reply_markup: replyMarkup });
+  return { sent: Boolean(result?.ok), configured: true, messageId: result?.result?.message_id || null };
 }
 
 /**
@@ -890,7 +956,7 @@ async function drainLeadNotifications(){
      const result=await notifyWebhookLeadAdmins(notice.customer,notice.receivedAt,notice.deliveredChatIds||[]);
      notice.deliveredChatIds=result.deliveredChatIds||notice.deliveredChatIds||[];
      if(result.complete)notice.status='SENT';
-     else notice.lastError=result.skipped?'ADMIN_NOT_LINKED':'TELEGRAM_DELIVERY_FAILED';
+     else notice.lastError=result.skipped?'ADMIN_CHAT_NOT_CONFIGURED':'TELEGRAM_DELIVERY_FAILED';
     }else if(notice.kind==='ASSIGNMENT'){
      const [customers]=await connection.execute('SELECT * FROM customers WHERE id=? LIMIT 1',[notice.customerId]);
      const sql=customers[0];
@@ -938,12 +1004,14 @@ module.exports = {
   drainLeadNotifications,
   callTelegram,
   sendMessage,
+  sendPhoto,
   editMessageText,
   answerCallbackQuery,
   setWebhook,
   handleTelegramUpdate,
   notifyNewLead,
   notifyWebhookLeadAdmins,
+  notifyInternalSupportMessage,
   notifyReassignedLead,
   notifyAppointmentReminder,
   notifyStaleLeadWarning,

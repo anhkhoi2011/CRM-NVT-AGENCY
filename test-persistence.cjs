@@ -943,6 +943,17 @@ test('Personnel customer filter includes each hierarchy and excludes sibling bra
  const filter=id=>rows.filter(row=>c.matchesPersonnelCustomer(row,id,members)).map(row=>row.id);
  assert.deepEqual(filter('m'),['own','leader','sale','direct']);assert.deepEqual(filter('l'),['leader','sale']);assert.deepEqual(filter('s'),['sale']);assert.deepEqual(filter('d'),['direct']);assert.deepEqual(filter('UNASSIGNED'),['waiting']);assert.deepEqual(filter('ALL'),rows.map(r=>r.id));
 });
+test('Reference product saves image data, keeps it when editing, and rejects invalid image data',async()=>{
+ const c=frontend();vm.runInContext(fs.readFileSync('crm-runtime-api.js','utf8'),c);
+ vm.runInContext(`currentAccount={id:'admin',role:'ADMIN'};serverStateLoaded=true;state=initialState();flushServerPersistence=async()=>true;`,c);
+ const imageData='data:image/webp;base64,AA==';
+ const input={name:'Product image',sku:'IMG-QA',category:'Tools',price:1000,type:'SALE',active:true,imageData};
+ const result=await c.window.crmApi.saveProduct(null,input);
+ assert.equal(vm.runInContext(`state.products.find(p=>p.id===${JSON.stringify(result.id)}).imageData`,c),imageData);
+ await c.window.crmApi.saveProduct(result.id,{...input,name:'Product image edited',price:1200});
+ assert.equal(vm.runInContext(`state.products.find(p=>p.id===${JSON.stringify(result.id)}).imageData`,c),imageData);
+ await assert.rejects(()=>c.window.crmApi.saveProduct(result.id,{...input,imageData:'https://example.com/product.jpg'}),/không hợp lệ/);
+});
 
 test('Admin edits queued round members without changing the active round',async()=>{
  const c=referenceBridge(),api=c.window.crmApi;

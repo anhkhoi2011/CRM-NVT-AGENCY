@@ -100,7 +100,7 @@
     <rect x="0" y="0" width="240" height="70" rx="12" fill="#172033" stroke="#3b82f6" stroke-width="1.8"/>
     <rect x="8" y="8" width="60" height="18" rx="4" fill="#3b82f6"/>
     <text x="38" y="21" fill="#ffffff" font-size="9.5" font-weight="800" text-anchor="middle">LV1: 80K</text>
-    <text x="76" y="21" fill="#93c5fd" font-size="10" font-weight="700">TD: +20k/lot (84.3 lot)</text>
+    
     <text x="12" y="45" fill="#f8fafc" font-size="13" font-weight="800">Phương Anh</text>
     <text x="12" y="60" fill="#94a3b8" font-size="10">ID: 08049866 • 5 Cấp Dưới</text>
   </g>
@@ -110,7 +110,7 @@
     <rect x="0" y="0" width="240" height="52" rx="8" fill="#172033" stroke="#ea580c" stroke-width="1.5"/>
     <rect x="8" y="8" width="56" height="16" rx="3" fill="#ea580c"/>
     <text x="36" y="20" fill="#ffffff" font-size="9" font-weight="800" text-anchor="middle">LV2: 60K</text>
-    <text x="72" y="20" fill="#fdba74" font-size="9.5" font-weight="700">TD: +10k/lot (11.3 lot)</text>
+    
     <text x="10" y="38" fill="#f8fafc" font-size="12" font-weight="800">Trần Thị Tuyết</text>
     <text x="120" y="38" fill="#94a3b8" font-size="10">08077592</text>
   </g>
@@ -129,7 +129,7 @@
     <rect x="0" y="0" width="240" height="52" rx="8" fill="#172033" stroke="#ea580c" stroke-width="1.5"/>
     <rect x="8" y="8" width="56" height="16" rx="3" fill="#ea580c"/>
     <text x="36" y="20" fill="#ffffff" font-size="9" font-weight="800" text-anchor="middle">LV2: 60K</text>
-    <text x="72" y="20" fill="#fdba74" font-size="9.5" font-weight="700">TD: +10k/lot (18.3 lot)</text>
+    
     <text x="10" y="38" fill="#f8fafc" font-size="12" font-weight="800">Đỗ Việt Cường</text>
     <text x="120" y="38" fill="#94a3b8" font-size="10">08020609</text>
   </g>
@@ -158,7 +158,7 @@
     <rect x="0" y="0" width="240" height="70" rx="12" fill="#172033" stroke="#3b82f6" stroke-width="1.8"/>
     <rect x="8" y="8" width="60" height="18" rx="4" fill="#3b82f6"/>
     <text x="38" y="21" fill="#ffffff" font-size="9.5" font-weight="800" text-anchor="middle">LV1: 80K</text>
-    <text x="76" y="21" fill="#93c5fd" font-size="10" font-weight="700">TD: +20k/lot (136.5 lot)</text>
+    
     <text x="12" y="45" fill="#f8fafc" font-size="13" font-weight="800">Nguyễn Hoàng Khánh</text>
     <text x="12" y="60" fill="#94a3b8" font-size="10">ID: 08014278 • 9 Cấp Dưới</text>
   </g>
@@ -168,7 +168,7 @@
     <rect x="0" y="0" width="240" height="52" rx="8" fill="#172033" stroke="#ea580c" stroke-width="1.5"/>
     <rect x="8" y="8" width="56" height="16" rx="3" fill="#ea580c"/>
     <text x="36" y="20" fill="#ffffff" font-size="9" font-weight="800" text-anchor="middle">LV2: 60K</text>
-    <text x="72" y="20" fill="#fdba74" font-size="9.5" font-weight="700">TD: +10k/lot (110.3 lot)</text>
+    
     <text x="10" y="38" fill="#f8fafc" font-size="12" font-weight="800">Đặng Tấn Tử</text>
     <text x="120" y="38" fill="#94a3b8" font-size="10">08035000</text>
   </g>
@@ -228,7 +228,7 @@
     <rect x="0" y="0" width="240" height="70" rx="12" fill="#172033" stroke="#ea580c" stroke-width="1.8"/>
     <rect x="8" y="8" width="60" height="18" rx="4" fill="#ea580c"/>
     <text x="38" y="21" fill="#ffffff" font-size="9.5" font-weight="800" text-anchor="middle">LV2: 60K</text>
-    <text x="76" y="21" fill="#fdba74" font-size="10" font-weight="700">TD: +10k/lot (46.5 lot)</text>
+    
     <text x="12" y="45" fill="#f8fafc" font-size="13" font-weight="800">Vũ Thị Quỳnh</text>
     <text x="12" y="60" fill="#94a3b8" font-size="10">ID: 08095532 • 3 Sale Trực Thuộc</text>
   </g>
@@ -258,7 +258,7 @@
     <rect x="0" y="0" width="240" height="70" rx="12" fill="#172033" stroke="#ea580c" stroke-width="1.8"/>
     <rect x="8" y="8" width="60" height="18" rx="4" fill="#ea580c"/>
     <text x="38" y="21" fill="#ffffff" font-size="9.5" font-weight="800" text-anchor="middle">LV2: 60K</text>
-    <text x="76" y="21" fill="#fdba74" font-size="10" font-weight="700">TD: +10k/lot (32.5 lot)</text>
+    
     <text x="12" y="45" fill="#f8fafc" font-size="13" font-weight="800">Đỗ Mạnh Hùng</text>
     <text x="12" y="60" fill="#94a3b8" font-size="10">ID: 08080804 • 2 Sale Trực Thuộc</text>
   </g>

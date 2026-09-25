@@ -2172,8 +2172,8 @@
                 <option value="UNASSIGNED">Chưa phân Sale</option>
                 <option value="ASSIGNED">Đã phân Sale</option>
               </select>
-              <select id="custOwnerFilter" class="btn-secondary" aria-label="Xem khách theo nhân sự" style="height: 38px; padding: 0 12px; border-radius: 8px; font-size: 12.5px; min-width: 190px;">
-                <option value="ALL">Xem theo nhân sự</option>
+              <select id="custOwnerFilter" class="btn-secondary" aria-label="Lọc theo nhân sự trong phạm vi" style="height: 38px; min-width: 210px; padding: 0 12px; border-radius: 8px; font-size: 12.5px;">
+                <option value="ALL">Tất cả nhân sự trong phạm vi</option>
               </select>
             </div>
             <div style="font-size: 12px; color: var(--text-muted); font-weight: 700;">
@@ -2190,7 +2190,7 @@
                   <th>KHÁCH HÀNG</th>
                   <th>NGUỒN / LANDING PAGE</th>
                   <th>TEAM / LEADER</th>
-                  <th>SALE PHỤ TRÁCH</th>
+                  <th style="position:relative;"><div style="display:flex;align-items:center;gap:6px;white-space:nowrap;"><span>SALE PHỤ TRÁCH</span><button id="custSaleFilterButton" type="button" aria-label="Lọc theo Sale phụ trách" title="Lọc theo Sale phụ trách" style="display:inline-grid;place-items:center;width:22px;height:22px;padding:0;border:1px solid var(--border);border-radius:5px;background:var(--bg-surface);color:var(--text-muted);font-size:13px;line-height:1;cursor:pointer;">&#9662;</button></div><div id="custSaleFilterMenu" hidden></div></th>
                   <th>LEVEL KHÁCH HÀNG</th>
                   <th>PHÂN LOẠI KHÁCH HÀNG</th>
                   <th>GỌI KẾT NỐI</th>
@@ -2206,6 +2206,7 @@
               </tbody>
             </table>
           </div>
+          <div id="customerPagination" aria-label="Phân trang khách hàng"></div>
         </div>
 
         <!-- Khung Lịch sử kết nối & cập nhật data (Đúng ảnh 1) -->
@@ -4672,8 +4673,9 @@
     }catch{}
   })();
 </script>
-<script src="reference-view.js?v=20260925-customer-owner-filter-1"></script>
-<script src="reference-crm.js?v=20260925-manual-customer-direct-save-1"></script>
+<script src="reference-view.js?v=20260925-customer-pagination-2"></script>
+<script src="reference-crm.js?v=20260925-customer-owner-filter-3"></script>
+<script src="support-chat-widget.js?v=20260925-internal-support-chat-2"></script>
 <script>
   (() => {
     const roles = new Set(['MANAGER', 'LEADER', 'SALE']);

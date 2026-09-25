@@ -27,6 +27,7 @@ const { dbConfigured, dbQuery, dbHealth, pool } = require('./db.js');
 const { provisionSystemAccounts } = require('./system-accounts.cjs');
 const { persistWebhook } = require('./webhook-store.cjs');
 const telegramBot = require('./telegram-bot.cjs');
+const supportChat = require('./support-chat.cjs');
 let nodemailer = null;
 try { nodemailer = require('nodemailer'); } catch { /* email optional until npm install */ }
 
@@ -41,6 +42,12 @@ const INBOX_FILE = process.env.WEBHOOK_INBOX_FILE
   : path.join(DEFAULT_WEBHOOK_DATA_DIR, '.webhook-inbox.json');
 const MAX_BODY_BYTES = 8 * 1024 * 1024;
 const MAX_INBOX_RECORDS = 5000;
+const MAX_SUPPORT_IMAGE_BYTES = 5 * 1024 * 1024;
+const SUPPORT_UPLOAD_DIR = process.env.SUPPORT_UPLOAD_DIR
+  ? path.resolve(process.env.SUPPORT_UPLOAD_DIR)
+  : path.join(process.env.HOME || path.dirname(REPO_ROOT), 'crm-support-uploads');
+const TELEGRAM_WEBHOOK_URL = (process.env.TELEGRAM_WEBHOOK_URL || '').trim();
+const TELEGRAM_WEBHOOK_SECRET = (process.env.TELEGRAM_WEBHOOK_SECRET || '').trim();
 
 const EMAIL_TOKEN = (process.env.CRM_EMAIL_TOKEN || '').trim();
 const SMTP_HOST = process.env.SMTP_HOST || 'smtp.gmail.com';
@@ -413,6 +420,7 @@ async function handleDbApi(request, response, pathname) {
     const user=await authUser(request);
     if(!user)return dbJson(request,response,401,{error:'Phiên đã hết hạn. Đăng nhập lại để tiếp tục.'});
     await touchUserSession(request);
+    if(pathname.startsWith('/api/support/'))return handleSupportApi(request,response,pathname,user);
     if(pathname==='/api/auth/me')return dbJson(request,response,200,{user});
     if(pathname==='/api/auth/logout' && request.method==='POST'){await recordUserActivity(user,request,'LOGOUT','Đăng xuất CRM');await dbQuery('DELETE FROM crm_sessions WHERE token_hash=?',[tokenHash(request)]);return dbJson(request,response,200,{ok:true});}
     if(pathname==='/api/user-activity' && request.method==='POST'){
@@ -762,6 +770,65 @@ function readBody(request) {
   });
 }
 
+async function saveSupportImage(dataUrl) {
+  const match = String(dataUrl || '').match(/^data:(image\/(?:png|jpeg|webp|gif));base64,([A-Za-z0-9+/=]+)$/i);
+  if (!match) throw Object.assign(new Error('Ảnh đính kèm không đúng định dạng PNG, JPG, WEBP hoặc GIF.'), { status: 400 });
+  const mime = match[1].toLowerCase();
+  const bytes = Buffer.from(match[2], 'base64');
+  if (!bytes.length || bytes.length > MAX_SUPPORT_IMAGE_BYTES) throw Object.assign(new Error('Ảnh đính kèm phải nhỏ hơn hoặc bằng 5 MB.'), { status: 413 });
+  const extension = ({ 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif' })[mime];
+  const fileName = `support-${crypto.randomUUID()}.${extension}`;
+  await fsp.mkdir(SUPPORT_UPLOAD_DIR, { recursive: true });
+  await fsp.writeFile(path.join(SUPPORT_UPLOAD_DIR, fileName), bytes, { flag: 'wx' });
+  return { fileName, mime, path: path.join(SUPPORT_UPLOAD_DIR, fileName) };
+}
+
+async function sendSupportUpload(request, response, user, fileName) {
+  const safeName = path.basename(String(fileName || ''));
+  if (!/^[a-z0-9][a-z0-9.-]{8,159}$/i.test(safeName)) return dbJson(request, response, 404, { error: 'Không tìm thấy ảnh đính kèm.' });
+  const access = await supportChat.canReadUpload(user, safeName);
+  if (!access?.allowed) return dbJson(request, response, 403, { error: 'Không có quyền xem ảnh đính kèm.' });
+  const filePath = path.join(SUPPORT_UPLOAD_DIR, safeName);
+  let image;
+  try { image = await fsp.readFile(filePath); }
+  catch { return dbJson(request, response, 404, { error: 'Ảnh đính kèm không còn tồn tại.' }); }
+  response.writeHead(200, { 'Content-Type': access.mime || 'application/octet-stream', 'Content-Length': image.length, 'Cache-Control': 'private, max-age=300', 'X-Content-Type-Options': 'nosniff' });
+  response.end(image);
+}
+
+async function handleSupportApi(request, response, pathname, user) {
+  const url = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
+  if (pathname.startsWith('/api/support/uploads/') && request.method === 'GET') return sendSupportUpload(request, response, user, decodeURIComponent(pathname.slice('/api/support/uploads/'.length)));
+  if (pathname === '/api/support/conversations' && request.method === 'GET') return dbJson(request, response, 200, { conversations: await supportChat.listConversations(user) });
+  if (pathname === '/api/support/messages' && request.method === 'GET') return dbJson(request, response, 200, await supportChat.getMessages(user, url.searchParams.get('conversationId')));
+  if (pathname === '/api/support/messages' && request.method === 'POST') {
+    const body = await readDbBody(request);
+    let image = null;
+    try {
+      if (body.imageData) image = await saveSupportImage(body.imageData);
+      const message = user.role === 'ADMIN'
+        ? await supportChat.createAdminMessage(user, { conversationId: body.conversationId, content: body.content, imageFile: image?.fileName, imageMime: image?.mime })
+        : await supportChat.createEmployeeMessage(user, { content: body.content, imageFile: image?.fileName, imageMime: image?.mime });
+      let telegram = { skipped: true };
+      if (user.role !== 'ADMIN') {
+        telegram = await telegramBot.notifyInternalSupportMessage(message, image?.path || '');
+        if (telegram?.messageId) await supportChat.setTelegramMessageId(message.id, telegram.messageId);
+      }
+      notifySupportListeners({ conversationId: message.conversationId, requesterUserId: message.requesterUserId || message.requester?.id || user.id });
+      return dbJson(request, response, 201, { ok: true, message, telegram: { sent: Boolean(telegram?.sent), configured: telegram?.configured !== false } });
+    } catch (error) {
+      if (image?.path) await fsp.unlink(image.path).catch(() => {});
+      throw error;
+    }
+  }
+  if (pathname === '/api/support/stream' && request.method === 'GET') return handleSupportStream(request, response, user);
+  if (pathname === '/api/support/resolve' && request.method === 'POST') {
+    const body = await readDbBody(request);
+    return dbJson(request, response, 200, await supportChat.markResolved(user, body.conversationId));
+  }
+  return dbJson(request, response, 404, { error: 'API hỗ trợ nội bộ không tồn tại.' });
+}
+
 function decodeBody(buffer, contentType) {
   const text = buffer.toString(contentType.charset === 'utf-16le' ? 'utf16le' : 'utf8');
   if (contentType.base === 'application/json' || contentType.base === 'text/json') {
@@ -1054,11 +1121,20 @@ async function handleWebhook(request, response, slug) {
 /* ------------------------------------------------------- inbox read + SSE */
 
 const sseClients = new Set();
+const supportSseClients = new Set();
 
 function notifyInboxListeners(record) {
   const event = `data: ${JSON.stringify({ changed: true, kind: record?.kind || 'webhook' })}\n\n`;
   for (const client of sseClients) {
     try { client.write(event); } catch { sseClients.delete(client); }
+  }
+}
+
+function notifySupportListeners(record) {
+  const event = `data: ${JSON.stringify({ changed: true, conversationId: record?.conversationId || '' })}\n\n`;
+  for (const client of supportSseClients) {
+    if (client.user.role !== 'ADMIN' && client.user.id !== record?.requesterUserId) continue;
+    try { client.response.write(event); } catch { supportSseClients.delete(client); }
   }
 }
 
@@ -1095,6 +1171,26 @@ function handleInboxStream(request, response) {
   request.on('close', () => {
     clearInterval(heartbeat);
     sseClients.delete(response);
+  });
+}
+
+function handleSupportStream(request, response, user) {
+  response.writeHead(200, {
+    'Content-Type': 'text/event-stream; charset=utf-8',
+    'Cache-Control': 'no-store',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
+    ...corsHeaders(request)
+  });
+  response.write(`retry: 3000\n\n`);
+  const client = { response, user };
+  supportSseClients.add(client);
+  const heartbeat = setInterval(() => {
+    try { response.write(': ping\n\n'); } catch { /* closed with the request */ }
+  }, 25000);
+  request.on('close', () => {
+    clearInterval(heartbeat);
+    supportSseClients.delete(client);
   });
 }
 
@@ -1136,7 +1232,7 @@ async function serveStatic(request, response, urlPathname) {
     }
     return;
   }
-  if (!['/','/index.html','/crm.js','/crm.css','/crm-modern.css','/crm-boot.css','/logo.jpg','/login-background.jpg','/customer-journey.svg','/care-ui.js','/crm-runtime.html','/crm-runtime-api.js','/reference-view.js','/reference-crm.js','/nvt-mobile-auth.css','/team-tree-hierarchy.css','/commission_tree_demo.html','/commission-apex-mindmap.svg'].includes(decoded)) return sendJson(response,404,{error:'Không tìm thấy tài nguyên'});
+  if (!['/','/index.html','/crm.js','/crm.css','/crm-modern.css','/crm-boot.css','/logo.jpg','/login-background.jpg','/customer-journey.svg','/care-ui.js','/crm-runtime.html','/crm-runtime-api.js','/reference-view.js','/reference-crm.js','/support-chat-widget.js','/nvt-mobile-auth.css','/team-tree-hierarchy.css','/commission_tree_demo.html','/commission-apex-mindmap.svg'].includes(decoded)) return sendJson(response,404,{error:'Không tìm thấy tài nguyên'});
 
   let relative = decoded === '/' ? '/index.html' : decoded;
   const absolute = path.resolve(REPO_ROOT, `.${path.posix.normalize(relative)}`);
@@ -1193,10 +1289,14 @@ const server = http.createServer(async (request, response) => {
     if (pathname === '/api/email/notify') return handleEmailNotify(request, response);
     if (pathname === '/api/telegram/webhook') {
       if (request.method === 'POST') {
+        if (TELEGRAM_WEBHOOK_SECRET && request.headers['x-telegram-bot-api-secret-token'] !== TELEGRAM_WEBHOOK_SECRET) {
+          return sendJson(response, 401, { ok: false, error: 'Telegram webhook secret khong hop le.' });
+        }
         try {
           const buffer = await readBody(request);
           const update = JSON.parse(buffer.toString('utf8') || '{}');
-          await telegramBot.handleTelegramUpdate(update);
+          const handled = await telegramBot.handleTelegramUpdate(update);
+          if (handled?.support?.matched && handled.support.requesterUserId) notifySupportListeners(handled.support);
           return sendJson(response, 200, { ok: true });
         } catch (err) {
           console.warn('[Telegram Webhook] error:', err.message);
@@ -1270,7 +1370,7 @@ const server = http.createServer(async (request, response) => {
       await dbQuery('UPDATE customer_appointments SET status = ?, note = COALESCE(?, note) WHERE id = ?', [status, body.note || null, id]);
       return sendJson(response, 200, { ok: true }, corsHeaders(request));
     }
-    if (pathname === '/api/db/health' || pathname === '/api/navigation-counts' || pathname === '/api/user-activity' || pathname === '/api/admin/user-activity' || pathname.startsWith('/api/auth/') || pathname.startsWith('/api/telegram/') || pathname.startsWith('/api/users') || pathname.startsWith('/api/customers') || pathname.startsWith('/api/orders') || pathname.startsWith('/api/products') || pathname.startsWith('/api/settings') || pathname === '/api/state') return handleDbApi(request, response, pathname);
+    if (pathname === '/api/db/health' || pathname === '/api/navigation-counts' || pathname === '/api/user-activity' || pathname === '/api/admin/user-activity' || pathname.startsWith('/api/auth/') || pathname.startsWith('/api/telegram/') || pathname.startsWith('/api/support/') || pathname.startsWith('/api/users') || pathname.startsWith('/api/customers') || pathname.startsWith('/api/orders') || pathname.startsWith('/api/products') || pathname.startsWith('/api/settings') || pathname === '/api/state') return handleDbApi(request, response, pathname);
     if (pathname === '/api/health') return sendJson(response, 200, { ok: true, inbox: inbox.length, token: Boolean(WEBHOOK_TOKEN) });
 
     if (pathname.startsWith('/api/')) {
@@ -1303,6 +1403,7 @@ if (dbConfigured) recoverLegacyInbox().catch(error => console.error('[webhook-re
 const systemAccountsReady = (async () => {
   if (!dbConfigured) return false;
   await crmData.prepare();
+  await supportChat.prepare();
   const result = await provisionSystemAccounts(pool);
   if (result.applied) console.log('[mysql] Đã cấu hình Admin, Marketing, Kế toán theo yêu cầu.');
   return true;
@@ -1332,6 +1433,10 @@ server.listen(PORT, HOST, () => {
     setInterval(() => {
       telegramBot.runTelegramScheduler().catch(err => console.warn('[Telegram Scheduler]', err.message));
     }, 60000);
+  }
+  if (TELEGRAM_WEBHOOK_URL) {
+    void telegramBot.setWebhook(TELEGRAM_WEBHOOK_URL, TELEGRAM_WEBHOOK_SECRET)
+      .then(result => console.log(`[Telegram Bot] Webhook ${result?.ok ? 'da dong bo' : 'chua dong bo'}: ${TELEGRAM_WEBHOOK_URL}`));
   }
 });
 

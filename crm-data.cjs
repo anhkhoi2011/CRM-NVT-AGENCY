@@ -336,6 +336,7 @@ function validate(key,value,id){
  if(key==='members'&&Object.hasOwn(value,'accountId')&&value.accountId&&!/^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$/.test(String(value.accountId)))error(400,'ID tài khoản không hợp lệ');
  if(key==='customers'&&(!value.phone||value.phone.length>30))error(400,'Số điện thoại không hợp lệ');
  if(key==='products'&&(!Number.isFinite(value.price)||value.price<0||!['SALE','RENTAL'].includes(value.type)))error(400,'Sản phẩm không hợp lệ');
+ if(key==='products'&&Object.hasOwn(value,'imageData')&&(typeof value.imageData!=='string'||(value.imageData!==''&&(!/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(value.imageData)||value.imageData.length>2_800_000))))error(400,'\u1ea2nh s\u1ea3n ph\u1ea9m kh\u00f4ng h\u1ee3p l\u1ec7 ho\u1eb7c qu\u00e1 l\u1edbn');
  if(key==='brokerageMetrics'){
   if(!/^[0-9]{4}-[0-9]{2}$/.test(String(value.period||'')))error(400,'Kỳ báo cáo lot không hợp lệ');
   if(!value.memberId||!value.leaderId||!value.teamId)error(400,'Thiếu nhân sự hoặc Team cho báo cáo lot');

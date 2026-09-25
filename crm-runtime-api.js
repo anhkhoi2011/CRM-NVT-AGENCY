@@ -257,7 +257,10 @@
       return persist(()=>{
         const existing=id?state.products.find(p=>p.id===id):null;
         if(id&&!existing)throw Error('Sản phẩm không còn tồn tại.');
-        const vatPercent= input.vatRate===''||input.vatRate==null ? 10 : Number(input.vatRate); const values={name:String(input.name||'').trim(),sku:String(input.sku||'').trim(),category:String(input.category||'').trim(),price:Number(input.price),type:input.type,rentalMonths:input.type==='RENTAL'?Number(input.rentalMonths):null,vatRate:vatPercent/100,active:input.active!==false};
+        const vatPercent= input.vatRate===''||input.vatRate==null ? 10 : Number(input.vatRate);
+        const imageData=Object.hasOwn(input,'imageData')?String(input.imageData||''):String(existing?.imageData||'');
+        if(imageData&&(!/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(imageData)||imageData.length>2_800_000))throw Error('\u1ea2nh s\u1ea3n ph\u1ea9m kh\u00f4ng h\u1ee3p l\u1ec7 ho\u1eb7c qu\u00e1 l\u1edbn.');
+        const values={name:String(input.name||'').trim(),sku:String(input.sku||'').trim(),category:String(input.category||'').trim(),price:Number(input.price),type:input.type,rentalMonths:input.type==='RENTAL'?Number(input.rentalMonths):null,vatRate:vatPercent/100,active:input.active!==false,imageData};
         if(!Number.isFinite(vatPercent)||vatPercent<0||vatPercent>100)throw Error('VAT phải từ 0 đến 100%.');
         if(!values.name||values.name.length>200||!values.category||values.category.length>100||values.sku.length>60||input.price===''||!Number.isFinite(values.price)||values.price<0)throw Error('Kiểm tra tên, danh mục và đơn giá sản phẩm.');
         if(!['SALE','RENTAL'].includes(values.type)||values.type==='RENTAL'&&![1,3,6,12].includes(values.rentalMonths))throw Error('Sản phẩm thuê phải chọn gói 1, 3, 6 hoặc 12 tháng.');
