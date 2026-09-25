@@ -48,6 +48,9 @@ const SUPPORT_UPLOAD_DIR = process.env.SUPPORT_UPLOAD_DIR
   : path.join(process.env.HOME || path.dirname(REPO_ROOT), 'crm-support-uploads');
 const TELEGRAM_WEBHOOK_URL = (process.env.TELEGRAM_WEBHOOK_URL || '').trim();
 const TELEGRAM_WEBHOOK_SECRET = (process.env.TELEGRAM_WEBHOOK_SECRET || '').trim();
+const TELEGRAM_SUPPORT_WEBHOOK_URL = (process.env.TELEGRAM_SUPPORT_WEBHOOK_URL ||
+  TELEGRAM_WEBHOOK_URL.replace(/\/api\/telegram\/webhook\/?$/, '/api/telegram/support-webhook')).trim();
+const TELEGRAM_SUPPORT_WEBHOOK_SECRET = (process.env.TELEGRAM_SUPPORT_WEBHOOK_SECRET || '').trim();
 
 const EMAIL_TOKEN = (process.env.CRM_EMAIL_TOKEN || '').trim();
 const SMTP_HOST = process.env.SMTP_HOST || 'smtp.gmail.com';
@@ -448,7 +451,7 @@ async function handleDbApi(request, response, pathname) {
       const hash=crypto.createHash('sha256').update(code).digest('hex');
       await dbQuery('DELETE FROM telegram_link_tokens WHERE user_id=? OR expires_at<NOW() OR consumed_at IS NOT NULL',[user.id]);
       await dbQuery('INSERT INTO telegram_link_tokens(token_hash,user_id,expires_at) VALUES(?,?,DATE_ADD(NOW(),INTERVAL 5 MINUTE))',[hash,user.id]);
-      const botName=(process.env.TELEGRAM_BOT_USERNAME||'HotroTinNhanCRM_bot').replace(/^@/,'');
+      const botName=(process.env.TELEGRAM_BOT_USERNAME||'HeThongCRMNVT_BOT').replace(/^@/,'');
       return dbJson(request,response,200,{code,expiresIn:300,url:'https://t.me/'+botName+'?start='+encodeURIComponent(code)});
     }
     if(pathname==='/api/telegram/unlink' && request.method==='POST'){
@@ -1232,7 +1235,7 @@ async function serveStatic(request, response, urlPathname) {
     }
     return;
   }
-  if (!['/','/index.html','/crm.js','/crm.css','/crm-modern.css','/crm-boot.css','/logo.jpg','/login-background.jpg','/customer-journey.svg','/care-ui.js','/crm-runtime.html','/crm-runtime-api.js','/reference-view.js','/reference-crm.js','/support-chat-widget.js','/nvt-mobile-auth.css','/team-tree-hierarchy.css','/commission_tree_demo.html','/commission-apex-mindmap.svg'].includes(decoded)) return sendJson(response,404,{error:'Không tìm thấy tài nguyên'});
+  if (!['/','/index.html','/crm.js','/crm.css','/crm-modern.css','/crm-boot.css','/logo.jpg','/login-background.jpg','/customer-journey.svg','/care-ui.js','/crm-runtime.html','/crm-runtime-api.js','/reference-view.js','/reference-crm.js','/support-chat-widget.js','/nvt-mobile-auth.css','/team-tree-hierarchy.css','/commission_tree_demo.html','/commission-apex-mindmap.svg','/assets/livechat-employee.png'].includes(decoded)) return sendJson(response,404,{error:'Không tìm thấy tài nguyên'});
 
   let relative = decoded === '/' ? '/index.html' : decoded;
   const absolute = path.resolve(REPO_ROOT, `.${path.posix.normalize(relative)}`);
@@ -1287,15 +1290,17 @@ const server = http.createServer(async (request, response) => {
     if (pathname === '/api/session-context') return handleSessionContext(request, response);
     if (pathname === '/api/email/status') return handleEmailStatus(request, response);
     if (pathname === '/api/email/notify') return handleEmailNotify(request, response);
-    if (pathname === '/api/telegram/webhook') {
+    if (pathname === '/api/telegram/webhook' || pathname === '/api/telegram/support-webhook') {
       if (request.method === 'POST') {
-        if (TELEGRAM_WEBHOOK_SECRET && request.headers['x-telegram-bot-api-secret-token'] !== TELEGRAM_WEBHOOK_SECRET) {
+        const supportWebhook = pathname === '/api/telegram/support-webhook';
+        const expectedSecret = supportWebhook ? TELEGRAM_SUPPORT_WEBHOOK_SECRET : TELEGRAM_WEBHOOK_SECRET;
+        if (expectedSecret && request.headers['x-telegram-bot-api-secret-token'] !== expectedSecret) {
           return sendJson(response, 401, { ok: false, error: 'Telegram webhook secret khong hop le.' });
         }
         try {
           const buffer = await readBody(request);
           const update = JSON.parse(buffer.toString('utf8') || '{}');
-          const handled = await telegramBot.handleTelegramUpdate(update);
+          const handled = await telegramBot.handleTelegramUpdate(update, supportWebhook ? 'support' : 'system');
           if (handled?.support?.matched && handled.support.requesterUserId) notifySupportListeners(handled.support);
           return sendJson(response, 200, { ok: true });
         } catch (err) {
@@ -1437,6 +1442,10 @@ server.listen(PORT, HOST, () => {
   if (TELEGRAM_WEBHOOK_URL) {
     void telegramBot.setWebhook(TELEGRAM_WEBHOOK_URL, TELEGRAM_WEBHOOK_SECRET)
       .then(result => console.log(`[Telegram Bot] Webhook ${result?.ok ? 'da dong bo' : 'chua dong bo'}: ${TELEGRAM_WEBHOOK_URL}`));
+  }
+  if (process.env.TELEGRAM_SUPPORT_BOT_TOKEN && TELEGRAM_SUPPORT_WEBHOOK_URL) {
+    void telegramBot.setSupportWebhook(TELEGRAM_SUPPORT_WEBHOOK_URL, TELEGRAM_SUPPORT_WEBHOOK_SECRET)
+      .then(result => console.log(`[Telegram support bot] Webhook ${result?.ok ? 'da dong bo' : 'chua dong bo'}: ${TELEGRAM_SUPPORT_WEBHOOK_URL}`));
   }
 });
 

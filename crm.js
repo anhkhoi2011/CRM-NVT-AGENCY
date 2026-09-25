@@ -1752,6 +1752,12 @@ function scopedCustomers() {
   }
   if (currentAccount.scope === 'ALL') return state.customers;
   if (currentAccount.scope === 'TEAM') return state.customers.filter(customer => customer.teamId === currentAccount.teamId && customer.leaderId === currentAccount.leaderId);
+  // Sale ownership is authoritative. Older imports and direct-manager assignments
+  // may not have a matching team/leader path, but must remain visible to the owner.
+  if (currentAccount.scope === 'OWN') return state.customers.filter(customer => {
+    if (saleIds.includes(customer.saleId)) return true;
+    return currentAccount.saleId && state.dataOffers.some(o => o.customerId === customer.id && o.saleId === currentAccount.saleId && o.status === 'PENDING');
+  });
   return state.customers.filter(customer => {
     if (customer.teamId !== currentAccount.teamId || customer.leaderId !== currentAccount.leaderId) return false;
     if (saleIds.includes(customer.saleId)) return true;
@@ -3351,7 +3357,8 @@ function attendanceCalendarHtml(accountId) {
 
 function attendanceView() {
   const today = dayIso(0);
-  const rows = state.attendance.filter(item => item.date === today && activeStaff().some(person => person.id === item.accountId && person.role === 'SALE') && (currentAccount.role === 'ADMIN' || item.teamId === currentAccount.teamId)).sort((a, b) => a.at.localeCompare(b.at));
+  const attendanceRoles = new Set(['SALE', 'LEADER', 'MANAGER']);
+  const rows = state.attendance.filter(item => item.date === today && activeStaff().some(person => person.id === item.accountId && attendanceRoles.has(person.role)) && (currentAccount.role === 'ADMIN' || item.teamId === currentAccount.teamId)).sort((a, b) => a.at.localeCompare(b.at));
   if (currentAccount.role !== 'ADMIN') {
     const myAccountId = attendanceAccountId();
     const mine = state.attendance.find(item => item.accountId === myAccountId && item.date === today);
@@ -3361,7 +3368,7 @@ function attendanceView() {
   }
   const config = currentAccount.role === 'ADMIN' ? `<section class="panel" style="margin-bottom:14px"><div class="panel-body"><div class="form-grid"><label class="form-field">IP Wi-Fi cho phép · phân cách dấu phẩy<input id="attendanceIp" value="${escapeHtml(state.settings.attendanceIp || '')}" placeholder="Ví dụ 192.168.1.10, 113.161.2.3"></label><label class="form-field">Giờ vào làm · quá giờ báo trễ<input id="attendanceDeadline" type="time" value="${escapeHtml(state.settings.attendanceDeadline || '09:00')}"></label><label class="form-field">Số giờ chờ Sale nhận data<input id="acceptTimeoutHours" type="number" value="24" readonly></label></div><button class="button button-primary" id="saveAttendanceSettings" style="margin-top:12px">Lưu quy định</button></div></section>` : '';
   const checkedIds = new Set(rows.map(item => item.accountId));
-  const missing = activeStaff().filter(person => person.role === 'SALE' && (currentAccount.role === 'ADMIN' || (person.teamId === currentAccount.teamId && (person.leaderId === currentAccount.leaderId || person.id === currentAccount.leaderId))) && !checkedIds.has(person.id));
+  const missing = activeStaff().filter(person => attendanceRoles.has(person.role) && (currentAccount.role === 'ADMIN' || (person.teamId === currentAccount.teamId && (person.leaderId === currentAccount.leaderId || person.id === currentAccount.leaderId))) && !checkedIds.has(person.id));
   const actionCell = person => currentAccount.role === 'ADMIN' ? `<td><button class="button button-small" type="button" data-attendance-detail="${escapeHtml(person.id)}">Chi ti&#7871;t</button></td>` : '';
   const body = rows.map(item => `<tr><td><b>${escapeHtml(item.name)}</b></td><td>${escapeHtml(item.teamId)}</td><td class="mono">${escapeHtml(item.at)}</td><td class="mono">${escapeHtml(item.ip)}</td><td>${item.ipValid ? '<span class="status status-paid">&#272;&#250;ng wifi</span>' : '<span class="status status-cancelled">Ngo&#224;i wifi</span>'}</td><td>${item.late ? `<span class="status status-cancelled">&#272;i mu&#7897;n ${item.lateMinutes || 0}p</span>` : '<span class="status status-paid">&#272;&#250;ng gi&#7901;</span>'}</td>${currentAccount.role === 'ADMIN' ? `<td><button class="button button-small" type="button" data-attendance-detail="${escapeHtml(item.accountId)}">Chi ti&#7871;t</button> <button class="button button-small" type="button" data-edit-attendance="${escapeHtml(item.id)}">S&#7917;a</button> <button class="button button-small button-danger" type="button" data-delete-attendance="${escapeHtml(item.id)}">X&#243;a</button></td>` : ''}</tr>`).join('') +
     missing.map(person => `<tr><td><b>${escapeHtml(person.name)}</b></td><td>${escapeHtml(person.teamId)}</td><td colspan="3"><span class="status status-pending">Chưa điểm danh</span></td><td></td>${actionCell(person)}</tr>`).join('');
@@ -3421,7 +3428,7 @@ function attendanceMemberDetailModal(memberId) {
   if (currentAccount.role !== 'ADMIN') return;
   const member = activeStaff().find(person => person.id === memberId);
   if (!member) { toast('Khong tim thay thanh vien'); return; }
-  const from = dayIso(90), to = dayIso(0);
+  const from = dayIso(29), to = dayIso(0);
   const records = state.attendance.filter(item => item.accountId === memberId && item.date >= from && item.date <= to).sort((a, b) => b.date.localeCompare(a.date));
   const late = records.filter(item => item.late);
   const outside = records.filter(item => item.ipValid === false);
@@ -3500,6 +3507,21 @@ function profileView() {
   return pageHead('Hồ sơ cá nhân','Cập nhật thông tin hiển thị trong toàn bộ hệ thống.','')+'<section class="panel profile-panel"><div class="panel-body profile-panel-body"><form id="profileForm"><div class="profile-hero"><div class="profile-avatar-wrap"><div class="profile-avatar-stage">'+avatar+'</div></div><div class="profile-hero-actions"><label class="button button-small profile-upload-button" for="profileAvatarInput">&#272;&#7893;i avatar</label><input id="profileAvatarInput" type="file" accept="image/png,image/jpeg,image/webp" class="is-hidden"></div></div><div class="profile-fields"><label class="form-field"><span>👤 Họ và tên <em>*</em></span><div class="profile-input-wrap"><span aria-hidden="true">👤</span><input id="profileDisplayName" maxlength="160" value="'+escapeHtml(profileName)+'" autocomplete="name" required></div></label><label class="form-field"><span>🔗 ID tài khoản <em>*</em></span><div class="profile-input-wrap"><span aria-hidden="true">🔗</span><input id="profileAccountId" maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9._-]{2,63}" value="'+escapeHtml(currentAccount.accountId||member?.accountId||'')+'" placeholder="Nhập ID tài khoản" autocomplete="off" required></div></label><label class="form-field"><span>✉ Email</span><div class="profile-input-wrap"><span aria-hidden="true">✉</span><input id="profileEmail" type="email" maxlength="254" value="'+escapeHtml(member?.email||currentAccount.email||'')+'" placeholder="Nhập email" autocomplete="email"></div></label><label class="form-field"><span>☎ Số điện thoại</span><div class="profile-input-wrap"><span aria-hidden="true">☎</span><input id="profilePhone" type="tel" inputmode="numeric" maxlength="15" value="'+escapeHtml(member?.phone||currentAccount.phone||'')+'" placeholder="Nhập số điện thoại" autocomplete="tel"></div></label></div><div class="profile-security-note"><span aria-hidden="true">🔒</span><div><strong>Bảo mật tài khoản</strong><small>Đổi mật khẩu được thực hiện ở mục riêng trong hồ sơ.</small></div></div><div class="modal-actions profile-actions"><button class="button button-primary" type="submit">Lưu hồ sơ</button></div></form></div></section>';
 }
 
+// Admin sees the compact daily table first and a complete 30-day history below it.
+function attendanceThirtyDayHistoryHtml() {
+  const today = dayIso(0);
+  const from = dayIso(29);
+  const staff = activeStaff().filter(person => ['SALE', 'LEADER', 'MANAGER'].includes(person.role));
+  const history = state.attendance
+    .filter(item => item.date >= from && item.date <= today && staff.some(person => person.id === item.accountId))
+    .sort((a, b) => String(b.date).localeCompare(String(a.date)) || String(b.at).localeCompare(String(a.at)));
+  const rows = history.map(item => {
+    const person = staff.find(member => member.id === item.accountId);
+    return `<tr><td><b>${escapeHtml(item.name || person?.name || item.accountId)}</b><div class="cell-sub">${escapeHtml(person?.role || '')}</div></td><td>${escapeHtml(item.teamId || person?.teamId || '')}</td><td class="mono">${escapeHtml(item.date)}</td><td class="mono">${escapeHtml(String(item.at || '').slice(11))}</td><td>${item.late ? `<span class="status status-cancelled">Muộn ${item.lateMinutes || 0}p</span>` : '<span class="status status-paid">Đúng giờ</span>'}</td><td>${item.ipValid === false ? '<span class="status status-cancelled">Ngoài wifi</span>' : '<span class="status status-paid">Đúng wifi</span>'}</td><td class="note-preview">${escapeHtml(item.note || '')}</td></tr>`;
+  }).join('');
+  return `<section class="panel" style="margin-top:14px"><div class="panel-head"><div><div class="panel-title">Chi tiết điểm danh 30 ngày</div><div class="panel-sub">${history.length} bản ghi từ ${escapeHtml(from)} đến ${escapeHtml(today)} · đồng bộ cả điểm danh trên Telegram</div></div></div><div class="table-wrap"><table><thead><tr><th>Nhân sự</th><th>Team</th><th>Ngày</th><th>Giờ</th><th>Kết quả</th><th>Wi-Fi</th><th>Ghi chú</th></tr></thead><tbody>${rows || '<tr><td colspan="7"><div class="empty"><b>Chưa có dữ liệu điểm danh trong 30 ngày</b></div></td></tr>'}</tbody></table></div></section>`;
+}
+
 function accessDeniedView(message) {
   return pageHead('Không có quyền truy cập', 'Backend production phải trả 403 cho thao tác này.') + `<section class="panel"><div class="empty"><b>403 · FORBIDDEN</b><span>${escapeHtml(message)}</span></div></section>`;
 }
@@ -3508,7 +3530,7 @@ const VIEW_RENDERERS = {
   dashboard: executiveDashboardView, customers: customersView, pool: poolView, distribution: distributionView,
   orders: ordersView, products: productsView, revenue: revenueView, businessReport: reportsView, accounting: accountingView, marketing: marketingView, team: teamView,
   websites: websitesView, integrations: integrationsView,
-  attendance: attendanceView, accept: acceptQueueView, notifications: notificationsView, audit: auditView, settings: settingsView, profile: profileView
+  attendance: () => currentAccount?.role === 'ADMIN' ? attendanceView() + attendanceThirtyDayHistoryHtml() : attendanceView(), accept: acceptQueueView, notifications: notificationsView, audit: auditView, settings: settingsView, profile: profileView
 };
 
 function visibleNavigation() {

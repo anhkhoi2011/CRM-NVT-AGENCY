@@ -133,9 +133,42 @@ async function allData(c){
   const row=userRow(u);
   data.members.set(u.id,{...data.members.get(u.id),...row,active:row.active,loginEnabled:true,initials:data.members.get(u.id)?.initials||String(u.name).trim().split(/\s+/).slice(-2).map(x=>x[0]).join('').toUpperCase()});
  }
- const [settings]=await c.query('SELECT setting_key,setting_value FROM system_settings');
- if(!data.settings.has('$')) {const row=settings.find(r=>r.setting_key==='crm');if(row)data.settings.set('$',parsed(row.setting_value));}
- return data;
+  const [settings]=await c.query('SELECT setting_key,setting_value FROM system_settings');
+  if(!data.settings.has('$')) {const row=settings.find(r=>r.setting_key==='crm');if(row)data.settings.set('$',parsed(row.setting_value));}
+  await mirrorAttendanceRecords(c,data);
+  return data;
+ }
+
+// Telegram historically wrote to staff_attendance while the CRM snapshot reads
+// crm_documents/attendance. Normalize both sources into the same record shape so
+// check-ins made in Telegram appear in the web CRM immediately and old records
+// remain visible after deployment.
+async function mirrorAttendanceRecords(c,data){
+ const settings=data.settings.get('$')||{};
+ const deadline=String(settings.attendanceDeadline||'09:00');
+ const toMinutes=value=>{const [h,m]=String(value||'00:00').split(':').map(Number);return (h||0)*60+(m||0);};
+ const normalize=(id,record,member)=>{
+  const at=String(record.at||record.checkInAt||record.time||'').replace('T',' ');
+  const date=String(record.date||at.slice(0,10)).slice(0,10);
+  const time=String(at.slice(11,19)||'00:00:00');
+  const late=record.late===true||record.status==='LATE'||toMinutes(time)>toMinutes(deadline);
+  return {...record,id,accountId:record.accountId||record.userId||member?.id||'',name:record.name||record.accountName||member?.name||'',teamId:record.teamId||member?.teamId||'',date,at:`${date} ${time}`,ip:record.ip||'Telegram',late,lateMinutes:late&&record.lateMinutes!=null?Number(record.lateMinutes):late?Math.max(0,toMinutes(time)-toMinutes(deadline)):0,ipValid:record.ipValid!==false,note:record.note||'Điểm danh qua Telegram'};
+ };
+ for(const [id,record] of data.attendance){
+  const member=data.members.get(record.accountId||record.userId);
+  data.attendance.set(id,normalize(id,record,member));
+ }
+ let legacy=[];
+ try{[legacy]=await c.query('SELECT id,user_id,attendance_date,check_in_time,status FROM staff_attendance');}catch{}
+ for(const row of legacy||[]){
+  const rawAt=String(row.check_in_time||'').replace('T',' ');
+  const date=String(row.attendance_date||rawAt.slice(0,10)).slice(0,10);
+  if(!date||date.length!==10)continue;
+  const id=String(row.id||`ATT-${date}-${row.user_id}`),member=data.members.get(String(row.user_id));
+  const record=normalize(id,{id,accountId:String(row.user_id),date,at:rawAt||`${date} 00:00:00`,status:row.status,ip:'Telegram',note:'Điểm danh qua Telegram'},member);
+  data.attendance.set(id,record);
+  await c.execute('INSERT INTO crm_documents(collection,id,body,deleted) VALUES (?,?,?,0) ON DUPLICATE KEY UPDATE body=VALUES(body),deleted=0',['attendance',id,JSON.stringify(record)]);
+ }
 }
 // Phạm vi Manager lấy từ bản ghi đã lưu, tuyệt đối không lấy danh sách quyền từ request.
 function managerLeaders(user,data){return [...data.members.values()].filter(m=>m.active!==false&&m.role==='LEADER'&&m.managerId===user.id);}

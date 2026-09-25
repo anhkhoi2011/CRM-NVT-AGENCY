@@ -12,16 +12,27 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const supportChat = require('./support-chat.cjs');
 
-const BOT_TOKEN = (process.env.TELEGRAM_BOT_TOKEN || '').trim();
+// The system bot owns account linking, data, attendance and agency notices.
+// The support bot is intentionally isolated to the internal CRM support inbox.
+const SYSTEM_BOT_TOKEN = (process.env.TELEGRAM_BOT_TOKEN || '').trim();
+const SUPPORT_BOT_TOKEN = (process.env.TELEGRAM_SUPPORT_BOT_TOKEN || SYSTEM_BOT_TOKEN).trim();
+const SYSTEM_ADMIN_CHAT_ID = (process.env.TELEGRAM_ADMIN_CHAT_ID || '').trim();
+const SUPPORT_ADMIN_CHAT_ID = (process.env.TELEGRAM_SUPPORT_ADMIN_CHAT_ID || SYSTEM_ADMIN_CHAT_ID).trim();
+const BOT_TOKEN = SYSTEM_BOT_TOKEN;
 const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
-const SUPPORT_ADMIN_CHAT_ID = (process.env.TELEGRAM_ADMIN_CHAT_ID || '').trim();
+
+function botConfig(kind = 'system') {
+  const token = kind === 'support' ? SUPPORT_BOT_TOKEN : SYSTEM_BOT_TOKEN;
+  return { token, api: `https://api.telegram.org/bot${token}` };
+}
 
 // ==================== CÁC HÀM GỌI TELEGRAM BOT API ====================
 
-async function callTelegram(method, body = {}) {
-  if (!BOT_TOKEN) return { ok: false, error: 'TELEGRAM_BOT_TOKEN is not configured' };
+async function callTelegram(method, body = {}, kind = 'system') {
+  const { token, api } = botConfig(kind);
+  if (!token) return { ok: false, error: kind === 'support' ? 'TELEGRAM_SUPPORT_BOT_TOKEN is not configured' : 'TELEGRAM_BOT_TOKEN is not configured' };
   try {
-    const res = await fetch(`${TELEGRAM_API}/${method}`, {
+    const res = await fetch(`${api}/${method}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -38,10 +49,11 @@ async function callTelegram(method, body = {}) {
   }
 }
 
-async function callTelegramForm(method, form) {
-  if (!BOT_TOKEN) return { ok: false, error: 'TELEGRAM_BOT_TOKEN is not configured' };
+async function callTelegramForm(method, form, kind = 'system') {
+  const { token, api } = botConfig(kind);
+  if (!token) return { ok: false, error: kind === 'support' ? 'TELEGRAM_SUPPORT_BOT_TOKEN is not configured' : 'TELEGRAM_BOT_TOKEN is not configured' };
   try {
-    const res = await fetch(`${TELEGRAM_API}/${method}`, { method: 'POST', body: form, signal: AbortSignal.timeout(15000) });
+    const res = await fetch(`${api}/${method}`, { method: 'POST', body: form, signal: AbortSignal.timeout(15000) });
     const data = await res.json();
     if (!data.ok) console.warn(`[Telegram Bot] API call ${method} warning:`, data.description || data);
     return data;
@@ -59,7 +71,7 @@ async function sendMessage(chatId, text, options = {}) {
     parse_mode: options.parse_mode || 'HTML',
     reply_markup: options.reply_markup || undefined,
     disable_web_page_preview: options.disable_web_page_preview !== false
-  });
+  }, options.bot || 'system');
 }
 
 async function sendPhoto(chatId, filePath, caption, options = {}) {
@@ -73,7 +85,7 @@ async function sendPhoto(chatId, filePath, caption, options = {}) {
     form.set('caption', String(caption || '').slice(0, 1024));
     form.set('parse_mode', options.parse_mode || 'HTML');
     if (options.reply_markup) form.set('reply_markup', JSON.stringify(options.reply_markup));
-    return callTelegramForm('sendPhoto', form);
+    return callTelegramForm('sendPhoto', form, options.bot || 'system');
   } catch (error) {
     console.error('[Telegram Bot] Không đọc được ảnh hỗ trợ:', error.message);
     return { ok: false, error: error.message };
@@ -89,7 +101,7 @@ async function editMessageText(chatId, messageId, text, options = {}) {
     parse_mode: options.parse_mode || 'HTML',
     reply_markup: options.reply_markup || undefined,
     disable_web_page_preview: options.disable_web_page_preview !== false
-  });
+  }, options.bot || 'system');
 }
 
 async function answerCallbackQuery(callbackQueryId, text = '', showAlert = false) {
@@ -98,15 +110,19 @@ async function answerCallbackQuery(callbackQueryId, text = '', showAlert = false
     callback_query_id: callbackQueryId,
     text,
     show_alert: showAlert
-  });
+  }, 'system');
 }
 
-async function setWebhook(webhookUrl, secretToken = '') {
+async function setWebhook(webhookUrl, secretToken = '', bot = 'system') {
   const body = { url: webhookUrl };
   if (secretToken) body.secret_token = secretToken;
-  const res = await callTelegram('setWebhook', body);
-  console.log('[Telegram Bot] Webhook setup result:', res);
+  const res = await callTelegram('setWebhook', body, bot);
+  console.log(`[Telegram ${bot} Bot] Webhook setup result:`, res);
   return res;
+}
+
+async function setSupportWebhook(webhookUrl, secretToken = '') {
+  return setWebhook(webhookUrl, secretToken, 'support');
 }
 
 // ==================== TIỆN ÍCH ĐỊNH DẠNG ====================
@@ -137,8 +153,10 @@ function formatDateTimeVN(dt) {
 
 // ==================== XỬ LÝ INCOMING WEBHOOK (UPDATES) ====================
 
-async function handleTelegramUpdate(update) {
+async function handleTelegramUpdate(update, bot = 'system') {
   if (!update || typeof update !== 'object') return { ok: true };
+
+  if (bot === 'support') return handleSupportTelegramUpdate(update);
 
   // 1. Xử lý Message từ người dùng
   if (update.message) {
@@ -152,6 +170,17 @@ async function handleTelegramUpdate(update) {
   return { ok: true };
 }
 
+async function handleSupportTelegramUpdate(update) {
+  const msg = update?.message;
+  const chatId = msg?.chat?.id;
+  if (!msg || !chatId || String(chatId) !== SUPPORT_ADMIN_CHAT_ID || !msg.reply_to_message?.message_id) {
+    return { ok: true, support: { matched: false } };
+  }
+  const rawText = String(msg.text || '').trim();
+  const supportReply = await supportChat.createTelegramAdminReply(chatId, msg.reply_to_message.message_id, rawText);
+  return { ok: true, support: supportReply };
+}
+
 async function handleIncomingMessage(msg) {
   const chatId = msg.chat?.id;
   if (!chatId) return;
@@ -161,7 +190,10 @@ async function handleIncomingMessage(msg) {
 
   // Admin trả lời trực tiếp vào thông báo hỗ trợ: Telegram gửi lại message_id
   // gốc, nhờ đó phản hồi luôn quay đúng hội thoại của nhân viên.
-  if (SUPPORT_ADMIN_CHAT_ID && String(chatId) === SUPPORT_ADMIN_CHAT_ID && msg.reply_to_message?.message_id) {
+  // Backward compatibility for deployments that have not configured the
+  // dedicated support token yet. Once TELEGRAM_SUPPORT_BOT_TOKEN is set,
+  // support replies are accepted only through the support bot webhook.
+  if (!process.env.TELEGRAM_SUPPORT_BOT_TOKEN && SUPPORT_ADMIN_CHAT_ID && String(chatId) === SUPPORT_ADMIN_CHAT_ID && msg.reply_to_message?.message_id) {
     const supportReply = await supportChat.createTelegramAdminReply(chatId, msg.reply_to_message.message_id, rawText);
     if (supportReply.matched) return supportReply;
   }
@@ -295,8 +327,10 @@ async function acceptDataFromTelegram(chatId, callbackData) {
       && item.body?.saleId === user.id
     );
 
+    const customerFields = typeof customer.custom_fields_json === 'string' ? JSON.parse(customer.custom_fields_json || '{}') : (customer.custom_fields_json || {});
+    const customerMeta = customerFields.__crmMeta || {};
     if (!offer) {
-      if (customer.sale_id === user.id && customer.sale_accepted_at) throw new Error('Data này đã được bạn nhận trước đó.');
+      if (customer.sale_id === user.id && customerMeta.saleAcceptedAt) throw new Error('Data này đã được bạn nhận trước đó.');
       if (customer.sale_id && customer.sale_id !== user.id) throw new Error('Data này đã được Sale khác nhận.');
       throw new Error('Data này không còn chờ bạn nhận hoặc đã hết hạn.');
     }
@@ -306,9 +340,9 @@ async function acceptDataFromTelegram(chatId, callbackData) {
     const nowStamp = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' }).slice(0, 19);
     const [updated] = await connection.execute(
       `UPDATE customers
-       SET sale_id = ?, leader_id = COALESCE(leader_id, ?), team_id = COALESCE(team_id, ?), sale_accepted_at = ?, updated_at = ?
+       SET sale_id = ?, leader_id = COALESCE(leader_id, ?), team_id = COALESCE(team_id, ?), updated_at = ?
        WHERE id = ? AND (sale_id IS NULL OR sale_id = ?)`,
-      [user.id, offer.body.leaderId || null, user.team_id || offer.body.teamId || '', nowStamp, nowStamp, customerId, user.id]
+      [user.id, offer.body.leaderId || null, user.team_id || offer.body.teamId || '', nowStamp, customerId, user.id]
     );
     if (updated.affectedRows !== 1) throw new Error('Data này vừa được người khác nhận.');
 
@@ -317,7 +351,7 @@ async function acceptDataFromTelegram(chatId, callbackData) {
       `UPDATE crm_documents SET body = ? WHERE collection = 'dataOffers' AND id = ?`,
       [JSON.stringify(acceptedOffer), offer.id]
     );
-    const fields=typeof customer.custom_fields_json==='string'?JSON.parse(customer.custom_fields_json||'{}'):(customer.custom_fields_json||{});
+    const fields=customerFields;
     fields.__crmMeta={...(fields.__crmMeta||{}),saleId:user.id,saleAcceptedAt:nowStamp,updatedAt:nowStamp};
     await connection.execute('UPDATE customers SET custom_fields_json=? WHERE id=?',[JSON.stringify(fields),customerId]);
     await connection.commit();
@@ -363,6 +397,56 @@ async function handleCallbackQuery(query) {
   }
 }
 
+async function recordTelegramAttendance(user) {
+  const nowStamp = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' }).slice(0, 19);
+  const today = nowStamp.slice(0, 10);
+  const checkinId = `ATT-${today}-${user.id}`;
+  let deadline = '09:00';
+  try {
+    const rows = await dbQuery("SELECT setting_value FROM system_settings WHERE setting_key='crm' LIMIT 1");
+    const settings = rows[0]?.setting_value;
+    const parsedSettings = typeof settings === 'string' ? JSON.parse(settings) : settings;
+    if (parsedSettings?.attendanceDeadline) deadline = String(parsedSettings.attendanceDeadline);
+  } catch {}
+  const toMinutes = value => { const [hour, minute] = String(value || '00:00').split(':').map(Number); return (hour || 0) * 60 + (minute || 0); };
+  const time = nowStamp.slice(11, 19);
+  const late = toMinutes(time) > toMinutes(deadline);
+  const record = {
+    id: checkinId,
+    accountId: user.id,
+    name: user.name,
+    teamId: user.team_id || '',
+    date: today,
+    at: nowStamp,
+    ip: 'Telegram',
+    ipValid: true,
+    late,
+    lateMinutes: late ? Math.max(0, toMinutes(time) - toMinutes(deadline)) : 0,
+    note: 'Điểm danh qua Telegram',
+    editedBy: ''
+  };
+  const [existingRows] = await pool.query('SELECT body FROM crm_documents WHERE collection = \'attendance\' AND id = ? AND deleted = 0 LIMIT 1', [checkinId]);
+  if (existingRows?.length) {
+    try { return typeof existingRows[0].body === 'string' ? JSON.parse(existingRows[0].body) : existingRows[0].body; } catch {}
+  }
+  await pool.execute(
+    `INSERT INTO crm_documents (collection, id, body, deleted) VALUES ('attendance', ?, ?, 0)
+     ON DUPLICATE KEY UPDATE body = VALUES(body), deleted = 0`,
+    [checkinId, JSON.stringify(record)]
+  );
+  // Keep the legacy table populated when it exists; CRM reads the canonical
+  // crm_documents record above, so this is compatibility only.
+  try {
+    await pool.execute(
+      `INSERT INTO staff_attendance (id, user_id, attendance_date, check_in_time, status)
+       VALUES (?, ?, ?, ?, 'CHECKED_IN')
+       ON DUPLICATE KEY UPDATE check_in_time = check_in_time`,
+      [checkinId, user.id, today, nowStamp]
+    );
+  } catch {}
+  return record;
+}
+
 async function handleCallbackQueryLegacy(query) {
   const queryId = query.id;
   const data = String(query.data || '');
@@ -402,9 +486,12 @@ async function handleCallbackQueryLegacy(query) {
     // Gán quyền Sale nhận data
     const nowStamp = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' }).slice(0, 19);
     await dbQuery(
-      `UPDATE customers SET sale_id = ?, leader_id = COALESCE(leader_id, ?), team_id = COALESCE(team_id, ?), sale_accepted_at = ?, updated_at = ? WHERE id = ?`,
-      [user.id, user.leader_id || user.id, user.team_id || '', nowStamp, nowStamp, customerId]
+      `UPDATE customers SET sale_id = ?, leader_id = COALESCE(leader_id, ?), team_id = COALESCE(team_id, ?), updated_at = ? WHERE id = ?`,
+      [user.id, user.leader_id || user.id, user.team_id || '', nowStamp, customerId]
     );
+    const legacyFields = typeof customer.custom_fields_json === 'string' ? JSON.parse(customer.custom_fields_json || '{}') : (customer.custom_fields_json || {});
+    legacyFields.__crmMeta = { ...(legacyFields.__crmMeta || {}), saleId: user.id, saleAcceptedAt: nowStamp, updatedAt: nowStamp };
+    await dbQuery('UPDATE customers SET custom_fields_json=? WHERE id=?', [JSON.stringify(legacyFields), customerId]);
 
     // Cập nhật trạng thái offer nếu có trong crm_documents
     try {
@@ -441,6 +528,14 @@ async function handleCallbackQueryLegacy(query) {
 
   // 2. Thao tác: Bấm điểm danh [checkin]
   if (data === 'checkin') {
+    const record = await recordTelegramAttendance(user);
+    const telegramTime = String(record.at).slice(11, 19);
+    const telegramConfirmedText = `✅ <b>Bạn đã điểm danh thành công lúc ${telegramTime}!</b>\n` +
+      `Chấm công đã được đồng bộ vào CRM cho <b>${escapeHtml(user.name)}</b>.`;
+    await editMessageText(chatId, messageId, telegramConfirmedText, { reply_markup: { inline_keyboard: [] } });
+    await answerCallbackQuery(queryId, 'Điểm danh đã đồng bộ vào CRM!');
+    return;
+
     const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
     const nowTime = new Date().toLocaleTimeString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour12: false });
     const checkinId = `ATT-${today}-${user.id}`;
@@ -541,7 +636,7 @@ async function notifyWebhookLeadAdmins(customer, receivedAt, deliveredChatIds = 
     // Data webhook phải luôn về đúng hộp thư Admin đã cấu hình, không phụ thuộc
     // việc Admin đã liên kết Telegram trong hồ sơ CRM hay chưa. Nếu chưa có
     // biến môi trường thì mới dùng các tài khoản Admin đã liên kết làm fallback.
-    const configuredAdminChatId = String(SUPPORT_ADMIN_CHAT_ID || '').trim();
+    const configuredAdminChatId = String(SYSTEM_ADMIN_CHAT_ID || '').trim();
     const linkedAdminChatIds = admins.map(row => row.telegram_chat_id).filter(Boolean).map(String);
     const chatIds = configuredAdminChatId
       ? [configuredAdminChatId]
@@ -579,8 +674,8 @@ async function notifyInternalSupportMessage(message, imagePath = '') {
     '\n\n<i>Trả lời trực tiếp vào tin nhắn này để phản hồi về CRM của nhân viên.</i>';
   const replyMarkup = { force_reply: true, input_field_placeholder: 'Nhập phản hồi cho nhân viên...' };
   const result = imagePath
-    ? await sendPhoto(SUPPORT_ADMIN_CHAT_ID, imagePath, text, { reply_markup: replyMarkup, mime: message.imageMime })
-    : await sendMessage(SUPPORT_ADMIN_CHAT_ID, text, { reply_markup: replyMarkup });
+    ? await sendPhoto(SUPPORT_ADMIN_CHAT_ID, imagePath, text, { reply_markup: replyMarkup, mime: message.imageMime, bot: 'support' })
+    : await sendMessage(SUPPORT_ADMIN_CHAT_ID, text, { reply_markup: replyMarkup, bot: 'support' });
   return { sent: Boolean(result?.ok), configured: true, messageId: result?.result?.message_id || null };
 }
 
@@ -669,7 +764,7 @@ async function notifyStaleLeadWarning(customer, sale, leader) {
     const text = `🚨 <b>CẢNH BÁO: DATA NÓNG CHƯA XỬ LÝ QUÁ 12 TIẾNG!</b>\n\n` +
       `• <b>Khách hàng:</b> ${escapeHtml(customer.name)} - <code>${escapeHtml(customer.phone)}</code>\n` +
       `• <b>Sale phụ trách:</b> ${escapeHtml(sale?.name || 'Chưa gán')}\n` +
-      `• <b>Thời điểm nhận:</b> ${formatDateTimeVN(customer.sale_accepted_at)}\n` +
+      `• <b>Thời điểm nhận:</b> ${formatDateTimeVN(nowStamp)}\n` +
       `• <b>Tình trạng:</b> Chưa cập nhật tiến độ / ghi chú sau 12 giờ!\n\n` +
       `⚠️ <i>Yêu cầu kiểm tra và liên hệ xử lý ngay để tránh nguội data!</i>`;
 
@@ -911,12 +1006,12 @@ async function runTelegramScheduler() {
     if (minute % 15 === 0) {
       try {
         const staleLeads = await dbQuery(
-          `SELECT c.*, s.name AS sale_name, s.telegram_chat_id AS sale_chat_id, l.name AS leader_name, l.telegram_chat_id AS leader_chat_id
+          `SELECT c.*, JSON_UNQUOTE(JSON_EXTRACT(c.custom_fields_json, '$.__crmMeta.saleAcceptedAt')) AS sale_accepted_at, s.name AS sale_name, s.telegram_chat_id AS sale_chat_id, l.name AS leader_name, l.telegram_chat_id AS leader_chat_id
            FROM customers c
            LEFT JOIN users s ON c.sale_id = s.id
            LEFT JOIN users l ON c.leader_id = l.id
-           WHERE c.sale_accepted_at IS NOT NULL
-             AND c.sale_accepted_at <= DATE_SUB(NOW(), INTERVAL 12 HOUR)
+           WHERE JSON_UNQUOTE(JSON_EXTRACT(c.custom_fields_json, '$.__crmMeta.saleAcceptedAt')) IS NOT NULL
+             AND STR_TO_DATE(JSON_UNQUOTE(JSON_EXTRACT(c.custom_fields_json, '$.__crmMeta.saleAcceptedAt')), '%Y-%m-%d %H:%i:%s') <= DATE_SUB(NOW(), INTERVAL 12 HOUR)
              AND c.status = 'NEW'
              AND (c.note IS NULL OR c.note = '' OR c.note LIKE '%nhận từ hàng chờ%')
              AND (s.telegram_chat_id IS NOT NULL OR l.telegram_chat_id IS NOT NULL)
@@ -1010,6 +1105,7 @@ module.exports = {
   editMessageText,
   answerCallbackQuery,
   setWebhook,
+  setSupportWebhook,
   handleTelegramUpdate,
   notifyNewLead,
   notifyWebhookLeadAdmins,

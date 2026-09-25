@@ -23,6 +23,8 @@ Operational, deployment, UI, data persistence, and role notes are grouped under 
 - `.chrome-layout-check/`: browser QA cache; ignored by Git and safe to remove.
 - `.env`: hosting credentials; never commit it.
 
-## Telegram internal support
+## Telegram bots
 
-Set `TELEGRAM_ADMIN_CHAT_ID` for the one Admin Telegram inbox. To enable replies from Telegram back into CRM, set an HTTPS `TELEGRAM_WEBHOOK_URL` ending in `/api/telegram/webhook` and a long `TELEGRAM_WEBHOOK_SECRET`. The server registers that webhook at startup and accepts incoming Telegram requests only when the secret header matches. Support images are stored outside the public web directory and are served only through authenticated CRM sessions.
+The system bot uses `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME` and `TELEGRAM_ADMIN_CHAT_ID` for account linking, data notifications, attendance, reminders and agency announcements. The support bot uses `TELEGRAM_SUPPORT_BOT_TOKEN`, `TELEGRAM_SUPPORT_BOT_USERNAME` and `TELEGRAM_SUPPORT_ADMIN_CHAT_ID` only for Sale messages sent from the CRM internal support inbox.
+
+Register separate HTTPS webhooks: `TELEGRAM_WEBHOOK_URL` must end in `/api/telegram/webhook`, while `TELEGRAM_SUPPORT_WEBHOOK_URL` must end in `/api/telegram/support-webhook`. Use a different random `TELEGRAM_WEBHOOK_SECRET` and `TELEGRAM_SUPPORT_WEBHOOK_SECRET` for each bot; neither secret is a bot token. Support images are stored outside the public web directory and are served only through authenticated CRM sessions.
