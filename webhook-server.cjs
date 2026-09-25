@@ -98,6 +98,48 @@ async function authUser(request) {
   return rows[0] ? crmData.userRow(rows[0]) : null;
 }
 function readDbBody(request) { return readBody(request).then(buffer => JSON.parse(buffer.toString('utf8') || '{}')); }
+function manualCustomerError(message){throw Object.assign(new Error(message),{status:400});}
+function manualCustomerRecord(user,state,input){
+  const requestId=String(input?.requestId||'').trim();
+  if(!/^[-\w]{8,96}$/.test(requestId))manualCustomerError('Mã lưu khách không hợp lệ. Hãy mở lại form và thử lại.');
+  if(!['ADMIN','MANAGER','LEADER','SALE'].includes(user?.role))manualCustomerError('Tài khoản không có quyền thêm khách hàng.');
+  const name=String(input?.name||'').trim().replace(/\s+/g,' '),phone=String(input?.phone||'').replace(/\D/g,'');
+  const email=String(input?.email||'').trim().toLowerCase();
+  if(!name||name.length>160)manualCustomerError('Họ và tên khách hàng không hợp lệ.');
+  if(!/^\d{9,15}$/.test(phone))manualCustomerError('Số điện thoại phải có từ 9 đến 15 chữ số.');
+  if(email&&(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||email.length>254))manualCustomerError('Email không hợp lệ.');
+  const sourceValue=String(input?.source||'').trim(),manualSources=new Set(['Khách hàng cũ','Khách hàng ngoài data']);
+  const websites=Array.isArray(state.websites)?state.websites:[];
+  const website=websites.find(item=>item.id===input?.websiteId);
+  if(!manualSources.has(sourceValue)&&!website)manualCustomerError('Nguồn dữ liệu không hợp lệ.');
+  const source=manualSources.has(sourceValue)?sourceValue:String(website.name||website.domain||'Nhập thủ công').slice(0,120);
+  const staff=(state.accounts||state.members||[]).filter(item=>item.active!==false&&item.active!==0);
+  const requestedId=String(input?.saleId||'').trim();
+  const managerLeaders=staff.filter(item=>item.role==='LEADER'&&item.managerId===user.id);
+  const managerLeaderIds=new Set(managerLeaders.map(item=>item.id));
+  const managerSales=staff.filter(item=>item.role==='SALE'&&(item.managerId===user.id||managerLeaderIds.has(item.leaderId)));
+  let allowed=[];
+  if(user.role==='ADMIN')allowed=staff.filter(item=>['MANAGER','LEADER','SALE'].includes(item.role));
+  if(user.role==='MANAGER')allowed=[staff.find(item=>item.id===user.id),...managerLeaders,...managerSales].filter(Boolean);
+  if(user.role==='LEADER')allowed=[staff.find(item=>item.id===user.id),...staff.filter(item=>item.role==='SALE'&&item.leaderId===user.id)].filter(Boolean);
+  if(user.role==='SALE')allowed=[staff.find(item=>item.id===user.id)].filter(Boolean);
+  let recipient=requestedId?allowed.find(item=>item.id===requestedId):null;
+  if(requestedId&&!recipient)manualCustomerError('Người phụ trách không nằm trong phạm vi tài khoản.');
+  if(!recipient&&user.role!=='ADMIN')recipient=staff.find(item=>item.id===user.id)||null;
+  const at=stamp(), id='CUS-MAN-'+crypto.createHash('sha256').update(requestId).digest('hex').slice(0,24);
+  const customFields=input?.customFields&&typeof input.customFields==='object'&&!Array.isArray(input.customFields)?structuredClone(input.customFields):{};
+  const customer={id,name,phone,email,source,campaign:'MANUAL-CRM',websiteId:website?.id||null,landingPageName:website?.name||website?.domain||source,landingPageUrl:website?.sourceUrl||'',landingPageDomain:website?.domain||'',ipAddress:clientIp(input?.request)||'Chưa xác định',manualEntry:true,status:'NEW',saleId:null,leaderId:null,teamId:null,managerId:null,saleAcceptedAt:null,createdAt:at,updatedAt:at,lastIntakeAt:at,lastIntakeType:'MANUAL',note:'Tạo thủ công từ CRM',customFields};
+  if(recipient?.role==='MANAGER'){customer.saleId=recipient.id;customer.managerId=recipient.id;customer.saleAcceptedAt=at;customer.note='Phân công khi tạo khách từ CRM';}
+  else if(recipient?.role==='LEADER'){customer.saleId=recipient.id;customer.leaderId=recipient.id;customer.teamId=recipient.teamId||null;customer.managerId=recipient.managerId||null;customer.saleAcceptedAt=at;customer.note='Phân công khi tạo khách từ CRM';}
+  else if(recipient?.role==='SALE'){customer.saleId=recipient.id;customer.leaderId=recipient.leaderId||null;customer.teamId=recipient.teamId||null;customer.managerId=recipient.managerId||null;customer.saleAcceptedAt=at;customer.note='Phân công khi tạo khách từ CRM';}
+  return customer;
+}
+async function createManualCustomer(user,input,request){
+  const before=await crmData.read(user);
+  const customer=manualCustomerRecord(user,before.state,{...input,request});
+  const result=await crmData.write(user,String(input.requestId),[{key:'customers',id:customer.id,base:null,value:customer}]);
+  return {...result,customerId:customer.id};
+}
 async function passwordMatches(value, stored) {
   if (/^\$2[aby]\$/.test(stored || '')) return bcrypt.compare(value, stored);
   // Hỗ trợ mật khẩu cũ; nâng cấp sang bcrypt sau lần đăng nhập đúng.
@@ -308,6 +350,13 @@ async function handleDemoApi(request, response, pathname) {
   demoTouchSession(request);
   if(pathname==='/api/user-activity'&&request.method==='POST'){const body=await readDbBody(request),detail=activityLabel(body.view),token=demoToken(request),old=demoSessionActivity.get(token)?.activity;demoTouchSession(request,detail);if(old!==detail)demoRecordActivity(user,request,'OPEN_SCREEN',detail);return dbJson(request,response,200,{ok:true,activity:detail});}
   if(pathname==='/api/admin/user-activity'&&request.method==='GET'){if(user.role!=='ADMIN')return dbJson(request,response,403,{error:'Chỉ Admin được xem User log'});return dbJson(request,response,200,demoAdminUserActivity());}
+  if(pathname==='/api/customers/manual'&&request.method==='POST'){
+    try{
+      const body=await readDbBody(request),customer=manualCustomerRecord(user,{accounts:demoState.members,customers:demoState.customers,websites:demoState.websites},{...body,request});
+      if(!demoState.customers.some(item=>item.id===customer.id))demoState.customers.unshift(customer);
+      return dbJson(request,response,200,{...demoPayload(user),ok:true,customerId:customer.id});
+    }catch(error){return dbJson(request,response,error.status||400,{error:error.message});}
+  }
   if (pathname === '/api/state' && request.method === 'GET') return dbJson(request, response, 200, demoPayload(user));
   if (pathname === '/api/state' && request.method === 'POST') {
     const body = await readDbBody(request);
@@ -374,6 +423,10 @@ async function handleDbApi(request, response, pathname) {
     if(pathname==='/api/admin/user-activity' && request.method==='GET'){
       if(user.role!=='ADMIN')return dbJson(request,response,403,{error:'Chỉ Admin được xem User log'});
       return dbJson(request,response,200,await adminUserActivity());
+    }
+    if(pathname==='/api/customers/manual' && request.method==='POST'){
+      const body=await readDbBody(request);
+      return dbJson(request,response,200,await createManualCustomer(user,body,request));
     }
     if(pathname==='/api/telegram/link-status' && request.method==='GET'){
       const rows=await dbQuery('SELECT telegram_chat_id FROM users WHERE id=? LIMIT 1',[user.id]);

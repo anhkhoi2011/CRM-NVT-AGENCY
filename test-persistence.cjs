@@ -606,15 +606,17 @@ test('Reference care save retries the same group and denies a different operatio
 test('Reference customer form rejects an invalid assignee before mutating customer state',async()=>{
  const c=frontend();vm.runInContext(fs.readFileSync('crm-runtime-api.js','utf8'),c);
  vm.runInContext(`currentAccount={id:'admin',role:'ADMIN'};serverStateLoaded=true;state=initialState();state.websites=[{id:'website',name:'Landing',domain:'example.test'}];flushServerPersistence=async()=>true;`,c);
+ c.fetch=async()=>({ok:false,status:403,json:async()=>({error:'Người phụ trách không nằm trong phạm vi tài khoản.'})});
  await assert.rejects(()=>c.window.crmApi.createCustomer({name:'Customer',phone:'0900000999',websiteId:'website',saleId:'missing'}),/phạm vi/);
  assert.equal(vm.runInContext('state.customers.length',c),0);
 });
 test('Manager thêm khách cũ không cần landing vẫn tạo bản ghi chờ lưu bền vững',async()=>{
  const c=frontend();vm.runInContext(fs.readFileSync('crm-runtime-api.js','utf8'),c);
- vm.runInContext(`currentAccount={id:'manager',name:'Manager',role:'LEADER',actualRole:'MANAGER',scope:'TEAM'};serverStateLoaded=true;state=initialState();state.websites=[];state.members=[{id:'manager',name:'Manager',role:'MANAGER',active:true,teamId:''}];STAFF=state.members;flushServerPersistence=async()=>true;`,c);
+ vm.runInContext(`currentAccount={id:'manager',name:'Manager',role:'LEADER',actualRole:'MANAGER',scope:'TEAM'};serverStateLoaded=true;serverSyncToken='token';state=initialState();state.websites=[];state.members=[{id:'manager',name:'Manager',role:'MANAGER',active:true,teamId:''}];STAFF=state.members;flushServerPersistence=async()=>true;`,c);
+ let sent;c.fetch=async (_url,options)=>{sent=JSON.parse(options.body);const payload=vm.runInContext('structuredClone({state,versions:{}})',c);payload.customerId='manual-server';payload.state.customers=[{id:'manual-server',name:'Khách cũ',phone:'0865976582',email:'old@example.vn',source:'Khách hàng cũ',websiteId:null,manualEntry:true,managerId:'manager',customFields:{customerClass:'Nóng',customerLevel:'L4.1: Hẹn nạp vốn'}}];return {ok:true,status:200,json:async()=>payload};};
  const result=await c.window.crmApi.createCustomer({name:'Khách cũ',phone:'0865976582',email:'old@example.vn',source:'Khách hàng cũ',websiteId:'SOURCE:OLD_CUSTOMER',saleId:'',customFields:{customerClass:'Nóng',customerLevel:'L4.1: Hẹn nạp vốn'}});
  const saved=vm.runInContext('state.customers[0]',c);
- assert.ok(result.id);assert.equal(saved.source,'Khách hàng cũ');assert.equal(saved.websiteId,null);assert.equal(saved.email,'old@example.vn');assert.equal(saved.manualEntry,true);assert.equal(saved.managerId,'manager');
+ assert.ok(result.id);assert.equal(sent.websiteId,'SOURCE:OLD_CUSTOMER');assert.equal(sent.source,'Khách hàng cũ');assert.equal(saved.source,'Khách hàng cũ');assert.equal(saved.websiteId,null);assert.equal(saved.email,'old@example.vn');assert.equal(saved.manualEntry,true);assert.equal(saved.managerId,'manager');
 });
 
 test('Reference product validates before editing, preserves order history and denies Sale',async()=>{

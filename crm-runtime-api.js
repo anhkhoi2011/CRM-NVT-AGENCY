@@ -3,7 +3,7 @@
 // Frame chỉ hiển thị lúc đăng nhập; tuyệt đối không đưa DOM/CSS runtime vào trang mẫu.
 (() => {
   const referenceFonts=[["aptos","Aptos"],["arial","Arial"],["arialBlack","Arial Black"],["bahnschrift","Bahnschrift"],["calibri","Calibri"],["cambria","Cambria"],["candara","Candara"],["century","Century Gothic"],["comic","Comic Sans MS"],["consolas","Consolas"],["constantia","Constantia"],["corbel","Corbel"],["courier","Courier New"],["franklin","Franklin Gothic Medium"],["georgia","Georgia"],["impact","Impact"],["segoe","Segoe UI"],["tahoma","Tahoma"],["times","Times New Roman"],["trebuchet","Trebuchet MS"],["verdana","Verdana"],["beVietnam","Be Vietnam Pro"],["inter","Inter"],["roboto","Roboto"],["openSans","Open Sans"],["montserrat","Montserrat"],["poppins","Poppins"],["lato","Lato"],["nunito","Nunito"],["raleway","Raleway"],["oswald","Oswald"],["ubuntu","Ubuntu"],["rubik","Rubik"],["manrope","Manrope"],["dmSans","DM Sans"],["workSans","Work Sans"],["quicksand","Quicksand"],["notoSans","Noto Sans"],["notoSerif","Noto Serif"],["plex","IBM Plex Sans"],["merriweather","Merriweather"],["playfair","Playfair Display"],["sourceSans","Source Sans 3"],["fira","Fira Sans"],["firaCode","Fira Code"],["barlow","Barlow"],["outfit","Outfit"],["spaceGrotesk","Space Grotesk"],["sora","Sora"],["plusJakarta","Plus Jakarta Sans"],["libreBaskerville","Libre Baskerville"]];
-  let lastNotice = '', pendingResult = null;
+  let lastNotice = '', pendingResult = null, pendingManualCustomer = null;
   const runtimeToast = toast;
   toast = message => { lastNotice = String(message); runtimeToast(message); };
   const requireRole = roles => { if (!currentAccount || !serverStateLoaded || !roles.includes(currentAccount.role)) throw Error('Tài khoản không có quyền thực hiện thao tác này.'); };
@@ -172,42 +172,24 @@
     },
     async assign(id, saleId) { if (!await quickAssignSale(id,saleId)) throw Error(lastNotice || 'Chưa phân công được Sale.'); },
     async createCustomer(input) {
-      return persist(async()=>{
-        const actorRole=currentAccount.actualRole||currentAccount.role;
-        const websites=state.websites||[];
-        const selectedWebsite=websites.find(website=>website.id===input.websiteId||website.name===input.websiteId||website.domain===input.websiteId);
-        const defaultManualSource=['Khách hàng cũ','Khách hàng ngoài data'].includes(String(input.source||''));
-        if(!selectedWebsite&&!defaultManualSource)throw Error('Chưa có Landing page/website nguồn để tạo data.');
-        const normalizedInput={...input,websiteId:selectedWebsite?.id||null};
-        const recipient=normalizedInput.saleId?activeStaff().find(m=>m.id===normalizedInput.saleId && ['MANAGER','SALE','LEADER'].includes(m.role)):null;
-        const managerLeaders=actorRole==='MANAGER'?new Set(activeStaff().filter(m=>m.role==='LEADER'&&m.managerId===currentAccount.id&&m.active!==false).map(m=>m.id)):new Set();
-        const managerSales=actorRole==='MANAGER'?new Set(activeStaff().filter(m=>m.role==='SALE'&&m.active!==false&&(m.managerId===currentAccount.id||managerLeaders.has(m.leaderId))).map(m=>m.id)):new Set();
-        const recipientAllowed=!normalizedInput.saleId||actorRole==='ADMIN'||actorRole==='MANAGER'&&(recipient?.id===currentAccount.id||managerLeaders.has(recipient?.id)||managerSales.has(recipient?.id))||actorRole==='LEADER'&&(recipient?.id===currentAccount.id||recipient?.role==='SALE'&&recipient.leaderId===currentAccount.id);
-        if(normalizedInput.saleId&&(!recipient||!recipientAllowed))throw Error('Người phụ trách không nằm trong phạm vi tài khoản.');
-        const result=ingestCustomer(normalizedInput,{intakeType:'MANUAL',sourceLabel:'Nhập thủ công'});
-        if (!result.created&&!result.duplicate) throw Error(result.error);
-        if (result.created && normalizedInput.saleId && currentAccount.role !== 'SALE') {
-          const c=result.customer;
-          const recipient=activeStaff().find(m=>m.id===normalizedInput.saleId);
-          if (!recipient||!recipientAllowed) throw Error('Người phụ trách không nằm trong phạm vi tài khoản.');
-          const assignmentTarget=recipient.role==='MANAGER'?{...recipient,actualRole:'MANAGER',managerRecipient:true,leaderId:null,teamId:''}:recipient;
-          applyCustomerAssignment(c,assignmentTarget,'Phân công khi tạo khách từ CRM');
-        }
-        if(result.created&&!result.duplicate&&!normalizedInput.saleId){
-          const owner=actorRole==='MANAGER'?activeStaff().find(m=>m.id===currentAccount.id&&m.role==='MANAGER'):
-            actorRole==='LEADER'?activeStaff().find(m=>m.id===currentAccount.id&&m.role==='LEADER'):
-            actorRole==='SALE'?activeStaff().find(m=>m.id===currentAccount.saleId&&m.role==='SALE'):null;
-          if(owner){
-            const c=result.customer;
-            c.managerId=owner.role==='MANAGER'?owner.id:(owner.managerId||null);
-            c.leaderId=owner.role==='LEADER'?owner.id:(owner.leaderId||null);
-            c.teamId=owner.teamId||null;
-            if(owner.role==='SALE'){c.saleId=owner.id;c.saleAcceptedAt=stamp();}
-            c.updatedAt=stamp();
-          }
-        }
-        return {id:result.customer.id,duplicate:result.duplicate};
-      },'customer');
+      requireRole(['ADMIN','MANAGER','LEADER','SALE']);
+      if(serverConflict)throw Error('Dữ liệu đang xung đột. Hãy tải lại CRM trước khi thêm khách.');
+      if(!pendingManualCustomer){
+        if((hasServerChanges()||serverPendingRequest||serverSaveRunning)&&!await flushServerPersistence())throw Error('Dữ liệu trước đó chưa được MySQL xác nhận. Giữ trang mở và thử lại.');
+        pendingManualCustomer={requestId:makeRecordId('MANUAL'),input:structuredClone(input||{})};
+      }
+      try{
+        const response=await fetch(`${webhookApiBase()}/api/customers/manual`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${serverSyncToken}`},body:JSON.stringify({...pendingManualCustomer.input,requestId:pendingManualCustomer.requestId})});
+        const payload=await response.json().catch(()=>({}));
+        if(!response.ok)throw Error(payload.error||`Không lưu được khách hàng (HTTP ${response.status}).`);
+        applyServerSnapshot(payload);
+        const result={id:payload.customerId,duplicate:payload.duplicate===true};
+        pendingManualCustomer=null;
+        return result;
+      }catch(error){
+        if(error instanceof TypeError)throw Error('Không kết nối được máy chủ. Giữ form mở và bấm Lưu lại để gửi đúng một lần.');
+        throw error;
+      }
     },
     async deleteCustomer(id) {
       requireRole(['ADMIN','MANAGER']);
