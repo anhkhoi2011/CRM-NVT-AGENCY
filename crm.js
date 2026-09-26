@@ -1120,6 +1120,7 @@ function webhookIngestFields(item, website) {
     name: item.name,
     phone: item.phone,
     email: item.email,
+    ipAddress: item.ipAddress || item.ip || '',
     websiteId: website.id,
     source: 'Landing Page',
     campaign: website.campaignId || 'UNATTRIBUTED',
@@ -1548,7 +1549,7 @@ function saveState() {
   if(!currentAccount||!serverStateLoaded)return;
   setSaveStatus('Đang chờ lưu MySQL…');scheduleServerPersistence();
 }
-async function flushServerPersistence() {
+async function flushServerPersistence(requestOptions = {}) {
   clearTimeout(serverSaveTimer);serverSaveTimer=null;
   if(serverSavePromise)return serverSavePromise;
   if(!serverSyncToken||!serverStateLoaded||serverConflict)return false;
@@ -1558,14 +1559,14 @@ async function flushServerPersistence() {
       do {
         if(!serverPendingRequest) {
           const changes=pendingChanges();if(!changes.length){setSaveStatus('Đã lưu MySQL');return true;}
-          serverPendingRequest={requestId:makeRecordId('SAVE'),changes,snapshot:serverRecords()};
+          serverPendingRequest={requestId:makeRecordId('SAVE'),changes,snapshot:serverRecords(),skipAutomatic:Boolean(requestOptions.skipAutomatic)};
         }
         const request=serverPendingRequest,token=serverSyncToken;
         const controller=typeof AbortController==='function'?new AbortController():null;
         const timeout=setTimeout(()=>controller?.abort(),15000);
         let response;
         try {
-          const options={method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({requestId:request.requestId,changes:request.changes})};
+          const options={method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({requestId:request.requestId,changes:request.changes,skipAutomatic:request.skipAutomatic===true})};
           if(controller)options.signal=controller.signal;
           response=await fetch(`${webhookApiBase()}/api/state`,options);
         } finally {
@@ -1586,7 +1587,7 @@ async function flushServerPersistence() {
   })();
   try{return await serverSavePromise;}finally{serverSavePromise=null;}
 }
-function startServerSyncPolling(){stopServerSyncPolling();serverSyncTimer=setInterval(()=>{if(!document.hidden&&currentAccount&&serverSyncToken){syncServerState();refreshNavigationCounts();}},5000);}
+function startServerSyncPolling(){stopServerSyncPolling();serverSyncTimer=setInterval(()=>{if(!document.hidden&&currentAccount&&serverSyncToken){syncServerState();refreshNavigationCounts();}},15000);}
 function stopServerSyncPolling(){if(serverSyncTimer)clearInterval(serverSyncTimer);serverSyncTimer=null;}
 async function refreshNavigationCounts() {
   if(!serverSyncToken||currentAccount?.role!=='ADMIN'||navigationCountsReading)return false;
@@ -1609,7 +1610,7 @@ async function syncServerState() {
   if(serverStateLoaded&&($('#modalRoot')?.children.length||$('#drawerRoot')?.children.length||['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)))return false;
   serverReading=true;const version=serverMutationVersion,token=serverSyncToken;
   try{
-    const response=await fetch(`${webhookApiBase()}/api/state`,{headers:{Authorization:`Bearer ${token}`},cache:'no-store'});
+    const response=await fetch(`${webhookApiBase()}/api/state?passive=1`,{headers:{Authorization:`Bearer ${token}`},cache:'no-store'});
     const payload=await response.json();if(!response.ok)throw new Error(payload.error||'Không tải được dữ liệu');
     if(version!==serverMutationVersion||token!==serverSyncToken||(serverStateLoaded&&hasServerChanges()))return false;
     const before=stableJson(state);applyServerSnapshot(payload);
@@ -5833,6 +5834,7 @@ async function startSession(account, restored = false, token = serverSyncToken, 
   // Tài khoản cũ chưa có ID hiển thị được đưa thẳng đến Hồ sơ để bổ sung, không đổi users.id nội bộ.
   if((['SALE','LEADER'].includes(currentAccount.role)||currentAccount.actualRole==='MANAGER')&&!currentAccount.accountId)currentView='profile';
   $('#loginScreen').classList.add('is-hidden');$('#appShell').classList.remove('is-hidden');
+  try { if (window.parent && window.parent !== window) window.parent.dispatchEvent(new Event('crm:session-changed')); } catch (error) {}
   if (!restored && !['MARKETING','ACCOUNTING'].includes(account.role)) { audit('LOGIN', 'SESSION', `Đăng nhập tài khoản ${account.role}`); saveState(); }
   render();
   startWebhookConsumer();
@@ -5857,6 +5859,7 @@ async function endSession(skipFlush=false) {
   selectedPoolIds.clear();
   customerOwnerFilter = 'ALL';
   try { sessionStorage.removeItem(SESSION_KEY); } catch (error) {}
+  try { if (window.parent && window.parent !== window) window.parent.dispatchEvent(new Event('crm:session-changed')); } catch (error) {}
   closeDrawer(); closeModal();
   $('#appShell').classList.add('is-hidden');
   $('#loginScreen').classList.remove('is-hidden');

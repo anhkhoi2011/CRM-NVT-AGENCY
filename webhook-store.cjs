@@ -194,7 +194,8 @@ async function persistWebhook(record) {
             id: existing.id,
             name: existing.name || record.customer?.name || '',
             phone: existing.phone || record.customer?.phone || '',
-            email: existing.email || record.customer?.email || ''
+            email: existing.email || record.customer?.email || '',
+            ipAddress: record.customer?.ipAddress || ''
           },
           customerId: existing.id,
           receivedAt: record.receivedAt,
@@ -212,6 +213,7 @@ async function persistWebhook(record) {
       // Lưu ảnh chụp nguồn cùng khách; replay không ghi đè phân công/trạng thái cũ.
       const referenceAmount = extractReferenceAmount(record.raw);
       const meta = { webhookSlug: record.slug, webhookEventId: eventId };
+      if (record.customer?.ipAddress) meta.ipAddress = record.customer.ipAddress;
       if (referenceAmount !== null) meta.referenceAmount = referenceAmount;
       if (sourceSnapshot) Object.assign(meta, sourceSnapshot);
       await connection.execute(`INSERT INTO customers (id, name, phone, email, source, campaign, website_id, status, note, custom_fields_json, created_at)

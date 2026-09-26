@@ -3031,5 +3031,5 @@
     frame.classList.add('is-login-visible');
   };
   bootFallbackTimer=setTimeout(revealLoginFallback,250);
-  refreshTimer=setInterval(()=>{if(!document.hidden){refresh();if(q('#tab-audit.active'))loadUserActivity();}},5000);frame.addEventListener('load',()=>refresh(true));
+  refreshTimer=setInterval(()=>{if(!document.hidden){refresh();if(q('#tab-audit.active'))loadUserActivity();}},15000);frame.addEventListener('load',()=>refresh(true));
 })();

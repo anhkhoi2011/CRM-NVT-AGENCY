@@ -104,7 +104,7 @@ function coreRow(key,r){
  if(key==='orders'){const j=parsed(r.items_json,[]);return {discount:0,refund:0,qty:1,unitPrice:Number(r.total_amount),subtotal:Number(r.total_amount),...(Array.isArray(j)?{}:j),id:r.id,code:r.code,customerId:r.customer_id,saleId:r.sale_id||null,leaderId:r.leader_id||null,teamId:r.team_id||null,total:Number(r.total_amount),status:r.status,items:Array.isArray(j)?j:j.items||[],note:r.note||'',createdAt:timestamp(r.created_at),updatedAt:timestamp(r.updated_at)};}
  return {id:r.id,name:r.name,sku:r.sku||'',category:r.category||'',price:Number(r.price),type:r.type,rentalMonths:r.rental_months,vatRate:Number(r.vat_rate ?? 0.1),active:!!r.active,createdAt:timestamp(r.created_at),updatedAt:timestamp(r.updated_at)};
 }
-async function allData(c){
+async function allData(c, options={}){
  const data=Object.fromEntries([...LISTS,...OBJECTS].map(k=>[k,new Map()]));
  const [docs]=await c.query('SELECT * FROM crm_documents');
  const deleted=new Set();
@@ -135,7 +135,7 @@ async function allData(c){
  }
   const [settings]=await c.query('SELECT setting_key,setting_value FROM system_settings');
   if(!data.settings.has('$')) {const row=settings.find(r=>r.setting_key==='crm');if(row)data.settings.set('$',parsed(row.setting_value));}
-  await mirrorAttendanceRecords(c,data);
+  if(options.mirrorAttendance!==false)await mirrorAttendanceRecords(c,data);
   return data;
  }
 
@@ -613,8 +613,8 @@ async function distributeAutomatic(c, data = null) {
  return count || (roundsChanged?1:0);
 }
 
-async function read(user){await prepare();const c=await pool.getConnection();try{await c.beginTransaction();await c.query('SELECT id FROM crm_write_lock WHERE id=1 FOR UPDATE');const data=await allData(c);await expireOffers(c,data);const assigned=await distributeAutomatic(c,data);await warnRentalExpiry(c,data);const result=snapshot(user,assigned?await allData(c):data);await c.commit();return result;}catch(e){await c.rollback();throw e;}finally{c.release();}}
-async function write(user,requestId,changes){
+async function read(user, options={}){await prepare();const c=await pool.getConnection();try{await c.beginTransaction();if(options.passive!==true)await c.query('SELECT id FROM crm_write_lock WHERE id=1 FOR UPDATE');const data=await allData(c,{mirrorAttendance:options.passive!==true});if(options.passive===true){const result=snapshot(user,data);await c.commit();return result;}await expireOffers(c,data);const assigned=await distributeAutomatic(c,data);await warnRentalExpiry(c,data);const result=snapshot(user,assigned?await allData(c):data);await c.commit();return result;}catch(e){await c.rollback();throw e;}finally{c.release();}}
+async function write(user,requestId,changes,options={}){
  if(typeof requestId!=='string'||!/^[-\w]{1,96}$/.test(requestId)||!Array.isArray(changes)||changes.length>2000)error(400,'Gói lưu không hợp lệ');
  await prepare();const c=await pool.getConnection();
  try{
@@ -663,7 +663,7 @@ async function write(user,requestId,changes){
    await c.execute('INSERT INTO crm_documents(collection,id,body,deleted) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE body=VALUES(body),deleted=VALUES(deleted)',[key,id,JSON.stringify(value===null?data[key].get(id)||{}:value),value===null?1:0]);
   }
   await c.execute('INSERT INTO crm_changes(request_id,actor_id,changes_json) VALUES (?,?,?)',[requestId,user.id,JSON.stringify(history)]);
-  const updated=await allData(c);const assigned=await distributeAutomatic(c,updated);const result=snapshot(user,assigned?await allData(c):updated);await c.commit();return {...result,ok:true};
+  const updated=await allData(c);const assigned=options.skipAutomatic===true?0:await distributeAutomatic(c,updated);const result=snapshot(user,assigned?await allData(c):updated);await c.commit();return {...result,ok:true};
  }catch(e){await c.rollback();throw e;}finally{c.release();}
 }
 module.exports={queueTelegramNotice,snapshot,distributeAutomatic,prepare,seedProductCatalog,read,write,revision,canonical,coreRow,userRow,authorize,readable,validate,LISTS,OBJECTS,SCHEMA};

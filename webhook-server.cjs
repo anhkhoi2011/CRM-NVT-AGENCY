@@ -20,6 +20,7 @@ const fs = require('node:fs');
 const fsp = require('node:fs/promises');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const net = require('node:net');
 const zlib = require('node:zlib');
 const bcrypt = require('bcryptjs');
 const crmData = require('./crm-data.cjs');
@@ -483,10 +484,16 @@ async function handleDbApi(request, response, pathname) {
       return dbJson(request,response,200,{ok:true});
     }
     if(pathname==='/api/state'){
-      if(request.method==='GET'){const result=await crmData.read(user);void telegramBot.drainLeadNotifications();return dbJson(request,response,200,{...result,user});}
+      if(request.method==='GET'){
+        const query=new URL(request.url,`http://${request.headers.host||'localhost'}`).searchParams;
+        const result=await crmData.read(user,{passive:query.get('passive')==='1'});
+        if(query.get('passive')!=='1')void telegramBot.drainLeadNotifications();
+        return dbJson(request,response,200,{...result,user});
+      }
       if(request.method==='POST'){
         const body=await readDbBody(request);
-        const result=await crmData.write(user,body.requestId,body.changes);
+        if(body.skipAutomatic===true&&user.role!=='ADMIN')return dbJson(request,response,403,{error:'Admin only'});
+        const result=await crmData.write(user,body.requestId,body.changes,{skipAutomatic:body.skipAutomatic===true});
         notifyInboxListeners({id:body.requestId,kind:'state',receivedAt:stamp()});
 
         void telegramBot.drainLeadNotifications();
@@ -600,7 +607,8 @@ function scheduleFlush() {
 const KEY_ALIASES = {
   name: ['name', 'fullname', 'hoten', 'hovaten', 'ten', 'tenkhachhang', 'khachhang', 'customer', 'customername', 'yourname', 'field', 'hotenkhachhang'],
   phone: ['phone', 'phonenumber', 'mobile', 'tel', 'telephone', 'sdt', 'sodienthoai', 'dienthoai', 'cellphone', 'number', 'hotline', 'lienhe'],
-  email: ['email', 'mail', 'gmail', 'emailaddress', 'thudientu']
+  email: ['email', 'mail', 'gmail', 'emailaddress', 'thudientu'],
+  ipAddress: ['ip', 'ipaddress', 'clientip', 'visitorip', 'remoteip', 'ipkhachhang', 'diachiip']
 };
 
 function stripDiacritics(value) {
@@ -613,6 +621,12 @@ function stripDiacritics(value) {
 
 function normalizeKey(key) {
   return stripDiacritics(key).replace(/[^a-z0-9]/g, '');
+}
+
+function normalizeVisitorIp(value) {
+  let candidate = String(value || '').trim();
+  if ((candidate.startsWith('"') && candidate.endsWith('"')) || (candidate.startsWith("'") && candidate.endsWith("'"))) candidate = candidate.slice(1, -1).trim();
+  return net.isIP(candidate) ? candidate.slice(0, 64) : '';
 }
 
 function normalizeDigits(value) {
@@ -670,6 +684,7 @@ function adaptLadiPagePayload(payload) {
   const name = pickField(flat, normalizedByKey, KEY_ALIASES.name);
   const phone = pickField(flat, normalizedByKey, KEY_ALIASES.phone);
   const email = pickField(flat, normalizedByKey, KEY_ALIASES.email);
+  const ipAddress = pickField(flat, normalizedByKey, KEY_ALIASES.ipAddress);
 
   const problems = [];
   if (!name.value) problems.push('thiếu họ tên');
@@ -687,7 +702,8 @@ function adaptLadiPagePayload(payload) {
       name: String(name.value).slice(0, 160),
       phone: String(phone.value).slice(0, 32),
       email: String(email.value).slice(0, 254),
-      matchedKeys: { name: name.key, phone: phone.key, email: email.key }
+      ipAddress: normalizeVisitorIp(ipAddress.value),
+      matchedKeys: { name: name.key, phone: phone.key, email: email.key, ipAddress: ipAddress.key }
     },
     flat
   };
@@ -950,8 +966,9 @@ function checkToken(request) {
 }
 
 function dedupeKey(slug, phone, payload) {
+  const stablePayload = Object.fromEntries(Object.entries(payload || {}).filter(([key]) => !KEY_ALIASES.ipAddress.includes(normalizeKey(key))));
   const payloadHash = crypto.createHash('sha256')
-    .update(JSON.stringify(payload, Object.keys(payload).sort()))
+    .update(JSON.stringify(stablePayload, Object.keys(stablePayload).sort()))
     .digest('hex');
   return crypto.createHash('sha256')
     .update(`${slug}|${normalizeDigits(phone)}|${payloadHash}`)
@@ -1082,7 +1099,7 @@ async function handleWebhook(request, response, slug) {
     problems: adapted.problems,
     matchedKeys: adapted.record.matchedKeys,
     // Chỉ 3 trường được phép đi vào khách hàng. IP/utm/link cố tình KHÔNG lưu ở đây.
-    customer: { name: adapted.record.name, phone: adapted.record.phone, email: adapted.record.email },
+    customer: { name: adapted.record.name, phone: adapted.record.phone, email: adapted.record.email, ipAddress: adapted.record.ipAddress },
     raw: adapted.flat,
     dedupeKey: key,
     retryCount: 0,

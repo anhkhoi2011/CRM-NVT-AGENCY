@@ -53,6 +53,11 @@ test('Sale tạo khách, đơn, ghi chú, công việc trong một giao dịch; 
  assert.equal(result.state.orders[0].unitPrice,120);assert.equal(result.state.orders[0].discount,20);assert.equal(result.state.orders[0].vatAmount,36);assert.equal(result.state.orders[0].billing.cccd,'012345678901');assert.equal(result.state.orders[0].rentalMonths,3);assert.equal(result.state.customers[0].createdAt,customer.createdAt);assert.equal(result.state.notes.length,1);assert.equal(f.db.history.length,1);
  const reread=await f.api.read(admin);assert.equal(reread.state.tasks.length,1);assert.equal(reread.state.orders[0].createdAt,order.createdAt);
 });
+test('Đọc nền không giữ khóa ghi và không chạy lại quét phân data',async()=>{
+ const f=fixture();await f.api.prepare();f.events.length=0;
+ await f.api.read(admin,{passive:true});
+ assert.equal(f.events.includes('lock'),false);
+});
 test('Lỗi giữa giao dịch rollback cả projection và documents',async()=>{
  const f=fixture();f.fail();await assert.rejects(f.api.write(admin,'fail',[change('customers',customer)]),/failure/);assert.equal(f.db.customers.length,0);assert.equal(f.db.history.length,0);assert.ok(f.events.includes('rollback'));
 });
@@ -917,7 +922,7 @@ test('Manager direct sales weights persist, disabled sales stay disabled, and ot
  vm.runInContext(`applyServerSnapshot(${JSON.stringify(r)});currentAccount=hydrateSessionAccount({id:'mgr',name:'Manager',role:'MANAGER'});`,c);
  c.fetch=async(url,options)=>{try{return {ok:true,json:async()=>await f.api.write(m,JSON.parse(options.body).requestId,JSON.parse(options.body).changes)}}catch(e){return {ok:false,status:e.status,json:async()=>({error:e.message})}}};
  // Use the real persistence function, not the bridge stub.
- const source=fs.readFileSync('crm.js','utf8');vm.runInContext(source.slice(source.indexOf('async function flushServerPersistence()'),source.indexOf('function startServerSyncPolling()')),c);
+ const source=fs.readFileSync('crm.js','utf8');vm.runInContext(source.slice(source.indexOf('async function flushServerPersistence('),source.indexOf('function startServerSyncPolling()')),c);
  vm.runInContext("serverSyncToken='test-token'",c);
  await c.window.crmApi.distributionWeight('SALE','direct',3);
  await c.window.crmApi.distributionMember('SALE','direct',false);
@@ -1032,6 +1037,12 @@ test('Explicit Admin role is not downgraded by a colliding Manager staff record'
  assert.equal(vm.runInContext('synced',c),true);
  assert.deepEqual(Array.from(vm.runInContext(`state.saleDistributionByLeader['$'].rounds.map(round=>round.id)`,c)),['two']);
 });
+test('Admin actualRole keeps round deletion available when session role is stale',async()=>{
+ const c=referenceBridge(),api=c.window.crmApi;
+ vm.runInContext(`currentAccount={id:'admin',name:'Admin',role:'LEADER',actualRole:'ADMIN',scope:'ALL'};state.members=[{id:'lead',role:'LEADER',teamId:'T',active:true},{id:'s1',role:'SALE',leaderId:'lead',teamId:'T',active:true}];state.leaderDistribution={enabledLeaderIds:['lead']};state.saleDistributionByLeader={'$':{rounds:[{id:'one',enabledSaleIds:['s1'],weights:{s1:1}},{id:'two',enabledSaleIds:['s1'],weights:{s1:1}}]}};state.settings.assignmentCursor.global={index:0,ids:['s1'],cycleId:'1'};flushServerPersistence=async()=>true;`,c);
+ await api.distributionRoundDelete('one');
+ assert.deepEqual(Array.from(vm.runInContext(`state.saleDistributionByLeader['$'].rounds.map(round=>round.id)`,c)),['two']);
+});
 test('A concurrent webhook invalidates a stale slot skip through normal state revisions',async()=>{
  const f=await automaticFixture();const before=await f.api.read(admin);
  await f.webhook.persistWebhook(landingRecord(703));
@@ -1107,6 +1118,13 @@ test('Extra turn API retries failed save without appending twice and denies Sale
  await api.distributionRoundAddExtraTurn(input);
  assert.deepEqual(Array.from(vm.runInContext('state.settings.assignmentCursor.global.ids',c)),['s','s']);
  vm.runInContext("currentAccount={id:'s',role:'SALE'}",c);await assert.rejects(()=>api.distributionRoundAddExtraTurn(input),/quyền/);
+});
+test('Extra turn persistence skips the expensive automatic distribution scan',async()=>{
+ const c=referenceBridge(),api=c.window.crmApi;
+ vm.runInContext("state.members=[{id:'l',role:'LEADER',teamId:'T',active:true},{id:'s',name:'Sale',role:'SALE',leaderId:'l',teamId:'T',active:true}];state.leaderDistribution={enabledLeaderIds:['l']};state.saleDistributionByLeader={'$':{rounds:[{id:'one',enabledSaleIds:['s'],weights:{s:1}}]}};state.settings.assignmentMode='BALANCED';state.settings.assignmentCursor.global={index:0,ids:['s'],cycleId:'1'};saveState=()=>{};let flushOptions=[];flushServerPersistence=async options=>{flushOptions.push(options||{});return true};",c);
+ const view=api.snapshot().distributionRoundViews[0];
+ await api.distributionRoundAddExtraTurn({roundId:view.roundId,token:view.token,memberId:'s'});
+ assert.ok(vm.runInContext('flushOptions.some(options=>options.skipAutomatic===true)',c));
 });
 test('Extra turn persists and real webhook allocation consumes exactly the previewed sequence',async()=>{
  const f=await automaticFixture();await f.webhook.persistWebhook(landingRecord(801));

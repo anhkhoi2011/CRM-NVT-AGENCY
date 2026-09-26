@@ -24,7 +24,7 @@ function fixture(){
  }});
  return {api:module.exports,users,sent,notices,customers,offers,locks,supportReplies,fail(value){failure=value;}};
 }
-const customer={id:'CUS-TEST',name:'Test <customer>',phone:'0900000000',email:'test@example.test',createdAt:'2026-09-24 19:00:00',saleId:'s'};
+const customer={id:'CUS-TEST',name:'Test <customer>',phone:'0900000000',email:'test@example.test',ipAddress:'203.0.113.14',createdAt:'2026-09-24 19:00:00',saleId:'s'};
 test('Telegram sends pending Sale only a receive button; direct Leader and Manager get contact details',async()=>{
  const f=fixture(),offer={id:'OFR-12345678-1234-1234-1234-123456789abc',saleId:'s',status:'PENDING'};
  const result=await f.api.notifyNewLead(customer,offer);assert.equal(result.sent,1);assert.equal(f.sent[0].chat_id,'1');assert.ok(f.sent[0].reply_markup);assert.ok(Buffer.byteLength(f.sent[0].reply_markup.inline_keyboard[0][0].callback_data)<=64);assert.doesNotMatch(f.sent[0].text,/0900000000/);
@@ -32,7 +32,7 @@ test('Telegram sends pending Sale only a receive button; direct Leader and Manag
 });
 test('Admin webhook message contains immediate full details, correct Vietnam time and no accept button',async()=>{
  const f=fixture();const result=await f.api.notifyWebhookLeadAdmins(customer,'2026-09-24 19:00:00');assert.equal(result.sent,1);assert.equal(result.complete,true);
- const message=f.sent[0];assert.equal(message.chat_id,'999');assert.equal(message.reply_markup,undefined);for(const text of ['0900000000','test@example.test','19:00:00','&lt;customer&gt;'])assert.ok(message.text.includes(text));
+ const message=f.sent[0];assert.equal(message.chat_id,'999');assert.equal(message.reply_markup,undefined);for(const text of ['0900000000','test@example.test','203.0.113.14','19:00:00','&lt;customer&gt;'])assert.ok(message.text.includes(text));
  await f.api.notifyWebhookLeadAdmins(customer,'2026-09-24 19:00:00',result.deliveredChatIds);assert.equal(f.sent.length,1);
 });
 test('Telegram API failure is not reported as success',async()=>{const f=fixture();f.fail(true);assert.equal((await f.api.notifyNewLead(customer,{id:'o',saleId:'s',status:'PENDING'})).sent,0);});

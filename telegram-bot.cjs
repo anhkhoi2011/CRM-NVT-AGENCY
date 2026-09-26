@@ -644,6 +644,8 @@ async function notifyWebhookLeadAdmins(customer, receivedAt, deliveredChatIds = 
     const delivered=new Set(deliveredChatIds.map(String));
     if (!chatIds.length) return { sent: 0, skipped: true, reason: 'missing-admin-chat-id', deliveredChatIds: [...delivered] };
     // Webhook snapshots use landingPageUrl; sourceUrl remains supported for older records.
+    const ipAddress = String(customer?.ipAddress || customer?.ip || '').trim();
+    const ipLine = '• <b>IP khách hàng:</b> <code>' + escapeHtml(ipAddress || 'Chưa ghi nhận') + '</code>' + String.fromCharCode(10);
     const sourceUrl = String(
       source?.landingPageUrl || source?.sourceUrl || source?.url ||
       customer?.landingPageUrl || customer?.sourceUrl || ''
@@ -654,10 +656,11 @@ async function notifyWebhookLeadAdmins(customer, receivedAt, deliveredChatIds = 
       '• <b>Gmail:</b> ' + escapeHtml(customer.email || 'Chưa có') + '\n' +
       '• <b>Nguồn data:</b> ' + (sourceUrl ? `<a href='${escapeHtml(sourceUrl)}'>${escapeHtml(sourceUrl)}</a>` : 'Chưa gắn URL nguồn') + '\n' +
       '• <b>Thời gian data về:</b> ' + escapeHtml(formatDateTimeVN(receivedAt));
+    const messageText = ipLine + text;
     let sent = 0;
     for (const chatId of chatIds) {
       if(delivered.has(chatId))continue;
-      if((await sendMessage(chatId,text))?.ok){sent++;delivered.add(chatId);}
+      if((await sendMessage(chatId,messageText))?.ok){sent++;delivered.add(chatId);}
     }
     return { sent,total:chatIds.length,deliveredChatIds:[...delivered],complete:chatIds.every(id=>delivered.has(id)) };
   } catch (error) {
@@ -698,6 +701,8 @@ async function notifyDuplicateLeadAdmins(customer, receivedAt, ownerSaleId = nul
     const chatIds = configuredAdminChatId ? [configuredAdminChatId] : [...new Set(linkedAdminChatIds)];
     if (!chatIds.length) return { sent: 0, skipped: true, reason: 'missing-admin-chat-id' };
     const sourceUrl = String(source?.landingPageUrl || source?.sourceUrl || '').trim();
+    const ipAddress = String(customer?.ipAddress || customer?.ip || '').trim();
+    const ipLine = '• <b>IP khach hang:</b> <code>' + escapeHtml(ipAddress || 'Chua ghi nhan') + '</code>' + String.fromCharCode(10);
     const ownerLabel = ownerSaleId ? `\n• <b>Sale giu luot:</b> <code>${escapeHtml(ownerSaleId)}</code>` : '';
     const waitingLabel = waitingForAcceptance ? '\n• <b>Trang thai:</b> Dang cho Sale hien tai nhan data' : '';
     const text = '<b>DATA TRUNG TU WEBHOOK</b>\n\n' +
@@ -706,8 +711,9 @@ async function notifyDuplicateLeadAdmins(customer, receivedAt, ownerSaleId = nul
       `• <b>Gmail:</b> ${escapeHtml(customer.email || 'Chua co')}\n` +
       (sourceUrl ? `• <b>Nguon data:</b> <a href="${escapeHtml(sourceUrl)}">${escapeHtml(sourceUrl)}</a>\n` : '') +
       `• <b>Thoi gian data ve:</b> ${escapeHtml(formatDateTimeVN(receivedAt))}` + ownerLabel + waitingLabel;
+    const messageText = ipLine + text;
     let sent = 0;
-    for (const chatId of chatIds) if ((await sendMessage(chatId, text))?.ok) sent++;
+    for (const chatId of chatIds) if ((await sendMessage(chatId, messageText))?.ok) sent++;
     return { sent, total: chatIds.length, complete: sent === chatIds.length };
   } catch (error) {
     console.error('[Telegram Bot] notifyDuplicateLeadAdmins error:', error.message);

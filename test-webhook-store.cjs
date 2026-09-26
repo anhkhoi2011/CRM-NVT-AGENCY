@@ -34,7 +34,7 @@ function fixture(failCustomer = false, websites = [{ id: 'WEB-TEST', name: 'Hoan
   });
   return { ...module.exports, customers, events, documents, notices, calls };
 }
-const record = { id: 'WHE-1', dedupeKey: 'abc', status: 'NEW', slug: 'DS-TEST', receivedAt: '2026-09-14 12:00', customer: { name: 'Test', phone: '0912345678', email: 'test@example.com' } };
+const record = { id: 'WHE-1', dedupeKey: 'abc', status: 'NEW', slug: 'DS-TEST', receivedAt: '2026-09-14 12:00', customer: { name: 'Test', phone: '0912345678', email: 'test@example.com', ipAddress: '203.0.113.14' } };
 test('Lưu khách trước commit và giữ ID khi landing gửi lại', async () => {
   const f = fixture();
   const first = await f.persistWebhook(record);
@@ -76,6 +76,7 @@ test('Webhook maps website, campaign and source URL into MySQL customer', async 
   assert.equal(payload.__crmMeta.landingPageName, 'Hoang Phuc Academy');
   assert.equal(payload.__crmMeta.landingPageUrl, 'https://www.hoangphucacademy.vn/');
   assert.equal(payload.__crmMeta.landingPageDomain, 'www.hoangphucacademy.vn');
+  assert.equal(payload.__crmMeta.ipAddress, '203.0.113.14');
 });
 test('Webhook source follows the configured webhook slug instead of a default website', async () => {
   const f = fixture(false, [

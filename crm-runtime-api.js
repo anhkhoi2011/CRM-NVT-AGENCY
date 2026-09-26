@@ -6,18 +6,21 @@
   let lastNotice = '', pendingResult = null, pendingManualCustomer = null;
   const runtimeToast = toast;
   toast = message => { lastNotice = String(message); runtimeToast(message); };
-  const requireRole = roles => { if (!currentAccount || !serverStateLoaded || !roles.includes(currentAccount.role)) throw Error('Tài khoản không có quyền thực hiện thao tác này.'); };
+  const permissionRole = () => typeof effectivePermissionRole === 'function'
+    ? effectivePermissionRole()
+    : currentAccount?.actualRole || currentAccount?.role || '';
+  const requireRole = roles => { if (!currentAccount || !serverStateLoaded || !roles.includes(permissionRole())) throw Error('Tài khoản không có quyền thực hiện thao tác này.'); };
   async function persist(action, kind) {
     requireRole(['ADMIN','MANAGER','LEADER','SALE','MARKETING','ACCOUNTING']);
     if (pendingResult) {
       if(pendingResult.kind!==kind) throw Error("Hãy lưu lại thao tác trước đó trước khi chuyển sang thao tác khác.");
-      if (!await flushServerPersistence()) throw Error('Chưa lưu được dữ liệu. Giữ trang mở để thử lại.');
+      if (!await flushServerPersistence({skipAutomatic:kind.startsWith('add-extra-round-turn:')})) throw Error('Chưa lưu được dữ liệu. Giữ trang mở để thử lại.');
       const result=pendingResult.result;pendingResult=null;return result;
     }
     const persistenceBlocked=typeof serverPendingRequest!=='undefined'&&(serverPendingRequest||serverConflict||serverSaveRunning);
     if (!persistenceBlocked&&!await flushServerPersistence()) throw Error('Máy chủ chưa xác nhận dữ liệu trước đó.');
     const result=await action();pendingResult={kind,result:result || {ok:true}}; saveState();
-    if (!await flushServerPersistence()) throw Error('Chưa lưu được dữ liệu. Giữ trang mở để thử lại.');
+    if (!await flushServerPersistence({skipAutomatic:kind.startsWith('add-extra-round-turn:')})) throw Error('Chưa lưu được dữ liệu. Giữ trang mở để thử lại.');
     pendingResult=null;return result;
   }
   function resetDistributionCursor() {
@@ -39,7 +42,7 @@
   async function openWorkflow(kind,id){
     if(!currentAccount||!serverStateLoaded)throw Error('Chưa đăng nhập.');
     if(workflowPending||pendingResult)throw Error('Hoàn tất thao tác đang chờ lưu trước.');
-    const roles=currentAccount.role;
+    const roles=permissionRole();
     const admin=['import','categories','fields','settings','createTeam','products','distribution','emailTest'];
     if(admin.includes(kind)&&roles!=='ADMIN')throw Error('Chỉ Admin được dùng chức năng này.');
     const allowed=['customer','order','editOrder','newOrder','import','categories','fields','settings','createTeam','password','profile','products','distribution','customers','pool','accept','attendance','revenue','businessReport','accounting','marketing','reports','orders','emailTest','newCustomer'];
@@ -123,7 +126,7 @@
         : null;
       const customers=currentAccount.actualRole==='MANAGER'
         ? state.customers.filter(c=>c.managerId===currentAccount.id||c.ownerId===currentAccount.id||managerLeaderIds.has(c.leaderId)||state.members.some(m=>m.role==='SALE'&&m.managerId===currentAccount.id&&m.id===c.saleId))
-        : scopedCustomers().filter(c=>currentAccount.role!=='SALE'||!!c.saleAcceptedAt);
+        : scopedCustomers().filter(c=>permissionRole()!=='SALE'||!!c.saleAcceptedAt);
       const managerHierarchy=currentAccount.actualRole==='MANAGER'?(()=>{
         const leaderIds=new Set(state.members.filter(m=>m.role==='LEADER'&&m.active!==false&&m.managerId===currentAccount.id).map(m=>m.id));
         const managerSales=new Set(state.members.filter(m=>m.role==='SALE'&&m.active!==false&&(m.managerId===currentAccount.id||leaderIds.has(m.leaderId))).map(m=>m.id));
@@ -195,7 +198,7 @@
       requireRole(['ADMIN','MANAGER']);
       return persist(() => {
         const customer = state.customers.find(item => item.id === id);
-        if (currentAccount.role==='MANAGER' && !scopedCustomers().some(item=>item.id===id)) throw Error('Data is outside the Manager scope.');
+        if (permissionRole()==='MANAGER' && !scopedCustomers().some(item=>item.id===id)) throw Error('Data is outside the Manager scope.');
         if (!customer) throw Error('Data không còn tồn tại trên máy chủ.');
         state.customers = state.customers.filter(item => item.id !== id);
         state.dataOffers = state.dataOffers.filter(item => item.customerId !== id);
@@ -210,7 +213,7 @@
       return persist(() => {
         const order = state.orders.find(item => item.id === id);
         if (!order) throw Error('Order no longer exists on server.');
-        if (currentAccount.role !== 'ADMIN') {
+        if (permissionRole() !== 'ADMIN') {
           const raw = String(order.createdAt || '').trim();
           const iso = raw.includes('T') ? raw : raw.replace(' ', 'T');
           const created = Date.parse(/[zZ]|[+-]\d{2}:?\d{2}$/.test(iso) ? iso : `${iso}+07:00`);
@@ -584,13 +587,13 @@
       if(!currentAccount)throw Error('Phien dang nhap khong con hieu luc. Hay dang nhap lai.');
       if(!serverStateLoaded&&!await syncServerState())throw Error('Du lieu CRM chua dong bo voi may chu. Hay tai lai trang va thu lai.');
       if(!serverStateLoaded)throw Error('Du lieu CRM chua dong bo voi may chu. Hay tai lai trang va thu lai.');
-      const permissionRole=currentAccount.role==='ADMIN'||currentAccount.actualRole==='ADMIN'?'ADMIN':effectivePermissionRole();
-      if(!['ADMIN','MANAGER'].includes(permissionRole))throw Error('Tai khoan '+(permissionRole||'chua xac dinh')+' khong co quyen xoa vong ty trong.');
+      const role=permissionRole();
+      if(!['ADMIN','MANAGER'].includes(role))throw Error('Tai khoan '+(role||'chua xac dinh')+' khong co quyen xoa vong ty trong.');
       const config=state.saleDistributionByLeader['$'];
       if(!config||!Array.isArray(config.rounds)||!config.rounds.length)throw Error('Khong co vong de xoa.');
       const target=String(id||'');
       const deletingActive=target===config.rounds[0].id;
-      if(permissionRole==='MANAGER'){
+      if(role==='MANAGER'){
         if(deletingActive)throw Error('Chi Admin duoc xoa Vong 1 toan he thong.');
         const round=config.rounds.find(item=>item.id===target),scope=managerScope();
         const allowed=new Set([scope.manager?.id,...scope.leaderIds,...scope.saleIds].filter(Boolean));
