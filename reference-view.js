@@ -6,6 +6,20 @@ let customerPage = 1;
 let customerPageSize = 20;
 let customerFilterSignature = '';
 
+// Keep table filters outside the DOM. The reference renderer rebuilds the
+// select elements after every snapshot, so DOM-only state can be lost.
+const customerFilterState = window.nvtCustomerFilterState || (window.nvtCustomerFilterState = { owner: 'ALL', sale: 'ALL' });
+
+function normalizeCustomerFilterPhone(value) {
+  let digits = String(value || '').replace(/\D/g, '');
+  if (digits.startsWith('84') && digits.length >= 11) digits = '0' + digits.slice(2);
+  return digits;
+}
+
+function sameCustomerFilterId(left, right) {
+  return left != null && right != null && String(left) === String(right);
+}
+
 function pendingOfferForCustomer(customer) {
   const customerId = customer?.id;
   if (!customerId) return null;
@@ -16,7 +30,11 @@ function pendingOfferForCustomer(customer) {
 }
 
 function assignedSaleIdForCustomer(customer) {
-  return pendingOfferForCustomer(customer)?.saleId || customer?.saleId || null;
+  const pending = pendingOfferForCustomer(customer);
+  const members = Array.isArray(appState.members) ? appState.members : [];
+  const owner = members.find(member => sameCustomerFilterId(member.id, customer?.ownerId));
+  const ownerSaleId = owner?.role === 'SALE' ? owner.id : null;
+  return pending?.saleId || customer?.saleId || ownerSaleId || null;
 }
 
 function ensureCustomerPaginationStyles() {
@@ -67,24 +85,26 @@ function setCarePage(groupId, page) {
 window.setCarePage = setCarePage;
   function matchesPersonnelCustomer(customer, ownerId, members) {
     if (!ownerId || ownerId === 'ALL') return true;
+    const sameId=(left,right)=>left!=null&&right!=null&&String(left)===String(right);
     const pendingOffer = (typeof appState !== 'undefined' ? appState.offers || [] : [])
       .filter(offer => offer && offer.customerId === customer.id && offer.status === 'PENDING' && offer.saleId)
       .sort((a, b) => String(b.offeredAt || '').localeCompare(String(a.offeredAt || '')))[0];
-    const assignedSaleId = pendingOffer?.saleId || customer.saleId || null;
+    const ownerMember=members.find(member=>sameId(member.id,customer.ownerId));
+    const assignedSaleId=pendingOffer?.saleId||customer.saleId||(ownerMember?.role==='SALE'?ownerMember.id:null);
     if (ownerId === 'UNASSIGNED') return !assignedSaleId && !customer.leaderId && !customer.managerId && !customer.ownerId;
-    const member = members.find(m => m.id === ownerId);
+    const member = members.find(m => sameId(m.id, ownerId));
     if (!member) return false;
-    const ids = new Set([ownerId]);
+    const ids = new Set([String(ownerId)]);
     if (member.role === 'MANAGER') {
-      members.filter(m => m.role === 'LEADER' && m.managerId === ownerId).forEach(m => ids.add(m.id));
-      members.filter(m => m.role === 'SALE' && (m.managerId === ownerId || ids.has(m.leaderId))).forEach(m => ids.add(m.id));
-      return customer.managerId === ownerId || ids.has(customer.ownerId) || ids.has(customer.leaderId) || ids.has(assignedSaleId);
+      members.filter(m => m.role === 'LEADER' && sameId(m.managerId, ownerId)).forEach(m => ids.add(String(m.id)));
+      members.filter(m => m.role === 'SALE' && (sameId(m.managerId, ownerId) || ids.has(String(m.leaderId)))).forEach(m => ids.add(String(m.id)));
+      return sameId(customer.managerId, ownerId) || ids.has(String(customer.ownerId)) || ids.has(String(customer.leaderId)) || ids.has(String(assignedSaleId));
     }
     if (member.role === 'LEADER') {
-      members.filter(m => m.role === 'SALE' && m.leaderId === ownerId).forEach(m => ids.add(m.id));
-      return customer.leaderId === ownerId || ids.has(assignedSaleId) || ids.has(customer.ownerId);
+      members.filter(m => m.role === 'SALE' && sameId(m.leaderId, ownerId)).forEach(m => ids.add(String(m.id)));
+      return sameId(customer.leaderId, ownerId) || ids.has(String(assignedSaleId)) || ids.has(String(customer.ownerId));
     }
-    return assignedSaleId === ownerId || customer.ownerId === ownerId;
+    return sameId(assignedSaleId, ownerId) || sameId(customer.ownerId, ownerId);
   }
   // Đồng hồ chạy thời gian thực
   const escapeCustomerLabel=value=>String(value??'').replace(/[&<>"']/g,character=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
@@ -112,24 +132,29 @@ window.setCarePage = setCarePage;
   // ── 2. RENDER KHÁCH HÀNG TỔNG (ẢNH 1) ──
   function renderCustomerTable() {
     const tbody = document.getElementById('customerTableBody');
-    const searchVal = (document.getElementById('custSearchInput')?.value || '').toLowerCase();
+    const rawSearchVal = document.getElementById('custSearchInput')?.value || '';
+    const searchVal = rawSearchVal.toLowerCase().trim();
     const statusVal = document.getElementById('custStatusFilter')?.value || 'ALL';
     const assignVal = document.getElementById('custAssignFilter')?.value || 'ALL';
-    const ownerVal = document.getElementById('custOwnerFilter')?.value || 'ALL';
-    const saleVal = typeof window !== 'undefined' ? (window.customerSaleFilter || 'ALL') : 'ALL';
+    const ownerSelect = document.getElementById('custOwnerFilter');
+    const ownerVal = customerFilterState.owner || ownerSelect?.value || 'ALL';
+    const saleVal = customerFilterState.sale || 'ALL';
     const filterSignature = [searchVal, statusVal, assignVal, ownerVal, saleVal].join('\u0001');
     if (filterSignature !== customerFilterSignature) {
       customerFilterSignature = filterSignature;
       customerPage = 1;
     }
 
+    const normalizedSearchPhone = normalizeCustomerFilterPhone(rawSearchVal);
     const filtered = appState.customers.filter(c => {
-      const matchText = (c.name + ' ' + c.phone + ' ' + c.level + ' ' + c.note).toLowerCase().includes(searchVal);
+      const phone = String(c.phone || '');
+      const searchableText = (c.name + ' ' + phone + ' ' + normalizeCustomerFilterPhone(phone) + ' ' + c.email + ' ' + c.level + ' ' + c.note).toLowerCase();
+      const matchText = !searchVal || searchableText.includes(searchVal) || (normalizedSearchPhone && searchableText.includes(normalizedSearchPhone));
       const matchStatus = statusVal === 'ALL' || c.status === statusVal;
       const assignedSaleId = assignedSaleIdForCustomer(c);
       const matchAssign = assignVal === 'ALL' || (assignVal === 'UNASSIGNED' ? !assignedSaleId : Boolean(assignedSaleId));
       const matchOwner = matchesPersonnelCustomer(c, ownerVal, appState.members || []);
-      const matchSale = saleVal === 'ALL' || assignedSaleIdForCustomer(c) === saleVal || c.ownerId === saleVal;
+      const matchSale = saleVal === 'ALL' || sameCustomerFilterId(assignedSaleId, saleVal) || sameCustomerFilterId(c.ownerId, saleVal);
       return matchText && matchStatus && matchAssign && matchOwner && matchSale;
     });
 

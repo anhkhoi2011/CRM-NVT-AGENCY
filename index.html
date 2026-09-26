@@ -2448,21 +2448,8 @@
               </select>
             </div>
 
-            <!-- 3 Stat pills bar chuẩn ảnh 1 -->
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding: 14px 18px; background: var(--bg-subtle); border-radius: 10px; border: 1px solid var(--border-light);">
-              <div>
-                <small style="font-size: 11px; color: var(--text-muted); display: block;">Leader hoạt động</small>
-                <b style="font-size: 14px; font-family: var(--font-mono); color: var(--text-main); margin-top: 3px; display: block;" id="autoStatLeaders">1/1</b>
-              </div>
-              <div>
-                <small style="font-size: 11px; color: var(--text-muted); display: block;">Chế độ hiện tại</small>
-                <b style="font-size: 14px; color: var(--text-main); margin-top: 3px; display: block;" id="autoStatCurrentMode">Theo tỷ trọng</b>
-              </div>
-              <div>
-                <small style="font-size: 11px; color: var(--text-muted); display: block;">Khách đang chờ</small>
-                <b style="font-size: 14px; font-family: var(--font-mono); color: var(--text-main); margin-top: 3px; display: block;" id="autoStatWaiting">0</b>
-              </div>
-            </div>
+            <div id="autoRecipientStats" aria-live="polite"></div>
+            <div hidden aria-hidden="true"><span id="autoStatLeaders"></span><span id="autoStatCurrentMode"></span><span id="autoStatWaiting"></span></div>
           </section>
         </div>
 
@@ -4673,8 +4660,8 @@
     }catch{}
   })();
 </script>
-<script src="reference-view.js?v=20260925-customer-pagination-2"></script>
-<script src="reference-crm.js?v=20260926-performance-1"></script>
+<script src="reference-view.js?v=20260926-distribution-recipient-stats-1"></script>
+<script src="reference-crm.js?v=20260926-distribution-recipient-stats-1"></script>
 <script src="support-chat-widget.js?v=20260926-livechat-performance-2"></script>
 <script>
   (() => {
