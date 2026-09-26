@@ -53,6 +53,7 @@
     pager.querySelector('[data-data-page-next]').onclick=()=>{if(dataQueuePage<pages){dataQueuePage++;renderDataQueuePagination(table,total);}};
   }
   const restrictedAdminTabs=new Set(['websites','products','audit','settings','accounting']);
+  const sharedOrganizationTabs=new Set(['feedback','processes']);
   let roleVisibilityObserver=null;
   function installCustomerJourney(){
     const tab=q('#tab-customers');
@@ -225,12 +226,44 @@
   }
   // Modal dùng đúng thành phần và màu sắc của giao diện tham chiếu.
   function editor(title, body, onSave) {
-    q('#referenceEditor')?.remove();const modal=document.createElement('div');modal.id='referenceEditor';modal.className='modal-overlay open';
-    modal.innerHTML=`<form class="modal-card" role="dialog" aria-modal="true" aria-labelledby="refEditorTitle" style="width:min(680px,calc(100vw - 24px));max-height:92dvh;overflow:auto"><div class="modal-header"><h3 id="refEditorTitle">${esc(title)}</h3><button type="button" class="modal-close-btn" data-editor-close aria-label="Đóng">×</button></div><div class="modal-body">${body}<p data-editor-error role="alert" style="color:#dc2626"></p></div><div class="modal-footer"><button type="button" class="btn-action btn-secondary" data-editor-close>Đóng</button>${onSave?'<button class="btn-action btn-primary" type="submit">Lưu</button>':''}</div></form>`;
+    q('#referenceEditor')?.remove();const modal=document.createElement('div');modal.id='referenceEditor';modal.className='modal-overlay open';ensureReferenceEditorStyles();
+    modal.innerHTML=`<form class="modal-card reference-editor-card" role="dialog" aria-modal="true" aria-labelledby="refEditorTitle"><div class="modal-header"><h3 id="refEditorTitle">${esc(title)}</h3><button type="button" class="modal-close-btn" data-editor-close aria-label="Đóng">×</button></div><div class="modal-body reference-editor-body">${body}<p data-editor-error role="alert"></p></div><div class="modal-footer"><button type="button" class="btn-action btn-secondary" data-editor-close>Đóng</button>${onSave?'<button class="btn-action btn-primary" type="submit">Lưu</button>':''}</div></form>`;
     document.body.appendChild(modal);modal.querySelectorAll('[data-editor-close]').forEach(n=>n.onclick=()=>{if(!working){modal.remove();refresh(true);}});
     modal.querySelector('form').onsubmit=async e=>{e.preventDefault();if(!onSave||working)return;working=true;const controls=Array.from(e.currentTarget.elements),disabled=controls.map(n=>n.disabled);modal.querySelector('[data-editor-error]').textContent='';
       try{const operation=onSave();controls.forEach(n=>n.disabled=true);await operation;modal.remove();refresh(true);}catch(error){modal.querySelector('[data-editor-error]').textContent=error.message;}finally{working=false;controls.forEach((n,i)=>n.disabled=disabled[i]);}
     };return modal;
+  }
+  function ensureReferenceEditorStyles(){
+    if(q('#referenceEditorStyles'))return;
+    const style=document.createElement('style');style.id='referenceEditorStyles';style.textContent=`
+      .reference-editor-card{width:min(720px,calc(100vw - 28px))!important;max-height:min(720px,92dvh)!important;border:1px solid #dbe3ec;border-radius:14px!important;background:#fff;box-shadow:0 24px 70px rgba(15,23,42,.24)!important}
+      .reference-editor-card .modal-header{padding:17px 22px!important;background:#f8fafc;border-bottom:1px solid #e2e8f0!important}
+      .reference-editor-card .modal-header h3{font-size:16px!important;letter-spacing:0!important;color:#0f172a}
+      .reference-editor-card .modal-close-btn{width:30px;height:30px;border-radius:7px;color:#64748b!important}
+      .reference-editor-card .modal-close-btn:hover{background:#e2e8f0;color:#0f172a!important}
+      .reference-editor-body{display:block!important;padding:22px!important;background:#fff;overflow-y:auto!important}
+      .reference-editor-body>[data-editor-error]{min-height:18px;margin:12px 0 0;font-size:12px;font-weight:700;color:#dc2626}
+      .crm-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+      .crm-field{display:grid;gap:7px;min-width:0;margin:0!important}
+      .crm-field>span{display:flex;align-items:center;gap:5px;color:#334155;font-size:12px;font-weight:800;line-height:1.35}
+      .crm-field>span em{color:#dc2626;font-style:normal}
+      .crm-field>span small{margin-left:auto;color:#94a3b8;font-size:10px;font-weight:600}
+      .crm-field input:not([type=file]),.crm-field select,.crm-field textarea{width:100%;box-sizing:border-box;min-height:40px;padding:9px 11px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:#0f172a;font:500 13px Arial,sans-serif;outline:none;transition:border-color .15s,box-shadow .15s}
+      .crm-field textarea{min-height:118px;line-height:1.5;resize:vertical}
+      .crm-field input:not([type=file]):focus,.crm-field select:focus,.crm-field textarea:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+      .crm-field-full{grid-column:1/-1}
+      .crm-file-picker{display:flex;align-items:center;gap:9px;min-height:40px;min-width:0;padding:4px 8px;border:1px dashed #b8c5d6;border-radius:8px;background:#f8fafc}
+      .crm-file-picker input[type=file]{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;clip-path:inset(50%)}
+      .crm-file-button{display:inline-flex;align-items:center;justify-content:center;min-height:30px;padding:0 10px;border-radius:6px;background:#e8f0ff;color:#1d4ed8;font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap}
+      .crm-file-button:hover{background:#dbeafe}
+      .crm-file-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#64748b;font-size:11px}
+      .crm-image-preview{min-height:10px;margin-top:2px}
+      .crm-image-preview:empty{display:none}
+      .crm-image-preview img{display:block;max-width:100%;max-height:190px;border:1px solid #dbe3ec;border-radius:9px;background:#f8fafc;object-fit:contain}
+      .reference-editor-card .modal-footer{padding:13px 22px!important;border-top:1px solid #e2e8f0!important;background:#f8fafc}
+      .reference-editor-card .modal-footer .btn-action{min-height:38px;padding:0 16px;border-radius:8px;font-weight:800}
+      @media(max-width:600px){.reference-editor-card{width:min(100% - 20px,720px)!important}.reference-editor-body{padding:17px!important}.crm-form-grid{grid-template-columns:1fr;gap:13px}.crm-field-full{grid-column:auto}.crm-field>span small{margin-left:0}.reference-editor-card .modal-header{padding:15px 17px!important}.reference-editor-card .modal-footer{padding:11px 17px!important}}
+    `;document.head.appendChild(style);
   }
   const formField=(label,html)=>`<div class="form-group" style="margin-bottom:14px"><label for="${html.match(/id="([^"]+)"/)?.[1]||''}" style="display:block">${esc(label)}</label>${html}</div>`;
   const validColor=color=>/^#[a-f0-9]{6}$/i.test(color)?color:'#64748b';
@@ -2273,7 +2306,7 @@
     const view=id.replace(/^tab-/,'');
     const role=data.user.actualRole||data.user.role;
     const alias={data:role==='LEADER'?'pool':role==='SALE'?'accept':'distribution'};
-    return data.navigation.includes(alias[view]||view);
+    return sharedOrganizationTabs.has(view)||data.navigation.includes(alias[view]||view);
   };
   function paintTab(id,force=false){
     if(!data)return;
@@ -2349,7 +2382,7 @@
     const alias={data:data.user.role==='LEADER'?'pool':data.user.role==='SALE'?'accept':'distribution'};
     const role=data.user.actualRole||data.user.role,visible=new Set(data.navigation);
     const adminOnlyTabs=restrictedAdminTabs;
-    qa('.nav-link[data-tab]').forEach(button=>{const tab=button.dataset.tab.replace('tab-','');button.hidden=adminOnlyTabs.has(tab)?role!=='ADMIN':!visible.has(alias[tab]||tab);});
+    qa('.nav-link[data-tab]').forEach(button=>{const tab=button.dataset.tab.replace('tab-','');button.hidden=adminOnlyTabs.has(tab)?role!=='ADMIN':sharedOrganizationTabs.has(tab)?false:!visible.has(alias[tab]||tab);});
     // Sale khong dung muc Doi ngu, an khoi thanh dieu huong de giao dien gon hon.
     const saleAccount=(data.user.role==='SALE'||data.user.actualRole==='SALE');
     qa('.nav-link[data-tab="tab-team"],[data-view-link="team"]').forEach(node=>{node.hidden=saleAccount;node.style.setProperty('display',saleAccount?'none':'','important');});
@@ -2414,7 +2447,7 @@
   // Khi bat tu dong, mac dinh dung che do ty trong cho data moi.
   toggleAutoDist=enabled=>run(()=>api.distribution(enabled,enabled?'BALANCED':data.settings.assignmentMode));
   updateAssignmentMode=mode=>run(()=>api.distribution(data.leaderDistribution.enabled,mode));
-  switchTab=function(id){if(data){const view=id.replace('tab-',''),alias={data:data.user.role==='LEADER'?'pool':data.user.role==='SALE'?'accept':'distribution'},target=alias[view]||view;if(!data.navigation.includes(target)&&!data.navigation.includes(view))return;}rememberActiveTab(id);renders.switchTab(id);if(data){if(id==='tab-customers')clearAutofilledCustomerSearch();if(id==='tab-data'&&(data.user.actualRole||data.user.role)==='SALE'){const search=q('#dataQueueSearch');if(search)search.value='';}paintTab(id,id==='tab-data');if(id==='tab-audit'){renderUserLog();loadUserActivity();}reportUserActivity(id);wireParity();}};
+  switchTab=function(id){if(data){const view=id.replace('tab-',''),alias={data:data.user.role==='LEADER'?'pool':data.user.role==='SALE'?'accept':'distribution'},target=alias[view]||view;if(!sharedOrganizationTabs.has(view)&&!data.navigation.includes(target)&&!data.navigation.includes(view))return;}rememberActiveTab(id);renders.switchTab(id);if(data){if(id==='tab-customers')clearAutofilledCustomerSearch();if(id==='tab-data'&&(data.user.actualRole||data.user.role)==='SALE'){const search=q('#dataQueueSearch');if(search)search.value='';}paintTab(id,id==='tab-data');if(id==='tab-audit'){renderUserLog();loadUserActivity();}reportUserActivity(id);wireParity();}};
   qa('.nav-link[data-tab]').forEach(button=>button.addEventListener('click',()=>rememberActiveTab(button.dataset.tab),true));
   filterTeamPeriod=(period,button)=>{q('#teamStartDate').value=fromDay(parseInt(period)||30);q('#teamEndDate').value=data.today;if(button){qa('.team-period-btn').forEach(b=>b.className='btn-secondary team-period-btn');button.className='btn-primary team-period-btn';}updateTeamDateLabel();};
   updateTeamDateLabel=()=>text('teamDateRangeLabel',fmtDate(q('#teamStartDate').value)+' - '+fmtDate(q('#teamEndDate').value));
@@ -2900,12 +2933,12 @@
   const feedbackLabels={COURSE:'Feedback khách khóa học',SUPPORT:'Feedback hỗ trợ',GROUP_SIGNAL:'Feedback tín hiệu nhóm'};
   const feedbackCategoryLabel=category=>feedbackLabels[category]||'Feedback khác';
   function feedbackEditor(id){
-    const item=(data.feedbacks||[]).find(row=>row.id===id)||{},role=data.user.actualRole||data.user.role;
+    const item=(data.feedbacks||[]).find(row=>row.id===id)||{};
     let imageData=item.imageData||'';
-    const body='<div class="feedback-form-grid"><label class="form-field">Phân loại<select id="feedbackCategory"><option value="COURSE" '+(item.category==='COURSE'?'selected':'')+'>Feedback khách khóa học</option><option value="SUPPORT" '+(item.category==='SUPPORT'?'selected':'')+'>Feedback hỗ trợ</option><option value="GROUP_SIGNAL" '+(item.category==='GROUP_SIGNAL'?'selected':'')+'>Feedback tín hiệu nhóm</option></select></label><label class="form-field">Ảnh feedback<input id="feedbackImage" type="file" accept="image/png,image/jpeg,image/webp"><small style="display:block;margin-top:5px;color:var(--text-muted)">Có thể bỏ trống ảnh và chỉ ghi chú.</small></label></div><label class="form-field">Ghi chú / nội dung<textarea id="feedbackNote" rows="5" maxlength="2000" required placeholder="Ghi lại nội dung feedback..."></textarea></label><div id="feedbackImagePreview" style="min-height:12px"></div>';
+    const body='<div class="crm-form-grid"><label class="crm-field"><span>Phân loại <em>*</em></span><select id="feedbackCategory"><option value="COURSE" '+(item.category==='COURSE'?'selected':'')+'>Feedback khách khóa học</option><option value="SUPPORT" '+(item.category==='SUPPORT'?'selected':'')+'>Feedback hỗ trợ</option><option value="GROUP_SIGNAL" '+(item.category==='GROUP_SIGNAL'?'selected':'')+'>Feedback tín hiệu nhóm</option></select></label><div class="crm-field"><span>Ảnh feedback <small>PNG, JPG, WEBP · tối đa 2 MB</small></span><div class="crm-file-picker"><input id="feedbackImage" type="file" accept="image/png,image/jpeg,image/webp"><label class="crm-file-button" for="feedbackImage">Chọn ảnh</label><span class="crm-file-name" id="feedbackImageName">'+(item.imageData?'Đã có ảnh':'Chưa chọn tệp')+'</span></div></div><label class="crm-field crm-field-full"><span>Ghi chú / nội dung <em>*</em></span><textarea id="feedbackNote" rows="5" maxlength="2000" required placeholder="Ghi lại nội dung feedback..."></textarea></label><div id="feedbackImagePreview" class="crm-image-preview crm-field-full"></div></div>';
     editor(id?'Cập nhật feedback':'Thêm feedback',body,async()=>{const image=await readReferenceImage(q('#feedbackImage')?.files?.[0]);return api.saveFeedback(id,{category:q('#feedbackCategory').value,note:q('#feedbackNote').value,imageData:image||imageData});});
     q('#feedbackNote').value=item.note||'';
-    const preview=()=>{const value=q('#feedbackImage')?.files?.[0];if(value){readReferenceImage(value).then(image=>{imageData=image;q('#feedbackImagePreview').innerHTML=image?'<img src="'+esc(image)+'" alt="" style="max-width:180px;max-height:120px;border-radius:8px;border:1px solid var(--border);object-fit:cover">':'';}).catch(error=>{q('#feedbackImagePreview').textContent=error.message;});}else q('#feedbackImagePreview').innerHTML=item.imageData?'<img src="'+esc(item.imageData)+'" alt="" style="max-width:180px;max-height:120px;border-radius:8px;border:1px solid var(--border);object-fit:cover">':'';};
+    const preview=()=>{const input=q('#feedbackImage'),value=input?.files?.[0],name=q('#feedbackImageName');if(name)name.textContent=value?.name|| (item.imageData?'Đã có ảnh':'Chưa chọn tệp');if(value){readReferenceImage(value).then(image=>{imageData=image;q('#feedbackImagePreview').innerHTML=image?'<img src="'+esc(image)+'" alt="Xem trước ảnh feedback">':'';}).catch(error=>{q('#feedbackImagePreview').textContent=error.message;});}else q('#feedbackImagePreview').innerHTML=item.imageData?'<img src="'+esc(item.imageData)+'" alt="Ảnh feedback hiện tại">':'';};
     q('#feedbackImage').onchange=preview;preview();
   }
   function renderFeedbackView(){
@@ -2922,9 +2955,9 @@
   }
   function processEditor(id){
     const item=(data.processes||[]).find(row=>row.id===id)||{};let imageData=item.imageData||'';
-    const body='<label class="form-field">Tiêu đề<input id="processTitle" maxlength="200" required value="'+esc(item.title||'')+'"></label><label class="form-field">Mô tả ngắn<input id="processSummary" maxlength="500" value="'+esc(item.summary||'')+'"></label><label class="form-field">Nội dung chi tiết<textarea id="processContent" rows="10" maxlength="20000" required>'+esc(item.content||'')+'</textarea></label><label class="form-field">Link tham khảo<input id="processLink" type="url" maxlength="500" value="'+esc(item.link||'')+'"></label><label class="form-field">Ảnh tiêu đề / minh họa<input id="processImage" type="file" accept="image/png,image/jpeg,image/webp"></label><div id="processImagePreview"></div>';
+    const body='<div class="crm-form-grid"><label class="crm-field"><span>Tiêu đề <em>*</em></span><input id="processTitle" maxlength="200" required value="'+esc(item.title||'')+'" placeholder="Ví dụ: Quy trình tiếp nhận data mới"></label><label class="crm-field"><span>Mô tả ngắn</span><input id="processSummary" maxlength="500" value="'+esc(item.summary||'')+'" placeholder="Tóm tắt nội dung quy trình"></label><label class="crm-field crm-field-full"><span>Nội dung chi tiết <em>*</em></span><textarea id="processContent" rows="8" maxlength="20000" required placeholder="Mô tả từng bước thực hiện...">'+esc(item.content||'')+'</textarea></label><label class="crm-field crm-field-full"><span>Link tham khảo</span><input id="processLink" type="url" maxlength="500" value="'+esc(item.link||'')+'" placeholder="https://..."></label><div class="crm-field crm-field-full"><span>Ảnh tiêu đề / minh họa <small>PNG, JPG, WEBP · tối đa 2 MB</small></span><div class="crm-file-picker"><input id="processImage" type="file" accept="image/png,image/jpeg,image/webp"><label class="crm-file-button" for="processImage">Chọn ảnh</label><span class="crm-file-name" id="processImageName">'+(item.imageData?'Đã có ảnh':'Chưa chọn tệp')+'</span></div></div><div id="processImagePreview" class="crm-image-preview crm-field-full"></div></div>';
     editor(id?'Cập nhật quy trình':'Tạo quy trình',body,async()=>{const image=await readReferenceImage(q('#processImage')?.files?.[0]);return api.saveProcess(id,{title:q('#processTitle').value,summary:q('#processSummary').value,content:q('#processContent').value,link:q('#processLink').value,imageData:image||imageData});});
-    const preview=()=>{const file=q('#processImage')?.files?.[0];if(file)readReferenceImage(file).then(image=>{imageData=image;q('#processImagePreview').innerHTML=image?'<img src="'+esc(image)+'" alt="" style="max-width:220px;max-height:130px;border-radius:8px;margin-top:8px">':'';});else q('#processImagePreview').innerHTML=item.imageData?'<img src="'+esc(item.imageData)+'" alt="" style="max-width:220px;max-height:130px;border-radius:8px;margin-top:8px">':'';};q('#processImage').onchange=preview;preview();
+    const preview=()=>{const input=q('#processImage'),file=input?.files?.[0],name=q('#processImageName');if(name)name.textContent=file?.name||(item.imageData?'Đã có ảnh':'Chưa chọn tệp');if(file)readReferenceImage(file).then(image=>{imageData=image;q('#processImagePreview').innerHTML=image?'<img src="'+esc(image)+'" alt="Xem trước ảnh quy trình">':'';}).catch(error=>{q('#processImagePreview').textContent=error.message;});else q('#processImagePreview').innerHTML=item.imageData?'<img src="'+esc(item.imageData)+'" alt="Ảnh quy trình hiện tại">':'';};q('#processImage').onchange=preview;preview();
   }
   function processDetail(item){editor(item.title,'<div style="display:grid;gap:14px">'+(item.imageData?'<img src="'+esc(item.imageData)+'" alt="" style="width:100%;max-height:300px;object-fit:cover;border-radius:10px">':'')+'<p style="white-space:pre-wrap;line-height:1.65;margin:0">'+esc(item.content||'')+'</p>'+(item.link?'<a href="'+esc(item.link)+'" target="_blank" rel="noopener noreferrer">Mở link tham khảo</a>':'')+'</div>');}
   function renderProcessesView(){
