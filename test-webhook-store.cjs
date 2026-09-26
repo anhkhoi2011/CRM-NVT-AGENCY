@@ -73,6 +73,19 @@ test('Webhook maps website, campaign and source URL into MySQL customer', async 
   assert.equal(payload.__crmMeta.landingPageUrl, 'https://www.hoangphucacademy.vn/');
   assert.equal(payload.__crmMeta.landingPageDomain, 'www.hoangphucacademy.vn');
 });
+test('Webhook source follows the configured webhook slug instead of a default website', async () => {
+  const f = fixture(false, [
+    { id: 'WEB-A', name: 'Academy A', domain: 'academy-a.example', sourceUrl: 'https://academy-a.example/form', campaignId: 'A', webhookSlug: 'DS-A' },
+    { id: 'WEB-B', name: 'Academy B', domain: 'academy-b.example', sourceUrl: 'https://academy-b.example/form', campaignId: 'B', webhookSlug: 'DS-B' }
+  ]);
+  const first = await f.persistWebhook({ ...record, id: 'WHE-A', dedupeKey: 'dedupe-a', slug: 'DS-A', customer: { ...record.customer, phone: '0911111111' } });
+  const second = await f.persistWebhook({ ...record, id: 'WHE-B', dedupeKey: 'dedupe-b', slug: 'DS-B', customer: { ...record.customer, phone: '0922222222' } });
+  assert.equal(first.source.landingPageUrl, 'https://academy-a.example/form');
+  assert.equal(first.source.sourceUrl, 'https://academy-a.example/form');
+  assert.equal(second.source.landingPageUrl, 'https://academy-b.example/form');
+  assert.equal(second.source.sourceUrl, 'https://academy-b.example/form');
+  assert.notEqual(first.source.sourceUrl, second.source.sourceUrl);
+});
 test('Webhook stores the customer reference amount without changing the customer schema', async () => {
   const f = fixture();
   const result = await f.persistWebhook({ ...record, raw: { 'Số tiền khách tham khảo gần đây': '1.500.000 đ' } });

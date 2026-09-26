@@ -643,7 +643,11 @@ async function notifyWebhookLeadAdmins(customer, receivedAt, deliveredChatIds = 
       : [...new Set(linkedAdminChatIds)];
     const delivered=new Set(deliveredChatIds.map(String));
     if (!chatIds.length) return { sent: 0, skipped: true, reason: 'missing-admin-chat-id', deliveredChatIds: [...delivered] };
-    const sourceUrl = String(source?.sourceUrl || customer?.landingPageUrl || customer?.sourceUrl || '').trim();
+    // Webhook snapshots use landingPageUrl; sourceUrl remains supported for older records.
+    const sourceUrl = String(
+      source?.landingPageUrl || source?.sourceUrl || source?.url ||
+      customer?.landingPageUrl || customer?.sourceUrl || ''
+    ).trim();
     const text = '<b>DATA MỚI TỪ WEBHOOK</b>\n\n' +
       '• <b>Họ tên:</b> ' + escapeHtml(customer.name || 'Chưa có') + '\n' +
       '• <b>SĐT:</b> <code>' + escapeHtml(customer.phone || 'Chưa có') + '</code>\n' +

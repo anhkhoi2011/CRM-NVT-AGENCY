@@ -135,7 +135,7 @@ async function persistWebhook(record) {
     // Cung khoa voi API CRM de phan cong va con tro ty trong luon nhat quan.
     await connection.query('SELECT id FROM crm_write_lock WHERE id=1 FOR UPDATE');
     const website = await sourceBySlug(connection, record.slug);
-    const sourceSnapshot = website ? { websiteId: website.id, landingPageName: website.name, landingPageUrl: website.sourceUrl, landingPageDomain: website.domain, campaign: website.campaign } : null;
+    const sourceSnapshot = website ? { websiteId: website.id, landingPageName: website.name, landingPageUrl: website.sourceUrl, sourceUrl: website.sourceUrl, landingPageDomain: website.domain, campaign: website.campaign } : null;
     const storedRecord = sourceSnapshot ? { ...record, source: sourceSnapshot } : record;
     await connection.execute('INSERT INTO webhook_events (id, dedupe_key, payload_json) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE id = id', [record.id, record.dedupeKey, JSON.stringify(storedRecord)]);
     const [rows] = await connection.execute('SELECT id FROM webhook_events WHERE dedupe_key = ?', [record.dedupeKey]);
