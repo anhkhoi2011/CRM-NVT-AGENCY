@@ -396,7 +396,8 @@ async function handleDbApi(request, response, pathname) {
   if (DEMO_MODE) return handleDemoApi(request,response,pathname);
   if (!dbConfigured) return dbJson(request,response,503,{error:'MySQL chưa được cấu hình. Không thể lưu dữ liệu.'});
   try {
-    if (!await systemAccountsReady) return dbJson(request,response,503,{error:'Khởi tạo tài khoản hệ thống chưa hoàn tất. Kiểm tra schema và quyền MySQL trong log Node.'});
+    const canRunBeforeSystemReady = pathname === '/api/db/health' || pathname === '/api/auth/login' || pathname === '/api/auth/register';
+    if (!canRunBeforeSystemReady && !await systemAccountsReady) return dbJson(request,response,503,{error:'Khởi tạo tài khoản hệ thống chưa hoàn tất. Kiểm tra schema và quyền MySQL trong log Node.'});
     if (pathname === '/api/db/health') return dbJson(request,response,200,await dbHealth());
     if (pathname === '/api/auth/register' && request.method === 'POST') {
       const body = await readDbBody(request);

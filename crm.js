@@ -1610,7 +1610,11 @@ async function syncServerState() {
   if(serverStateLoaded&&($('#modalRoot')?.children.length||$('#drawerRoot')?.children.length||['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)))return false;
   serverReading=true;const version=serverMutationVersion,token=serverSyncToken;
   try{
-    const response=await fetch(`${webhookApiBase()}/api/state?passive=1`,{headers:{Authorization:`Bearer ${token}`},cache:'no-store'});
+    const controller=typeof AbortController==='function'?new AbortController():null;
+    const timeout=controller?setTimeout(()=>controller.abort(),WEBHOOK_FETCH_TIMEOUT_MS):null;
+    let response;
+    try{response=await fetch(webhookApiBase()+'/api/state?passive=1',{headers:{Authorization:'Bearer '+token},cache:'no-store',signal:controller?controller.signal:undefined});}
+    finally{if(timeout)clearTimeout(timeout);}
     const payload=await response.json();if(!response.ok)throw new Error(payload.error||'Không tải được dữ liệu');
     if(version!==serverMutationVersion||token!==serverSyncToken||(serverStateLoaded&&hasServerChanges()))return false;
     const before=stableJson(state);applyServerSnapshot(payload);
@@ -5923,7 +5927,12 @@ function bindGlobalActions() {
     if (submitButton) { submitButton.disabled = true; submitButton.setAttribute('aria-busy', 'true'); submitButton.innerHTML = '<span class="login-spinner" aria-hidden="true"></span>Đang đăng nhập...'; }
     if (base) {
       try {
-        const response = await fetch(`${base}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ identifier: /^\d{9,15}$/.test(phone) ? phone : email, password }) });
+        const controller = typeof AbortController === 'function' ? new AbortController() : null;
+        const timer = controller ? setTimeout(() => controller.abort(), WEBHOOK_FETCH_TIMEOUT_MS) : null;
+        let response;
+        try {
+          response = await fetch(base + '/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ identifier: /^\d{9,15}$/.test(phone) ? phone : email, password }), signal: controller ? controller.signal : undefined });
+        } finally { if (timer) clearTimeout(timer); }
         const payload = await response.json().catch(() => ({}));
         if (response.ok && payload.user) {
           await startSession(payload.user, false, payload.token);
