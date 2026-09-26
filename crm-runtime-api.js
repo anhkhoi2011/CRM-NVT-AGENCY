@@ -331,6 +331,50 @@
         state.careGroups=(state.careGroups||[]).filter(g=>g.id!==group.id).concat(group);return {id:group.id};
       },'care:'+ (id||'new'));
     },
+    async saveFeedback(id,input) {
+      requireRole(['ADMIN','MANAGER','LEADER','SALE','MARKETING','ACCOUNTING']);
+      return persist(()=>{
+        const existing=(state.feedbacks||[]).find(item=>item.id===id);
+        if(id&&!existing)throw Error('Feedback không còn tồn tại.');
+        if(existing&&permissionRole()!=='ADMIN'&&existing.authorId!==currentAccount.id)throw Error('Bạn chỉ được sửa feedback do mình tạo.');
+        const category=['COURSE','SUPPORT','GROUP_SIGNAL'].includes(String(input.category||''))?String(input.category):'';
+        const note=String(input.note||'').trim();
+        const imageData=String(input.imageData||'');
+        if(!category||note.length>2000)throw Error('Chọn loại feedback và nhập ghi chú hợp lệ.');
+        if(imageData&&(!/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(imageData)||imageData.length>2_800_000))throw Error('Ảnh feedback không hợp lệ hoặc quá lớn.');
+        const item=existing||{id:makeRecordId('FDB'),authorId:currentAccount.id,authorName:currentAccount.name};
+        Object.assign(item,{category,note,imageData,authorId:item.authorId||currentAccount.id,authorName:item.authorName||currentAccount.name,createdAt:existing?.createdAt||stamp(),updatedAt:stamp()});
+        if(existing){const index=state.feedbacks.findIndex(row=>row.id===id);state.feedbacks[index]=item;}else state.feedbacks.unshift(item);
+        audit(existing?'UPDATE_FEEDBACK':'CREATE_FEEDBACK',item.id,item.category);return {id:item.id};
+      },'feedback:'+(id||'new'));
+    },
+    async removeFeedback(id) {
+      requireRole(['ADMIN','MANAGER','LEADER','SALE','MARKETING','ACCOUNTING']);
+      return persist(()=>{
+        const item=(state.feedbacks||[]).find(row=>row.id===id);
+        if(!item)throw Error('Feedback không còn tồn tại.');
+        if(permissionRole()!=='ADMIN'&&item.authorId!==currentAccount.id)throw Error('Bạn chỉ được xóa feedback do mình tạo.');
+        state.feedbacks=state.feedbacks.filter(row=>row.id!==id);audit('DELETE_FEEDBACK',id,item.category);return {ok:true};
+      },'remove-feedback:'+id);
+    },
+    async saveProcess(id,input) {
+      requireRole(['ADMIN']);
+      return persist(()=>{
+        const existing=(state.processes||[]).find(item=>item.id===id);
+        if(id&&!existing)throw Error('Quy trình không còn tồn tại.');
+        const title=String(input.title||'').trim(),summary=String(input.summary||'').trim(),content=String(input.content||'').trim(),link=String(input.link||'').trim(),imageData=String(input.imageData||'');
+        if(!title||title.length>200||summary.length>500||!content||content.length>20000)throw Error('Kiểm tra tiêu đề, mô tả và nội dung quy trình.');
+        if(link&&!/^https?:\/\/[^\s]+$/i.test(link))throw Error('Link quy trình phải bắt đầu bằng http:// hoặc https://.');
+        if(imageData&&(!/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(imageData)||imageData.length>2_800_000))throw Error('Ảnh quy trình không hợp lệ hoặc quá lớn.');
+        const item=existing||{id:makeRecordId('PROC'),createdAt:stamp()};Object.assign(item,{title,summary,content,link,imageData,updatedAt:stamp(),authorId:currentAccount.id});
+        if(existing){const index=state.processes.findIndex(row=>row.id===id);state.processes[index]=item;}else state.processes.unshift(item);
+        audit(existing?'UPDATE_PROCESS':'CREATE_PROCESS',item.id,title);return {id:item.id};
+      },'process:'+(id||'new'));
+    },
+    async removeProcess(id) {
+      requireRole(['ADMIN']);
+      return persist(()=>{const item=(state.processes||[]).find(row=>row.id===id);if(!item)throw Error('Quy trình không còn tồn tại.');state.processes=state.processes.filter(row=>row.id!==id);audit('DELETE_PROCESS',id,item.title);return {ok:true};},'remove-process:'+id);
+    },
     async reorderCare(orderIds) {
       requireRole(['ADMIN']);return persist(()=>{
         const groups=[...(state.careGroups||[])], ids=Array.isArray(orderIds)?orderIds.map(String):[];

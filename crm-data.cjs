@@ -3,9 +3,9 @@
 const crypto = require('node:crypto');
 const distributionRounds = require('./distribution-rounds.js');
 const { pool } = require('./db.js');
-const LISTS = ['customers','orders','products','members','registrations','customFieldDefinitions','customerFieldHistory','assignmentHistory','resubmissions','notes','imports','attendance','dataOffers','traffic','tasks','notifications','audit','websites','integrations','webhookPending','brokerageMetrics'];
+const LISTS = ['customers','orders','products','members','registrations','customFieldDefinitions','customerFieldHistory','assignmentHistory','resubmissions','notes','imports','attendance','dataOffers','traffic','tasks','notifications','audit','websites','integrations','webhookPending','brokerageMetrics','feedbacks','processes'];
 const OBJECTS = ['settings','leaderDistribution','saleDistributionByLeader','productCategories','careGroups'];
-const ADMIN_ONLY = new Set(['products','members','registrations','customFieldDefinitions','imports','traffic','websites','integrations','webhookPending','productCategories','leaderDistribution','careGroups']);
+const ADMIN_ONLY = new Set(['products','members','registrations','customFieldDefinitions','imports','traffic','websites','integrations','webhookPending','productCategories','leaderDistribution','careGroups','processes']);
 const SCHEMA = [
  `CREATE TABLE IF NOT EXISTS crm_documents (collection VARCHAR(64) NOT NULL, id VARCHAR(96) NOT NULL, body JSON NOT NULL, deleted TINYINT NOT NULL DEFAULT 0, PRIMARY KEY(collection,id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
  `CREATE TABLE IF NOT EXISTS crm_changes (id BIGINT AUTO_INCREMENT PRIMARY KEY, request_id VARCHAR(96) NOT NULL, actor_id VARCHAR(96) NOT NULL, changes_json JSON NOT NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE KEY(request_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
@@ -240,6 +240,7 @@ function authorizeManager(user,key,old,next,data){
 function customerScope(user,r){return !!r&&(user.role==='ADMIN'||(user.role==='SALE'&&r.saleId===user.id)||(user.role==='LEADER'&&((!!user.teamId&&r.teamId===user.teamId)||r.leaderId===user.id)));}
 function pendingOffer(data,user,id){return [...data.dataOffers.values()].find(o=>o.customerId===id&&o.saleId===user.id&&o.status==='PENDING'&&Date.parse(String(o.offeredAt).replace(' ','T')+'+07:00')+24*3600000>Date.now());}
 function readable(user,key,r,data){
+ if(key==='feedbacks'||key==='processes')return true;
  if(user.role==='MANAGER')return managerReadable(user,key,r,data);
  if(user.role==='ADMIN')return true;
  if(user.role==='MARKETING')return ['customers','orders','products','customFieldDefinitions','productCategories','websites','traffic','careGroups'].includes(key) || (key==='notifications'&&(r.role==='ALL'||r.role==='MARKETING'||r.saleId===user.id));
@@ -307,6 +308,13 @@ function orderLockedForStaff(order){
  return Number.isFinite(created)&&Date.now()-created>=3*24*60*60*1000;
 }
 function authorize(user,key,old,next,data){
+ if(key==='feedbacks'){
+  if(user.role==='ADMIN')return;
+  if(next&&next.authorId===user.id&&(!old||old.authorId===user.id))return;
+  if(!next&&old?.authorId===user.id)return;
+  error(403,'Chỉ được sửa hoặc xóa feedback do chính mình tạo');
+ }
+ if(key==='processes'&&user.role!=='ADMIN')error(403,'Chỉ Admin được quản lý Quy Trình');
  if(user.role==='MANAGER')return authorizeManager(user,key,old,next,data);
  if(user.role==='ADMIN')return;
  if(key==='members'&&old?.id===user.id&&next&&next.id===user.id&&sameExcept(old,next,['name','accountId','email','phone','initials','avatar']))return;
@@ -370,6 +378,19 @@ function validate(key,value,id){
  if(key==='customers'&&(!value.phone||value.phone.length>30))error(400,'Số điện thoại không hợp lệ');
  if(key==='products'&&(!Number.isFinite(value.price)||value.price<0||!['SALE','RENTAL'].includes(value.type)))error(400,'Sản phẩm không hợp lệ');
  if(key==='products'&&Object.hasOwn(value,'imageData')&&(typeof value.imageData!=='string'||(value.imageData!==''&&(!/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(value.imageData)||value.imageData.length>2_800_000))))error(400,'\u1ea2nh s\u1ea3n ph\u1ea9m kh\u00f4ng h\u1ee3p l\u1ec7 ho\u1eb7c qu\u00e1 l\u1edbn');
+ if(key==='feedbacks'&&(Object.hasOwn(value,'category')||Object.hasOwn(value,'note')||Object.hasOwn(value,'imageData')||Object.hasOwn(value,'authorId'))){
+  if(!['COURSE','SUPPORT','GROUP_SIGNAL'].includes(String(value.category||'')))error(400,'Lo\u1ea1i feedback kh\u00f4ng h\u1ee3p l\u1ec7');
+  if(typeof value.note!=='string'||value.note.trim().length>2000)error(400,'Ghi ch\u00fa feedback kh\u00f4ng h\u1ee3p l\u1ec7');
+  if(typeof value.imageData!=='string'||(value.imageData!==''&&(!/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(value.imageData)||value.imageData.length>2_800_000)))error(400,'\u1ea2nh feedback kh\u00f4ng h\u1ee3p l\u1ec7 ho\u1eb7c qu\u00e1 l\u1edbn');
+  if(typeof value.createdAt!=='string'||!/^\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}(?::\d{2})?)?$/.test(value.createdAt))error(400,'Ng\u00e0y feedback kh\u00f4ng h\u1ee3p l\u1ec7');
+ }
+ if(key==='processes'&&(Object.hasOwn(value,'title')||Object.hasOwn(value,'summary')||Object.hasOwn(value,'content')||Object.hasOwn(value,'link')||Object.hasOwn(value,'imageData'))){
+  if(typeof value.title!=='string'||!value.title.trim()||value.title.length>200)error(400,'Ti\u00eau \u0111\u1ec1 quy tr\u00ecnh kh\u00f4ng h\u1ee3p l\u1ec7');
+  if(typeof value.summary!=='string'||value.summary.length>500)error(400,'M\u00f4 t\u1ea3 ng\u1eafn quy tr\u00ecnh kh\u00f4ng h\u1ee3p l\u1ec7');
+  if(typeof value.content!=='string'||!value.content.trim()||value.content.length>20000)error(400,'N\u1ed9i dung quy tr\u00ecnh kh\u00f4ng h\u1ee3p l\u1ec7');
+  if(typeof value.link!=='string'||value.link.length>500||value.link&&!/^https?:\/\/[^\s]+$/i.test(value.link))error(400,'Link quy tr\u00ecnh kh\u00f4ng h\u1ee3p l\u1ec7');
+  if(typeof value.imageData!=='string'||(value.imageData!==''&&(!/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(value.imageData)||value.imageData.length>2_800_000)))error(400,'\u1ea2nh quy tr\u00ecnh kh\u00f4ng h\u1ee3p l\u1ec7 ho\u1eb7c qu\u00e1 l\u1edbn');
+ }
  if(key==='brokerageMetrics'){
   if(!/^[0-9]{4}-[0-9]{2}$/.test(String(value.period||'')))error(400,'Kỳ báo cáo lot không hợp lệ');
   if(!value.memberId||!value.leaderId||!value.teamId)error(400,'Thiếu nhân sự hoặc Team cho báo cáo lot');
