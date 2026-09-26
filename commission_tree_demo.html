@@ -3,7 +3,7 @@
 <head>
  <meta charset="UTF-8">
  <meta name="viewport" content="width=device-width, initial-scale=1.0">
- <title>NVT AGENCY - CÂY MÔI GIỚI HOA HỒNG APEX (MANAGER 80K • LEADER 60K • SALE 50K)</title>
+ <title>NVT AGENCY - HỆ THỐNG QUẢN LÝ MÔI GIỚI APEX</title>
  
  <!-- Fonts Google -->
  <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -370,48 +370,165 @@
  border-radius: 12px;
  font-weight: 800;
  }
- .mindmap-controls {
- display: flex;
- align-items: center;
- gap: 8px;
- }
- .tool-btn {
- background: #ffffff;
- border: 1px solid var(--border);
- color: #334155;
- padding: 6px 12px;
- border-radius: 7px;
- font-size: 12px;
- font-weight: 700;
- cursor: pointer;
- display: inline-flex;
- align-items: center;
- gap: 6px;
- transition: all 0.15s ease;
- }
- .tool-btn:hover {
- background: #f1f5f9;
- border-color: #cbd5e1;
- }
- .tool-btn.primary {
- background: var(--accent);
- color: #ffffff;
- border-color: var(--accent);
- }
- .tool-btn.primary:hover {
- background: var(--accent-hover);
- }
- .mindmap-viewport {
- width: 100%;
- height: 640px;
- overflow: auto;
- cursor: grab;
- position: relative;
- background: radial-gradient(circle at 50% 50%, #111e38 0%, #0b1329 100%);
- }
- .mindmap-viewport:active {
- cursor: grabbing;
- }
+ /* MINDMAP CONTROLS & LUXURY SAAS ZOOM CONTROLS */
+  .mindmap-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  /* Segmented Zoom Pill */
+  .zoom-pill-group {
+    display: inline-flex;
+    align-items: center;
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 3px;
+    height: 36px;
+    box-sizing: border-box;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  }
+  .zoom-step-btn {
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: transparent;
+    color: #94a3b8;
+    font-size: 16px;
+    line-height: 1;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: all 0.15s ease;
+    user-select: none;
+  }
+  .zoom-step-btn:hover {
+    background: #334155;
+    color: #ffffff;
+  }
+  .zoom-step-btn:active {
+    background: #475569;
+    transform: scale(0.95);
+  }
+  .zoom-val-btn {
+    min-width: 56px;
+    height: 28px;
+    border: none;
+    border-left: 1px solid #334155;
+    border-right: 1px solid #334155;
+    background: transparent;
+    color: #38bdf8;
+    font-size: 12px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    cursor: pointer;
+    padding: 0 8px;
+    margin: 0 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    user-select: none;
+  }
+  .zoom-val-btn:hover {
+    background: #334155;
+    color: #7dd3fc;
+  }
+
+  /* Tool buttons inside Dark Mindmap Toolbar */
+  .mindmap-controls .tool-btn {
+    background: #1e293b;
+    border: 1px solid #334155;
+    color: #e2e8f0;
+    padding: 0 14px;
+    height: 36px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: all 0.15s ease;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    box-sizing: border-box;
+  }
+  .mindmap-controls .tool-btn:hover {
+    background: #334155;
+    border-color: #475569;
+    color: #ffffff;
+  }
+  .mindmap-controls .tool-btn.btn-brand {
+    background: #ea580c;
+    border-color: #ea580c;
+    color: #ffffff;
+    font-weight: 700;
+    box-shadow: 0 2px 8px rgba(234, 88, 12, 0.35);
+  }
+  .mindmap-controls .tool-btn.btn-brand:hover {
+    background: #f97316;
+    border-color: #f97316;
+  }
+
+  /* General tool buttons (outside mindmap) */
+  .tool-btn {
+    background: #ffffff;
+    border: 1px solid var(--border);
+    color: #334155;
+    padding: 6px 14px;
+    height: 34px;
+    border-radius: 7px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.15s ease;
+    box-sizing: border-box;
+  }
+  .tool-btn:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+  }
+  .tool-btn.primary {
+    background: var(--accent);
+    color: #ffffff;
+    border-color: var(--accent);
+  }
+  .tool-btn.primary:hover {
+    background: var(--accent-hover);
+  }
+
+  /* Viewport Canvas */
+  .mindmap-viewport {
+    width: 100%;
+    height: calc(100vh - 220px);
+    min-height: 580px;
+    max-height: 820px;
+    overflow: hidden;
+    cursor: grab;
+    position: relative;
+    background: radial-gradient(circle at 50% 50%, #111e38 0%, #0b1329 100%);
+    user-select: none;
+    touch-action: none;
+  }
+  .mindmap-viewport:active {
+    cursor: grabbing;
+  }
+  #mindmapSvg {
+    position: absolute;
+    left: 0;
+    top: 0;
+    transform-origin: 0 0;
+    will-change: transform;
+    pointer-events: auto;
+  }
 
  /* Node SVG Styles */
  .node-group {
@@ -918,37 +1035,29 @@
  <main class="main-viewport">
  
  <!-- Top Header -->
- <header class="top-header">
- <div class="header-breadcrumb">
- <span>Kinh Doanh</span>
- <span>/</span>
- <span>Cơ Cấu Môi Giới APEX</span>
- <span>/</span>
- <strong id="breadcrumbCurrent">Cơ Chế Bậc Thang (Manager 80k • Leader 60k • Sale 50k)</strong>
- </div>
+    <header class="top-header">
+      <div class="header-breadcrumb">
+        <span style="font-weight:700; color:#0f172a; font-size:13.5px; letter-spacing:0.3px;">HỆ THỐNG APEX</span>
+        <span style="color:#cbd5e1;">/</span>
+        <strong id="breadcrumbCurrent" style="font-weight:600; color:#475569; font-size:13px;">Cây Mindmap</strong>
+      </div>
 
- <!-- Mode switcher buttons -->
- <div class="view-mode-tabs">
- <button class="mode-tab-btn active" id="btnTabMindmap" onclick="switchView('tab-mindmap')">
- Cây Mindmap (Manager - Leader - Sale)
- </button>
- <button class="mode-tab-btn" id="btnTabReport" onclick="switchView('tab-report')">
- Báo Cáo Doanh Thu (23 Nhân Sự)
- </button>
- <button class="mode-tab-btn" id="btnTabAccounting" onclick="switchView('tab-accounting')">
- Kế Toán & Chi Phí (Admin Nhập)
- </button>
- <button class="mode-tab-btn" id="btnTabVatOrders" onclick="switchView('tab-vat-orders')">
- 🧾 Kiểm Tra Đơn & Xuất VAT
- </button>
- </div>
-
- <div class="header-actions" id="topHeaderActions">
-      <button class="tool-btn" onclick="openConfigModal()" title="Cấu hình hệ số quy đổi 1 MINI = 0.8, 1 Micro = 0.35, tỷ lệ % hoa hồng sản phẩm">
-        Biến Số Quy Đổi Lot
-      </button>
-    </div>
- </header>
+      <!-- Mode switcher buttons -->
+      <div class="view-mode-tabs">
+        <button class="mode-tab-btn active" id="btnTabMindmap" onclick="switchView('tab-mindmap')">
+          Cây Mindmap
+        </button>
+        <button class="mode-tab-btn" id="btnTabReport" onclick="switchView('tab-report')">
+          Báo Cáo Doanh Thu
+        </button>
+        <button class="mode-tab-btn" id="btnTabAccounting" onclick="switchView('tab-accounting')">
+          Kế Toán Chi Phí
+        </button>
+        <button class="mode-tab-btn" id="btnTabVatOrders" onclick="switchView('tab-vat-orders')">
+          Đơn Hàng & VAT
+        </button>
+      </div>
+    </header>
 
  <!-- ====================================================================
        3. BẢNG ĐIỀU KHIỂN THỐNG KÊ (KPI DASHBOARD) - CÂN ĐỐI 4 x 4 LOGIC & RÕ RÀNG
@@ -959,8 +1068,7 @@
     <div>
       <div class="kpi-section-header">
         <span style="display:flex; align-items:center; gap:6px;">
-          <span style="font-size:13px;">📊</span>
-          <span>1. SẢN LƯỢNG GIAO DỊCH LOT & HOA HỒNG CHI TRẢ (23 NHÂN SỰ)</span>
+          <span>1. SẢN LƯỢNG GIAO DỊCH & HOA HỒNG CHI TRẢ</span>
         </span>
         <span style="font-size:10.5px; color:#64748b; font-weight:600; text-transform:none;">
           Bao gồm: Lot cá nhân, Chênh lệch tuyến dưới, Hoa hồng sản phẩm & Thưởng
@@ -1001,8 +1109,7 @@
     <div id="kpiSecondaryStatsStrip" style="border-top:1px dashed #cbd5e1; padding-top:10px;">
       <div class="kpi-section-header">
         <span style="display:flex; align-items:center; gap:6px;">
-          <span style="font-size:13px;">🎓</span>
-          <span>2. DOANH THU DỊCH VỤ & SẢN PHẨM ĐÀO TẠO (DOANH SỐ CÔNG TY)</span>
+          <span>2. DOANH THU DỊCH VỤ & SẢN PHẨM ĐÀO TẠO</span>
         </span>
         <span style="font-size:10.5px; color:#64748b; font-weight:600; text-transform:none;">
           Cơ cấu chuẩn: Sale 15% • Leader 5% • Đào tạo 15% • Công ty 65%
@@ -1088,21 +1195,20 @@
       <div class="mindmap-box">
  <!-- Toolbar -->
  <div class="mindmap-toolbar">
- <div class="mindmap-title">
-          <span style="font-weight:900; letter-spacing:0.5px;">CÂY MÔI GIỚI APEX (23 NHÂN SỰ)</span>
-          <span style="font-size:11px; color:#94a3b8; font-weight:600; margin-left:8px; background:#1e293b; padding:3px 9px; border-radius:12px; border:1px solid #334155;">🖱️ Lăn chuột / 2 ngón tay để Zoom • Giữ chuột kéo để Di chuyển</span>
+        <div class="mindmap-title">
+          <span style="font-weight:700; font-size:13.5px; color:#f8fafc; letter-spacing:0.3px;">Sơ Đồ Phân Cấp Môi Giới</span>
+          <span style="font-size:11px; color:#94a3b8; font-weight:500; margin-left:8px;">(Lăn chuột hoặc kéo thả để điều hướng)</span>
         </div>
- <div class="mindmap-controls">
-          <button class="tool-btn" onclick="zoomMindmap(1.2)" title="Phóng to (hoặc lăn chuột lên / mở 2 ngón tay)">🔍 Phóng to</button>
-          <button class="tool-btn" onclick="zoomMindmap(1/1.2)" title="Thu nhỏ (hoặc lăn chuột xuống / chụm 2 ngón tay)">🔍 Thu nhỏ</button>
-          <button class="tool-btn" onclick="fitMindmapToViewport(true)" title="Tự động căn chỉnh để thấy trọn vẹn toàn bộ 23 nhân sự">📐 Thấy hết</button>
-          <button class="tool-btn" onclick="resetZoom(true)" title="Về kích thước gốc 100%">⟲ 100%</button>
-          <span id="mindmapZoomBadge" style="font-size:11.5px; font-weight:800; color:#38bdf8; background:#0f172a; padding:5px 9px; border-radius:6px; border:1px solid #1e293b; min-width:48px; text-align:center;">100%</span>
-          <button class="tool-btn" onclick="openConfigModal()" style="background:#ea580c; color:#ffffff; border:none; font-weight:800; box-shadow:0 2px 6px rgba(234,88,12,0.3); padding:6px 14px;" title="Tùy chỉnh hệ số quy đổi và định mức hoa hồng toàn hệ thống">
-            ⚙️ Biến số Lot & Định mức
-          </button>
+        <div class="mindmap-controls">
+          <div class="zoom-pill-group">
+            <button type="button" class="zoom-step-btn" onclick="zoomMindmap(1/1.2)" title="Thu nhỏ">−</button>
+            <button type="button" class="zoom-val-btn" id="mindmapZoomBadge" onclick="resetZoom(true)" title="Nhấp để về 100%">100%</button>
+            <button type="button" class="zoom-step-btn" onclick="zoomMindmap(1.2)" title="Phóng to">+</button>
+          </div>
+          <button type="button" class="tool-btn" onclick="fitMindmapToViewport(true)">Vừa màn hình</button>
+          <button type="button" class="tool-btn btn-brand" onclick="openConfigModal()">Biến số Lot & Định mức</button>
         </div>
- </div>
+      </div>
 
  <!-- Mindmap Interactive SVG Canvas -->
  <div class="mindmap-viewport" id="mindmapViewport">
@@ -1144,32 +1250,29 @@
  <span></span>
  <input type="text" id="reportSearchInput" placeholder="Tìm tên nhân sự, ID, vị trí..." oninput="handleSearch(this.value)">
  </div>
- <button class="tool-btn" onclick="openTrainingConfigModal()" style="background:#fffbeb; color:#b45309; border:1px solid #fde68a; font-weight:800;" title="Tinh chỉnh người đào tạo, chọn leader và cơ cấu hoa hồng 15% Sale - 5% Leader - 15% Đào tạo - 65% Công ty">
- 🎓 Cấu Hình Khóa Học & Đào Tạo
- </button>
- <button class="tool-btn" onclick="switchView('tab-accounting')" style="background:#fdf2f8; color:#be185d; border:1px solid #fbcfe8; font-weight:800;" title="Mở sổ Kế toán & Quản lý Chi phí do Admin nhập">
- 💰 Kế Toán & Chi Phí
- </button>
- <button class="tool-btn" onclick="openSendToPersonnelModal()" style="background:#f5f3ff; color:#7c3aed; border:1px solid #ddd6fe; font-weight:700;">
- ✉️ Gửi Đến Nhân Viên
- </button>
- <button class="tool-btn primary" onclick="exportToCSV()">
- 📊 Xuất Excel
- </button>
+ <button type="button" class="tool-btn" onclick="openTrainingConfigModal()" title="Cấu hình hoa hồng người đào tạo và leader">
+            Cấu hình Đào tạo
+          </button>
+          <button type="button" class="tool-btn" onclick="openSendToPersonnelModal()">
+            Gửi báo cáo
+          </button>
+          <button type="button" class="tool-btn primary" onclick="exportToCSV()">
+            Xuất Excel
+          </button>
  </div>
  </div>
 
  <!-- Role Filter Strip -->
  <div class="role-filter-strip">
- <span style="font-size:11.5px; font-weight:800; color:#64748b; text-transform:uppercase;">Lọc Vị Trí:</span>
- <button class="filter-btn active" onclick="filterByRole('ALL', this)">Tất cả (23)</button>
- <button class="filter-btn" id="filterBtnLv1" onclick="filterByRole('LV1', this)">MANAGER (2) • 80k/lot</button>
- <button class="filter-btn" id="filterBtnLv2" onclick="filterByRole('LV2', this)">LEADER (5) • 60k/lot</button>
- <button class="filter-btn" id="filterBtnLv3" onclick="filterByRole('LV3', this)">SALE (16) • 50k/lot</button>
- <span style="margin-left:auto; font-size:11.5px; color:#64748b;">
- <em>Khách Sale 1 lot: Sale 50k, Leader 10k, Manager 20k. Sale không có tuyến dưới hiển thị (—).</em>
- </span>
- </div>
+          <span style="font-size:11.5px; font-weight:700; color:#64748b;">Lọc Vị Trí:</span>
+          <button class="filter-btn active" onclick="filterByRole('ALL', this)">Tất cả (23)</button>
+          <button class="filter-btn" id="filterBtnLv1" onclick="filterByRole('LV1', this)">Manager (2)</button>
+          <button class="filter-btn" id="filterBtnLv2" onclick="filterByRole('LV2', this)">Leader (5)</button>
+          <button class="filter-btn" id="filterBtnLv3" onclick="filterByRole('LV3', this)">Sale (16)</button>
+          <span style="margin-left:auto; font-size:11.5px; color:#64748b;">
+            <em>Nhân sự không có tuyến dưới hiển thị (—)</em>
+          </span>
+        </div>
 
         <!-- Data Table -->
  <div class="table-responsive">
@@ -1270,10 +1373,10 @@
             </div>
 
             <button class="tool-btn" onclick="exportAccountingToCSV()" style="font-size:12px; font-weight:700;">
-              📊 Xuất Sổ Kế Toán & Chi Phí
+              Xuất Báo Cáo Chi Phí
             </button>
             <button class="tool-btn primary" onclick="openExpenseModal()" style="font-size:12px; font-weight:800; background:linear-gradient(135deg, #0284c7, #2563eb);">
-              ➕ Thêm Khoản Chi Phí
+              Thêm Chi Phí Mới
             </button>
           </div>
         </div>
@@ -1334,7 +1437,7 @@
               <option value="Khác">Chi Phí Khác</option>
             </select>
             <button class="tool-btn primary" onclick="openExpenseModal()" style="font-size:12px; font-weight:800;">
-              ➕ Nhập Chi Phí
+              Nhập Chi Phí
             </button>
           </div>
         </div>
@@ -1388,10 +1491,10 @@
           </div>
           <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
             <button class="tool-btn" onclick="exportVatOrdersToCSV()" style="font-size:12px; font-weight:700;">
-              📊 Xuất Danh Sách Đơn (CSV)
+              Xuất CSV
             </button>
             <button class="tool-btn primary" onclick="openCreateOrderModal()" style="font-size:12px; font-weight:800; background:linear-gradient(135deg, #7c3aed, #4f46e5); box-shadow:0 2px 8px rgba(124,58,237,0.3);">
-              ➕ Tạo Đơn Hàng Mới (Sale / Kế Toán)
+              Tạo Đơn Hàng Mới
             </button>
           </div>
         </div>
@@ -1475,7 +1578,7 @@
               <option value="COURSE">KHÓA HỌC</option>
             </select>
             <button class="tool-btn" onclick="renderVatOrdersTable()" style="font-size:12px; font-weight:700;">
-              🔄 Làm Mới
+              Làm mới
             </button>
           </div>
         </div>
@@ -2942,21 +3045,22 @@
  roleLabelText = `LV2: ${(fin.ratePerLot / 1000)}k`;
  }
 
- const roleTitleClean = person.roleTitle || (person.roleLevel === 'LV1' ? 'Manager' : (person.roleLevel === 'LV2' ? 'Leader' : 'Sale'));
+     const roleTitleClean = person.roleTitle || (person.roleLevel === 'LV1' ? 'Manager' : (person.roleLevel === 'LV2' ? 'Leader' : 'Sale'));
+    const roleBadgeText = person.roleLevel === 'LV1' ? 'MANAGER' : (person.roleLevel === 'LV2' ? 'LEADER' : 'SALE');
 
- g.innerHTML = `
- <rect width="${cardW}" height="${cardH}" rx="8" fill="#172033" stroke="${strokeColor}" stroke-width="1.4"/>
- <text x="10" y="19" fill="#f8fafc" font-size="11.5" font-weight="700" font-family="'Plus Jakarta Sans', sans-serif">
- ${person.name}
- </text>
- <text x="10" y="33" fill="#94a3b8" font-size="9" font-family="'JetBrains Mono', monospace">
- [${roleTitleClean}]
- </text>
- <rect x="${cardW - 68}" y="9" width="60" height="22" rx="5" fill="${rateBadgeBg}" stroke="${strokeColor}" stroke-width="0.8"/>
- <text x="${cardW - 38}" y="24" fill="#ffffff" font-size="10" font-weight="800" text-anchor="middle" font-family="'JetBrains Mono', monospace">
- ${(fin.ratePerLot / 1000)}k/lot
- </text>
- `;
+    g.innerHTML = `
+      <rect width="${cardW}" height="${cardH}" rx="8" fill="#172033" stroke="${strokeColor}" stroke-width="1.4"/>
+      <text x="12" y="19" fill="#f8fafc" font-size="12" font-weight="700" font-family="'Plus Jakarta Sans', sans-serif">
+        ${person.name}
+      </text>
+      <text x="12" y="33" fill="#94a3b8" font-size="9.5" font-family="'JetBrains Mono', monospace">
+        ID: ${person.id}
+      </text>
+      <rect x="${cardW - 74}" y="11" width="64" height="22" rx="5" fill="${rateBadgeBg}" stroke="${strokeColor}" stroke-width="0.8"/>
+      <text x="${cardW - 42}" y="26" fill="#ffffff" font-size="9.5" font-weight="800" text-anchor="middle" font-family="'JetBrains Mono', monospace">
+        ${roleBadgeText}
+      </text>
+    `;
 
  nodesGroup.appendChild(g);
  });
@@ -3519,7 +3623,7 @@
       if (kpiDashboard) kpiDashboard.style.display = 'none';
       document.getElementById('btnTabMindmap')?.classList.add('active');
       document.getElementById('btnSideMindmap')?.classList.add('active');
-      document.getElementById('breadcrumbCurrent').textContent = 'Cơ chế Cây Mindmap (Manager - Leader - Sale)';
+      document.getElementById('breadcrumbCurrent').textContent = 'Cây Mindmap';
       renderMindmapTree();
       initMindmapInteractions();
       setTimeout(() => { fitMindmapToViewport(true); }, 50);
@@ -3529,7 +3633,7 @@
       if (kpiDashboard) kpiDashboard.style.display = 'block';
       document.getElementById('btnTabReport')?.classList.add('active');
       document.getElementById('btnSideReport')?.classList.add('active');
-      document.getElementById('breadcrumbCurrent').textContent = 'Báo Cáo Doanh Thu (23 Nhân Sự)';
+      document.getElementById('breadcrumbCurrent').textContent = 'Báo Cáo Doanh Thu';
       renderReportTable();
       renderReportStats();
     } else if (tabId === 'tab-accounting') {
@@ -3538,7 +3642,7 @@
       if (kpiDashboard) kpiDashboard.style.display = 'none';
       document.getElementById('btnTabAccounting')?.classList.add('active');
       document.getElementById('btnSideAccounting')?.classList.add('active');
-      document.getElementById('breadcrumbCurrent').textContent = 'Sổ Kế Toán & Quản Lý Chi Phí Do Admin Nhập';
+      document.getElementById('breadcrumbCurrent').textContent = 'Kế Toán Chi Phí';
       renderAccountingView();
     } else if (tabId === 'tab-vat-orders') {
       if (topActions) topActions.style.display = 'none';
@@ -3546,7 +3650,7 @@
       if (kpiDashboard) kpiDashboard.style.display = 'none';
       document.getElementById('btnTabVatOrders')?.classList.add('active');
       document.getElementById('btnSideVatOrders')?.classList.add('active');
-      document.getElementById('breadcrumbCurrent').textContent = 'Kế Toán Kiểm Tra Đơn Hàng & Xuất Hóa Đơn VAT';
+      document.getElementById('breadcrumbCurrent').textContent = 'Đơn Hàng & VAT';
       renderVatOrdersView();
     }
   }
@@ -5829,6 +5933,15 @@ window.renderAccountingView = renderAccountingView;
 // ====================================================================
 
 // Hàm tạo ảnh SVG bill chuyển khoản ngân hàng mẫu cực kỳ chân thực
+// Định dạng tiền tệ VNĐ chuẩn cho toàn bộ phân hệ Đơn hàng & VAT
+function formatCurrency(val) {
+  if (val === null || val === undefined || isNaN(val)) return '0 đ';
+  return Number(val).toLocaleString('vi-VN') + ' đ';
+}
+if (typeof window !== 'undefined') {
+  window.formatCurrency = formatCurrency;
+}
+
 function generateBankBillSvg(bankName, bankColor, amountStr, transCode, senderName, contentText, dateStr) {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="540" viewBox="0 0 400 540">
     <defs>
@@ -6612,7 +6725,7 @@ function openOrderDetailModal(orderId) {
     document.getElementById('modalVatStatusLabel').className = 'chip chip-yellow';
     vatActionBox.innerHTML = `
       <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:6px; padding:8px 10px; font-size:12px; color:#9a3412;">
-        ⚠️ Đơn hàng mới cọc (còn thiếu <b>${formatCurrency(order.remaining)}</b>). Bấm nút <b>"⚡ Đặt Thanh Toán Đủ 100%"</b> phía trên để thu nốt và mở khóa xuất VAT.
+        ⚠️ Đơn hàng mới cọc (còn thiếu <b>${formatCurrency(order.remaining)}</b>). Bấm nút <b>"Đặt Thanh Toán Đủ"</b> phía trên để thu nốt và mở khóa xuất VAT.
       </div>
     `;
     if (directVatBtn) {
@@ -6676,7 +6789,7 @@ function setEditModalPayFull() {
   if (vatActionBox) {
     vatActionBox.innerHTML = `
       <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:8px 10px; font-size:12px; color:#1e40af;">
-        ✓ Đã đặt thanh toán đủ 100%. Bấm "💾 LƯU TẤT CẢ THAY ĐỔI" hoặc bấm "🧾 Xuất Hóa Đơn VAT" bên dưới.
+        ✓ Đã đặt thanh toán đủ 100%. Bấm "Lưu Thay Đổi" hoặc bấm "🧾 Xuất Hóa Đơn VAT" bên dưới.
       </div>
     `;
   }
@@ -6975,88 +7088,94 @@ function handleNewOrderCustomBill(event) {
 }
 
 function submitCreateNewOrder() {
-  const custName = document.getElementById('newOrderCustName').value.trim();
-  const custPhone = document.getElementById('newOrderCustPhone').value.trim();
-  if (!custName || !custPhone) {
-    alert('Vui lòng nhập Tên khách hàng và Số điện thoại!');
-    return;
+  try {
+    const custName = document.getElementById('newOrderCustName').value.trim();
+    const custPhone = document.getElementById('newOrderCustPhone').value.trim();
+    if (!custName || !custPhone) {
+      alert('Vui lòng nhập Tên khách hàng và Số điện thoại!');
+      return;
+    }
+
+    const custCccd = document.getElementById('newOrderCustCccd')?.value.trim() || ('00120' + Math.floor(1000000 + Math.random() * 9000000));
+    const custAddress = document.getElementById('newOrderCustAddress')?.value.trim() || 'Hà Nội, Việt Nam';
+
+    const prodSel = document.getElementById('newOrderProductSelect');
+    const prodOpt = prodSel ? prodSel.options[prodSel.selectedIndex] : null;
+    const prodName = prodOpt ? prodOpt.text.split('(')[0].trim() : 'Khóa Học Đào Tạo';
+    const prodType = (prodOpt && prodOpt.dataset.type) || 'COURSE';
+    const prodTypeLabel = prodType === 'RENTAL' ? 'CHO THUÊ CHỈ BÁO' : (prodType === 'COURSE' ? 'KHÓA HỌC' : 'BÊN BÁN');
+
+    const saleSel = document.getElementById('newOrderSaleSelect');
+    const saleId = saleSel ? saleSel.value : '08018228';
+    const saleName = saleSel ? saleSel.options[saleSel.selectedIndex].text : 'Phạm Hoài Ngọc Đức';
+
+    const subtotal = Number(document.getElementById('newOrderSubtotal').value) || 5000000;
+    const collected = Number(document.getElementById('newOrderCollected').value) || 0;
+    const remaining = Math.max(0, subtotal - collected);
+    const isPaid = remaining <= 0;
+
+    const payType = isPaid ? 'PAID' : (collected >= subtotal * 0.5 ? 'DEPOSIT_50' : 'DEPOSIT_30');
+    const vatAmount = Math.round(subtotal * 0.1);
+
+    const randomHex = Math.random().toString(16).substring(2, 8).toUpperCase();
+    const newOrderId = 'NVT-' + randomHex;
+
+    const preset = document.getElementById('newOrderBillPresetSelect')?.value || 'vcb';
+    let bankName = 'VIETCOMBANK';
+    let bankColor = '#005a3c';
+    if (preset === 'tcb') { bankName = 'TECHCOMBANK'; bankColor = '#e11b22'; }
+    else if (preset === 'mbb') { bankName = 'MB BANK'; bankColor = '#002878'; }
+    else if (preset === 'acb') { bankName = 'ACB'; bankColor = '#004f9e'; }
+
+    const formattedCollected = formatCurrency(collected);
+    const billImg = customNewOrderBill || generateBankBillSvg(bankName, bankColor, formattedCollected, newOrderId.replace(/-/g, ''), custName.toUpperCase(), 'THANH TOAN ' + prodName.toUpperCase(), new Date().toLocaleDateString('vi-VN'));
+
+    const reqVat = document.getElementById('newOrderRequireVat')?.checked || false;
+    const taxCode = reqVat ? (document.getElementById('newOrderTaxCode')?.value.trim() || '') : '';
+    const compName = reqVat ? (document.getElementById('newOrderCompanyName')?.value.trim() || '') : '';
+
+    const newOrder = {
+      id: newOrderId,
+      type: prodType,
+      typeLabel: prodTypeLabel,
+      customerName: custName,
+      customerPhone: custPhone,
+      customerCccd: custCccd,
+      customerAddress: custAddress,
+      customerEmail: custPhone + '@gmail.com',
+      productName: prodName,
+      productSku: 'SKU-' + newOrderId.slice(4),
+      term: prodType === 'RENTAL' ? '12 tháng' : 'Vĩnh viễn',
+      saleId: saleId,
+      saleName: saleName,
+      subtotal: subtotal,
+      vatAmount: vatAmount,
+      total: subtotal,
+      collected: collected,
+      remaining: remaining,
+      paymentStatus: payType,
+      isSuccessNotified: isPaid,
+      requireVat: reqVat,
+      vatStatus: 'NOT_ISSUED',
+      vatInvoiceNo: '',
+      vatIssuedDate: '',
+      taxCode: taxCode,
+      companyName: compName,
+      address: custAddress,
+      invoiceEmail: 'ketoan.' + custPhone + '@gmail.com',
+      billImage: billImg,
+      billDate: new Date().toLocaleString('vi-VN'),
+      saleNote: document.getElementById('newOrderSaleNote')?.value.trim() || (isPaid ? 'Khách thanh toán đủ 100% kèm ảnh bill và CCCD.' : 'Khách cọc ' + formattedCollected + ', còn lại ' + formatCurrency(remaining) + '.')
+    };
+
+    VAT_ORDERS_DATA.unshift(newOrder);
+    closeCreateOrderModal();
+    renderVatOrdersView();
+    alert('Tạo đơn hàng ' + newOrderId + ' thành công!\nKhách hàng: ' + custName + '\nSố tiền: ' + formattedCollected + '\n' + (isPaid ? 'ĐÃ PHÁT THÔNG BÁO VỀ KẾ TOÁN (Thanh toán 100%)' : 'Trạng thái: Đã cọc'));
+  } catch (err) {
+    console.error('Lỗi khi tạo đơn hàng:', err);
+    alert('Đã xảy ra lỗi khi tạo đơn hàng: ' + err.message);
   }
-
-  const custCccd = document.getElementById('newOrderCustCccd')?.value.trim() || '00120' + Math.floor(1000000 + Math.random() * 9000000);
-  const custAddress = document.getElementById('newOrderCustAddress')?.value.trim() || 'Hà Nội, Việt Nam';
-
-  const prodSel = document.getElementById('newOrderProductSelect');
-  const prodOpt = prodSel.options[prodSel.selectedIndex];
-  const prodName = prodOpt.text.split('(')[0].trim();
-  const prodType = prodOpt.dataset.type || 'COURSE';
-  const prodTypeLabel = prodType === 'RENTAL' ? 'CHO THUÊ CHỈ BÁO' : (prodType === 'COURSE' ? 'KHÓA HỌC' : 'BÊN BÁN');
-
-  const saleSel = document.getElementById('newOrderSaleSelect');
-  const saleId = saleSel.value;
-  const saleName = saleSel.options[saleSel.selectedIndex].text;
-
-  const subtotal = Number(document.getElementById('newOrderSubtotal').value) || 5000000;
-  const collected = Number(document.getElementById('newOrderCollected').value) || 0;
-  const remaining = Math.max(0, subtotal - collected);
-  const isPaid = remaining <= 0;
-
-  const payType = isPaid ? 'PAID' : (collected >= subtotal * 0.5 ? 'DEPOSIT_50' : 'DEPOSIT_30');
-  const vatAmount = Math.round(subtotal * 0.1);
-
-  const randomHex = Math.random().toString(16).substring(2, 10);
-  const newOrderId = `NVT-${randomHex}`;
-
-  const preset = document.getElementById('newOrderBillPresetSelect').value;
-  let bankName = 'VIETCOMBANK';
-  let bankColor = '#005a3c';
-  if (preset === 'tcb') { bankName = 'TECHCOMBANK'; bankColor = '#e11b22'; }
-  else if (preset === 'mbb') { bankName = 'MB BANK'; bankColor = '#002878'; }
-  else if (preset === 'acb') { bankName = 'ACB'; bankColor = '#004f9e'; }
-
-  const billImg = customNewOrderBill || generateBankBillSvg(bankName, bankColor, formatCurrency(collected), newOrderId.replace(/-/g, '').toUpperCase(), custName.toUpperCase(), 'THANH TOAN ' + prodName.toUpperCase(), new Date().toLocaleDateString('vi-VN'));
-
-  const reqVat = document.getElementById('newOrderRequireVat').checked;
-  const taxCode = reqVat ? document.getElementById('newOrderTaxCode').value.trim() : '';
-  const compName = reqVat ? document.getElementById('newOrderCompanyName').value.trim() : '';
-
-  const newOrder = {
-    id: newOrderId,
-    type: prodType,
-    typeLabel: prodTypeLabel,
-    customerName: custName,
-    customerPhone: custPhone,
-    customerCccd: custCccd,
-    customerAddress: custAddress,
-    customerEmail: custPhone + '@gmail.com',
-    productName: prodName,
-    productSku: 'SKU-' + newOrderId.slice(4),
-    term: prodType === 'RENTAL' ? '12 tháng' : 'Vĩnh viễn',
-    saleId: saleId,
-    saleName: saleName,
-    subtotal: subtotal,
-    vatAmount: vatAmount,
-    total: subtotal,
-    collected: collected,
-    remaining: remaining,
-    paymentStatus: payType,
-    isSuccessNotified: isPaid, // Báo về kế toán nếu thành công
-    requireVat: reqVat,
-    vatStatus: 'NOT_ISSUED',
-    vatInvoiceNo: '',
-    vatIssuedDate: '',
-    taxCode: taxCode,
-    companyName: compName,
-    address: custAddress,
-    invoiceEmail: 'ketoan.' + custPhone + '@gmail.com',
-    billImage: billImg,
-    billDate: new Date().toLocaleString('vi-VN'),
-    saleNote: document.getElementById('newOrderSaleNote').value.trim() || (isPaid ? 'Khách thanh toán đủ 100% kèm ảnh bill và CCCD.' : `Khách cọc ${formatCurrency(collected)}, còn lại ${formatCurrency(remaining)}.`)
-  };
-
-  VAT_ORDERS_DATA.unshift(newOrder);
-  closeCreateOrderModal();
-  renderVatOrdersView();
-  alert(`🎉 Tạo đơn hàng ${newOrderId} thành công!\nĐã lưu số CCCD: ${custCccd} và Địa chỉ: ${custAddress}\n${isPaid ? '🔔 ĐÃ PHÁT THÔNG BÁO VỀ KẾ TOÁN VỀ ĐƠN THANH TOÁN THÀNH CÔNG!' : 'Kế toán có thể kiểm tra cọc và số tiền còn lại.'}`);
 }
 
 function deleteOrder(orderId) {
@@ -7113,7 +7232,14 @@ window.recalcEditModalFinance = recalcEditModalFinance;
 window.setEditModalPayFull = setEditModalPayFull;
 window.onEditModalStatusChange = onEditModalStatusChange;
 window.toggleEditModalVatOption = toggleEditModalVatOption;
+
+function confirmCollectRemainingInModal() {
+  if (typeof setEditModalPayFull === 'function') {
+    setEditModalPayFull();
+  }
+}
 window.confirmCollectRemainingInModal = confirmCollectRemainingInModal;
+
 window.openCreateOrderModal = openCreateOrderModal;
 window.closeCreateOrderModal = closeCreateOrderModal;
 window.submitCreateNewOrder = submitCreateNewOrder;

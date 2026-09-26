@@ -117,13 +117,14 @@ async function listConversations(user) {
     return rows.map(row => presentConversation(row, 0));
   }
   const rows = await dbQuery(`SELECT c.id,c.status,c.last_message_at,c.last_message_preview,c.resolved_at,c.created_at,u.id AS user_id,u.name,u.role,u.account_code,
-    (SELECT COUNT(*) FROM support_messages sm WHERE sm.conversation_id=c.id AND sm.sender_role='EMPLOYEE' AND (c.admin_read_at IS NULL OR sm.created_at>c.admin_read_at)) AS unread_count
+    (SELECT COUNT(*) FROM support_messages sm WHERE sm.conversation_id=c.id AND sm.sender_role='EMPLOYEE' AND (c.admin_read_at IS NULL OR sm.created_at>c.admin_read_at)) AS unread_count,
+    (SELECT COUNT(*) FROM support_messages pending WHERE pending.conversation_id=c.id AND pending.sender_role='EMPLOYEE' AND c.status='OPEN' AND pending.created_at>COALESCE((SELECT MAX(am.created_at) FROM support_messages am WHERE am.conversation_id=c.id AND am.sender_role='ADMIN'),'1970-01-01')) AS pending_reply_count
     FROM support_conversations c JOIN users u ON u.id=c.requester_user_id ORDER BY c.status='OPEN' DESC,c.last_message_at DESC LIMIT 200`);
-  return rows.map(row => presentConversation(row, Number(row.unread_count || 0)));
+  return rows.map(row => presentConversation(row, Number(row.unread_count || 0), Number(row.pending_reply_count || 0)));
 }
 
-function presentConversation(row, unreadCount) {
-  return { id: row.id, status: row.status, lastMessageAt: row.last_message_at, lastMessagePreview: row.last_message_preview || '', resolvedAt: row.resolved_at, createdAt: row.created_at, unreadCount, requester: { id: row.user_id, name: row.name, role: row.role, accountId: row.account_code || '', department: departmentLabel(row.role) } };
+function presentConversation(row, unreadCount, pendingReplyCount = 0) {
+  return { id: row.id, status: row.status, lastMessageAt: row.last_message_at, lastMessagePreview: row.last_message_preview || '', resolvedAt: row.resolved_at, createdAt: row.created_at, unreadCount, pendingReplyCount, requester: { id: row.user_id, name: row.name, role: row.role, accountId: row.account_code || '', department: departmentLabel(row.role) } };
 }
 
 async function getMessages(user, requestedConversationId) {

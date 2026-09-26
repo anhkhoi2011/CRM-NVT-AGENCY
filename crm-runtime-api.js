@@ -86,7 +86,7 @@
     openWorkflow,workflowRoot,workflowEvent,
     exportData(kind,start,end){requireRole(['ADMIN','LEADER','MARKETING','ACCOUNTING']);const methods={customers:exportCustomers,orders:exportOrders,revenue:exportRevenue,marketing:exportMarketing,team:exportTeam,reports:exportFullReport};if(!methods[kind])throw Error('Loại xuất không hợp lệ.');if(start&&end){customDateStart=start;customDateEnd=end;datePreset='CUSTOM';}methods[kind]();},
     async attendanceSettings(input){requireRole(['ADMIN']);return persist(()=>{const time=cleanClockTime(input.deadline,'');if(!time)throw Error('Giờ vào làm không hợp lệ.');state.settings.attendanceIp=String(input.ip||'').slice(0,200);state.settings.attendanceDeadline=time;state.settings.acceptTimeoutHours=24;return {ok:true};},'attendance-settings');},
-    async checkIn(){requireRole(['ADMIN','MANAGER','LEADER','SALE']);return persist(()=>{checkInToday();return {ok:true};},'check-in');},
+    async checkIn(){requireRole(['ADMIN','MANAGER','LEADER','SALE']);return persist(()=>{const changed=checkInToday({save:false,render:false});return {ok:true,alreadyCheckedIn:changed===false};},'check-in');},
     async saveBrokerageMetric(metric){
       requireRole(['ADMIN']);
       return persist(()=>{

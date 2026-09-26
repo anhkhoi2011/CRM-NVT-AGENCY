@@ -1532,7 +1532,16 @@ async function flushServerPersistence() {
           serverPendingRequest={requestId:makeRecordId('SAVE'),changes,snapshot:serverRecords()};
         }
         const request=serverPendingRequest,token=serverSyncToken;
-        const response=await fetch(`${webhookApiBase()}/api/state`,{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({requestId:request.requestId,changes:request.changes})});
+        const controller=typeof AbortController==='function'?new AbortController():null;
+        const timeout=setTimeout(()=>controller?.abort(),15000);
+        let response;
+        try {
+          const options={method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({requestId:request.requestId,changes:request.changes})};
+          if(controller)options.signal=controller.signal;
+          response=await fetch(`${webhookApiBase()}/api/state`,options);
+        } finally {
+          clearTimeout(timeout);
+        }
         const payload=await response.json();
         if(token!==serverSyncToken)return false;
         if(!response.ok){
@@ -3396,10 +3405,10 @@ function attendanceAccountId() {
   return currentAccount.actualRole==='MANAGER'?currentAccount.id:(currentAccount.saleId || currentAccount.leaderId || currentAccount.id);
 }
 
-function checkInToday() {
+function checkInToday(options = {}) {
   const date = dayIso(0);
   const accountId = attendanceAccountId();
-  if (state.attendance.some(item => item.date === date && item.accountId === accountId)) { toast('Hôm nay bạn đã điểm danh rồi'); return; }
+  if (state.attendance.some(item => item.date === date && item.accountId === accountId)) { toast('Hôm nay bạn đã điểm danh rồi'); return false; }
   const at = stamp(), time = at.slice(11, 16), deadline = state.settings.attendanceDeadline || '09:00', ip = currentAccount.ip || '127.0.0.1';
     const deadlineMinutes = timeToMinutes(deadline);
   const checkInMinutes = timeToMinutes(time);
@@ -3408,8 +3417,35 @@ function checkInToday() {
   state.attendance.unshift({ id: `ATT-${Date.now()}`, date, accountId, name: currentAccount.name, teamId: currentAccount.teamId || '', at, ip, late, lateMinutes, ipValid: attendanceIsWifiIp(ip), note: '', editedBy: '' });
   audit('CHECK_IN', date, `${time} · ${ip}${late ? ` · ĐI MUỘN ${lateMinutes}p` : ''}`);
   if (late && currentAccount.leaderId) state.notifications.unshift({ id: `NT-LATE-${date}-${currentAccount.id}`, role: 'LEADER', leaderId: currentAccount.leaderId, teamId: currentAccount.teamId, title: 'Sale điểm danh muộn', text: `${currentAccount.name} điểm danh lúc ${time} · trễ ${lateMinutes} phút · quá giờ chốt ${deadline}`, at, readBy: [] });
-  saveState(); render();
+  if (options.save !== false) saveState();
+  if (options.render !== false) render();
   toast(late ? `Đã điểm danh · ĐI MUỘN ${lateMinutes} phút (quá giờ chốt ${deadline})` : 'Đã điểm danh đúng giờ');
+  return true;
+}
+
+async function handleCheckInClick(event) {
+  const button = event.currentTarget;
+  if (!button || button.disabled) return;
+  const originalText = button.innerHTML;
+  button.disabled = true;
+  button.setAttribute('aria-busy', 'true');
+  button.innerHTML = '<span class="login-spinner" aria-hidden="true"></span>Đang lưu điểm danh...';
+  try {
+    if (window.crmApi?.checkIn) {
+      await window.crmApi.checkIn();
+      render();
+    } else {
+      checkInToday();
+    }
+  } catch (error) {
+    toast(error?.message || 'Không lưu được điểm danh. Vui lòng thử lại.');
+  } finally {
+    if (button.isConnected) {
+      button.disabled = false;
+      button.setAttribute('aria-busy', 'false');
+      button.innerHTML = originalText;
+    }
+  }
 }
 
 function saveAttendanceSettings() {
@@ -5613,7 +5649,7 @@ function bindViewActions() {
   $('#reconcileAllButton')?.addEventListener('click', reconcileAll);
   $$('[data-toggle-setting]').forEach(button => button.onclick = () => toggleSetting(button.dataset.toggleSetting));
   $('#saveSettingsButton')?.addEventListener('click', saveSettings);
-  $('#checkInButton')?.addEventListener('click', checkInToday);
+  $('#checkInButton')?.addEventListener('click', handleCheckInClick);
   $('#saveAttendanceSettings')?.addEventListener('click', saveAttendanceSettings);
   $$('[data-accept-offer]').forEach(button => button.onclick = () => acceptDataOffer(button.dataset.acceptOffer));
   $$('[data-attendance-detail]').forEach(button => button.onclick = () => attendanceMemberDetailModal(button.dataset.attendanceDetail));
