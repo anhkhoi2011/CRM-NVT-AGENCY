@@ -87,3 +87,21 @@ test('Admin webhook outbox forwards the configured source URL',async()=>{
  await f.api.drainLeadNotifications();
  assert.equal(f.notices[0].body.status,'SENT');assert.match(f.sent[0].text,/https:\/\/landing\.example\.test\/from-outbox/);
 });
+test('Duplicate outbox notifies Admin and preserves an active pending Sale owner',async()=>{
+ const f=fixture(),at=now();
+ f.customers.push({...customer,sale_id:null,custom_fields_json:'{}'});
+ f.offers.push({id:'pending-duplicate',body:{id:'pending-duplicate',customerId:customer.id,saleId:'s',status:'PENDING',offeredAt:at}});
+ f.notices.push(
+  {id:'duplicate-admin',body:{kind:'DUPLICATE_ADMIN',status:'PENDING',customer,receivedAt:at,ownerSaleId:'s',waitingForAcceptance:true,source:{landingPageUrl:'https://landing.example.test/duplicate'}}},
+  {id:'duplicate-owner',body:{kind:'DUPLICATE_OWNER',status:'PENDING',customerId:customer.id,recipientId:'s',offerId:'pending-duplicate',duplicateAt:at,waitingForAcceptance:true}}
+ );
+ await f.api.drainLeadNotifications();
+ assert.equal(f.notices[0].body.status,'SENT');
+ assert.equal(f.notices[1].body.status,'SENT');
+ assert.equal(f.sent.length,2);
+ assert.equal(f.sent[0].chat_id,'999');
+ assert.match(f.sent[0].text,/DATA TRUNG/);
+ assert.match(f.sent[0].text,/landing\.example\.test\/duplicate/);
+ assert.equal(f.sent[1].chat_id,'1');
+ assert.match(f.sent[1].text,/DATA TRUNG/);
+});

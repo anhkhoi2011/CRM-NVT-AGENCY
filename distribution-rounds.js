@@ -8,14 +8,37 @@
     const omitted=new Set(round?.omittedSlots||[]);
     return ids.filter((id,i)=>!omitted.has(i));
   }
+  const slotSignature=(round,people,mode)=>JSON.stringify(slots(round,people,mode));
+  function reconcileActiveIds(round,raw,people,mode){
+    const configured=slots(round,people,mode);
+    if(!raw||typeof raw!=='object'||!Array.isArray(raw.ids))return configured;
+    if(!Array.isArray(people)||!people.length)return raw.ids.slice();
+    const allowed=new Set(configured);
+    const index=Math.max(0,Math.min(raw.ids.length,Number(raw.index)||0));
+    // Keep consumed positions and extra turns, remove inactive people, then
+    // append missing configured positions so a changed roster cannot skip a member.
+    const prefix=raw.ids.slice(0,index).filter(id=>allowed.has(id));
+    const future=raw.ids.slice(index).filter(id=>allowed.has(id));
+    const ids=[...prefix,...future];
+    const counts=new Map();
+    for(const id of ids)counts.set(id,(counts.get(id)||0)+1);
+    const required=new Map();
+    for(const id of configured)required.set(id,(required.get(id)||0)+1);
+    for(const [id,total] of required){
+      for(let count=counts.get(id)||0;count<total;count++){ids.push(id);counts.set(id,count+1);}
+    }
+    return ids;
+  }
   function preview(config,raw,people,mode){
     const rounds=Array.isArray(config?.rounds)&&config.rounds.length?config.rounds:[config||{}];
     return rounds.map((round,i)=>{
       const initialized=i===0&&raw&&typeof raw==='object'&&Array.isArray(raw.ids)&&(raw.ids.length>0||raw.cycleId);
-      const ids=initialized?raw.ids.slice():slots(round,people,mode);
-      const index=i===0?Math.min(ids.length,Math.max(0,Number(initialized?raw.index:typeof raw==='number'?raw:0)||0)):0;
+      const sameRound=!initialized||!raw.roundId||String(raw.roundId)===String(round.id||'ROUND-1');
+      const changedSlots=initialized&&sameRound&&(!raw.slotSignature||raw.slotSignature!==slotSignature(round,people,mode));
+      const ids=changedSlots?reconcileActiveIds(round,raw,people,mode):initialized&&sameRound?raw.ids.slice():slots(round,people,mode);
+      const index=i===0?Math.min(ids.length,Math.max(0,Number(initialized&&sameRound?raw.index:typeof raw==='number'?raw:0)||0)):0;
       const roundId=round.id||'ROUND-1';
-      const cycleId=initialized?raw.cycleId||'legacy':'';
+      const cycleId=initialized&&sameRound?raw.cycleId||'legacy':'';
       return {roundId,index,ids,cycleId,token:JSON.stringify([roundId,index,ids,cycleId,mode,round.omittedSlots||[]])};
     });
   }
@@ -26,27 +49,33 @@
     const position=input.position;
     if(!Number.isInteger(position)||position<view.index||position>=view.ids.length||view.ids[position]!==input.memberId)throw Error('Lượt này đã được phân hoặc không còn trong hàng chờ.');
     const next=JSON.parse(JSON.stringify(config));
-    if(i===0){const ids=view.ids.slice();ids.splice(position,1);return {config:next,cursor:{index:view.index,ids,cycleId:String((Number(view.cycleId)||0)+1)}};}
+    if(i===0){const ids=view.ids.slice();ids.splice(position,1);return {config:next,cursor:{index:view.index,ids,cycleId:String((Number(view.cycleId)||0)+1),roundId:view.roundId,slotSignature:slotSignature(config.rounds?.[0]||config,people,mode)}};}
     let original=-1,visible=-1;while(visible<position){original++;if(!(next.rounds[i].omittedSlots||[]).includes(original))visible++;}next.rounds[i].omittedSlots=[...new Set([...(next.rounds[i].omittedSlots||[]),original])].sort((a,b)=>a-b);
     return {config:next,cursor:raw};
   }
   function take(config,raw,people,mode){
     const next=JSON.parse(JSON.stringify(config));
     let cursor=raw;let changed=false;
+    // Migrate cursors created before round metadata existed. This is done only
+    // once at allocation time, so new skip/extra-turn cursors remain exact.
+    if(cursor&&typeof cursor==='object'&&Array.isArray(cursor.ids)&&!cursor.roundId){
+      const active=next.rounds?.[0]||next;
+      cursor={...cursor,ids:reconcileActiveIds(active,cursor,people,mode),roundId:active.id||'ROUND-1',slotSignature:slotSignature(active,people,mode)};
+    }
     for(let attempt=0;attempt<(config?.rounds?.length||1)+2;attempt++){
       const view=preview(next,cursor,people,mode)[0];
       const eligible=new Set(people.map(p=>p.id));
       let index=view.index;
       while(index<view.ids.length&&!eligible.has(view.ids[index]))index++;
-      if(index<view.ids.length)return {id:view.ids[index],config:next,changed,cursor:{index:index+1,ids:view.ids,cycleId:view.cycleId||'cycle'}};
+      if(index<view.ids.length)return {id:view.ids[index],config:next,changed,cursor:{index:index+1,ids:view.ids,cycleId:view.cycleId||'cycle',roundId:view.roundId,slotSignature:slotSignature(next.rounds?.[0]||next,people,mode)}};
       if(next.rounds?.length>1){next.rounds.shift();next.weights=next.rounds[0].weights;next.enabledSaleIds=next.rounds[0].enabledSaleIds;changed=true;}
       else {
         const round=next.rounds?.[0]||next;
         if(round.omittedSlots?.length){delete round.omittedSlots;changed=true;}
-        if(!slots(round,people,mode).length)return {id:null,config:next,changed,cursor:{index:view.ids.length,ids:view.ids,cycleId:view.cycleId||'empty'}};
+        if(!slots(round,people,mode).length)return {id:null,config:next,changed,cursor:{index:view.ids.length,ids:view.ids,cycleId:view.cycleId||'empty',roundId:round.id||'ROUND-1',slotSignature:slotSignature(round,people,mode)}};
       }
       const round=next.rounds?.[0]||next;
-      cursor={index:0,ids:slots(round,people,mode),cycleId:String((Number(view.cycleId)||0)+1)};
+      cursor={index:0,ids:slots(round,people,mode),cycleId:String((Number(view.cycleId)||0)+1),roundId:round.id||'ROUND-1',slotSignature:slotSignature(round,people,mode)};
     }
     return {id:null,config:next,changed,cursor};
   }
@@ -102,7 +131,7 @@
       const cursor=raw&&typeof raw==='object'?raw:{index:0,ids:view.ids,cycleId:'legacy'};
       const index=Math.max(0,Math.min(view.ids.length,Number(cursor.index)||0));
       const ids=[...view.ids.slice(0,index),...view.ids.slice(index).filter(id=>id!==input.memberId)];
-      return {config:next,cursor:{...cursor,index,ids}};
+      return {config:next,cursor:{...cursor,index,ids,roundId:view.roundId,slotSignature:slotSignature(round,people,mode)}};
     }
     return {config:next,cursor:raw};
   }
@@ -116,7 +145,7 @@
     if(view.ids.length>=1000)throw Error('Vòng đã đạt giới hạn 1.000 lượt.');
     const next=JSON.parse(JSON.stringify(config));
     const cursor=raw&&typeof raw==='object'?raw:{};
-    return {config:next,cursor:{...cursor,index:view.index,ids:[...view.ids,memberId],cycleId:view.cycleId||String(Date.now())}};
+    return {config:next,cursor:{...cursor,index:view.index,ids:[...view.ids,memberId],cycleId:view.cycleId||String(Date.now()),roundId:view.roundId,slotSignature:slotSignature(config.rounds?.[0]||config,people,mode)}};
   }
   return {slots,preview,skip,removeMember,addExtraTurn,take,recipients,cursorFrom};
 });

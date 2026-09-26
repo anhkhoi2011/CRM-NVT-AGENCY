@@ -516,6 +516,18 @@ test('Explicit global rounds take precedence over matching source rules for inco
  assert.equal(result.state.customers[0].leaderId,'lead');
  assert.deepEqual(recipientCounts(result),{lead:0,s1:0,s2:1,s3:0,s4:0});
 });
+test('Legacy global distribution configuration still takes precedence over source rules',async()=>{
+ const f=await automaticFixture();f.db.users.push({id:'lead2',name:'Leader 2',role:'LEADER',team_id:'T2',active:1});
+ const snapshot=await f.api.read(admin);
+ await f.api.write(admin,'legacy-global-source-rule',[
+  {key:'leaderDistribution',id:'$',base:snapshot.versions['leaderDistribution/$'],value:{...snapshot.state.leaderDistribution,enabledLeaderIds:['lead','lead2'],sourceRules:[{active:true,matchType:'SOURCE',matchValue:'Landing Page',targetLeaderId:'lead2'}]}},
+  {key:'saleDistributionByLeader',id:'$',base:snapshot.versions['saleDistributionByLeader/$'],value:{...snapshot.state.saleDistributionByLeader,$:{globalCycle:true,enabledSaleIds:['s1'],weights:{s1:1}}}}
+ ]);
+ await f.webhook.persistWebhook(landingRecord(2));
+ const result=await f.api.read(admin),customer=result.state.customers.find(row=>row.id==='CUS-WHE-2'),offer=result.state.dataOffers.find(row=>row.customerId===customer.id);
+ assert.equal(customer.leaderId,'lead');
+ assert.equal(offer.saleId,'s1');
+});
 test('UI mode and toggle save to server and allocate queue without client distribution',async()=>{
  const f=await automaticFixture();let snapshot=await f.api.read(admin);
  await f.api.write(admin,'ui-off',[{key:'leaderDistribution',id:'$',base:snapshot.versions['leaderDistribution/$'],value:{...snapshot.state.leaderDistribution,enabled:false}}]);
@@ -1038,6 +1050,13 @@ test('Skipping one weighted duplicate or final slot never removes previous alloc
  assert.equal(next.id,'a');assert.deepEqual(next.cursor.ids,['a','a','b']);
  assert.equal(r.cursorFrom({global:0,salesByTeam:{global:{index:2,ids:['a','a','b']}}}).index,2);
 });
+test('Legacy global cursor restores a missing configured recipient before assigning',()=>{
+ const r=require('./distribution-rounds.js'),people=[{id:'a'},{id:'b'}],config={rounds:[{id:'one',enabledSaleIds:['a','b'],weights:{a:1,b:1}}]};
+ const step=r.take(config,{index:1,ids:['a'],cycleId:'legacy'},people,'ROUND_ROBIN');
+ assert.equal(step.id,'b');
+ assert.deepEqual(step.cursor.ids,['a','b']);
+ assert.equal(step.cursor.roundId,'one');
+});
 test('Skip action persists config and cursor with regular CRM state save',async()=>{
  const c=referenceBridge();vm.runInContext(
   "currentAccount={id:'admin',role:'ADMIN'};state.members=[{id:'lead',role:'LEADER',teamId:'T',active:true},{id:'s1',role:'SALE',leaderId:'lead',teamId:'T',active:true},{id:'s2',role:'SALE',leaderId:'lead',teamId:'T',active:true}];state.leaderDistribution={enabledLeaderIds:['lead']};state.saleDistributionByLeader={'$':{rounds:[{id:'one',enabledSaleIds:['lead','s1','s2'],weights:{lead:1,s1:1,s2:1}}]}};state.settings.assignmentMode='ROUND_ROBIN';state.settings.assignmentCursor.global={index:1,ids:['lead','s1','s2'],cycleId:'1'};state.customers=[{id:'kept'}];let saved=0;saveState=()=>saved++;flushServerPersistence=async()=>true;",
@@ -1111,6 +1130,8 @@ test('Telegram queue is atomic, replay-safe, and includes repeat-customer webhoo
  const before=f.db.docs.filter(d=>d.collection==='telegramOutbox').length;
  await f.webhook.persistWebhook(record);assert.equal(f.db.docs.filter(d=>d.collection==='telegramOutbox').length,before);
  await f.webhook.persistWebhook({...record,id:'new-repeat-event',dedupeKey:'different-payload'});
- assert.equal(f.db.docs.filter(d=>d.collection==='telegramOutbox'&&d.body.kind==='WEBHOOK_ADMIN').length,2);
+ assert.equal(f.db.docs.filter(d=>d.collection==='telegramOutbox'&&d.body.kind==='WEBHOOK_ADMIN').length,1);
+ assert.equal(f.db.docs.filter(d=>d.collection==='telegramOutbox'&&d.body.kind==='DUPLICATE_ADMIN').length,1);
+ assert.equal(f.db.docs.filter(d=>d.collection==='telegramOutbox'&&d.body.kind==='DUPLICATE_OWNER').length,1);
  const g=await automaticFixture();g.fail();await assert.rejects(()=>g.webhook.persistWebhook(landingRecord(851)));assert.equal(g.db.docs.filter(d=>d.collection==='telegramOutbox').length,0);
 });

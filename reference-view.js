@@ -6,6 +6,19 @@ let customerPage = 1;
 let customerPageSize = 20;
 let customerFilterSignature = '';
 
+function pendingOfferForCustomer(customer) {
+  const customerId = customer?.id;
+  if (!customerId) return null;
+  const offers = Array.isArray(appState.offers) ? appState.offers : [];
+  return offers
+    .filter(offer => offer && offer.customerId === customerId && offer.status === 'PENDING' && offer.saleId)
+    .sort((a, b) => String(b.offeredAt || '').localeCompare(String(a.offeredAt || '')))[0] || null;
+}
+
+function assignedSaleIdForCustomer(customer) {
+  return pendingOfferForCustomer(customer)?.saleId || customer?.saleId || null;
+}
+
 function ensureCustomerPaginationStyles() {
   if (document.getElementById('customerPaginationStyles')) return;
   const style = document.createElement('style');
@@ -54,25 +67,29 @@ function setCarePage(groupId, page) {
 window.setCarePage = setCarePage;
   function matchesPersonnelCustomer(customer, ownerId, members) {
     if (!ownerId || ownerId === 'ALL') return true;
-    if (ownerId === 'UNASSIGNED') return !customer.saleId && !customer.leaderId && !customer.managerId && !customer.ownerId;
+    const pendingOffer = (typeof appState !== 'undefined' ? appState.offers || [] : [])
+      .filter(offer => offer && offer.customerId === customer.id && offer.status === 'PENDING' && offer.saleId)
+      .sort((a, b) => String(b.offeredAt || '').localeCompare(String(a.offeredAt || '')))[0];
+    const assignedSaleId = pendingOffer?.saleId || customer.saleId || null;
+    if (ownerId === 'UNASSIGNED') return !assignedSaleId && !customer.leaderId && !customer.managerId && !customer.ownerId;
     const member = members.find(m => m.id === ownerId);
     if (!member) return false;
     const ids = new Set([ownerId]);
     if (member.role === 'MANAGER') {
       members.filter(m => m.role === 'LEADER' && m.managerId === ownerId).forEach(m => ids.add(m.id));
       members.filter(m => m.role === 'SALE' && (m.managerId === ownerId || ids.has(m.leaderId))).forEach(m => ids.add(m.id));
-      return customer.managerId === ownerId || ids.has(customer.ownerId) || ids.has(customer.leaderId) || ids.has(customer.saleId);
+      return customer.managerId === ownerId || ids.has(customer.ownerId) || ids.has(customer.leaderId) || ids.has(assignedSaleId);
     }
     if (member.role === 'LEADER') {
       members.filter(m => m.role === 'SALE' && m.leaderId === ownerId).forEach(m => ids.add(m.id));
-      return customer.leaderId === ownerId || ids.has(customer.saleId) || ids.has(customer.ownerId);
+      return customer.leaderId === ownerId || ids.has(assignedSaleId) || ids.has(customer.ownerId);
     }
-    return customer.saleId === ownerId || customer.ownerId === ownerId;
+    return assignedSaleId === ownerId || customer.ownerId === ownerId;
   }
   // Đồng hồ chạy thời gian thực
   const escapeCustomerLabel=value=>String(value??'').replace(/[&<>"']/g,character=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
   function customerPersonnelLabels(customer) {
-    const members=appState.members||[],byId=id=>members.find(member=>member.id===id),assigned=byId(customer.saleId),directLeader=byId(customer.leaderId),directManager=byId(customer.managerId);
+    const assignedSaleId=assignedSaleIdForCustomer(customer),members=appState.members||[],byId=id=>members.find(member=>member.id===id),assigned=byId(assignedSaleId),directLeader=byId(customer.leaderId),directManager=byId(customer.managerId);
     let sale=assigned,leader=directLeader,manager=directManager;
     if(sale?.role==='MANAGER'){manager=sale;leader=null;}
     else if(sale?.role==='LEADER'){leader=sale;manager=byId(sale.managerId)||manager;}
@@ -109,9 +126,10 @@ window.setCarePage = setCarePage;
     const filtered = appState.customers.filter(c => {
       const matchText = (c.name + ' ' + c.phone + ' ' + c.level + ' ' + c.note).toLowerCase().includes(searchVal);
       const matchStatus = statusVal === 'ALL' || c.status === statusVal;
-      const matchAssign = assignVal === 'ALL' || (assignVal === 'UNASSIGNED' ? !c.saleId : Boolean(c.saleId));
+      const assignedSaleId = assignedSaleIdForCustomer(c);
+      const matchAssign = assignVal === 'ALL' || (assignVal === 'UNASSIGNED' ? !assignedSaleId : Boolean(assignedSaleId));
       const matchOwner = matchesPersonnelCustomer(c, ownerVal, appState.members || []);
-      const matchSale = saleVal === 'ALL' || c.saleId === saleVal || c.ownerId === saleVal;
+      const matchSale = saleVal === 'ALL' || assignedSaleIdForCustomer(c) === saleVal || c.ownerId === saleVal;
       return matchText && matchStatus && matchAssign && matchOwner && matchSale;
     });
 

@@ -67,6 +67,32 @@ function phoneCandidates(value) {
   if (normalized.startsWith('0')) candidates.add(`84${normalized.slice(1)}`);
   return [...candidates].filter(Boolean);
 }
+function parsedDocument(value) {
+  if (!value) return {};
+  try {
+    return typeof value === 'string' ? (JSON.parse(value) || {}) : (value || {});
+  } catch {
+    return {};
+  }
+}
+
+function offerIsActive(offer) {
+  if (!offer || offer.status !== 'PENDING') return false;
+  const value = String(offer.offeredAt || offer.offered_at || '').trim().replace(' ', 'T');
+  if (!value) return false;
+  const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(value);
+  const offeredAt = Date.parse(hasTimezone ? value : `${value}+07:00`);
+  return Number.isFinite(offeredAt) && offeredAt + 86400000 > Date.now();
+}
+
+async function findPendingOffer(connection, customerId) {
+  const [rows] = await connection.execute(
+    `SELECT id, body FROM crm_documents WHERE collection='dataOffers' AND deleted=0`
+  );
+  return (rows || [])
+    .map(row => ({ id: row.id, ...parsedDocument(row.body) }))
+    .find(offer => String(offer.customerId || '') === String(customerId || '') && offerIsActive(offer)) || null;
+}
 
 async function findExistingCustomer(connection, customer) {
   const phones = phoneCandidates(customer?.phone);
@@ -93,8 +119,10 @@ async function findExistingCustomer(connection, customer) {
   ) || null;
 }
 
-async function recordDuplicate(connection, eventId, record, existing, sourceSnapshot) {
+async function recordDuplicate(connection, eventId, record, existing, sourceSnapshot, pendingOffer = null) {
   const at = record.receivedAt || new Date().toISOString().slice(0, 19).replace('T', ' ');
+  const ownerSaleId = existing.sale_id || pendingOffer?.saleId || pendingOffer?.sale_id || null;
+  const waitingForAcceptance = !existing.sale_id && Boolean(ownerSaleId);
   const resubmission = {
     id: `RESUB-${eventId}`,
     customerId: existing.id,
@@ -102,28 +130,40 @@ async function recordDuplicate(connection, eventId, record, existing, sourceSnap
     source: 'Landing page webhook',
     campaign: sourceSnapshot?.campaign || '',
     websiteId: sourceSnapshot?.websiteId || null,
-    previousSaleId: existing.sale_id || null,
-    assignedSaleId: existing.sale_id || null,
+    previousSaleId: ownerSaleId,
+    assignedSaleId: ownerSaleId,
+    pendingOfferId: pendingOffer?.id || null,
+    duplicateStatus: waitingForAcceptance ? 'PENDING_ACCEPTANCE' : ownerSaleId ? 'ASSIGNED' : 'UNASSIGNED',
     registeredAccount: false,
     at,
     intakeType: 'API',
     duplicate: true
   };
   await connection.execute('INSERT INTO crm_documents(collection,id,body,deleted) VALUES (?,?,?,0) ON DUPLICATE KEY UPDATE body=VALUES(body),deleted=0', ['resubmissions', resubmission.id, JSON.stringify(resubmission)]);
-  if (existing.sale_id) {
+  if (ownerSaleId) {
     const notification = {
       id: `NT-DUP-${eventId}`,
       role: 'OWN',
-      saleId: existing.sale_id,
+      saleId: ownerSaleId,
       leaderId: existing.leader_id || null,
       teamId: existing.team_id || null,
-      title: 'DATA TRUNG - giu Sale phu trach',
+      title: waitingForAcceptance ? 'DATA TRUNG - Sale dang cho nhan' : 'DATA TRUNG - giu Sale phu trach',
       text: `${existing.name || record.customer?.name || 'Khach hang'} · ${record.customer?.phone || ''}`,
       at,
       readBy: []
     };
     await connection.execute('INSERT INTO crm_documents(collection,id,body,deleted) VALUES (?,?,?,0) ON DUPLICATE KEY UPDATE body=VALUES(body),deleted=0', ['notifications', notification.id, JSON.stringify(notification)]);
+    await crmData.queueTelegramNotice(connection, `duplicate-owner:${eventId}:${ownerSaleId}`, {
+      kind: 'DUPLICATE_OWNER',
+      customer: { id: existing.id, name: existing.name || record.customer?.name || '', phone: existing.phone || record.customer?.phone || '', email: existing.email || record.customer?.email || '' },
+      customerId: existing.id,
+      recipientId: ownerSaleId,
+      offerId: pendingOffer?.id || null,
+      duplicateAt: at,
+      waitingForAcceptance
+    });
   }
+  return { ownerSaleId, pendingOfferId: pendingOffer?.id || null, waitingForAcceptance };
 }
 
 async function persistWebhook(record) {
@@ -137,21 +177,38 @@ async function persistWebhook(record) {
     const website = await sourceBySlug(connection, record.slug);
     const sourceSnapshot = website ? { websiteId: website.id, landingPageName: website.name, landingPageUrl: website.sourceUrl, sourceUrl: website.sourceUrl, landingPageDomain: website.domain, campaign: website.campaign } : null;
     const storedRecord = sourceSnapshot ? { ...record, source: sourceSnapshot } : record;
+    const [existingEvents] = await connection.execute('SELECT id FROM webhook_events WHERE dedupe_key = ?', [record.dedupeKey]);
     await connection.execute('INSERT INTO webhook_events (id, dedupe_key, payload_json) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE id = id', [record.id, record.dedupeKey, JSON.stringify(storedRecord)]);
     const [rows] = await connection.execute('SELECT id FROM webhook_events WHERE dedupe_key = ?', [record.dedupeKey]);
     const eventId = rows[0].id;
-    const replay = eventId !== record.id;
+    const replay = existingEvents.length > 0 || eventId !== record.id;
     const customerId = `CUS-${eventId}`;
     if (record.status === 'NEW' && !replay) {
-      await crmData.queueTelegramNotice(connection,'webhook:'+eventId,{kind:'WEBHOOK_ADMIN',customer:record.customer,receivedAt:record.receivedAt,source:sourceSnapshot});
       const existing = await findExistingCustomer(connection, record.customer);
       if (existing) {
-        await recordDuplicate(connection, eventId, record, existing, sourceSnapshot);
-        const duplicateRecord = { ...storedRecord, duplicate: true, duplicateCustomerId: existing.id, ownerSaleId: existing.sale_id || null };
+        const pendingOffer = existing.sale_id ? null : await findPendingOffer(connection, existing.id);
+        const duplicate = await recordDuplicate(connection, eventId, record, existing, sourceSnapshot, pendingOffer);
+        await crmData.queueTelegramNotice(connection, 'duplicate-admin:' + eventId, {
+          kind: 'DUPLICATE_ADMIN',
+          customer: {
+            id: existing.id,
+            name: existing.name || record.customer?.name || '',
+            phone: existing.phone || record.customer?.phone || '',
+            email: existing.email || record.customer?.email || ''
+          },
+          customerId: existing.id,
+          receivedAt: record.receivedAt,
+          source: sourceSnapshot,
+          ownerSaleId: duplicate.ownerSaleId,
+          offerId: duplicate.pendingOfferId,
+          waitingForAcceptance: duplicate.waitingForAcceptance
+        });
+        const duplicateRecord = { ...storedRecord, duplicate: true, duplicateCustomerId: existing.id, ownerSaleId: duplicate.ownerSaleId, pendingOfferId: duplicate.pendingOfferId, duplicateStatus: duplicate.waitingForAcceptance ? 'PENDING_ACCEPTANCE' : duplicate.ownerSaleId ? 'ASSIGNED' : 'UNASSIGNED' };
         await connection.execute('UPDATE webhook_events SET payload_json = ? WHERE id = ?', [JSON.stringify(duplicateRecord), eventId]);
         await connection.commit();
-        return { eventId, customerId: existing.id, duplicate: true, replay: false, ownerSaleId: existing.sale_id || null, source: sourceSnapshot };
+        return { eventId, customerId: existing.id, duplicate: true, replay: false, ownerSaleId: duplicate.ownerSaleId, pendingOfferId: duplicate.pendingOfferId, duplicateStatus: duplicateRecord.duplicateStatus, source: sourceSnapshot };
       }
+      await crmData.queueTelegramNotice(connection, 'webhook:' + eventId, { kind: 'WEBHOOK_ADMIN', customer: record.customer, receivedAt: record.receivedAt, source: sourceSnapshot });
       // Lưu ảnh chụp nguồn cùng khách; replay không ghi đè phân công/trạng thái cũ.
       const referenceAmount = extractReferenceAmount(record.raw);
       const meta = { webhookSlug: record.slug, webhookEventId: eventId };

@@ -4,6 +4,7 @@ const crypto = require('node:crypto');
 const { pool, dbQuery } = require('./db.js');
 
 let prepared = null;
+const MESSAGE_PAGE_SIZE = 100;
 
 function departmentLabel(role) {
   return ({ ADMIN: 'Quản trị', MANAGER: 'Quản lý', LEADER: 'Trưởng nhóm', SALE: 'Sales', MARKETING: 'Marketing', ACCOUNTING: 'Kế toán' })[String(role || '').toUpperCase()] || 'Nhân viên';
@@ -127,7 +128,7 @@ function presentConversation(row, unreadCount, pendingReplyCount = 0) {
   return { id: row.id, status: row.status, lastMessageAt: row.last_message_at, lastMessagePreview: row.last_message_preview || '', resolvedAt: row.resolved_at, createdAt: row.created_at, unreadCount, pendingReplyCount, requester: { id: row.user_id, name: row.name, role: row.role, accountId: row.account_code || '', department: departmentLabel(row.role) } };
 }
 
-async function getMessages(user, requestedConversationId) {
+async function getMessages(user, requestedConversationId, beforeCreatedAt = '', beforeId = '') {
   await prepare();
   let conversation = String(requestedConversationId || '').trim();
   if (user.role !== 'ADMIN') conversation = conversationId(user.id);
@@ -136,9 +137,20 @@ async function getMessages(user, requestedConversationId) {
   if (!conversations.length) return { conversation: null, messages: [] };
   const item = conversations[0];
   if (user.role !== 'ADMIN' && item.requester_user_id !== user.id) throw Object.assign(new Error('Không có quyền xem hội thoại này.'), { status: 403 });
-  const rows = await dbQuery(`SELECT id,conversation_id,requester_user_id,sender_user_id,sender_role,content,image_file,image_mime,created_at FROM support_messages WHERE conversation_id=? ORDER BY created_at ASC,id ASC LIMIT 500`, [conversation]);
+  const clauses = ['conversation_id=?'];
+  const values = [conversation];
+  const cursorAt = String(beforeCreatedAt || '').trim();
+  const cursorId = String(beforeId || '').trim();
+  if (cursorAt && cursorId) {
+    clauses.push('(created_at<? OR (created_at=? AND id<?))');
+    values.push(cursorAt, cursorAt, cursorId);
+  }
+  const rows = await dbQuery(`SELECT id,conversation_id,requester_user_id,sender_user_id,sender_role,content,image_file,image_mime,created_at FROM support_messages WHERE ${clauses.join(' AND ')} ORDER BY created_at DESC,id DESC LIMIT ${MESSAGE_PAGE_SIZE + 1}`, values);
+  const hasMore = rows.length > MESSAGE_PAGE_SIZE;
+  const page = rows.slice(0, MESSAGE_PAGE_SIZE).reverse();
+  const oldest = page[0];
   await dbQuery(`UPDATE support_conversations SET ${user.role === 'ADMIN' ? 'admin_read_at' : 'employee_read_at'}=NOW() WHERE id=?`, [conversation]);
-  return { conversation: presentConversation({ ...item, last_message_at: null, last_message_preview: '', resolved_at: null, created_at: null, user_id: item.requester_user_id }, 0), messages: rows.map(row => ({ id: row.id, conversationId: row.conversation_id, requesterUserId: row.requester_user_id, senderUserId: row.sender_user_id, senderRole: row.sender_role, content: row.content || '', imageFile: row.image_file || '', imageMime: row.image_mime || '', createdAt: row.created_at })) };
+  return { conversation: presentConversation({ ...item, last_message_at: null, last_message_preview: '', resolved_at: null, created_at: null, user_id: item.requester_user_id }, 0), messages: page.map(row => ({ id: row.id, conversationId: row.conversation_id, requesterUserId: row.requester_user_id, senderUserId: row.sender_user_id, senderRole: row.sender_role, content: row.content || '', imageFile: row.image_file || '', imageMime: row.image_mime || '', createdAt: row.created_at })), hasMore, oldestCursor: oldest ? { createdAt: oldest.created_at, id: oldest.id } : null };
 }
 
 async function markResolved(admin, requestedConversationId) {

@@ -534,8 +534,13 @@ async function distributeAutomatic(c, data = null) {
    const value = rule.matchType === 'WEBSITE' ? row.websiteId : rule.matchType === 'CAMPAIGN' ? row.campaign : row.source;
    return normalize(value) === normalize(rule.matchValue);
   });
-  const explicitGlobalRounds=Array.isArray(saleConfigs.$?.rounds)&&saleConfigs.$.rounds.length>0;
-  if (automatic && (!sourceRule || explicitGlobalRounds)) {
+  const globalSettings=saleConfigs.$;
+  const globalDistributionConfigured=Boolean(globalSettings&&(
+   (Array.isArray(globalSettings.rounds)&&globalSettings.rounds.length>0)||
+   (Array.isArray(globalSettings.enabledSaleIds)&&globalSettings.enabledSaleIds.length>0)||
+   (globalSettings.weights&&Object.keys(globalSettings.weights).length>0)
+  ));
+  if (automatic && (!sourceRule || globalDistributionConfigured)) {
    const step=distributionRounds.take(globalConfig,distributionRounds.cursorFrom(cursor),globalRecipients,mode);
    globalConfig=step.config;roundsChanged ||= step.changed;
    cursor.global=step.cursor;

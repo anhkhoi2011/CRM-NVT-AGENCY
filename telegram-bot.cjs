@@ -666,6 +666,55 @@ async function notifyWebhookLeadAdmins(customer, receivedAt, deliveredChatIds = 
   }
 }
 
+async function notifyDuplicateOwner(customer, notice) {
+  const rows = await dbQuery(
+    'SELECT id, name, role, telegram_chat_id FROM users WHERE id = ? AND active = 1 AND telegram_chat_id IS NOT NULL LIMIT 1',
+    [notice.recipientId]
+  );
+  const sale = rows?.[0];
+  if (!sale?.telegram_chat_id) return { sent: 0, skipped: true, reason: 'missing-chat-id' };
+  if (!['SALE', 'LEADER', 'MANAGER'].includes(String(sale.role || '').toUpperCase())) {
+    return { sent: 0, skipped: true, reason: 'invalid-role' };
+  }
+
+  const status = notice.waitingForAcceptance
+    ? 'Dang giu luot cho Sale nay nhan'
+    : 'Giu Sale cu phu trach';
+  const text = '<b>DATA TRUNG HE THONG</b>\n\n' +
+    `• <b>Khach hang:</b> ${escapeHtml(customer.name || 'Chua co')}\n` +
+    `• <b>SDT:</b> <code>${escapeHtml(customer.phone || 'Chua co')}</code>\n` +
+    `• <b>Gmail:</b> ${escapeHtml(customer.email || 'Chua co')}\n` +
+    `• <b>Trang thai:</b> ${status}\n` +
+    `• <b>Thoi gian:</b> ${escapeHtml(formatDateTimeVN(notice.duplicateAt || new Date()))}`;
+  const result = await sendMessage(String(sale.telegram_chat_id), text);
+  return { sent: result?.ok ? 1 : 0, skipped: !result?.ok };
+}
+
+async function notifyDuplicateLeadAdmins(customer, receivedAt, ownerSaleId = null, waitingForAcceptance = false, source = null) {
+  try {
+    const admins = await dbQuery("SELECT telegram_chat_id FROM users WHERE role = 'ADMIN' AND active = 1 AND telegram_chat_id IS NOT NULL");
+    const configuredAdminChatId = String(SYSTEM_ADMIN_CHAT_ID || '').trim();
+    const linkedAdminChatIds = admins.map(row => row.telegram_chat_id).filter(Boolean).map(String);
+    const chatIds = configuredAdminChatId ? [configuredAdminChatId] : [...new Set(linkedAdminChatIds)];
+    if (!chatIds.length) return { sent: 0, skipped: true, reason: 'missing-admin-chat-id' };
+    const sourceUrl = String(source?.landingPageUrl || source?.sourceUrl || '').trim();
+    const ownerLabel = ownerSaleId ? `\n• <b>Sale giu luot:</b> <code>${escapeHtml(ownerSaleId)}</code>` : '';
+    const waitingLabel = waitingForAcceptance ? '\n• <b>Trang thai:</b> Dang cho Sale hien tai nhan data' : '';
+    const text = '<b>DATA TRUNG TU WEBHOOK</b>\n\n' +
+      `• <b>Ho ten:</b> ${escapeHtml(customer.name || 'Chua co')}\n` +
+      `• <b>SDT:</b> <code>${escapeHtml(customer.phone || 'Chua co')}</code>\n` +
+      `• <b>Gmail:</b> ${escapeHtml(customer.email || 'Chua co')}\n` +
+      (sourceUrl ? `• <b>Nguon data:</b> <a href="${escapeHtml(sourceUrl)}">${escapeHtml(sourceUrl)}</a>\n` : '') +
+      `• <b>Thoi gian data ve:</b> ${escapeHtml(formatDateTimeVN(receivedAt))}` + ownerLabel + waitingLabel;
+    let sent = 0;
+    for (const chatId of chatIds) if ((await sendMessage(chatId, text))?.ok) sent++;
+    return { sent, total: chatIds.length, complete: sent === chatIds.length };
+  } catch (error) {
+    console.error('[Telegram Bot] notifyDuplicateLeadAdmins error:', error.message);
+    return { sent: 0, error: error.message };
+  }
+}
+
 async function notifyInternalSupportMessage(message, imagePath = '') {
   if (!SUPPORT_ADMIN_CHAT_ID) return { sent: false, configured: false, reason: 'missing-admin-chat-id' };
   const requester = message.requester || {};
@@ -1058,6 +1107,37 @@ async function drainLeadNotifications(){
      notice.deliveredChatIds=result.deliveredChatIds||notice.deliveredChatIds||[];
      if(result.complete)notice.status='SENT';
      else notice.lastError=result.skipped?'ADMIN_CHAT_NOT_CONFIGURED':'TELEGRAM_DELIVERY_FAILED';
+    }else if(notice.kind==='DUPLICATE_ADMIN'){
+     const result=await notifyDuplicateLeadAdmins(notice.customer,notice.receivedAt,notice.ownerSaleId||null,Boolean(notice.waitingForAcceptance),notice.source||null);
+     if(result.complete)notice.status='SENT';
+     else notice.lastError=result.skipped?'ADMIN_CHAT_NOT_CONFIGURED':'TELEGRAM_DELIVERY_FAILED';
+    }else if(notice.kind==='DUPLICATE_OWNER'){
+     const [customers]=await connection.execute('SELECT * FROM customers WHERE id=? LIMIT 1',[notice.customerId]);
+     const sql=customers[0];
+     if(!sql){
+      notice.status='SKIPPED';
+     }else{
+      let fields={};
+      try{fields=parse(sql.custom_fields_json||'{}')||{};}catch{fields={};}
+      const customer={...(fields.__crmMeta||{}),...sql};
+      let valid=sql.sale_id===notice.recipientId;
+      if(!valid&&notice.offerId){
+       const [offers]=await connection.execute("SELECT body FROM crm_documents WHERE collection='dataOffers' AND id=? AND deleted=0",[notice.offerId]);
+       let offer=null;
+       try{offer=offers[0]?parse(offers[0].body):null;}catch{offer=null;}
+       const raw=String(offer?.offeredAt||offer?.offered_at||'').replace(' ','T');
+       const offeredAt=raw?(/(?:Z|[+-]\d{2}:?\d{2})$/i.test(raw)?Date.parse(raw):Date.parse(raw+'+07:00')):NaN;
+       valid=offer?.status==='PENDING'&&offer.saleId===notice.recipientId&&offer.customerId===notice.customerId&&Number.isFinite(offeredAt)&&offeredAt+86400000>Date.now();
+      }
+      if(!valid){
+       notice.status='SKIPPED';
+      }else{
+       const result=await notifyDuplicateOwner(customer,notice);
+       if(result.sent>0)notice.status='SENT';
+       else if(result.reason==='invalid-role')notice.status='SKIPPED';
+       else notice.lastError=result.reason||'TELEGRAM_DELIVERY_FAILED';
+      }
+     }
     }else if(notice.kind==='ASSIGNMENT'){
      const [customers]=await connection.execute('SELECT * FROM customers WHERE id=? LIMIT 1',[notice.customerId]);
      const sql=customers[0];
@@ -1113,6 +1193,8 @@ module.exports = {
   handleTelegramUpdate,
   notifyNewLead,
   notifyWebhookLeadAdmins,
+  notifyDuplicateOwner,
+  notifyDuplicateLeadAdmins,
   notifyInternalSupportMessage,
   notifyReassignedLead,
   notifyAppointmentReminder,

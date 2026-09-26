@@ -803,7 +803,7 @@ async function handleSupportApi(request, response, pathname, user) {
   const url = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
   if (pathname.startsWith('/api/support/uploads/') && request.method === 'GET') return sendSupportUpload(request, response, user, decodeURIComponent(pathname.slice('/api/support/uploads/'.length)));
   if (pathname === '/api/support/conversations' && request.method === 'GET') return dbJson(request, response, 200, { conversations: await supportChat.listConversations(user) });
-  if (pathname === '/api/support/messages' && request.method === 'GET') return dbJson(request, response, 200, await supportChat.getMessages(user, url.searchParams.get('conversationId')));
+  if (pathname === '/api/support/messages' && request.method === 'GET') return dbJson(request, response, 200, await supportChat.getMessages(user, url.searchParams.get('conversationId'), url.searchParams.get('beforeCreatedAt'), url.searchParams.get('beforeId')));
   if (pathname === '/api/support/messages' && request.method === 'POST') {
     const body = await readDbBody(request);
     let image = null;

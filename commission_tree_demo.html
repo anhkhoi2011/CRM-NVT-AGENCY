@@ -516,7 +516,8 @@
     position: relative;
     background: radial-gradient(circle at 50% 50%, #111e38 0%, #0b1329 100%);
     user-select: none;
-    touch-action: none;
+    -webkit-user-select: none;
+    touch-action: none; /* Khóa cuộn trang mặc định để nhường toàn quyền cho cảm ứng kéo phóng */
   }
   .mindmap-viewport:active {
     cursor: grabbing;
@@ -528,16 +529,28 @@
     transform-origin: 0 0;
     will-change: transform;
     pointer-events: auto;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
   }
-
- /* Node SVG Styles */
- .node-group {
- cursor: pointer;
- transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
- }
- .node-group:hover {
- filter: drop-shadow(0 6px 14px rgba(59, 130, 246, 0.5));
- }
+  #mindmapSvg text {
+    user-select: none;
+    -webkit-user-select: none;
+    pointer-events: none; /* Chữ không cản trở thao tác vuốt chạm kéo giữ */
+  }
+    .node-group, .mindmap-node-interactive {
+    cursor: pointer;
+    pointer-events: auto;
+    touch-action: none;
+    -webkit-tap-highlight-color: rgba(59, 130, 246, 0.3);
+    transition: transform 0.15s ease, filter 0.15s ease;
+  }
+  .node-group:hover, .mindmap-node-interactive:hover {
+    filter: drop-shadow(0 4px 12px rgba(59, 130, 246, 0.6));
+  }
+  .node-group:active, .mindmap-node-interactive:active {
+    filter: drop-shadow(0 0 14px rgba(249, 115, 22, 0.8)) brightness(1.15);
+  }
 
  /* TAB 2 & 3: REPORT & RANKING TABLES */
  .report-card {
@@ -1240,9 +1253,26 @@
  <h3 style="margin:0; font-size:15px; font-weight:800; color:#0f172a;">
  BÁO CÁO DOANH THU & HOA HỒNG NHÂN VIÊN (23 NHÂN SỰ)
  </h3>
- <span style="background:#e0f2fe; color:#0284c7; font-size:11.5px; font-weight:700; padding:3px 8px; border-radius:6px;">
- Tháng 09/2026
- </span>
+ <div style="display:inline-flex; align-items:center; background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; padding:3px 6px; box-shadow:0 1px 3px rgba(0,0,0,0.05); gap:4px;">
+              <button type="button" class="btn-micro" onclick="navigateGlobalMonth(-1)" style="font-size:12px; font-weight:800; padding:5px 9px; border-radius:6px; background:#ffffff; border:1px solid #cbd5e1; cursor:pointer;" title="Lùi về tháng trước">
+                ◀ Tháng trước
+              </button>
+              
+              <div style="display:flex; align-items:center; gap:4px; padding:0 4px;">
+                <select id="reportMonthSelect" onchange="onGlobalMonthSelectChange(this.value)" style="border:none; background:transparent; font-size:12.5px; font-weight:900; color:#1e293b; padding:4px 6px; cursor:pointer; font-family:'JetBrains Mono'; outline:none;">
+                  <option value="2026-10">Tháng 10/2026 (Kế hoạch)</option>
+                  <option value="2026-09" selected>Tháng 09/2026 (Hiện tại)</option>
+                  <option value="2026-08">Tháng 08/2026 (Tháng trước)</option>
+                  <option value="2026-07">Tháng 07/2026</option>
+                  <option value="2026-06">Tháng 06/2026</option>
+                  <option value="ALL">Tất Cả Các Tháng (Lũy kế)</option>
+                </select>
+              </div>
+
+              <button type="button" class="btn-micro" onclick="navigateGlobalMonth(1)" style="font-size:12px; font-weight:800; padding:5px 9px; border-radius:6px; background:#ffffff; border:1px solid #cbd5e1; cursor:pointer;" title="Tiến đến tháng sau">
+                Tháng sau ▶
+              </button>
+            </div>
  </div>
 
  <div style="display:flex; align-items:center; gap:10px;">
@@ -1482,7 +1512,7 @@
           <div>
             <div style="font-size:16px; font-weight:900; color:#0f172a; display:flex; align-items:center; gap:8px;">
               <span>🧾</span>
-              <span>KẾ TOÁN ĐỐI SOÁT ĐƠN HÀNG & XUẤT HÓA ĐƠN VAT</span>
+              <span id="orderReportMonthTitle">KẾ TOÁN ĐỐI SOÁT ĐƠN HÀNG & XUẤT HÓA ĐƠN VAT (THÁNG 09/2026)</span>
               <span style="font-size:11px; background:#eff6ff; color:#2563eb; padding:2px 8px; border-radius:12px; font-weight:800;">NVT INVOICING & VAT</span>
             </div>
             <div style="font-size:12px; color:#64748b; margin-top:3px;">
@@ -1490,10 +1520,32 @@
             </div>
           </div>
           <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <!-- Cụm chọn & điều hướng tháng -->
+            <div style="display:inline-flex; align-items:center; background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; padding:3px 6px; box-shadow:0 1px 3px rgba(0,0,0,0.05); gap:4px;">
+              <button type="button" class="btn-micro" onclick="navigateOrderMonth(-1)" style="font-size:12px; font-weight:800; padding:5px 9px; border-radius:6px; background:#ffffff; border:1px solid #cbd5e1; cursor:pointer;" title="Lùi về tháng trước">
+                ◀ Tháng trước
+              </button>
+              
+              <div style="display:flex; align-items:center; gap:4px; padding:0 4px;">
+                <select id="orderMonthSelect" onchange="onOrderMonthSelectChange(this.value)" style="border:none; background:transparent; font-size:12.5px; font-weight:900; color:#1e293b; padding:4px 6px; cursor:pointer; font-family:'JetBrains Mono'; outline:none;">
+                  <option value="2026-10">Tháng 10/2026 (Kế hoạch)</option>
+                  <option value="2026-09" selected>Tháng 09/2026 (Hiện tại)</option>
+                  <option value="2026-08">Tháng 08/2026 (Tháng trước)</option>
+                  <option value="2026-07">Tháng 07/2026</option>
+                  <option value="2026-06">Tháng 06/2026</option>
+                  <option value="ALL">Tất Cả Các Tháng (Lũy kế)</option>
+                </select>
+              </div>
+
+              <button type="button" class="btn-micro" onclick="navigateOrderMonth(1)" style="font-size:12px; font-weight:800; padding:5px 9px; border-radius:6px; background:#ffffff; border:1px solid #cbd5e1; cursor:pointer;" title="Tiến đến tháng sau">
+                Tháng sau ▶
+              </button>
+            </div>
+
             <button class="tool-btn" onclick="exportVatOrdersToCSV()" style="font-size:12px; font-weight:700;">
               Xuất CSV
             </button>
-            <button class="tool-btn primary" onclick="openCreateOrderModal()" style="font-size:12px; font-weight:800; background:linear-gradient(135deg, #7c3aed, #4f46e5); box-shadow:0 2px 8px rgba(124,58,237,0.3);">
+            <button class="tool-btn primary" onclick="openCreateOrderModal()" style="font-size:12px; font-weight:800; background:#6d28d9; border:none;">
               Tạo Đơn Hàng Mới
             </button>
           </div>
@@ -1527,26 +1579,7 @@
         </div>
       </div>
 
-      <!-- THANH THÔNG BÁO KẾ TOÁN: CÓ ĐƠN THANH TOÁN THÀNH CÔNG BÁO VỀ KẾ TOÁN -->
-      <div id="accountingPaymentNotifBanner" style="background:linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%); border:1.5px solid #86efac; border-radius:12px; padding:14px 18px; margin-bottom:16px; box-shadow:0 2px 8px rgba(16,185,129,0.1); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-        <div style="display:flex; align-items:center; gap:12px;">
-          <div style="width:38px; height:38px; border-radius:50%; background:#22c55e; color:#fff; display:flex; align-items:center; justify-content:center; font-size:18px; box-shadow:0 2px 6px rgba(34,197,94,0.4);">
-            🔔
-          </div>
-          <div>
-            <div style="font-size:13.5px; font-weight:900; color:#065f46; display:flex; align-items:center; gap:8px;">
-              <span>THÔNG BÁO KẾ TOÁN: CÓ ĐƠN HÀNG VỪA THANH TOÁN THÀNH CÔNG!</span>
-              <span id="notifSuccessCountBadge" style="background:#059669; color:#ffffff; font-size:10.5px; font-weight:800; padding:2px 8px; border-radius:12px;">3 đơn mới</span>
-            </div>
-            <div style="font-size:11.5px; color:#047857; margin-top:2px;">
-              Khách hàng đã thanh toán 100% kèm ảnh bill và số CCCD, địa chỉ do Sale up lên. Kế toán kiểm tra đơn hàng và xử lý Option xuất hóa đơn VAT.
-            </div>
-          </div>
-        </div>
-        <div id="notifQuickOrderChips" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-          <!-- Rendered dynamically with quick access buttons -->
-        </div>
-      </div>
+      <!-- Đã xóa banner thông báo đơn thanh toán theo yêu cầu người dùng -->
 
       <!-- Bảng Kiểm Tra Đơn Hàng Chuẩn Hình 3 -->
       <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:18px 20px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
@@ -1803,7 +1836,7 @@
       </div>
     </div>
     <div class="modal-footer" style="background:#f8fafc;">
-      <button type="button" class="tool-btn" onclick="closeDownlineModal()">Đóng Cửa Sổ</button>
+      <button type="button" class="tool-btn" onclick="closeDownlineModal()">Đóng</button>
     </div>
   </div>
 </div>
@@ -1873,36 +1906,26 @@
      ==================================================================== -->
 <div class="modal-backdrop" id="trainingConfigModal" style="z-index: 1070;">
   <div class="modal-card" style="max-width: 1160px; max-height: 92vh; display:flex; flex-direction:column;">
-    <div class="modal-header" style="background:#fffbeb; border-bottom:1px solid #fde68a;">
+    <div class="modal-header" style="background:#f8fafc; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
       <div>
-        <h3 style="color:#b45309; margin:0; font-size:16px;">🎓 Cấu Hình Khóa Học & Hoa Hồng Đào Tạo (Khóa Học + Chỉ Báo + Nhóm VIP)</h3>
-        <span style="font-size:12px; color:#78350f;">Chọn từng khóa học, tinh chỉnh Người Đào Tạo, Leader phụ trách, và cơ chế chia: Sale (15%), Leader (5%), Đào tạo (15%), Công ty (65%)</span>
+        <h3 style="color:#0f172a; margin:0; font-size:15px; font-weight:700;">Cấu Hình Khóa Học & Đào Tạo</h3>
+        <span style="font-size:12px; color:#64748b;">Quản lý Người Đào Tạo, Leader phụ trách và tỷ lệ phân bổ</span>
       </div>
-      <button class="modal-close" onclick="closeTrainingConfigModal()">✕</button>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <button type="button" class="tool-btn" onclick="toggleAddNewBatchForm()" style="font-size:12px; padding:6px 12px; background:#f0fdf4; color:#15803d; border-color:#bbf7d0; font-weight:600;">
+          Mở Lớp Mới
+        </button>
+        <button class="modal-close" onclick="closeTrainingConfigModal()">✕</button>
+      </div>
     </div>
 
     <div class="modal-body" style="padding:16px;">
-      <!-- Standard Rate Formula Notice -->
-      <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px 14px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-          <span style="font-size:12px; font-weight:800; color:#334155;">CƠ CHẾ MẶC ĐỊNH:</span>
-          <span style="background:#e0f2fe; color:#0369a1; padding:2px 7px; border-radius:5px; font-size:11px; font-weight:800;">Sale: 15%</span>
-          <span style="background:#fff7ed; color:#c2410c; padding:2px 7px; border-radius:5px; font-size:11px; font-weight:800;">Leader: 5%</span>
-          <span style="background:#f5f3ff; color:#6d28d9; padding:2px 7px; border-radius:5px; font-size:11px; font-weight:800;">Đào Tạo: 15%</span>
-          <span style="background:#ecfdf5; color:#047857; padding:2px 7px; border-radius:5px; font-size:11px; font-weight:800;">Công Ty: 65%</span>
-          <span style="font-size:11px; color:#64748b; margin-left:4px;">(👉 Bấm <b>[⚙️ Chi Tiết]</b> ở từng khóa để chọn nhiều Leader & tùy chỉnh % từng Sale)</span>
-        </div>
-        <div style="display:flex; gap:8px;">
-          <button type="button" class="tool-btn" onclick="toggleAddNewBatchForm()" style="font-size:11.5px; padding:4px 12px; background:#f0fdf4; color:#15803d; border-color:#bbf7d0; font-weight:800;">
-            ➕ Mở Lớp Mới (K04, K05...)
-          </button>
-        </div>
-      </div>
+      
 
       <!-- Add New Batch Form (Expandable) -->
       <div id="addNewBatchContainer" style="display:none; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:12px 14px; margin-bottom:12px;">
         <div style="font-size:12px; font-weight:800; color:#166534; margin-bottom:8px; text-transform:uppercase;">
-          ➕ Mở Thêm Lớp Mới (Khóa K04, K05, Lớp Học Mới):
+          Mở Thêm Lớp Mới (Khóa K04, K05, Lớp Học Mới):
         </div>
         <div class="form-grid-3" style="gap:10px;">
           <div class="form-group">
@@ -1934,7 +1957,7 @@
           </div>
           <div class="form-group" style="display:flex; align-items:flex-end;">
             <button type="button" class="tool-btn primary" onclick="submitCreateNewBatch()" style="background:#15803d; border-color:#15803d; width:100%; padding:6px; font-size:12px;">
-              ✓ Tạo Lớp & Lưu Hệ Thống
+              Tạo Lớp & Lưu Hệ Thống
             </button>
           </div>
         </div>
@@ -1972,7 +1995,7 @@
     <div class="modal-footer" style="background:#f8fafc; display:flex; justify-content:space-between; align-items:center;">
       <button type="button" class="tool-btn" onclick="closeTrainingConfigModal()">Đóng Cửa Sổ</button>
       <button type="button" class="tool-btn primary" onclick="saveTrainingConfig()" style="background:linear-gradient(135deg, #b45309, #d97706); color:#fff; font-weight:800; padding:8px 18px;">
-        💾 Lưu Cấu Hình & Cập Nhật Hệ Thống
+        Lưu Cấu Hình & Cập Nhật Hệ Thống
       </button>
     </div>
   </div>
@@ -1999,12 +2022,12 @@
       <div style="background:#faf5ff; border:1px solid #ddd6fe; border-radius:8px; padding:12px 14px; margin-bottom:14px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
           <div style="font-size:12px; font-weight:800; color:#6d28d9; text-transform:uppercase;">
-            🎓 1. NGƯỜI ĐÀO TẠO & % HOA HỒNG ĐÀO TẠO
+            1. NGƯỜI ĐÀO TẠO & % HOA HỒNG ĐÀO TẠO
           </div>
           <div style="display:flex; gap:6px; align-items:center;">
             <select id="cdmAddTrainerSelect" style="font-size:11px; padding:4px 8px; border-radius:5px; border:1px solid #cbd5e1;"></select>
             <button type="button" class="tool-btn" onclick="addTrainerToCurrentCourse()" style="font-size:11px; padding:4px 10px; background:#f5f3ff; color:#6d28d9; border-color:#ddd6fe; font-weight:700;">
-              + Chọn Người Đào Tạo
+              Thêm Người Đào Tạo
             </button>
           </div>
         </div>
@@ -2017,14 +2040,14 @@
       <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:8px; padding:12px 14px; margin-bottom:14px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
           <div style="font-size:12px; font-weight:800; color:#c2410c; text-transform:uppercase;">
-            👑 2. LEADER PHỤ TRÁCH (CHỌN NHIỀU LEADER CHO 1 KHÓA & TÙY CHỈNH % TỪNG NGƯỜI)
+            2. LEADER PHỤ TRÁCH (CHỌN NHIỀU LEADER CHO 1 KHÓA & TÙY CHỈNH % TỪNG NGƯỜI)
           </div>
           <div style="display:flex; gap:6px; align-items:center;">
             <button type="button" onclick="cdmSelectAllLeaders(true)" style="font-size:11px; padding:3px 8px; background:#ffffff; color:#c2410c; border:1px solid #fed7aa; border-radius:4px; font-weight:800; cursor:pointer;">
-              ✓ Chọn Tất Cả Leader
+              Chọn Tất Cả Leader
             </button>
             <button type="button" onclick="cdmSelectAllLeaders(false)" style="font-size:11px; padding:3px 8px; background:#ffffff; color:#64748b; border:1px solid #cbd5e1; border-radius:4px; font-weight:600; cursor:pointer;">
-              ✕ Bỏ Chọn Hết
+              Bỏ Chọn Hết
             </button>
           </div>
         </div>
@@ -2037,11 +2060,11 @@
       <div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:8px; padding:12px 14px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
           <div style="font-size:12px; font-weight:800; color:#0369a1; text-transform:uppercase;">
-            💼 3. DANH SÁCH TẤT CẢ SALE (MẶC ĐỊNH 15% • TINH CHỈNH % TỪNG NGƯỜI)
+            3. DANH SÁCH TẤT CẢ SALE (MẶC ĐỊNH 15% - TINH CHỈNH TỪNG NGƯỜI)
           </div>
           <div style="display:flex; gap:6px; align-items:center;">
             <button type="button" onclick="applyDefault15PercentToAllSales()" style="font-size:11px; padding:3px 10px; background:#ffffff; color:#0369a1; border:1px solid #7dd3fc; border-radius:4px; font-weight:800; cursor:pointer;">
-              ⚡ Đặt 15% Cho Tất Cả Sale
+              Đặt 15% Cho Tất Cả Sale
             </button>
           </div>
         </div>
@@ -2084,10 +2107,10 @@
           Công Ty Giữ Lại: <strong id="cdmSummaryCompanyShare" style="color:#047857; font-family:'JetBrains Mono'; font-weight:800;">0 đ</strong>
         </span>
       </div>
-      <div style="display:flex; gap:8px;">
-        <button type="button" class="tool-btn" onclick="closeCoursePersonnelDetailModal()">Đóng</button>
-        <button type="button" class="tool-btn primary" onclick="saveCoursePersonnelDetail()" style="background:linear-gradient(135deg, #7c3aed, #4f46e5); color:#fff; font-weight:800; padding:8px 18px;">
-          💾 Lưu Phân Bổ Khóa Học
+      <div style="display:flex; gap:8px; flex-shrink:0; align-items:center;">
+        <button type="button" class="tool-btn" onclick="closeCoursePersonnelDetailModal()" style="font-size:12px; padding:7px 14px; border-radius:6px; cursor:pointer; white-space:nowrap;">Đóng</button>
+        <button type="button" class="tool-btn primary" onclick="saveCoursePersonnelDetail()" style="background:#6d28d9; color:#fff; font-weight:700; font-size:12px; padding:7px 16px; border-radius:6px; border:none; cursor:pointer; white-space:nowrap;">
+          Lưu Phân Bổ
         </button>
       </div>
     </div>
@@ -2098,7 +2121,7 @@
   <div class="modal-card" style="max-width: 920px;">
     <div class="modal-header" style="background:#f5f3ff; border-bottom:1px solid #ddd6fe;">
       <div>
-        <h3 style="color:#6d28d9; margin:0; font-size:16px;">✉️ Gửi Báo Cáo & Bảng Kê Thu Nhập Đến Từng Nhân Viên</h3>
+        <h3 style="color:#6d28d9; margin:0; font-size:16px;">Gửi Báo Cáo & Bảng Kê Thu Nhập Đến Từng Nhân Viên</h3>
         <span style="font-size:12px; color:#64748b;">Gửi thông báo xác nhận doanh thu & hoa hồng tháng 09/2026 đến nhân sự qua hệ thống / Zalo / SMS</span>
       </div>
       <button class="modal-close" onclick="closeSendToPersonnelModal()">✕</button>
@@ -2231,6 +2254,54 @@
 </div>
 
 <script>
+
+  // ====================================================================
+  // QUẢN LÝ THÁNG TOÀN CỤC ĐỒNG BỘ CẢ 3 PHÂN HỆ
+  // ====================================================================
+  let currentGlobalMonth = '2026-09';
+  const MONTH_FACTORS = {
+    '2026-10': 1.07,
+    '2026-09': 1.00,
+    '2026-08': 0.914,
+    '2026-07': 0.836,
+    '2026-06': 0.75,
+    'ALL': 1.00
+  };
+
+  const GLOBAL_MONTH_LIST = ['2026-10', '2026-09', '2026-08', '2026-07', '2026-06', 'ALL'];
+
+  function setGlobalMonth(m) {
+    currentGlobalMonth = m;
+    if (typeof currentAccountingMonth !== 'undefined') currentAccountingMonth = m;
+    if (typeof currentOrderMonth !== 'undefined') currentOrderMonth = m;
+
+    // Cập nhật select trên cả 3 tab
+    const s1 = document.getElementById('reportMonthSelect');
+    if (s1) s1.value = m;
+    const s2 = document.getElementById('accountingMonthSelect');
+    if (s2) s2.value = m;
+    const s3 = document.getElementById('orderMonthSelect');
+    if (s3) s3.value = m;
+
+    // Render lại 3 tab
+    if (typeof renderReportTable === 'function') renderReportTable();
+    if (typeof renderAccountingView === 'function') renderAccountingView();
+    if (typeof renderVatOrdersView === 'function') renderVatOrdersView();
+  }
+
+  function navigateGlobalMonth(dir) {
+    let idx = GLOBAL_MONTH_LIST.indexOf(currentGlobalMonth);
+    if (idx === -1) idx = 1;
+    let newIdx = idx - dir;
+    if (newIdx < 0) newIdx = 0;
+    if (newIdx >= GLOBAL_MONTH_LIST.length - 1) newIdx = GLOBAL_MONTH_LIST.length - 2;
+    setGlobalMonth(GLOBAL_MONTH_LIST[newIdx]);
+  }
+
+  function onGlobalMonthSelectChange(val) {
+    setGlobalMonth(val);
+  }
+
  // ====================================================================
  // 1. HỆ SỐ QUY ĐỔI LOT & ĐỊNH MỨC HOA HỒNG TOÀN HỆ THỐNG
  // ====================================================================
@@ -2805,7 +2876,8 @@
     // 1. Hoa hồng Sale trực tiếp bán Sản phẩm (Khóa học + Chỉ báo + Nhóm VIP)
     // Tùy chỉnh % riêng cho từng Sale ở từng khóa nếu có cấu hình salesConfig
     const defaultSaleRate = (item.productRate !== undefined && item.productRate !== null) ? Number(item.productRate) : 15;
-    let courseRev = item.courseRev || 0;
+    const monthFactor = (typeof MONTH_FACTORS !== 'undefined' && MONTH_FACTORS[currentGlobalMonth]) ? MONTH_FACTORS[currentGlobalMonth] : 1.0;
+    let courseRev = Math.round((item.courseRev || 0) * monthFactor);
     let hhSaleCourse = 0;
 
     // Tính chi tiết hoa hồng khóa học theo từng khóa nếu Sale có cấu hình salesConfig
@@ -2824,8 +2896,8 @@
       hhSaleCourse = Math.round(courseRev * (defaultSaleRate / 100));
     }
 
-    const indicatorRev = item.indicatorRev || 0;
-    const vipRev = item.vipRev || 0;
+    const indicatorRev = Math.round((item.indicatorRev || 0) * monthFactor);
+    const vipRev = Math.round((item.vipRev || 0) * monthFactor);
     const hhSaleIndicator = Math.round(indicatorRev * (defaultSaleRate / 100));
     const hhSaleVip = Math.round(vipRev * (defaultSaleRate / 100));
     const totalProductRev = courseRev + indicatorRev + vipRev;
@@ -2839,7 +2911,7 @@
     const hhLeaderCourse = calculateLeaderCourseCommission(item, APEX_DATA);
 
     // 4. Thưởng KPI
-    const bonus = Number(item.bonus || 0);
+    const bonus = Math.round(Number(item.bonus || 0) * monthFactor);
     
     // TỔNG THỰC NHẬN = HH Lot + HH Lot Tuyến Dưới + HH Sale SP + HH Đào Tạo + HH Leader SP + Thưởng
     const netIncome = hhLot + dl.downlineCommission + hhSaleProducts + hhTrainer + hhLeaderCourse + bonus;
@@ -2993,7 +3065,11 @@
  // Vẽ Root Node
  const rootPos = nodePositions["ROOT"];
  const rootG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+ rootG.setAttribute('class', 'mindmap-node-interactive');
  rootG.setAttribute('transform', `translate(${rootPos.x}, ${rootPos.y})`);
+ rootG.dataset.nodeId = 'ROOT';
+ rootG.dataset.nodeType = 'ROOT';
+ rootG.style.cursor = 'pointer';
  rootG.innerHTML = `
  <rect width="230" height="70" rx="14" fill="url(#gradOrange)" stroke="#ff7a45" stroke-width="1.8"/>
  <circle cx="34" cy="35" r="16" fill="rgba(255,255,255,0.2)"/>
@@ -3011,16 +3087,26 @@
     rootG.style.cursor = 'pointer';
     nodesGroup.appendChild(rootG);
 
- // Vẽ các Node nhân sự
- APEX_DATA.forEach(person => {
- const pos = nodePositions[person.id];
- if (!pos) return;
+   // Vẽ các Node nhân sự
+  APEX_DATA.forEach(person => {
+    const pos = nodePositions[person.id];
+    if (!pos) return;
 
- const fin = calculatePersonnelFinance(person);
- const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
- g.setAttribute('class', 'node-group');
- g.setAttribute('transform', `translate(${pos.x}, ${pos.y})`);
- g.onclick = (e) => {
+    const fin = calculatePersonnelFinance(person);
+    const lotRateText = `${(fin.ratePerLot / 1000)}k/lot`;
+
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.setAttribute('class', 'node-group mindmap-node-interactive');
+    g.setAttribute('transform', `translate(${pos.x}, ${pos.y})`);
+    g.setAttribute('data-node-id', person.id);
+    g.setAttribute('data-node-type', 'PERSON');
+    g.setAttribute('id', 'mindmap-node-' + person.id);
+    g.dataset.nodeId = person.id;
+    g.dataset.nodeType = 'PERSON';
+    g.style.cursor = 'pointer';
+
+    // Bắt sự kiện click trực tiếp trên Node
+    g.onclick = function(e) {
       if (typeof hasMindmapDragged !== 'undefined' && hasMindmapDragged) {
         e.stopPropagation();
         return;
@@ -3028,42 +3114,40 @@
       openEditPersonnelModal(person.id);
     };
 
- const cardW = 240;
- const cardH = 46;
+    const cardW = 245;
+    const cardH = 46;
 
- let strokeColor = "#10b981"; // Lv3
- let rateBadgeBg = "#064e3b";
- let roleLabelText = `LV3: ${(fin.ratePerLot / 1000)}k`;
+    let strokeColor = "#10b981"; // Lv3 - Xanh ngọc
+    let rateBadgeBg = "#064e3b";
 
- if (person.roleLevel === 'LV1') {
- strokeColor = "#3b82f6";
- rateBadgeBg = "#1e3a8a";
- roleLabelText = `LV1: ${(fin.ratePerLot / 1000)}k`;
- } else if (person.roleLevel === 'LV2') {
- strokeColor = "#ea580c";
- rateBadgeBg = "#7c2d12";
- roleLabelText = `LV2: ${(fin.ratePerLot / 1000)}k`;
- }
+    if (person.roleLevel === 'LV1') {
+      strokeColor = "#3b82f6"; // Lv1 - Xanh dương
+      rateBadgeBg = "#1e3a8a";
+    } else if (person.roleLevel === 'LV2') {
+      strokeColor = "#ea580c"; // Lv2 - Cam
+      rateBadgeBg = "#7c2d12";
+    }
 
-     const roleTitleClean = person.roleTitle || (person.roleLevel === 'LV1' ? 'Manager' : (person.roleLevel === 'LV2' ? 'Leader' : 'Sale'));
     const roleBadgeText = person.roleLevel === 'LV1' ? 'MANAGER' : (person.roleLevel === 'LV2' ? 'LEADER' : 'SALE');
 
+    // NỘI DUNG NODE: ĐỂ GIÁ LOT KẾ BÊN ID RÕ RÀNG, ĐẸP MẮT
     g.innerHTML = `
-      <rect width="${cardW}" height="${cardH}" rx="8" fill="#172033" stroke="${strokeColor}" stroke-width="1.4"/>
-      <text x="12" y="19" fill="#f8fafc" font-size="12" font-weight="700" font-family="'Plus Jakarta Sans', sans-serif">
+      <rect width="${cardW}" height="${cardH}" rx="8" fill="#172033" stroke="${strokeColor}" stroke-width="1.4" data-node-id="${person.id}" data-node-type="PERSON" style="cursor:pointer;"/>
+      <text x="12" y="19" fill="#f8fafc" font-size="12" font-weight="700" font-family="'Plus Jakarta Sans', sans-serif" pointer-events="none">
         ${person.name}
       </text>
-      <text x="12" y="33" fill="#94a3b8" font-size="9.5" font-family="'JetBrains Mono', monospace">
-        ID: ${person.id}
+      <text x="12" y="33" font-size="9.5" font-family="'JetBrains Mono', monospace" pointer-events="none">
+        <tspan fill="#94a3b8">ID: ${person.id}</tspan>
+        <tspan fill="${strokeColor}" font-weight="800"> • ${lotRateText}</tspan>
       </text>
-      <rect x="${cardW - 74}" y="11" width="64" height="22" rx="5" fill="${rateBadgeBg}" stroke="${strokeColor}" stroke-width="0.8"/>
-      <text x="${cardW - 42}" y="26" fill="#ffffff" font-size="9.5" font-weight="800" text-anchor="middle" font-family="'JetBrains Mono', monospace">
+      <rect x="${cardW - 68}" y="11" width="58" height="22" rx="5" fill="${rateBadgeBg}" stroke="${strokeColor}" stroke-width="0.8" pointer-events="none"/>
+      <text x="${cardW - 39}" y="26" fill="#ffffff" font-size="9" font-weight="800" text-anchor="middle" font-family="'JetBrains Mono', monospace" pointer-events="none">
         ${roleBadgeText}
       </text>
     `;
 
- nodesGroup.appendChild(g);
- });
+    nodesGroup.appendChild(g);
+  });
  }
 
  // ====================================================================
@@ -3254,8 +3338,12 @@
  // 7. MODAL CHỈNH SỬA CƠ CHẾ VÀ SỐ LOT TỪNG NGƯỜI
  // ====================================================================
   function openEditPersonnelModal(id) {
-    const person = APEX_DATA.find(p => p.id === id);
-    if (!person) return;
+    if (!id) return;
+    const person = APEX_DATA.find(p => String(p.id).trim() === String(id).trim());
+    if (!person) {
+      console.warn('Không tìm thấy nhân sự có ID:', id);
+      return;
+    }
 
     currentEditingPersonnelId = id;
     const nameEl = document.getElementById('modalPersonnelName');
@@ -3314,12 +3402,19 @@
 
     updateModalPreview();
     const modal = document.getElementById('editModal');
-    if (modal) modal.classList.add('active');
+    if (modal) {
+      modal.classList.add('active');
+      modal.style.display = 'flex';
+      modal.style.zIndex = '99999';
+    }
   }
 
   function closeEditModal() {
     const modal = document.getElementById('editModal');
-    if (modal) modal.classList.remove('active');
+    if (modal) {
+      modal.classList.remove('active');
+      modal.style.display = 'none';
+    }
     currentEditingPersonnelId = null;
   }
 
@@ -3565,11 +3660,20 @@
     const prodEl = document.getElementById('cfgProductRate');
     if (prodEl) prodEl.value = LOT_CONFIG.defaultProductRate || 10;
     
-    document.getElementById('configModal').classList.add('active');
+    const modal = document.getElementById('configModal');
+    if (modal) {
+      modal.classList.add('active');
+      modal.style.display = 'flex';
+      modal.style.zIndex = '99999';
+    }
   }
 
   function closeConfigModal() {
-    document.getElementById('configModal').classList.remove('active');
+    const modal = document.getElementById('configModal');
+    if (modal) {
+      modal.classList.remove('active');
+      modal.style.display = 'none';
+    }
   }
 
   function applyLotConfig() {
@@ -3672,25 +3776,21 @@
  }
 
  // ====================================================================
-  // ĐỘNG CƠ THU PHÓNG & KÉO THẢ SƠ ĐỒ CÂY MINDMAP (PAN & ZOOM ENGINE)
-  // Hỗ trợ: Con lăn chuột, Pinch 2 ngón tay, kéo di chuyển, tự động thấy hết
+  // ĐỘNG CƠ CẢM ỨNG & THU PHÓNG ĐA ĐIỂM (UNIFIED POINTER / TOUCH / MOUSE ENGINE)
+  // Hỗ trợ mượt mà 100%: Kéo, Giữ, Chạm, Phóng to 2 ngón (Pinch Zoom), Chuột & Trackpad
   // ====================================================================
   let mindmapZoom = 1.0;
   let mindmapPanX = 0;
   let mindmapPanY = 0;
-  let isMindmapDragging = false;
   let hasMindmapDragged = false;
-  let mindmapDragStartX = 0;
-  let mindmapDragStartY = 0;
-  let mindmapInitialPanX = 0;
-  let mindmapInitialPanY = 0;
 
-  // Touch pinch variables
-  let touchStartDistance = 0;
-  let touchStartZoom = 1.0;
-  let touchPinchMidX = 0;
-  let touchPinchMidY = 0;
-  let isTouchPinching = false;
+  // Quản lý các điểm cảm ứng đang chạm (hỗ trợ đa điểm multi-touch 2 ngón tay)
+  const activePointers = new Map();
+  let initialPointersDist = 0;
+  let initialPinchZoom = 1.0;
+  let pinchMidpoint = { x: 0, y: 0 };
+  let dragStartPointerPos = { x: 0, y: 0 };
+  let dragStartPan = { x: 0, y: 0 };
 
   function applyMindmapTransform(animate = false) {
     const svg = document.getElementById('mindmapSvg');
@@ -3703,7 +3803,7 @@
       svg.style.transition = 'none';
     }
 
-    svg.style.transform = `translate(${mindmapPanX}px, ${mindmapPanY}px) scale(${mindmapZoom})`;
+    svg.style.transform = `translate3d(${mindmapPanX}px, ${mindmapPanY}px, 0) scale(${mindmapZoom})`;
     if (badge) {
       badge.textContent = Math.round(mindmapZoom * 100) + '%';
     }
@@ -3711,9 +3811,9 @@
 
   function zoomAtPoint(factor, px, py, animate = false) {
     const minZoom = 0.25;
-    const maxZoom = 3.0;
+    const maxZoom = 3.5;
     const newZoom = Math.max(minZoom, Math.min(maxZoom, mindmapZoom * factor));
-    if (Math.abs(newZoom - mindmapZoom) < 0.001) return;
+    if (Math.abs(newZoom - mindmapZoom) < 0.0005) return;
 
     const ratio = newZoom / mindmapZoom;
     mindmapPanX = px - (px - mindmapPanX) * ratio;
@@ -3761,7 +3861,6 @@
     const scaleX = vw / contentW;
     const scaleY = vh / contentH;
     let targetScale = Math.min(scaleX, scaleY);
-    // Giới hạn trong khoảng hợp lý
     targetScale = Math.min(1.15, Math.max(0.35, targetScale));
 
     mindmapZoom = targetScale;
@@ -3771,132 +3870,189 @@
     applyMindmapTransform(animate);
   }
 
+  function getPointersDistance(p1, p2) {
+    return Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+  }
+
   function initMindmapInteractions() {
     const viewport = document.getElementById('mindmapViewport');
     if (!viewport || viewport.dataset.panzoomInited) return;
     viewport.dataset.panzoomInited = 'true';
 
-    // 1. Phóng to / Thu nhỏ bằng con lăn chuột (Mouse Wheel)
-    viewport.addEventListener('wheel', (e) => {
-      e.preventDefault();
-      const rect = viewport.getBoundingClientRect();
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
+    // Quản lý cảm ứng chạm (Touch / Tap) vào các ô Node
+    let tapStartPos = { x: 0, y: 0 };
+    let tapStartTime = 0;
+    let potentialTapTarget = null;
 
-      let factor = 1.12;
-      if (e.deltaY > 0) {
-        factor = 1 / 1.12;
+    // Helper siêu tin cậy tìm ô Node interactive dù chạm trúng bất kỳ chi tiết con nào
+    function getInteractiveNode(el) {
+      if (!el) return null;
+      if (el.closest) {
+        const found = el.closest('.mindmap-node-interactive, .node-group');
+        if (found) return found;
       }
-      if (e.ctrlKey) {
-        const pinchFactor = Math.exp(-e.deltaY * 0.01);
-        zoomAtPoint(pinchFactor, mouseX, mouseY, false);
-      } else {
-        zoomAtPoint(factor, mouseX, mouseY, false);
+      let curr = el;
+      while (curr && curr !== viewport && curr !== document.body) {
+        if (curr.getAttribute && (
+          (curr.getAttribute('class') || '').includes('mindmap-node-interactive') ||
+          (curr.getAttribute('class') || '').includes('node-group') ||
+          (curr.dataset && curr.dataset.nodeId)
+        )) {
+          return curr;
+        }
+        curr = curr.parentElement;
       }
-    }, { passive: false });
-
-    // 2. Kéo rê chuột để di chuyển (Mouse Drag to Pan)
-    viewport.addEventListener('mousedown', (e) => {
-      if (e.button !== 0 && e.button !== 1) return;
-      isMindmapDragging = true;
-      hasMindmapDragged = false;
-      mindmapDragStartX = e.clientX;
-      mindmapDragStartY = e.clientY;
-      mindmapInitialPanX = mindmapPanX;
-      mindmapInitialPanY = mindmapPanY;
-      viewport.style.cursor = 'grabbing';
-    });
-
-    window.addEventListener('mousemove', (e) => {
-      if (!isMindmapDragging) return;
-      const dx = e.clientX - mindmapDragStartX;
-      const dy = e.clientY - mindmapDragStartY;
-      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
-        hasMindmapDragged = true;
-      }
-      mindmapPanX = mindmapInitialPanX + dx;
-      mindmapPanY = mindmapInitialPanY + dy;
-      applyMindmapTransform(false);
-    });
-
-    window.addEventListener('mouseup', (e) => {
-      if (!isMindmapDragging) return;
-      isMindmapDragging = false;
-      viewport.style.cursor = 'grab';
-      setTimeout(() => { hasMindmapDragged = false; }, 50);
-    });
-
-    // 3. Cảm ứng / Zoom 2 ngón tay (Touch & Pinch to Zoom)
-    function getTouchDistance(t1, t2) {
-      const dx = t1.clientX - t2.clientX;
-      const dy = t1.clientY - t2.clientY;
-      return Math.hypot(dx, dy);
+      return null;
     }
 
-    viewport.addEventListener('touchstart', (e) => {
-      if (e.touches.length === 1) {
-        isMindmapDragging = true;
-        hasMindmapDragged = false;
-        isTouchPinching = false;
-        mindmapDragStartX = e.touches[0].clientX;
-        mindmapDragStartY = e.touches[0].clientY;
-        mindmapInitialPanX = mindmapPanX;
-        mindmapInitialPanY = mindmapPanY;
-      } else if (e.touches.length >= 2) {
-        isMindmapDragging = false;
-        isTouchPinching = true;
-        touchStartDistance = getTouchDistance(e.touches[0], e.touches[1]);
-        touchStartZoom = mindmapZoom;
+    // 1. POINTER DOWN (Chuột nhấn, ngón tay chạm màn hình cảm ứng)
+    viewport.addEventListener('pointerdown', (e) => {
+      // Chỉ nhận chuột trái (button = 0) hoặc cảm ứng touch / bút stylus
+      if (e.pointerType === 'mouse' && e.button !== 0 && e.button !== 1) return;
+
+      tapStartPos = { x: e.clientX, y: e.clientY };
+      tapStartTime = Date.now();
+      hasMindmapDragged = false;
+
+      // Tìm xem ngón tay có chạm trúng một ô Node nào không
+      potentialTapTarget = getInteractiveNode(e.target);
+
+      activePointers.set(e.pointerId, { clientX: e.clientX, clientY: e.clientY });
+
+      if (activePointers.size === 1) {
+        dragStartPointerPos = { x: e.clientX, y: e.clientY };
+        dragStartPan = { x: mindmapPanX, y: mindmapPanY };
+        viewport.style.cursor = 'grabbing';
+      } else if (activePointers.size === 2) {
+        // Bắt đầu thao tác Pinch Zoom 2 ngón tay
+        hasMindmapDragged = true;
+        potentialTapTarget = null;
+        const pts = Array.from(activePointers.values());
+        initialPointersDist = getPointersDistance(pts[0], pts[1]);
+        initialPinchZoom = mindmapZoom;
+
         const rect = viewport.getBoundingClientRect();
-        touchPinchMidX = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
-        touchPinchMidY = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top;
-        mindmapInitialPanX = mindmapPanX;
-        mindmapInitialPanY = mindmapPanY;
+        pinchMidpoint = {
+          x: (pts[0].clientX + pts[1].clientX) / 2 - rect.left,
+          y: (pts[0].clientY + pts[1].clientY) / 2 - rect.top
+        };
+        dragStartPan = { x: mindmapPanX, y: mindmapPanY };
       }
     }, { passive: false });
 
-    viewport.addEventListener('touchmove', (e) => {
-      if (e.touches.length === 1 && isMindmapDragging) {
-        e.preventDefault();
-        const dx = e.touches[0].clientX - mindmapDragStartX;
-        const dy = e.touches[0].clientY - mindmapDragStartY;
-        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+    // 2. POINTER MOVE (Kéo rê chuột, vuốt 1 ngón, hoặc co giãn 2 ngón tay)
+    viewport.addEventListener('pointermove', (e) => {
+      if (!activePointers.has(e.pointerId)) return;
+      activePointers.set(e.pointerId, { clientX: e.clientX, clientY: e.clientY });
+
+      if (activePointers.size === 1) {
+        // Kéo di chuyển (Pan) 1 ngón tay hoặc chuột
+        const dx = e.clientX - dragStartPointerPos.x;
+        const dy = e.clientY - dragStartPointerPos.y;
+        const moveDist = Math.hypot(dx, dy);
+
+        // Ngưỡng di chuyển > 8px mới coi là KÉO SƠ ĐỒ (Pan)
+        if (moveDist > 8) {
           hasMindmapDragged = true;
+          potentialTapTarget = null;
+          try {
+            viewport.setPointerCapture(e.pointerId);
+          } catch (err) {}
         }
-        mindmapPanX = mindmapInitialPanX + dx;
-        mindmapPanY = mindmapInitialPanY + dy;
+
+        mindmapPanX = dragStartPan.x + dx;
+        mindmapPanY = dragStartPan.y + dy;
         applyMindmapTransform(false);
-      } else if (e.touches.length >= 2 && isTouchPinching) {
-        e.preventDefault();
-        const curDist = getTouchDistance(e.touches[0], e.touches[1]);
-        if (touchStartDistance > 0 && curDist > 0) {
-          const factor = curDist / touchStartDistance;
-          const targetZoom = Math.max(0.25, Math.min(3.0, touchStartZoom * factor));
-          const ratio = targetZoom / mindmapZoom;
-          mindmapPanX = touchPinchMidX - (touchPinchMidX - mindmapPanX) * ratio;
-          mindmapPanY = touchPinchMidY - (touchPinchMidY - mindmapPanY) * ratio;
+      } else if (activePointers.size >= 2) {
+        // Thu phóng cảm ứng 2 ngón tay (Pinch to Zoom)
+        hasMindmapDragged = true;
+        potentialTapTarget = null;
+        const pts = Array.from(activePointers.values());
+        const currentDist = getPointersDistance(pts[0], pts[1]);
+
+        if (initialPointersDist > 0 && currentDist > 0) {
+          const factor = currentDist / initialPointersDist;
+          const targetZoom = Math.max(0.25, Math.min(3.5, initialPinchZoom * factor));
+          const ratio = targetZoom / initialPinchZoom;
+
+          mindmapPanX = pinchMidpoint.x - (pinchMidpoint.x - dragStartPan.x) * ratio;
+          mindmapPanY = pinchMidpoint.y - (pinchMidpoint.y - dragStartPan.y) * ratio;
           mindmapZoom = targetZoom;
           applyMindmapTransform(false);
         }
       }
     }, { passive: false });
 
-    viewport.addEventListener('touchend', (e) => {
-      if (e.touches.length === 0) {
-        isMindmapDragging = false;
-        isTouchPinching = false;
-        setTimeout(() => { hasMindmapDragged = false; }, 50);
-      } else if (e.touches.length === 1) {
-        isTouchPinching = false;
-        isMindmapDragging = true;
-        mindmapDragStartX = e.touches[0].clientX;
-        mindmapDragStartY = e.touches[0].clientY;
-        mindmapInitialPanX = mindmapPanX;
-        mindmapInitialPanY = mindmapPanY;
+    // 3. POINTER UP & CANCEL (Nhả chuột, nhấc ngón tay khỏi màn hình)
+    function handlePointerEnd(e) {
+      const dist = Math.hypot(e.clientX - tapStartPos.x, e.clientY - tapStartPos.y);
+      const duration = Date.now() - tapStartTime;
+
+      // XỬ LÝ CHẠM CẢM ỨNG (TAP) VÀO Ô NODE:
+      // Di chuyển < 14px và nhấc tay trong vòng 500ms -> KÍCH HOẠT MỞ MODAL Ô TƯƠNG ỨNG!
+      if (dist <= 14 && duration < 500) {
+        const hitEl = document.elementFromPoint(e.clientX, e.clientY);
+        const targetNode = potentialTapTarget || getInteractiveNode(hitEl);
+        if (targetNode) {
+          const nType = (targetNode.dataset && targetNode.dataset.nodeType) || (targetNode.getAttribute && targetNode.getAttribute('data-node-type'));
+          const nId = (targetNode.dataset && targetNode.dataset.nodeId) || (targetNode.getAttribute && targetNode.getAttribute('data-node-id'));
+          if (nType === 'ROOT' || nId === 'ROOT') {
+            openConfigModal();
+          } else if (nId) {
+            openEditPersonnelModal(nId);
+          }
+        }
+      }
+
+      if (activePointers.has(e.pointerId)) {
+        try {
+          viewport.releasePointerCapture(e.pointerId);
+        } catch (err) {}
+        activePointers.delete(e.pointerId);
+      }
+
+      if (activePointers.size === 0) {
+        viewport.style.cursor = 'grab';
+        setTimeout(() => {
+          hasMindmapDragged = false;
+          potentialTapTarget = null;
+        }, 60);
+      } else if (activePointers.size === 1) {
+        const remainingPt = Array.from(activePointers.values())[0];
+        dragStartPointerPos = { x: remainingPt.clientX, y: remainingPt.clientY };
+        dragStartPan = { x: mindmapPanX, y: mindmapPanY };
+      }
+    }
+
+    viewport.addEventListener('pointerup', handlePointerEnd);
+    viewport.addEventListener('pointercancel', handlePointerEnd);
+
+    // 4. LĂN CHUỘT & TOUCHPAD PINCH
+    viewport.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const rect = viewport.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      let factor;
+      if (e.ctrlKey) {
+        // Touchpad 2-finger pinch
+        factor = Math.exp(-e.deltaY * 0.015);
+      } else {
+        // Normal mouse wheel
+        factor = e.deltaY < 0 ? 1.15 : (1 / 1.15);
+      }
+      zoomAtPoint(factor, mouseX, mouseY, false);
+    }, { passive: false });
+
+    // 5. NHẤP ĐÚP CHUỘT / DOUBLE TAP VÀO NỀN ĐỂ TỰ ĐỘNG THẤY HẾT
+    viewport.addEventListener('dblclick', (e) => {
+      if (e.target === viewport || e.target.id === 'mindmapSvg' || e.target.tagName === 'svg') {
+        fitMindmapToViewport(true);
       }
     });
 
-    // 4. Tự động căn chỉnh lại khi thay đổi kích thước cửa sổ
+    // 6. Tự động căn chỉnh khi thay đổi kích thước cửa sổ
     window.addEventListener('resize', () => {
       const tabMindmap = document.getElementById('tab-mindmap');
       if (tabMindmap && tabMindmap.classList.contains('active')) {
@@ -5354,7 +5510,7 @@
         const leaderNames = crs.leaders.map(l => l.name).join(', ');
         leaderSummaryHtml = `
           <div style="font-weight:700; font-size:11.5px; color:#c2410c; display:flex; align-items:center; gap:4px;">
-            <span>👑 ${leaderNames}</span>
+            <span>${leaderNames}</span>
             <span style="font-size:10px; background:#ffedd5; color:#c2410c; padding:1px 5px; border-radius:4px; font-weight:800;">${crs.leaders.length} Leader</span>
           </div>
         `;
@@ -5379,13 +5535,19 @@
             ${crs.categoryLabel}
           </span>
         </td>
-        <td style="text-align:right;">
-          <input type="number" step="1000000" min="0" value="${crs.totalRevenue}" id="inputRev_${crs.id}"
-                 onchange="updateCourseRowRevenue('${crs.id}', this.value)"
-                 style="width:115px; text-align:right; font-family:'JetBrains Mono'; font-weight:800; font-size:12px; padding:3px 6px; border:1px solid #cbd5e1; border-radius:5px;">
+        <td style="text-align:right; white-space:nowrap;">
+          <div style="display:inline-flex; align-items:center; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:3px 8px; box-shadow:inset 0 1px 2px rgba(0,0,0,0.03);">
+            <input type="text"
+                   id="inputRev_${crs.id}"
+                   value="${Number(crs.totalRevenue || 0).toLocaleString('vi-VN')}"
+                   oninput="handleCourseRevenueInput(this, '${crs.id}')"
+                   style="width:105px; text-align:right; font-family:'JetBrains Mono', monospace; font-weight:800; font-size:12.5px; border:none; outline:none; background:transparent; color:#0f172a;"
+                   placeholder="0">
+            <span style="font-size:11.5px; font-weight:700; color:#64748b; margin-left:4px;">đ</span>
+          </div>
         </td>
         <td style="background:#faf5ff;">
-          <div style="font-weight:700; font-size:11.5px; color:#6d28d9;">🎓 ${trainerName}</div>
+          <div style="font-weight:700; font-size:11.5px; color:#6d28d9;">${trainerName}</div>
         </td>
         <td style="background:#fff7ed;">
           ${leaderSummaryHtml}
@@ -5394,7 +5556,7 @@
           <button type="button" onclick="openCoursePersonnelDetailModal('${crs.id}')"
                   class="tool-btn"
                   style="font-size:11.5px; padding:5px 12px; background:linear-gradient(135deg, #7c3aed, #6d28d9); color:#fff; border:none; border-radius:6px; font-weight:800; cursor:pointer; box-shadow:0 1px 3px rgba(109,40,217,0.3); display:inline-flex; align-items:center; gap:4px; white-space:nowrap;">
-            ⚙️ Chi Tiết
+            Chi Tiết
           </button>
         </td>
       `;
@@ -5430,9 +5592,17 @@
     if (crs) crs.leaderId = leaderId;
   }
 
+  function handleCourseRevenueInput(inputEl, crsId) {
+    const rawNum = Number(inputEl.value.replace(/\D/g, '')) || 0;
+    inputEl.value = rawNum > 0 ? rawNum.toLocaleString('vi-VN') : '0';
+    updateCourseRowRevenue(crsId, rawNum);
+  }
+
   function updateCourseRowRevenue(crsId, val) {
     const crs = COURSES_DATA.find(c => c.id === crsId);
-    if (crs) crs.totalRevenue = Number(val) || 0;
+    if (!crs) return;
+    const num = (typeof val === 'number') ? val : (Number(String(val).replace(/\D/g, '')) || 0);
+    crs.totalRevenue = num;
   }
 
   function resetAllTrainingRatesToDefault() {
@@ -5508,7 +5678,8 @@
   }
 
   // Điều hướng chuyển tháng (tiến/lùi)
-  function navigateAccountingMonth(direction) {
+  function navigateAccountingMonth(direction) { return navigateGlobalMonth(direction); }
+function _old_navigateAccountingMonth(direction) {
     const months = ['2026-06', '2026-07', '2026-08', '2026-09', '2026-10'];
     if (currentAccountingMonth === 'ALL') {
       currentAccountingMonth = '2026-09';
@@ -5526,8 +5697,7 @@
   }
 
   function onAccountingMonthSelectChange(val) {
-    currentAccountingMonth = val;
-    renderAccountingView();
+    setGlobalMonth(val);
   }
 
   function onExpDateInputChange(val) {
@@ -5908,6 +6078,8 @@
   window.updatePersonnelIndicatorRev = updatePersonnelIndicatorRev;
   window.updatePersonnelVipRev = updatePersonnelVipRev;
   window.resetAllTrainingRatesToDefault = resetAllTrainingRatesToDefault;
+  window.handleCourseRevenueInput = handleCourseRevenueInput;
+  window.updateCourseRowRevenue = updateCourseRowRevenue;
 
   // Accounting & Expense Exports
   window.ADMIN_EXPENSES_DATA = ADMIN_EXPENSES_DATA;
@@ -6015,9 +6187,9 @@ let VAT_ORDERS_DATA = [
     saleName: 'Phạm Hoài Ngọc Đức',
     subtotal: 5000000,
     vatAmount: 500000,
-    total: 5000000,
-    collected: 2500000, // Cọc 50%
-    remaining: 2500000, // Còn lại 50%
+    total: 5500000, // Doanh thu 5tr + VAT 500k = 5.5tr
+    collected: 2500000, // Cọc 2.5tr
+    remaining: 3000000, // Còn lại = 5.5tr - 2.5tr = 3.000.000 đ (tính cả VAT)
     paymentStatus: 'DEPOSIT_50',
     isSuccessNotified: false,
     requireVat: true, // Khách có option yêu cầu xuất VAT
@@ -6048,8 +6220,8 @@ let VAT_ORDERS_DATA = [
     saleName: 'Vũ Thị Quỳnh',
     subtotal: 5000000,
     vatAmount: 500000,
-    total: 5000000,
-    collected: 5000000, // Đã thanh toán 100%
+    total: 5500000,
+    collected: 5500000, // Đã thanh toán 100% gồm VAT
     remaining: 0,
     paymentStatus: 'PAID',
     isSuccessNotified: true, // ĐÃ BÁO VỀ KẾ TOÁN
@@ -6061,7 +6233,7 @@ let VAT_ORDERS_DATA = [
     companyName: 'Công ty Cổ phần Công nghệ Alpha Việt Nam',
     address: 'Tầng 8, Tòa nhà Landmark 81, TP. HCM',
     invoiceEmail: 'ketoan@alpha-tech.vn',
-    billImage: generateBankBillSvg('TECHCOMBANK', '#e11b22', '5.000.000', 'FT918BA01C', 'NGUYEN VAN HAI', 'THANH TOAN 100 PHAN TRAM KHOA SMC K01', '24/09/2026 15:45'),
+    billImage: generateBankBillSvg('TECHCOMBANK', '#e11b22', '5.500.000', 'FT918BA01C', 'NGUYEN VAN HAI', 'THANH TOAN 100 PHAN TRAM KHOA SMC K01', '24/09/2026 15:45'),
     billDate: '2026-09-24 15:45',
     saleNote: 'Khách chuyển khoản full 100%, sale đã up ảnh bill và số CCCD. Kế toán đã xuất hóa đơn VAT điện tử.'
   },
@@ -6081,8 +6253,8 @@ let VAT_ORDERS_DATA = [
     saleName: 'Đặng Tấn Tử',
     subtotal: 9000000,
     vatAmount: 900000,
-    total: 9000000,
-    collected: 9000000, // Đã thanh toán 100%
+    total: 9900000,
+    collected: 9900000, // Đã thanh toán 100% gồm VAT
     remaining: 0,
     paymentStatus: 'PAID',
     isSuccessNotified: true, // ĐÃ BÁO VỀ KẾ TOÁN
@@ -6094,7 +6266,7 @@ let VAT_ORDERS_DATA = [
     companyName: 'Hộ kinh doanh Trần Đình Toàn Trading',
     address: '45 Lê Duẩn, Quận 1, TP. Hồ Chí Minh',
     invoiceEmail: 'toantrading@gmail.com',
-    billImage: generateBankBillSvg('MB BANK', '#002878', '9.000.000', 'FTF4901BA2', 'TRAN DINH TOAN', 'THUE CHI BAO APEX PRO 12 THANG', '24/09/2026 11:15'),
+    billImage: generateBankBillSvg('MB BANK', '#002878', '9.900.000', 'FTF4901BA2', 'TRAN DINH TOAN', 'THUE CHI BAO APEX PRO 12 THANG', '24/09/2026 11:15'),
     billDate: '2026-09-24 11:15',
     saleNote: 'Khách chuyển đủ 9 triệu thuê chỉ báo 1 năm. Sale đã up bill MB Bank & CCCD.'
   },
@@ -6147,8 +6319,8 @@ let VAT_ORDERS_DATA = [
     saleName: 'Trần Thị Tuyết',
     subtotal: 10000000,
     vatAmount: 1000000,
-    total: 10000000,
-    collected: 10000000, // Đã thanh toán 100%
+    total: 11000000,
+    collected: 11000000, // Đã thanh toán 100% gồm VAT
     remaining: 0,
     paymentStatus: 'PAID',
     isSuccessNotified: true,
@@ -6160,7 +6332,7 @@ let VAT_ORDERS_DATA = [
     companyName: 'Công ty TNHH Tư Vấn Đầu Tư Nam Phát',
     address: 'Tầng 5, Tòa Keangnam Hanoi Landmark Tower, Nam Từ Liêm',
     invoiceEmail: 'ketoan@namphat.vn',
-    billImage: generateBankBillSvg('ACB', '#004f9e', '10.000.000', 'FT8C01DF44', 'PHAM HOANG NAM', 'DANG KY GOI TIN HIEU VIP TRADING 1 NAM', '23/09/2026 08:50'),
+    billImage: generateBankBillSvg('ACB', '#004f9e', '11.000.000', 'FT8C01DF44', 'PHAM HOANG NAM', 'DANG KY GOI TIN HIEU VIP TRADING 1 NAM', '23/09/2026 08:50'),
     billDate: '2026-09-23 08:50',
     saleNote: 'Khách VIP thanh toán chuyển khoản doanh nghiệp, hóa đơn VAT điện tử đã xuất thành công.'
   },
@@ -6213,8 +6385,8 @@ let VAT_ORDERS_DATA = [
     saleName: 'Phương Anh',
     subtotal: 5500000,
     vatAmount: 550000,
-    total: 5500000,
-    collected: 5500000,
+    total: 6050000,
+    collected: 6050000, // Đã thanh toán 100% gồm VAT
     remaining: 0,
     paymentStatus: 'PAID',
     isSuccessNotified: true,
@@ -6226,7 +6398,7 @@ let VAT_ORDERS_DATA = [
     companyName: 'Công ty Cổ phần Giải pháp Tài chính Hoàng Anh',
     address: '88 Láng Hạ, Đống Đa, Hà Nội',
     invoiceEmail: 'ketoan@hoanganhfin.vn',
-    billImage: generateBankBillSvg('MB BANK', '#002878', '5.500.000', 'FT77C88102', 'LUONG HOANG ANH', 'THUE CHI BAO 6 THANG NVT APEX', '22/09/2026 09:40'),
+    billImage: generateBankBillSvg('MB BANK', '#002878', '6.050.000', 'FT77C88102', 'LUONG HOANG ANH', 'THUE CHI BAO 6 THANG NVT APEX', '22/09/2026 09:40'),
     billDate: '2026-09-22 09:40',
     saleNote: 'Khách thanh toán đủ 100%, yêu cầu xuất VAT điện tử ngày 22/09.'
   },
@@ -6246,8 +6418,8 @@ let VAT_ORDERS_DATA = [
     saleName: 'Đỗ Việt Cường',
     subtotal: 5000000,
     vatAmount: 500000,
-    total: 5000000,
-    collected: 5000000,
+    total: 5500000,
+    collected: 5500000, // Đã thanh toán 100% gồm VAT
     remaining: 0,
     paymentStatus: 'PAID',
     isSuccessNotified: true,
@@ -6259,7 +6431,7 @@ let VAT_ORDERS_DATA = [
     companyName: 'Công ty TNHH Công nghệ Tuấn Vũ',
     address: 'Số 10 Nguyễn Huệ, Quận 1, TP. HCM',
     invoiceEmail: 'contact@tuanvu.tech',
-    billImage: generateBankBillSvg('VIETCOMBANK', '#005a3c', '5.000.000', 'FT44D99211', 'VU MINH TUAN', 'THANH TOAN FULL KHOA CRYPTO K01', '21/09/2026 16:00'),
+    billImage: generateBankBillSvg('VIETCOMBANK', '#005a3c', '5.500.000', 'FT44D99211', 'VU MINH TUAN', 'THANH TOAN FULL KHOA CRYPTO K01', '21/09/2026 16:00'),
     billDate: '2026-09-21 16:00',
     saleNote: 'Khách thanh toán đủ 100%, sẵn sàng xuất VAT khi kế toán duyệt.'
   },
@@ -6267,6 +6439,7 @@ let VAT_ORDERS_DATA = [
     id: 'NVT-66e11899',
     type: 'COURSE',
     typeLabel: 'KHÓA HỌC',
+    month: '2026-08',
     customerName: 'Đinh Thị Thu Hà',
     customerPhone: '0977119922',
     customerCccd: '001198005544',
@@ -6280,7 +6453,7 @@ let VAT_ORDERS_DATA = [
     subtotal: 5000000,
     vatAmount: 500000,
     total: 5000000,
-    collected: 1000000, // Cọc 20%
+    collected: 1000000,
     remaining: 4000000,
     paymentStatus: 'DEPOSIT_20',
     isSuccessNotified: false,
@@ -6292,14 +6465,15 @@ let VAT_ORDERS_DATA = [
     companyName: '',
     address: '15 Lê Lợi, TP. Hải Phòng',
     invoiceEmail: '',
-    billImage: generateBankBillSvg('TECHCOMBANK', '#e11b22', '1.000.000', 'FT66E11899', 'DINH THI THU HA', 'COC 1 TRIEU KHOA SMC K02', '20/09/2026 13:45'),
-    billDate: '2026-09-20 13:45',
+    billImage: generateBankBillSvg('TECHCOMBANK', '#e11b22', '1.000.000', 'FT66E11899', 'DINH THI THU HA', 'COC 1 TRIEU KHOA SMC K02', '20/08/2026 13:45'),
+    billDate: '2026-08-20 13:45',
     saleNote: 'Khách cọc sớm 1 triệu giữ ưu đãi giảm giá, hẹn 27/09 đóng nốt 4 triệu.'
   },
   {
     id: 'NVT-12a34567',
     type: 'SALE',
     typeLabel: 'BÊN BÁN',
+    month: '2026-08',
     customerName: 'Bùi Quang Huy',
     customerPhone: '0988776655',
     customerCccd: '001095006688',
@@ -6312,27 +6486,28 @@ let VAT_ORDERS_DATA = [
     saleName: 'Cáp Trọng Sơn Tùng',
     subtotal: 10000000,
     vatAmount: 1000000,
-    total: 10000000,
-    collected: 10000000,
+    total: 11000000,
+    collected: 11000000,
     remaining: 0,
     paymentStatus: 'PAID',
     isSuccessNotified: true,
     requireVat: true,
     vatStatus: 'ISSUED',
     vatInvoiceNo: 'HD-2026/0029',
-    vatIssuedDate: '2026-09-19 14:10',
+    vatIssuedDate: '2026-08-19 14:10',
     taxCode: '0105544332',
     companyName: 'Công ty Cổ phần Thương mại & Dịch vụ Quang Huy',
     address: '15 Tố Hữu, Nam Từ Liêm, Hà Nội',
     invoiceEmail: 'huy.bui@quanghuytrade.vn',
-    billImage: generateBankBillSvg('ACB', '#004f9e', '10.000.000', 'FT12A34567', 'BUI QUANG HUY', 'VIP TRADING 1 NAM NVT AGENCY', '19/09/2026 13:50'),
-    billDate: '2026-09-19 13:50',
+    billImage: generateBankBillSvg('ACB', '#004f9e', '11.000.000', 'FT12A34567', 'BUI QUANG HUY', 'VIP TRADING 1 NAM NVT AGENCY', '19/08/2026 13:50'),
+    billDate: '2026-08-19 13:50',
     saleNote: 'Đã xuất hóa đơn VAT điện tử, khách đã nhận qua email công ty.'
   },
   {
     id: 'NVT-98f76543',
     type: 'RENTAL',
     typeLabel: 'CHO THUÊ CHỈ BÁO',
+    month: '2026-07',
     customerName: 'Hoàng Kim Dung',
     customerPhone: '0912445566',
     customerCccd: '079090001122',
@@ -6345,8 +6520,8 @@ let VAT_ORDERS_DATA = [
     saleName: 'Hà Thị Bích Ngọc',
     subtotal: 9000000,
     vatAmount: 900000,
-    total: 9000000,
-    collected: 9000000,
+    total: 9900000,
+    collected: 9900000,
     remaining: 0,
     paymentStatus: 'PAID',
     isSuccessNotified: true,
@@ -6358,14 +6533,15 @@ let VAT_ORDERS_DATA = [
     companyName: 'Công ty TNHH Trang sức & Vàng Bạc Hoàng Kim',
     address: '22 Hai Bà Trưng, Quận 1, TP. HCM',
     invoiceEmail: 'kimdung@hoangkimjewelry.vn',
-    billImage: generateBankBillSvg('MB BANK', '#002878', '9.000.000', 'FT98F76543', 'HOANG KIM DUNG', 'THUE CHI BAO APEX 1 NAM', '18/09/2026 10:15'),
-    billDate: '2026-09-18 10:15',
+    billImage: generateBankBillSvg('MB BANK', '#002878', '9.900.000', 'FT98F76543', 'HOANG KIM DUNG', 'THUE CHI BAO APEX 1 NAM', '18/07/2026 10:15'),
+    billDate: '2026-07-18 10:15',
     saleNote: 'Khách thanh toán đủ 9 triệu, chờ kế toán ký duyệt xuất hóa đơn VAT.'
   },
   {
     id: 'NVT-88e99001',
     type: 'COURSE',
     typeLabel: 'KHÓA HỌC',
+    month: '2026-10',
     customerName: 'Phan Minh Khang',
     customerPhone: '0909988776',
     customerCccd: '079088009988',
@@ -6378,42 +6554,113 @@ let VAT_ORDERS_DATA = [
     saleName: 'Phạm Hoài Ngọc Đức',
     subtotal: 5000000,
     vatAmount: 500000,
-    total: 5000000,
-    collected: 5000000,
+    total: 5500000,
+    collected: 5500000,
     remaining: 0,
     paymentStatus: 'PAID',
     isSuccessNotified: true,
     requireVat: true,
     vatStatus: 'ISSUED',
     vatInvoiceNo: 'HD-2026/0019',
-    vatIssuedDate: '2026-09-17 15:40',
+    vatIssuedDate: '2026-10-02 15:40',
     taxCode: '0313322110',
     companyName: 'Công ty TNHH Đầu Tư Khang Phan',
     address: '102 Nguyễn Đình Chiểu, Quận 3, TP. HCM',
     invoiceEmail: 'ketoan@khangphan.com',
-    billImage: generateBankBillSvg('VIETCOMBANK', '#005a3c', '5.000.000', 'FT88E99001', 'PHAN MINH KHANG', 'DONG DU TIEN KHOA HOC SMC K03', '17/09/2026 15:10'),
-    billDate: '2026-09-17 15:10',
+    billImage: generateBankBillSvg('VIETCOMBANK', '#005a3c', '5.500.000', 'FT88E99001', 'PHAN MINH KHANG', 'DONG DU TIEN KHOA HOC SMC K03', '02/10/2026 15:10'),
+    billDate: '2026-10-02 15:10',
     saleNote: 'Đã hoàn tất thanh toán và xuất hóa đơn VAT.'
   }
 ];
 
+let currentOrderMonth = '2026-09'; // Mặc định tháng hiện tại 09/2026
 let currentOrderSearchQuery = '';
 let currentOrderStatusFilter = 'ALL';
 let currentOrderTypeFilter = 'ALL';
 let currentViewingOrderId = null;
 
+function navigateOrderMonth(direction) { return navigateGlobalMonth(direction); }
+function _old_navigateOrderMonth(direction) {
+  const months = ['2026-06', '2026-07', '2026-08', '2026-09', '2026-10'];
+  if (currentOrderMonth === 'ALL') {
+    currentOrderMonth = '2026-09';
+  } else {
+    let idx = months.indexOf(currentOrderMonth);
+    if (idx === -1) idx = months.indexOf('2026-09');
+    let nextIdx = idx + direction;
+    if (nextIdx >= 0 && nextIdx < months.length) {
+      currentOrderMonth = months[nextIdx];
+    }
+  }
+  const sel = document.getElementById('orderMonthSelect');
+  if (sel) sel.value = currentOrderMonth;
+  renderVatOrdersView();
+}
+
+function onOrderMonthSelectChange(val) {
+  setGlobalMonth(val);
+}
+
 // ====================================================================
 // RENDER GIAO DIỆN KIỂM TRA ĐƠN & XUẤT VAT
 // ====================================================================
+
+// Hàm chuẩn hóa tự động: Đảm bảo Thực Thu (tiền khách đã CK) của các đơn có VAT luôn bao gồm cả tiền thuế VAT 10%
+function recalculateAllVatOrdersData() {
+  if (typeof VAT_ORDERS_DATA === 'undefined') return;
+  VAT_ORDERS_DATA.forEach(order => {
+    order.subtotal = Number(order.subtotal) || 0;
+    if (order.requireVat || order.vatStatus === 'ISSUED') {
+      order.vatAmount = Math.round(order.subtotal * 0.1);
+      order.total = order.subtotal + order.vatAmount;
+      if (order.paymentStatus === 'PAID') {
+        order.collected = order.total; // Khách đã chuyển khoản 100% bao gồm cả VAT
+        order.remaining = 0;
+      } else {
+        order.remaining = Math.max(0, order.total - (Number(order.collected) || 0));
+      }
+    } else {
+      order.vatAmount = order.vatAmount || Math.round(order.subtotal * 0.1);
+      order.total = order.subtotal;
+      if (order.paymentStatus === 'PAID') {
+        order.collected = order.subtotal;
+        order.remaining = 0;
+      } else {
+        order.remaining = Math.max(0, order.subtotal - (Number(order.collected) || 0));
+      }
+    }
+  });
+}
+
 function renderVatOrdersView() {
-  const totalOrders = VAT_ORDERS_DATA.length;
-  const totalRev = VAT_ORDERS_DATA.reduce((sum, o) => sum + (Number(o.subtotal) || 0), 0);
-  const paidOrders = VAT_ORDERS_DATA.filter(o => o.paymentStatus === 'PAID');
-  const paidVal = paidOrders.reduce((sum, o) => sum + (Number(o.subtotal) || 0), 0);
-  const depositOrders = VAT_ORDERS_DATA.filter(o => o.paymentStatus !== 'PAID');
+  recalculateAllVatOrdersData();
+  // Lọc danh sách theo tháng được chọn
+  const listByMonth = (currentOrderMonth === 'ALL')
+    ? VAT_ORDERS_DATA
+    : VAT_ORDERS_DATA.filter(o => {
+        const m = o.month || (o.billDate && o.billDate.substring(0, 7)) || '2026-09';
+        return m === currentOrderMonth;
+      });
+
+  // Cập nhật tiêu đề tháng
+  const titleEl = document.getElementById('orderReportMonthTitle');
+  if (titleEl) {
+    if (currentOrderMonth === 'ALL') {
+      titleEl.textContent = 'KẾ TOÁN ĐỐI SOÁT ĐƠN HÀNG & XUẤT HÓA ĐƠN VAT (TẤT CẢ CÁC THÁNG)';
+    } else {
+      const parts = currentOrderMonth.split('-');
+      titleEl.textContent = `KẾ TOÁN ĐỐI SOÁT ĐƠN HÀNG & XUẤT HÓA ĐƠN VAT (THÁNG ${parts[1]}/${parts[0]})`;
+    }
+  }
+
+  const totalOrders = listByMonth.length;
+  const totalRev = listByMonth.reduce((sum, o) => sum + (Number(o.subtotal) || 0), 0);
+  const paidOrders = listByMonth.filter(o => o.paymentStatus === 'PAID');
+  const paidVal = paidOrders.reduce((sum, o) => sum + (Number(o.collected) || 0), 0);
+  const depositOrders = listByMonth.filter(o => o.paymentStatus !== 'PAID');
   const depositCollected = depositOrders.reduce((sum, o) => sum + (Number(o.collected) || 0), 0);
   const depositRemaining = depositOrders.reduce((sum, o) => sum + (Number(o.remaining) || 0), 0);
-  const vatIssuedOrders = VAT_ORDERS_DATA.filter(o => o.vatStatus === 'ISSUED');
+  const vatIssuedOrders = listByMonth.filter(o => o.vatStatus === 'ISSUED');
   const totalVat = vatIssuedOrders.reduce((sum, o) => sum + (Number(o.vatAmount) || 0), 0);
 
   // Cập nhật 4 KPI
@@ -6474,7 +6721,14 @@ function renderVatOrdersTable() {
   tbody.innerHTML = '';
 
   const q = (currentOrderSearchQuery || '').toLowerCase().trim();
-  const filtered = VAT_ORDERS_DATA.filter(order => {
+  const listByMonth = (currentOrderMonth === 'ALL')
+    ? VAT_ORDERS_DATA
+    : VAT_ORDERS_DATA.filter(o => {
+        const m = o.month || (o.billDate && o.billDate.substring(0, 7)) || '2026-09';
+        return m === currentOrderMonth;
+      });
+
+  const filtered = listByMonth.filter(order => {
     // Tìm kiếm (mã, khách hàng, phone, cccd, địa chỉ, sale, sản phẩm)
     if (q) {
       const matchCode = (order.id || '').toLowerCase().includes(q);
@@ -6559,14 +6813,19 @@ function renderVatOrdersTable() {
       </div>
     `;
 
-    // Cột Thao tác: Nút xuất VAT (sáng khi đủ 100%, disabled khi cọc) + Nút chi tiết
+    // Cột Thao tác: Nút Xác Nhận Đủ kế bên nút Xuất VAT (chỉ bấm được Xuất VAT khi đã xác nhận đủ 100%)
+    let confirmBtnHtml = '';
     let vatBtnHtml = '';
+
     if (isVatIssued) {
-      vatBtnHtml = `<span class="chip chip-green" style="font-size:10.5px; padding:3px 6px;" title="Số HĐ: ${order.vatInvoiceNo || 'HD-2026/001'}">✓ Đã Xuất VAT</span>`;
+      confirmBtnHtml = `<span style="font-size:10px; color:#059669; font-weight:700; background:#f0fdf4; border:1px solid #bbf7d0; padding:2px 5px; border-radius:4px; white-space:nowrap;">Đã đủ</span>`;
+      vatBtnHtml = `<span class="chip chip-green" style="font-size:10.5px; padding:3px 6px; white-space:nowrap;" title="Số HĐ: ${order.vatInvoiceNo || 'HD-2026/001'}">Đã Xuất VAT</span>`;
     } else if (isPaid) {
-      vatBtnHtml = `<button type="button" class="btn-action btn-primary" onclick="event.stopPropagation(); issueVatInvoice('${order.id}')" style="background:#7c3aed; font-size:11px; padding:3px 8px; font-weight:800; border:none; box-shadow:0 2px 6px rgba(124,58,237,0.3);" title="Khách đã thanh toán đủ 100%, sẵn sàng xuất hóa đơn VAT">🧾 Xuất VAT</button>`;
+      confirmBtnHtml = `<span style="font-size:10px; color:#059669; font-weight:700; background:#f0fdf4; border:1px solid #bbf7d0; padding:2px 5px; border-radius:4px; white-space:nowrap;">Đã đủ</span>`;
+      vatBtnHtml = `<button type="button" class="btn-action btn-primary" onclick="event.stopPropagation(); issueVatInvoice('${order.id}')" style="background:#7c3aed; color:#fff; font-size:11px; padding:3px 8px; font-weight:700; border:none; border-radius:4px; cursor:pointer; white-space:nowrap; box-shadow:0 1px 3px rgba(124,58,237,0.3);" title="Đã thanh toán đủ 100%, sẵn sàng xuất hóa đơn VAT">Xuất VAT</button>`;
     } else {
-      vatBtnHtml = `<button type="button" class="btn-action btn-secondary" onclick="event.stopPropagation(); alert('Khách hàng mới cọc (${formatCurrency(order.collected)}). Cần thanh toán đủ 100% để xuất hóa đơn VAT!')" style="opacity:0.5; font-size:11px; padding:3px 8px; cursor:not-allowed;" title="Khách mới cọc, cần thanh toán đủ 100% để xuất VAT">🧾 Xuất VAT</button>`;
+      confirmBtnHtml = `<button type="button" class="btn-action" onclick="event.stopPropagation(); confirmFullPayment('${order.id}')" style="background:#059669; color:#fff; font-size:11px; padding:3px 7px; font-weight:700; border:none; border-radius:4px; cursor:pointer; white-space:nowrap; box-shadow:0 1px 3px rgba(5,150,105,0.25);" title="Bấm xác nhận khách đã nộp nốt ${formatCurrency(order.remaining)} để mở khóa nút Xuất VAT">Xác nhận đủ</button>`;
+      vatBtnHtml = `<button type="button" class="btn-action btn-secondary" disabled onclick="event.stopPropagation(); alert('Đơn hàng chưa thanh toán đủ 100%. Vui lòng bấm [Xác nhận đủ] trước khi xuất hóa đơn VAT!');" style="opacity:0.4; font-size:11px; padding:3px 7px; cursor:not-allowed; background:#f1f5f9; color:#94a3b8; border:1px solid #cbd5e1; border-radius:4px; white-space:nowrap;" title="Cần bấm [Xác nhận đủ] trước khi xuất VAT">Xuất VAT</button>`;
     }
 
     // Hiển thị thông tin CCCD và Địa chỉ trực tiếp dưới tên khách
@@ -6608,8 +6867,9 @@ function renderVatOrdersTable() {
       <td style="text-align:center;"><span class="chip ${payBadgeClass}">${payBadgeText}</span></td>
       <td style="text-align:center; white-space:nowrap;">
         <div style="display:inline-flex; align-items:center; gap:4px;">
+          ${confirmBtnHtml}
           ${vatBtnHtml}
-          <button type="button" class="btn-action btn-secondary" onclick="event.stopPropagation(); openOrderDetailModal('${order.id}')" style="font-size:11px; padding:3px 8px;" title="Xem và chỉnh sửa toàn diện">Sửa / Xem</button>
+          <button type="button" class="btn-action btn-secondary" onclick="event.stopPropagation(); openOrderDetailModal('${order.id}')" style="font-size:11px; padding:3px 7px; white-space:nowrap;" title="Xem và chỉnh sửa toàn diện">Sửa / Xem</button>
           <button type="button" class="btn-action btn-danger" onclick="event.stopPropagation(); deleteOrder('${order.id}')" style="font-size:11px; padding:3px 6px;">✕</button>
         </div>
       </td>
@@ -6673,8 +6933,8 @@ function openOrderDetailModal(orderId) {
   }
 
   // Đối soát tài chính (CHỈNH SỬA ĐƯỢC)
-  document.getElementById('editModalSubtotal').value = order.subtotal || 5000000;
-  document.getElementById('editModalCollected').value = order.collected || 0;
+  document.getElementById('editModalSubtotal').value = Number(order.subtotal || 5000000).toLocaleString('vi-VN');
+  document.getElementById('editModalCollected').value = Number(order.collected || 0).toLocaleString('vi-VN');
   document.getElementById('editModalPaymentStatusSelect').value = order.paymentStatus || (isPaid ? 'PAID' : 'DEPOSIT_50');
   
   recalcEditModalFinance();
@@ -6710,16 +6970,16 @@ function openOrderDetailModal(orderId) {
   } else if (isPaid) {
     document.getElementById('modalVatStatusLabel').textContent = 'SẴN SÀNG XUẤT VAT';
     document.getElementById('modalVatStatusLabel').className = 'chip chip-purple';
-    vatActionBox.innerHTML = `
-      <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:8px 10px; font-size:12px; color:#1e40af;">
-        Khách hàng đã thanh toán đủ 100%. Kế toán kiểm tra MST và bấm nút "Xuất Hóa Đơn VAT" bên dưới.
-      </div>
-    `;
+    vatActionBox.innerHTML = '';
     if (directVatBtn) {
       directVatBtn.style.display = 'inline-block';
       directVatBtn.disabled = false;
-      directVatBtn.textContent = '🧾 Xuất Hóa Đơn VAT Điện Tử';
+      directVatBtn.style.opacity = '1';
+      directVatBtn.style.cursor = 'pointer';
+      directVatBtn.textContent = 'Xuất Hóa Đơn VAT';
     }
+    const btnConfirmModal = document.getElementById('modalBtnConfirmFullModal');
+    if (btnConfirmModal) btnConfirmModal.style.display = 'none';
   } else {
     document.getElementById('modalVatStatusLabel').textContent = 'CHƯA ĐỦ ĐIỀU KIỆN';
     document.getElementById('modalVatStatusLabel').className = 'chip chip-yellow';
@@ -6731,8 +6991,12 @@ function openOrderDetailModal(orderId) {
     if (directVatBtn) {
       directVatBtn.style.display = 'inline-block';
       directVatBtn.disabled = true;
-      directVatBtn.textContent = '🧾 Chờ Thanh Toán Đủ (Để Xuất VAT)';
+      directVatBtn.style.opacity = '0.4';
+      directVatBtn.style.cursor = 'not-allowed';
+      directVatBtn.textContent = 'Xuất Hóa Đơn VAT';
     }
+    const btnConfirmModal = document.getElementById('modalBtnConfirmFullModal');
+    if (btnConfirmModal) btnConfirmModal.style.display = 'inline-block';
   }
 
   document.getElementById('orderDetailVatModal').classList.add('active');
@@ -6744,10 +7008,19 @@ function closeOrderDetailModal() {
 }
 
 // Tính toán tự động số tiền còn lại trong modal khi người dùng chỉnh sửa
+function handleEditModalFinanceInput(inputEl, field) {
+  const rawNum = Number(String(inputEl.value).replace(/\D/g, '')) || 0;
+  inputEl.value = rawNum > 0 ? rawNum.toLocaleString('vi-VN') : '0';
+  recalcEditModalFinance();
+}
+
 function recalcEditModalFinance() {
-  const subtotal = Number(document.getElementById('editModalSubtotal')?.value) || 0;
-  const collected = Number(document.getElementById('editModalCollected')?.value) || 0;
-  const rem = Math.max(0, subtotal - collected);
+  const subtotal = Number(String(document.getElementById('editModalSubtotal')?.value || 0).replace(/\D/g, '')) || 0;
+  const collected = Number(String(document.getElementById('editModalCollected')?.value || 0).replace(/\D/g, '')) || 0;
+  const requireVat = document.getElementById('editModalRequireVatCheckbox')?.checked || false;
+  const vatAmount = requireVat ? Math.round(subtotal * 0.1) : 0;
+  const totalWithVat = subtotal + vatAmount;
+  const rem = Math.max(0, totalWithVat - collected);
 
   const remEl = document.getElementById('editModalRemainingDisplay');
   if (remEl) {
@@ -6768,42 +7041,43 @@ function recalcEditModalFinance() {
   const statSelect = document.getElementById('editModalPaymentStatusSelect');
   if (statSelect) {
     if (rem <= 0) statSelect.value = 'PAID';
-    else if (collected >= subtotal * 0.5) statSelect.value = 'DEPOSIT_50';
-    else if (collected >= subtotal * 0.3) statSelect.value = 'DEPOSIT_30';
+    else if (collected >= totalWithVat * 0.5) statSelect.value = 'DEPOSIT_50';
+    else if (collected >= totalWithVat * 0.3) statSelect.value = 'DEPOSIT_30';
   }
 }
 
 // Bấm nút đặt thanh toán đủ 100%
 function setEditModalPayFull() {
-  const subtotal = Number(document.getElementById('editModalSubtotal')?.value) || 5000000;
-  document.getElementById('editModalCollected').value = subtotal;
+  const subtotal = Number(String(document.getElementById('editModalSubtotal')?.value || 0).replace(/\D/g, '')) || 5000000;
+  const requireVat = document.getElementById('editModalRequireVatCheckbox')?.checked || false;
+  const vatAmount = requireVat ? Math.round(subtotal * 0.1) : 0;
+  const total = subtotal + vatAmount;
+  document.getElementById('editModalCollected').value = total.toLocaleString('vi-VN');
   document.getElementById('editModalPaymentStatusSelect').value = 'PAID';
   recalcEditModalFinance();
 
   const directVatBtn = document.getElementById('modalBtnIssueVatDirect');
   if (directVatBtn) {
     directVatBtn.disabled = false;
-    directVatBtn.textContent = '🧾 Xuất Hóa Đơn VAT Điện Tử';
+    directVatBtn.textContent = 'Xuất Hóa Đơn VAT';
   }
   const vatActionBox = document.getElementById('modalVatActionContainer');
   if (vatActionBox) {
-    vatActionBox.innerHTML = `
-      <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:6px; padding:8px 10px; font-size:12px; color:#1e40af;">
-        ✓ Đã đặt thanh toán đủ 100%. Bấm "Lưu Thay Đổi" hoặc bấm "🧾 Xuất Hóa Đơn VAT" bên dưới.
-      </div>
-    `;
+    vatActionBox.innerHTML = '';
   }
-  alert('Đã cập nhật thanh toán đủ 100%! Hãy bấm "💾 LƯU TẤT CẢ THAY ĐỔI" để hoàn tất.');
 }
 
 function onEditModalStatusChange(val) {
-  const subtotal = Number(document.getElementById('editModalSubtotal')?.value) || 0;
+  const subtotal = Number(String(document.getElementById('editModalSubtotal')?.value || 0).replace(/\D/g, '')) || 0;
+  const requireVat = document.getElementById('editModalRequireVatCheckbox')?.checked || false;
+  const vatAmount = requireVat ? Math.round(subtotal * 0.1) : 0;
+  const total = subtotal + vatAmount;
   if (val === 'PAID') {
-    document.getElementById('editModalCollected').value = subtotal;
+    document.getElementById('editModalCollected').value = total.toLocaleString('vi-VN');
   } else if (val === 'DEPOSIT_50') {
-    document.getElementById('editModalCollected').value = Math.round(subtotal * 0.5);
+    document.getElementById('editModalCollected').value = Math.round(total * 0.5).toLocaleString('vi-VN');
   } else if (val === 'DEPOSIT_30') {
-    document.getElementById('editModalCollected').value = Math.round(subtotal * 0.3);
+    document.getElementById('editModalCollected').value = Math.round(total * 0.3).toLocaleString('vi-VN');
   }
   recalcEditModalFinance();
 }
@@ -6813,6 +7087,7 @@ function toggleEditModalVatOption(checked) {
   if (cont) {
     cont.style.opacity = checked ? '1' : '0.6';
   }
+  recalcEditModalFinance();
 }
 
 // ====================================================================
@@ -6846,16 +7121,19 @@ function saveAllOrderDetailChanges() {
     order.saleName = saleSel.options[saleSel.selectedIndex].text;
   }
 
-  const subtotal = Number(document.getElementById('editModalSubtotal')?.value) || 0;
-  const collected = Number(document.getElementById('editModalCollected')?.value) || 0;
-  const remaining = Math.max(0, subtotal - collected);
+  const subtotal = Number(String(document.getElementById('editModalSubtotal')?.value || 0).replace(/\D/g, '')) || 0;
+  const collected = Number(String(document.getElementById('editModalCollected')?.value || 0).replace(/\D/g, '')) || 0;
+  const requireVat = document.getElementById('editModalRequireVatCheckbox')?.checked || false;
+  const vatAmount = requireVat ? Math.round(subtotal * 0.1) : 0;
+  const total = subtotal + vatAmount;
+  const remaining = Math.max(0, total - collected);
   const status = document.getElementById('editModalPaymentStatusSelect')?.value || (remaining <= 0 ? 'PAID' : 'DEPOSIT_50');
 
   order.subtotal = subtotal;
-  order.total = subtotal;
+  order.vatAmount = vatAmount;
+  order.total = total;
   order.collected = collected;
   order.remaining = remaining;
-  order.vatAmount = Math.round(subtotal * 0.1);
   order.paymentStatus = status;
 
   if (order.paymentStatus === 'PAID') {
@@ -6872,7 +7150,40 @@ function saveAllOrderDetailChanges() {
 
   renderVatOrdersView();
   openOrderDetailModal(order.id); // Refresh lại giao diện modal
-  alert(`🎉 ĐÃ LƯU TẤT CẢ THAY ĐỔI ĐƠN HÀNG ${order.id} THÀNH CÔNG!\n\n• CCCD: ${order.customerCccd || 'Chưa nhập'}\n• Địa chỉ: ${order.customerAddress || 'Chưa nhập'}\n• Thực thu: ${formatCurrency(order.collected)} (Còn nợ: ${formatCurrency(order.remaining)})\n• Option VAT: ${order.requireVat ? 'BẬT' : 'TẮT'}`);
+  alert(`Đã lưu thay đổi đơn hàng ${order.id} thành công!`);
+}
+
+
+// Hàm xác nhận đủ thanh toán 100% để mở khóa nút Xuất VAT
+function confirmFullPayment(orderId) {
+  const order = VAT_ORDERS_DATA.find(o => o.id === orderId);
+  if (!order) return;
+
+  order.vatAmount = order.requireVat ? Math.round(order.subtotal * 0.1) : 0;
+  order.total = order.subtotal + order.vatAmount;
+  const rem = Math.max(0, order.total - order.collected);
+  const msg = rem > 0 
+    ? `Xác nhận khách hàng ${order.customerName} đã thanh toán đủ ${formatCurrency(rem)} còn lại (bao gồm cả VAT)?\n\nSau khi xác nhận, nút [Xuất VAT] sẽ được mở khóa ngay lập tức.`
+    : `Xác nhận đơn hàng ${order.id} đã hoàn tất thanh toán đủ 100%?`;
+
+  if (confirm(msg)) {
+    order.collected = order.total;
+    order.remaining = 0;
+    order.paymentStatus = 'PAID';
+    order.isSuccessNotified = true;
+    order.saleNote = (order.saleNote ? order.saleNote + ' ' : '') + `[Kế toán xác nhận đủ ${formatCurrency(rem)} ngày ${new Date().toLocaleDateString('vi-VN')}].`;
+    
+    renderVatOrdersView();
+    if (currentViewingOrderId === orderId) {
+      openOrderDetailModal(orderId);
+    }
+    alert(`✓ Đã xác nhận thanh toán đủ 100% cho đơn hàng ${order.id}!\nNút [Xuất VAT] hiện đã sẵn sàng để xuất hóa đơn.`);
+  }
+}
+
+function confirmFullPaymentInModal() {
+  if (!currentViewingOrderId) return;
+  confirmFullPayment(currentViewingOrderId);
 }
 
 // Kế toán thu nốt tiền cọc
@@ -6880,15 +7191,20 @@ function quickCollectRemaining(orderId) {
   const order = VAT_ORDERS_DATA.find(o => o.id === orderId);
   if (!order) return;
 
-  const rem = order.remaining;
-  if (confirm(`Xác nhận khách hàng ${order.customerName} đã chuyển nốt ${formatCurrency(rem)}?\nĐơn hàng sẽ chuyển sang trạng thái ĐÃ THANH TOÁN ĐỦ 100% và mở khóa nút xuất VAT!`)) {
-    order.collected = order.subtotal;
+  order.vatAmount = order.requireVat ? Math.round(order.subtotal * 0.1) : 0;
+  order.total = order.subtotal + order.vatAmount;
+  const rem = Math.max(0, order.total - order.collected);
+  if (confirm(`Xác nhận khách hàng ${order.customerName} đã chuyển nốt ${formatCurrency(rem)} (bao gồm VAT)?\nĐơn hàng sẽ chuyển sang trạng thái ĐÃ THANH TOÁN ĐỦ 100% và mở khóa nút xuất VAT!`)) {
+    order.collected = order.total;
     order.remaining = 0;
     order.paymentStatus = 'PAID';
     order.isSuccessNotified = true;
-    order.saleNote += ` [Kế toán xác nhận: Đã thu nốt cọc ${formatCurrency(rem)} ngày ${new Date().toLocaleDateString('vi-VN')}].`;
+    order.saleNote += ` [Kế toán xác nhận: Đã thu nốt ${formatCurrency(rem)} ngày ${new Date().toLocaleDateString('vi-VN')}].`;
     renderVatOrdersView();
-    alert(`Đã xác nhận thu nốt ${formatCurrency(rem)} thành công!\nNút [🧾 Xuất VAT] của đơn ${order.id} hiện đã sẵn sàng để xuất hóa đơn.`);
+    if (currentViewingOrderId === orderId) {
+      openOrderDetailModal(orderId);
+    }
+    alert(`Đã xác nhận thu nốt ${formatCurrency(rem)} thành công!\nNút [Xuất VAT] của đơn ${order.id} hiện đã sẵn sàng để xuất hóa đơn.`);
   }
 }
 
@@ -7047,13 +7363,16 @@ function onNewOrderProductChange(val) {
 
 function onNewOrderPayTypeChange(type) {
   const subtotal = Number(document.getElementById('newOrderSubtotal').value) || 0;
+  const reqVat = document.getElementById('newOrderRequireVat')?.checked || false;
+  const vatAmount = reqVat ? Math.round(subtotal * 0.1) : 0;
+  const total = subtotal + vatAmount;
   const inputCol = document.getElementById('newOrderCollected');
   if (type === 'FULL') {
-    inputCol.value = subtotal;
+    inputCol.value = total;
   } else if (type === 'DEPOSIT_50') {
-    inputCol.value = Math.round(subtotal * 0.5);
+    inputCol.value = Math.round(total * 0.5);
   } else if (type === 'DEPOSIT_30') {
-    inputCol.value = Math.round(subtotal * 0.3);
+    inputCol.value = Math.round(total * 0.3);
   }
   recalcNewOrderAmounts();
 }
@@ -7061,7 +7380,10 @@ function onNewOrderPayTypeChange(type) {
 function recalcNewOrderAmounts() {
   const subtotal = Number(document.getElementById('newOrderSubtotal').value) || 0;
   const collected = Number(document.getElementById('newOrderCollected').value) || 0;
-  const rem = Math.max(0, subtotal - collected);
+  const reqVat = document.getElementById('newOrderRequireVat')?.checked || false;
+  const vatAmount = reqVat ? Math.round(subtotal * 0.1) : 0;
+  const total = subtotal + vatAmount;
+  const rem = Math.max(0, total - collected);
   const preview = document.getElementById('newOrderRemainingPreview');
   if (rem <= 0) {
     preview.textContent = '0 đ (Đủ 100%)';
@@ -7111,11 +7433,13 @@ function submitCreateNewOrder() {
 
     const subtotal = Number(document.getElementById('newOrderSubtotal').value) || 5000000;
     const collected = Number(document.getElementById('newOrderCollected').value) || 0;
-    const remaining = Math.max(0, subtotal - collected);
+    const reqVat = document.getElementById('newOrderRequireVat')?.checked || false;
+    const vatAmount = reqVat ? Math.round(subtotal * 0.1) : 0;
+    const total = subtotal + vatAmount;
+    const remaining = Math.max(0, total - collected);
     const isPaid = remaining <= 0;
 
-    const payType = isPaid ? 'PAID' : (collected >= subtotal * 0.5 ? 'DEPOSIT_50' : 'DEPOSIT_30');
-    const vatAmount = Math.round(subtotal * 0.1);
+    const payType = isPaid ? 'PAID' : (collected >= total * 0.5 ? 'DEPOSIT_50' : 'DEPOSIT_30');
 
     const randomHex = Math.random().toString(16).substring(2, 8).toUpperCase();
     const newOrderId = 'NVT-' + randomHex;
@@ -7130,7 +7454,6 @@ function submitCreateNewOrder() {
     const formattedCollected = formatCurrency(collected);
     const billImg = customNewOrderBill || generateBankBillSvg(bankName, bankColor, formattedCollected, newOrderId.replace(/-/g, ''), custName.toUpperCase(), 'THANH TOAN ' + prodName.toUpperCase(), new Date().toLocaleDateString('vi-VN'));
 
-    const reqVat = document.getElementById('newOrderRequireVat')?.checked || false;
     const taxCode = reqVat ? (document.getElementById('newOrderTaxCode')?.value.trim() || '') : '';
     const compName = reqVat ? (document.getElementById('newOrderCompanyName')?.value.trim() || '') : '';
 
@@ -7150,7 +7473,7 @@ function submitCreateNewOrder() {
       saleName: saleName,
       subtotal: subtotal,
       vatAmount: vatAmount,
-      total: subtotal,
+      total: total,
       collected: collected,
       remaining: remaining,
       paymentStatus: payType,
@@ -7223,6 +7546,17 @@ window.VAT_ORDERS_DATA = VAT_ORDERS_DATA;
 window.renderVatOrdersView = renderVatOrdersView;
 window.renderVatOrdersTable = renderVatOrdersTable;
 window.openOrderDetailModal = openOrderDetailModal;
+window.openEditPersonnelModal = openEditPersonnelModal;
+  window.currentGlobalMonth = currentGlobalMonth;
+  window.setGlobalMonth = setGlobalMonth;
+  window.navigateGlobalMonth = navigateGlobalMonth;
+  window.onGlobalMonthSelectChange = onGlobalMonthSelectChange;
+  window.currentOrderMonth = currentOrderMonth;
+  window.navigateOrderMonth = navigateOrderMonth;
+  window.onOrderMonthSelectChange = onOrderMonthSelectChange;
+  window.confirmFullPayment = confirmFullPayment;
+  window.confirmFullPaymentInModal = confirmFullPaymentInModal;
+  window.handleEditModalFinanceInput = handleEditModalFinanceInput;
 window.closeOrderDetailModal = closeOrderDetailModal;
 window.quickCollectRemaining = quickCollectRemaining;
 window.issueVatInvoice = issueVatInvoice;
@@ -7279,9 +7613,9 @@ window.printOrderInvoice = printOrderInvoice;
           <span id="modalOrderTypeBadge" class="chip chip-warm">BÊN BÁN</span>
           <span id="modalOrderPayStatusBadge" class="chip chip-yellow">Thanh toán 50%</span>
           <span id="modalOrderVatBadge" class="chip chip-gray">Chưa xuất VAT</span>
-          <span style="font-size:10px; background:#eff6ff; color:#1d4ed8; padding:2px 8px; border-radius:10px; font-weight:800;">✏️ TẤT CẢ ĐỀU CHỈNH SỬA ĐƯỢC</span>
+          
         </div>
-        <span style="font-size:12px; color:#64748b;">Kế toán kiểm tra ảnh bill, CCCD, địa chỉ do Sale up, điều chỉnh tài chính và duyệt Option xuất VAT</span>
+        
       </div>
       <button class="modal-close" onclick="closeOrderDetailModal()">✕</button>
     </div>
@@ -7292,9 +7626,8 @@ window.printOrderInvoice = printOrderInvoice;
         <!-- CỘT 1: ẢNH BILL CHUYỂN KHOẢN & GHI CHÚ SALE TẢI LÊN -->
         <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:14px; display:flex; flex-direction:column; gap:12px;">
           <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div style="font-size:12px; font-weight:800; color:#0f172a; text-transform:uppercase; display:flex; align-items:center; gap:6px;">
-              <span>📸</span>
-              <span>ẢNH BILL CHUYỂN KHOẢN DO SALE UP LÊN</span>
+            <div style="font-size:12px; font-weight:800; color:#0f172a; text-transform:uppercase;">
+              Ảnh Bill Chuyển Khoản
             </div>
             <span id="modalBillDate" style="font-size:11px; color:#64748b; font-family:'JetBrains Mono';">2026-09-24 14:20</span>
           </div>
@@ -7304,10 +7637,10 @@ window.printOrderInvoice = printOrderInvoice;
             <img id="modalBillImagePreview" src="" alt="Hóa đơn / Bill chuyển khoản" style="max-height:250px; max-width:100%; border-radius:6px; object-fit:contain; box-shadow:0 2px 8px rgba(0,0,0,0.08); cursor:zoom-in;" onclick="zoomCurrentBill()">
             
             <div style="margin-top:10px; display:flex; gap:6px; flex-wrap:wrap; justify-content:center;">
-              <button type="button" class="btn-micro" onclick="zoomCurrentBill()" style="background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; font-weight:700;">🔍 Phóng to ảnh</button>
-              <button type="button" class="btn-micro" onclick="downloadCurrentBill()" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; font-weight:700;">⬇️ Tải ảnh về</button>
+              <button type="button" class="btn-micro" onclick="zoomCurrentBill()" style="background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; font-weight:700;">Phóng to</button>
+              <button type="button" class="btn-micro" onclick="downloadCurrentBill()" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; font-weight:700;">Tải về</button>
               <label class="btn-micro" style="background:#f5f3ff; color:#7c3aed; border:1px solid #ddd6fe; font-weight:800; cursor:pointer;">
-                🔄 Đổi / Tải ảnh bill mới
+                Thay ảnh bill
                 <input type="file" accept="image/*" onchange="handleBillUpload(event)" style="display:none;">
               </label>
             </div>
@@ -7316,21 +7649,20 @@ window.printOrderInvoice = printOrderInvoice;
           <!-- Ghi chú của Sale khi tạo đơn (CHỈNH SỬA ĐƯỢC) -->
           <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:8px; padding:10px;">
             <label style="font-size:11px; font-weight:700; color:#475569; margin-bottom:4px; display:flex; align-items:center; gap:4px;">
-              <span>💬</span> <span>Ghi chú của Sale khi nộp đơn (Chỉnh sửa được):</span>
+              <span>Ghi chú đơn hàng:</span>
             </label>
             <textarea id="editModalSaleNote" rows="2" style="width:100%; padding:6px 8px; border-radius:6px; border:1px solid #cbd5e1; font-size:12px; line-height:1.4;" placeholder="Ghi chú giao dịch của Sale..."></textarea>
           </div>
 
           <!-- Thông tin CCCD & Địa chỉ (Thủ công Sale up / Kế toán chỉnh sửa) -->
           <div style="background:#ffffff; border:1.5px solid #bfdbfe; border-radius:8px; padding:12px; background:linear-gradient(180deg, #eff6ff 0%, #ffffff 100%);">
-            <div style="font-size:11.5px; font-weight:800; color:#1d4ed8; text-transform:uppercase; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
-              <span>🪪</span>
-              <span>THÔNG TIN CCCD & ĐỊA CHỈ (SALE UP THỦ CÔNG)</span>
+            <div style="font-size:11.5px; font-weight:800; color:#1d4ed8; text-transform:uppercase; margin-bottom:8px;">
+              Thông Tin CCCD & Địa Chỉ
             </div>
             
             <div class="form-grid-2" style="gap:8px; margin-bottom:8px;">
               <div class="form-group">
-                <label style="font-size:11px; font-weight:700; color:#334155;">Số CCCD / CMND (12 số) *</label>
+                <label style="font-size:11px; font-weight:700; color:#334155;">Số CCCD / CMND *</label>
                 <input type="text" id="editModalCustCccd" placeholder="Ví dụ: 001201019882" style="width:100%; padding:6px 8px; border-radius:6px; border:1.5px solid #93c5fd; font-family:'JetBrains Mono'; font-weight:800; color:#1e293b; background:#fff;">
               </div>
               <div class="form-group">
@@ -7340,7 +7672,7 @@ window.printOrderInvoice = printOrderInvoice;
             </div>
 
             <div class="form-group">
-              <label style="font-size:11px; font-weight:700; color:#334155;">Địa Chỉ Thường Trú / Liên Hệ (Sale Up) *</label>
+              <label style="font-size:11px; font-weight:700; color:#334155;">Địa Chỉ Thường Trú / Liên Hệ *</label>
               <input type="text" id="editModalCustAddress" placeholder="Ví dụ: Số 12 Duy Tân, Cầu Giấy, Hà Nội" style="width:100%; padding:6px 8px; border-radius:6px; border:1.5px solid #93c5fd; font-size:12px; font-weight:600; color:#1e293b; background:#fff;">
             </div>
           </div>
@@ -7351,9 +7683,8 @@ window.printOrderInvoice = printOrderInvoice;
           
           <!-- 1. Thông tin Khách Hàng & Dịch Vụ (CHỈNH SỬA ĐƯỢC) -->
           <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:12px;">
-            <div style="font-size:12px; font-weight:800; color:#0f172a; margin-bottom:8px; text-transform:uppercase; display:flex; justify-content:space-between;">
-              <span>THÔNG TIN ĐƠN HÀNG (CHỈNH SỬA ĐƯỢC)</span>
-              <span style="font-size:11px; color:#2563eb; font-weight:700;">Kế toán & Sale toàn quyền sửa</span>
+            <div style="font-size:12px; font-weight:800; color:#0f172a; margin-bottom:8px; text-transform:uppercase;">
+              Thông Tin Đơn Hàng
             </div>
 
             <div class="form-grid-2" style="gap:8px; margin-bottom:8px;">
@@ -7395,20 +7726,26 @@ window.printOrderInvoice = printOrderInvoice;
           <!-- 2. Tiến Trình Tài Chính & Cọc / Còn Lại (CHỈNH SỬA ĐƯỢC) -->
           <div style="background:#ffffff; border:1.5px solid #fed7aa; border-radius:10px; padding:12px; background:linear-gradient(180deg, #fffbeb 0%, #ffffff 100%);">
             <div style="font-size:12px; font-weight:800; color:#c2410c; margin-bottom:8px; text-transform:uppercase; display:flex; justify-content:space-between; align-items:center;">
-              <span>ĐỐI SOÁT TÀI CHÍNH (CỌC & CÒN LẠI)</span>
+              <span>Đối Soát Tài Chính</span>
               <button type="button" class="btn-micro" onclick="setEditModalPayFull()" style="background:#10b981; color:#fff; border:none; padding:3px 8px; border-radius:4px; font-weight:800; cursor:pointer;" title="Khách thanh toán nốt đủ 100%">
-                ⚡ Đặt Thanh Toán Đủ 100%
+                Thanh Toán Đủ 100%
               </button>
             </div>
 
             <div class="form-grid-3" style="gap:8px; margin-bottom:8px;">
               <div class="form-group">
                 <label style="font-size:11px; font-weight:700; color:#334155;">Doanh Thu (Tổng Đơn)</label>
-                <input type="number" id="editModalSubtotal" step="500000" oninput="recalcEditModalFinance()" style="width:100%; padding:6px 8px; border-radius:6px; border:1px solid #cbd5e1; font-family:'JetBrains Mono'; font-weight:800; color:#0f172a;">
+                <div style="display:inline-flex; align-items:center; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:3px 8px; width:100%;">
+                  <input type="text" id="editModalSubtotal" oninput="handleEditModalFinanceInput(this, 'subtotal')" style="width:100%; text-align:right; font-family:'JetBrains Mono', monospace; font-weight:800; font-size:12.5px; border:none; outline:none; background:transparent; color:#0f172a;" placeholder="0">
+                  <span style="font-size:11.5px; font-weight:700; color:#64748b; margin-left:4px;">đ</span>
+                </div>
               </div>
               <div class="form-group">
                 <label style="font-size:11px; font-weight:700; color:#047857;">Thực Thu (Đã Cọc / Trả)</label>
-                <input type="number" id="editModalCollected" step="500000" oninput="recalcEditModalFinance()" style="width:100%; padding:6px 8px; border-radius:6px; border:1px solid #86efac; font-family:'JetBrains Mono'; font-weight:800; color:#059669;">
+                <div style="display:inline-flex; align-items:center; background:#ffffff; border:1px solid #86efac; border-radius:6px; padding:3px 8px; width:100%;">
+                  <input type="text" id="editModalCollected" oninput="handleEditModalFinanceInput(this, 'collected')" style="width:100%; text-align:right; font-family:'JetBrains Mono', monospace; font-weight:800; font-size:12.5px; border:none; outline:none; background:transparent; color:#059669;" placeholder="0">
+                  <span style="font-size:11.5px; font-weight:700; color:#64748b; margin-left:4px;">đ</span>
+                </div>
               </div>
               <div class="form-group">
                 <label style="font-size:11px; font-weight:700; color:#b91c1c;">Còn Lại Phải Thu</label>
@@ -7479,13 +7816,16 @@ window.printOrderInvoice = printOrderInvoice;
       <button type="button" class="tool-btn" onclick="closeOrderDetailModal()">Đóng Cửa Sổ</button>
       <div style="display:flex; gap:8px; align-items:center;">
         <button type="button" class="tool-btn" onclick="printOrderInvoice()" style="font-weight:700;">
-          🖨️ In Phiếu Thu
+          In Phiếu Thu
         </button>
-        <button type="button" class="tool-btn primary" onclick="saveAllOrderDetailChanges()" style="background:linear-gradient(135deg, #059669, #10b981); color:#fff; font-weight:800; padding:8px 18px; box-shadow:0 2px 8px rgba(16,185,129,0.3);">
-          💾 LƯU TẤT CẢ THAY ĐỔI
+        <button type="button" class="tool-btn primary" onclick="saveAllOrderDetailChanges()" style="background:#059669; color:#fff; font-weight:700; font-size:12px; padding:7px 16px; border-radius:6px; border:none; cursor:pointer; white-space:nowrap;">
+          Lưu Thay Đổi
         </button>
-        <button type="button" id="modalBtnIssueVatDirect" class="tool-btn primary" onclick="submitIssueVatInModal()" style="background:linear-gradient(135deg, #7c3aed, #4f46e5); font-weight:800; padding:8px 18px; box-shadow:0 2px 8px rgba(124,58,237,0.3);">
-          🧾 Xuất Hóa Đơn VAT
+        <button type="button" id="modalBtnConfirmFullModal" class="tool-btn" onclick="confirmFullPaymentInModal()" style="background:#059669; color:#fff; font-weight:700; font-size:12px; padding:7px 14px; border-radius:6px; border:none; cursor:pointer; white-space:nowrap; display:none;">
+          Xác Nhận Đủ
+        </button>
+        <button type="button" id="modalBtnIssueVatDirect" class="tool-btn primary" onclick="submitIssueVatInModal()" style="background:#6d28d9; color:#fff; font-weight:700; font-size:12px; padding:7px 16px; border-radius:6px; border:none; cursor:pointer; white-space:nowrap;">
+          Xuất Hóa Đơn VAT
         </button>
       </div>
     </div>

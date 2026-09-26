@@ -3,32 +3,36 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const fs = require('node:fs');
-function fixture(failCustomer = false, websites = [{ id: 'WEB-TEST', name: 'Hoang Phuc Academy', domain: 'www.hoangphucacademy.vn', sourceUrl: 'https://www.hoangphucacademy.vn/', campaignId: 'ACADEMY', webhookSlug: 'DS-TEST' }]) {
-  const events = new Map(), customers = new Map(), calls = [];
+function fixture(failCustomer = false, websites = [{ id: 'WEB-TEST', name: 'Hoang Phuc Academy', domain: 'www.hoangphucacademy.vn', sourceUrl: 'https://www.hoangphucacademy.vn/', campaignId: 'ACADEMY', webhookSlug: 'DS-TEST' }], offers = []) {
+  const events = new Map(), customers = new Map(), documents = new Map(offers.map(row => [`${row.collection || 'dataOffers'}:${row.id}`, row])), notices = [], calls = [];
   const connection = {
     async beginTransaction() { calls.push('begin'); },
     async commit() { calls.push('commit'); },
     async rollback() { calls.push('rollback'); },
     release() { calls.push('release'); },
     async query(sql, values) { return this.execute(sql, values); },
-    async execute(sql, values) {
+    async execute(sql, values = []) {
       if (sql.includes('FROM crm_write_lock')) return [[{id:1}]];
       if (sql.startsWith('INSERT INTO webhook_events')) { if (!events.has(values[1])) events.set(values[1], values[0]); }
       if (sql.includes("FROM crm_documents WHERE collection='websites'")) return [websites.map(item => ({ id: item.id, body: JSON.stringify(item) }))];
+      if (sql.includes("FROM crm_documents WHERE collection='dataOffers'")) return [[...documents.values()].filter(row => row.collection === 'dataOffers' && !row.deleted).map(row => ({ id: row.id, body: JSON.stringify(row.body) }))];
       if (sql.startsWith('SELECT id, name, phone, email, sale_id, leader_id, team_id, status FROM customers')) return [[...customers.values()].map(values => ({ id: values[0], name: values[1], phone: values[2], email: values[3], sale_id: values[11] || null, leader_id: values[12] || null, team_id: values[13] || null, status: values[7] }))];
-      if (sql.startsWith('SELECT id')) return [[{ id: events.get(values[0]) }]];
+      if (sql.startsWith('SELECT id, body FROM crm_documents')) return [[...documents.values()].map(row => ({ id: row.id, body: JSON.stringify(row.body) }))];
+      if (sql.startsWith('SELECT id')) return [events.has(values[0]) ? [{ id: events.get(values[0]) }] : []];
       if (sql.startsWith('INSERT INTO customers')) {
         if (failCustomer) throw new Error('Database unavailable');
         if (!customers.has(values[0])) customers.set(values[0], values);
       }
+      if (sql.startsWith('INSERT INTO crm_documents')) documents.set(`${values[0]}:${values[1]}`, { collection: values[0], id: values[1], body: JSON.parse(values[2]), deleted: values[3] || 0 });
+      if (sql.startsWith('UPDATE webhook_events')) return [{}];
       return [{}];
     }
   };
   const module = { exports: {} };
   vm.runInNewContext(fs.readFileSync(require.resolve('./webhook-store.cjs'), 'utf8'), {
-    module, URL, require: name => name === './db.js' ? { dbConfigured: true, pool: { async query() {}, async getConnection() { return connection; } } } : name === './crm-data.cjs' ? {queueTelegramNotice:async()=>{},prepare:async()=>{},distributeAutomatic:async c=>{assert.equal(c,connection);calls.push('assign');}} : name === './crm-defaults.json' ? { websites: [] } : require(name)
+    module, URL, require: name => name === './db.js' ? { dbConfigured: true, pool: { async query() {}, async getConnection() { return connection; } } } : name === './crm-data.cjs' ? {queueTelegramNotice:async (c, key, notice) => { notices.push({ key, ...notice }); },prepare:async()=>{},distributeAutomatic:async c=>{assert.equal(c,connection);calls.push('assign');}} : name === './crm-defaults.json' ? { websites: [] } : require(name)
   });
-  return { ...module.exports, customers, events, calls };
+  return { ...module.exports, customers, events, documents, notices, calls };
 }
 const record = { id: 'WHE-1', dedupeKey: 'abc', status: 'NEW', slug: 'DS-TEST', receivedAt: '2026-09-14 12:00', customer: { name: 'Test', phone: '0912345678', email: 'test@example.com' } };
 test('Lưu khách trước commit và giữ ID khi landing gửi lại', async () => {
@@ -79,12 +83,24 @@ test('Webhook source follows the configured webhook slug instead of a default we
     { id: 'WEB-B', name: 'Academy B', domain: 'academy-b.example', sourceUrl: 'https://academy-b.example/form', campaignId: 'B', webhookSlug: 'DS-B' }
   ]);
   const first = await f.persistWebhook({ ...record, id: 'WHE-A', dedupeKey: 'dedupe-a', slug: 'DS-A', customer: { ...record.customer, phone: '0911111111' } });
-  const second = await f.persistWebhook({ ...record, id: 'WHE-B', dedupeKey: 'dedupe-b', slug: 'DS-B', customer: { ...record.customer, phone: '0922222222' } });
+  const second = await f.persistWebhook({ ...record, id: 'WHE-B', dedupeKey: 'dedupe-b', slug: 'DS-B', customer: { ...record.customer, phone: '0922222222', email: 'other@example.com' } });
   assert.equal(first.source.landingPageUrl, 'https://academy-a.example/form');
   assert.equal(first.source.sourceUrl, 'https://academy-a.example/form');
   assert.equal(second.source.landingPageUrl, 'https://academy-b.example/form');
   assert.equal(second.source.sourceUrl, 'https://academy-b.example/form');
   assert.notEqual(first.source.sourceUrl, second.source.sourceUrl);
+});
+test('Duplicate phone keeps an active pending offer owner and does not consume the next round', async () => {
+  const offeredAt = new Date(Date.now() - 60 * 60 * 1000).toLocaleString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' }).slice(0, 19);
+  const f = fixture(false, undefined, [{ collection: 'dataOffers', id: 'OFFER-1', body: { id: 'OFFER-1', customerId: 'EXISTING', saleId: 'SALE-WAITING', status: 'PENDING', offeredAt }, deleted: 0 }]);
+  f.customers.set('EXISTING', ['EXISTING', 'Existing customer', '0912345678', 'old@example.com', null, null, null, 'NEW', null, null, null, null, 'LEAD-OLD', 'TEAM-OLD']);
+  const duplicate = await f.persistWebhook({ ...record, id: 'WHE-PENDING', dedupeKey: 'pending-payload', customer: { ...record.customer, phone: '0912345678', email: 'new@example.com' } });
+  assert.equal(duplicate.duplicate, true);
+  assert.equal(duplicate.ownerSaleId, 'SALE-WAITING');
+  assert.equal(duplicate.pendingOfferId, 'OFFER-1');
+  assert.equal(duplicate.duplicateStatus, 'PENDING_ACCEPTANCE');
+  assert.equal(f.calls.includes('assign'), false);
+  assert.ok(f.notices.some(notice => notice.kind === 'DUPLICATE_OWNER' && notice.recipientId === 'SALE-WAITING'));
 });
 test('Webhook stores the customer reference amount without changing the customer schema', async () => {
   const f = fixture();
