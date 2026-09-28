@@ -1215,3 +1215,60 @@ test('Login still authenticates before issuing a session',async()=>{
  assert.equal(accepted.status,200);assert.ok(accepted.payload.token);
  assert.ok(f.calls.some(call=>call.sql.startsWith('INSERT INTO crm_sessions')));
 });
+
+test('Direct owner filter includes international phones and manager recipients without mixing team customers',()=>{
+ const source=fs.readFileSync('reference-view.js','utf8');
+ const c={window:{}};vm.createContext(c);vm.runInContext(source.slice(0,source.indexOf('function ensureCustomerPaginationStyles')),c);
+ c.members=[{id:'m',role:'MANAGER'},{id:'l',role:'LEADER'},{id:'s',role:'SALE'}];
+ vm.runInContext('appState.members=members;appState.offers=[]',c);
+ for(const phone of ['0912345678','+84912345678','0084912345678']){
+  assert.equal(c.normalizeCustomerFilterPhone(phone),'0912345678');
+  assert.equal(c.assignedSaleIdForCustomer({id:'direct',phone,managerId:'m',saleAcceptedAt:'2026-09-28 10:00:00'}),'m');
+  assert.equal(c.assignedSaleIdForCustomer({id:'owned',phone,ownerId:'m'}),'m');
+  assert.equal(c.assignedSaleIdForCustomer({id:'team',phone,saleId:'s',managerId:'m',ownerId:'m'}),'s');
+ }
+ assert.equal(c.assignedSaleIdForCustomer({id:'waiting',managerId:'m'}),null);
+ assert.equal(c.assignedSaleIdForCustomer({id:'leader',leaderId:'l',saleAcceptedAt:'2026-09-28 10:00:00'}),'l');
+ vm.runInContext("appState.offers=[{customerId:'direct',saleId:'s',status:'PENDING'}]",c);
+ assert.equal(c.assignedSaleIdForCustomer({id:'direct',managerId:'m',saleAcceptedAt:'2026-09-28 10:00:00'}),'s');
+});
+
+test('Column filters combine across the full dataset and discover new custom fields',()=>{
+ const view=fs.readFileSync('reference-view.js','utf8'),bridge=fs.readFileSync('reference-crm.js','utf8');
+ const c=vm.createContext({window:{}});
+ vm.runInContext(view.slice(0,view.indexOf('function ensureCustomerPaginationStyles')),c);
+ c.data={user:{role:'ADMIN'},members:[],websites:[],fields:[{id:'tags',label:'Tags',type:'MULTI_SELECT',showInTable:true,options:[{value:'hot',label:'Hot'}]}],customers:Array.from({length:35},(_,index)=>({id:'c'+index,name:'Customer '+index,status:index%2?'NEW':'PAID',customFields:{tags:index<25?['hot','vip']:[],checkbox:false}}))};
+ vm.runInContext("const baseFields=['customerLevel','customerClass','callStatus','documentStatus','result'];appState.customers=data.customers",c);
+ const start=bridge.indexOf('  function prepareCustomerColumnFilters()'),end=bridge.indexOf('  function installCustomerColumnFilters',start);
+ vm.runInContext(bridge.slice(start,end),c);c.prepareCustomerColumnFilters();
+ vm.runInContext("customerFilterState.columns={'field:tags':'hot',status:'PAID'}",c);
+ assert.equal(c.data.customers.filter(c.matchesCustomerColumnFilters).length,13);
+ vm.runInContext("delete customerFilterState.columns.status",c);
+ assert.equal(c.data.customers.filter(c.matchesCustomerColumnFilters).length,25);
+ vm.runInContext("customerFilterState.columns={'field:tags':''}",c);
+ assert.equal(c.data.customers.filter(c.matchesCustomerColumnFilters).length,10);
+ c.data.fields.push({id:'checkbox',label:'New column',type:'CHECKBOX',showInTable:true});c.prepareCustomerColumnFilters();
+ vm.runInContext("customerFilterState.columns={'field:checkbox':'false'}",c);
+ assert.equal(c.data.customers.filter(c.matchesCustomerColumnFilters).length,35);
+ c.data.fields=[];c.prepareCustomerColumnFilters();
+ assert.equal(vm.runInContext('Object.keys(customerFilterState.columns).length',c),0);
+ c.data.user.role='SALE';c.prepareCustomerColumnFilters();
+ assert.equal(vm.runInContext("customerColumnDefinitions.some(column=>column.key==='source')",c),false);
+});
+
+test('Non-default data headers including new columns receive filters with valid arrow labels',()=>{
+ const source=fs.readFileSync('reference-crm.js','utf8'),start=source.indexOf('  function installCustomerColumnFilters('),end=source.indexOf('  function openCustomerColumnMenu(',start);
+ const keys=[null,null,null,'source','leader','sale',null,'field:customerLevel','field:customerClass','field:callStatus','field:documentStatus','field:result','field:newField','status','note','referenceAmount',null];
+ const cells=keys.map(()=>({children:[],appendChild(button){this.children.push(button);}}));
+ const c=vm.createContext({document:{createElement:()=>({dataset:{},setAttribute(){}})},customerFilterState:{columns:{}},customerColumnDefinitions:keys.filter(Boolean).map(key=>({key,label:key})),baseFields:['customerLevel','customerClass','callStatus','documentStatus','result'],data:{fields:[{id:'newField',active:true,showInTable:true}]},head:{cells,querySelectorAll:()=>[]},openCustomerColumnMenu:()=>{}});
+ vm.runInContext(source.slice(start,end)+';installCustomerColumnFilters(head)',c);
+ keys.forEach((key,index)=>{assert.equal(cells[index].children[0]?.dataset.columnFilter,key||undefined);if(key)assert.equal(cells[index].children[0].textContent,'▾');});
+});
+
+test('Sale phụ trách uses the generic column filter value from the actual assignment',()=>{
+ const source=fs.readFileSync('reference-view.js','utf8'),a=source.indexOf('function assignedSaleIdForCustomer'),b=source.indexOf('function ensureCustomerPaginationStyles');
+ const c=vm.createContext({window:{}});vm.runInContext(source.slice(0,b),c);
+ vm.runInContext("appState.members=[{id:'sale-a',name:'Sale A',role:'SALE'}];appState.offers=[];customerColumnDefinitions=[{key:'sale',value:customer=>assignedSaleIdForCustomer(customer)}];customerFilterState.columns={sale:'sale-a'}",c);
+ assert.equal(vm.runInContext("matchesCustomerColumnFilters({id:'c1',saleId:'sale-a'})",c),true);
+ assert.equal(vm.runInContext("matchesCustomerColumnFilters({id:'c2',saleId:'sale-b'})",c),false);
+});

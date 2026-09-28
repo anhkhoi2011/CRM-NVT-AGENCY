@@ -398,8 +398,15 @@ async function handleDbApi(request, response, pathname) {
   const loginTiming = pathname === '/api/auth/login' ? {started:Date.now(),last:Date.now(),phases:{}} : null;
   const markLogin = phase => { if(loginTiming){const now=Date.now();loginTiming.phases[phase]=now-loginTiming.last;loginTiming.last=now;} };
   try {
-    const canRunBeforeSystemReady = pathname === '/api/db/health';
-    if (!canRunBeforeSystemReady && !await systemAccountsReady) return dbJson(request,response,503,{error:'Khởi tạo tài khoản hệ thống chưa hoàn tất. Kiểm tra schema và quyền MySQL trong log Node.'});
+    const isAuthRequest = pathname === '/api/auth/login' || pathname === '/api/auth/register';
+    const canRunBeforeSystemReady = pathname === '/api/db/health' || isAuthRequest;
+    // X?c th?c ch? c?n schema ?? s?n s?ng; kh?ng ch? provision/seed n?n c?a h? th?ng.
+    if (isAuthRequest) {
+      const schemaReady = typeof systemSchemaReady === 'undefined' ? true : await systemSchemaReady;
+      if (!schemaReady) return dbJson(request,response,503,{error:'Schema MySQL ch?a s?n s?ng. Ki?m tra log Node.'});
+    } else if (!canRunBeforeSystemReady && !await systemAccountsReady) {
+      return dbJson(request,response,503,{error:'Kh?i t?o t?i kho?n h? th?ng ch?a ho?n t?t. Ki?m tra schema v? quy?n MySQL trong log Node.'});
+    }
     markLogin('startup');
     if (pathname === '/api/db/health') return dbJson(request,response,200,await dbHealth());
     if (pathname === '/api/auth/register' && request.method === 'POST') {
@@ -426,7 +433,8 @@ async function handleDbApi(request, response, pathname) {
       const token=crypto.randomBytes(32).toString('hex');
       await dbQuery('INSERT INTO crm_sessions(token_hash,user_id,ip,user_agent,expires_at,last_seen_at,last_activity) VALUES (?,?,?,?,DATE_ADD(NOW(),INTERVAL 1 DAY),NOW(),?)',[crypto.createHash('sha256').update(token).digest('hex'),row.id,clientIp(request)||null,clientUserAgent(request)||null,'Đang vào CRM']);
       markLogin('session');
-      await recordUserActivity(row,request,'LOGIN','Đăng nhập CRM');
+      // Nhat ky dang nhap khong duoc chan phan hoi xac thuc; ghi nen de nguoi dung vao CRM ngay.
+      void recordUserActivity(row,request,'LOGIN','Đăng nhập CRM').catch(error=>console.warn('[user-activity login]',error.message));
       markLogin('audit');
       return dbJson(request,response,200,{token,user:crmData.userRow(row)});
     }
@@ -1441,13 +1449,17 @@ async function recoverLegacyInbox() {
     record.persisted = true;
   }
 }
-const systemAccountsReady = (async () => {
+const systemSchemaReady = (async () => {
   if (!dbConfigured) return false;
   await crmData.prepare();
-  const result = await provisionSystemAccounts(pool);
-  if (result.applied) console.log('[mysql] Đã cấu hình Admin, Marketing, Kế toán theo yêu cầu.');
   return true;
-})().catch(error => { console.error('[mysql] Không khởi tạo được tài khoản:', error.message); return false; });
+})().catch(error => { console.error('[mysql] Kh?ng chu?n b? ???c schema:', error.message); return false; });
+const systemAccountsReady = systemSchemaReady.then(async ready => {
+  if (!ready) return false;
+  const result = await provisionSystemAccounts(pool);
+  if (result.applied) console.log('[mysql] ?? c?u h?nh Admin, Marketing, K? to?n theo y?u c?u.');
+  return true;
+}).catch(error => { console.error('[mysql] Kh?ng kh?i t?o ???c t?i kho?n h? th?ng:', error.message); return false; });
 // Optional subsystems must not hold up authentication readiness.
 void systemAccountsReady.then(ready => {
   if (!ready || DEMO_MODE) return;

@@ -10,8 +10,22 @@ let customerFilterSignature = '';
 // select elements after every snapshot, so DOM-only state can be lost.
 const customerFilterState = window.nvtCustomerFilterState || (window.nvtCustomerFilterState = { owner: 'ALL', sale: 'ALL' });
 
+customerFilterState.columns ||= {};
+let customerColumnDefinitions = [];
+function customerColumnValues(value) {
+  const values=Array.isArray(value)?value:[value];
+  return values.length?values.map(item=>item==null?'':String(item)):[''];
+}
+function matchesCustomerColumnFilters(customer) {
+  return customerColumnDefinitions.every(column=>{
+    const selected=customerFilterState.columns[column.key];
+    return selected===undefined || customerColumnValues(column.value(customer)).includes(selected);
+  });
+}
+
 function normalizeCustomerFilterPhone(value) {
   let digits = String(value || '').replace(/\D/g, '');
+  if (digits.startsWith('0084')) digits = digits.slice(2);
   if (digits.startsWith('84') && digits.length >= 11) digits = '0' + digits.slice(2);
   return digits;
 }
@@ -33,8 +47,13 @@ function assignedSaleIdForCustomer(customer) {
   const pending = pendingOfferForCustomer(customer);
   const members = Array.isArray(appState.members) ? appState.members : [];
   const owner = members.find(member => sameCustomerFilterId(member.id, customer?.ownerId));
-  const ownerSaleId = owner?.role === 'SALE' ? owner.id : null;
-  return pending?.saleId || customer?.saleId || ownerSaleId || null;
+  // Explicit assignment wins; hierarchy IDs only represent a direct recipient
+  // when acceptance is recorded and no sale/owner is assigned.
+  if (pending?.saleId) return pending.saleId;
+  if (customer?.saleId) return customer.saleId;
+  if (owner && ['SALE','LEADER','MANAGER'].includes(owner.role)) return owner.id;
+  if (customer?.saleAcceptedAt) return customer.managerId || customer.leaderId || null;
+  return null;
 }
 
 function ensureCustomerPaginationStyles() {
@@ -138,8 +157,7 @@ window.setCarePage = setCarePage;
     const assignVal = document.getElementById('custAssignFilter')?.value || 'ALL';
     const ownerSelect = document.getElementById('custOwnerFilter');
     const ownerVal = customerFilterState.owner || ownerSelect?.value || 'ALL';
-    const saleVal = customerFilterState.sale || 'ALL';
-    const filterSignature = [searchVal, statusVal, assignVal, ownerVal, saleVal].join('\u0001');
+        const filterSignature = [searchVal, statusVal, assignVal, ownerVal, JSON.stringify(customerFilterState.columns)].join('\u0001');
     if (filterSignature !== customerFilterSignature) {
       customerFilterSignature = filterSignature;
       customerPage = 1;
@@ -154,8 +172,7 @@ window.setCarePage = setCarePage;
       const assignedSaleId = assignedSaleIdForCustomer(c);
       const matchAssign = assignVal === 'ALL' || (assignVal === 'UNASSIGNED' ? !assignedSaleId : Boolean(assignedSaleId));
       const matchOwner = matchesPersonnelCustomer(c, ownerVal, appState.members || []);
-      const matchSale = saleVal === 'ALL' || sameCustomerFilterId(assignedSaleId, saleVal) || sameCustomerFilterId(c.ownerId, saleVal);
-      return matchText && matchStatus && matchAssign && matchOwner && matchSale;
+      return matchText && matchStatus && matchAssign && matchOwner && matchesCustomerColumnFilters(c);
     });
 
     document.getElementById('custCountText').innerText = `${filtered.length} khách · 5 cột nghiệp vụ`;

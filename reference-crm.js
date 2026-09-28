@@ -220,7 +220,7 @@
   }
   function project() {
     appState={members:data.members,offers:Array.isArray(data.offers)?data.offers:[],pendingOffers:Array.isArray(data.pendingOffers)?data.pendingOffers:[],customers:data.customers.slice().sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||''))||a.id.localeCompare(b.id)).map(c=>({
-      id:c.id,ownerId:c.ownerId||null,saleId:c.saleId||null,leaderId:c.leaderId||null,managerId:c.managerId||null,name:esc(c.name),phone:esc(c.phone),email:esc(c.email),createdAt:fmtDate(c.createdAt),source:esc(data.websites.find(w=>w.id===c.websiteId)?.name||c.landingPageName||c.source||''),leader:esc(person(c.leaderId)),sale:esc(person(c.saleId)),level:esc(fieldOptions('customerLevel').find(o=>o.value===c.customFields?.customerLevel)?.label||c.customFields?.customerLevel||''),customerClass:esc(c.customFields?.customerClass||''),customerLevel:esc(c.customFields?.customerLevel||''),documentStatus:esc(c.customFields?.documentStatus||''),result:esc(c.customFields?.result||''),callStatus:esc(c.customFields?.callStatus||''),docStatus:esc(c.customFields?.documentStatus||''),careResult:esc(c.customFields?.result||''),status:c.status,note:esc(c.note),...Object.fromEntries(data.fields.filter(f=>!['customerClass','customerLevel','callStatus','documentStatus','result'].includes(f.id)).map(f=>[f.id,Array.isArray(c.customFields?.[f.id])?c.customFields[f.id].map(esc):esc(c.customFields?.[f.id]||'')]))
+      id:c.id,saleAcceptedAt:c.saleAcceptedAt||null,ownerId:c.ownerId||null,saleId:c.saleId||null,leaderId:c.leaderId||null,managerId:c.managerId||null,name:esc(c.name),phone:esc(c.phone),email:esc(c.email),createdAt:fmtDate(c.createdAt),source:esc(data.websites.find(w=>w.id===c.websiteId)?.name||c.landingPageName||c.source||''),leader:esc(person(c.leaderId)),sale:esc(person(c.saleId)),level:esc(fieldOptions('customerLevel').find(o=>o.value===c.customFields?.customerLevel)?.label||c.customFields?.customerLevel||''),customerClass:esc(c.customFields?.customerClass||''),customerLevel:esc(c.customFields?.customerLevel||''),documentStatus:esc(c.customFields?.documentStatus||''),result:esc(c.customFields?.result||''),callStatus:esc(c.customFields?.callStatus||''),docStatus:esc(c.customFields?.documentStatus||''),careResult:esc(c.customFields?.result||''),status:c.status,note:esc(c.note),...Object.fromEntries(data.fields.filter(f=>!['customerClass','customerLevel','callStatus','documentStatus','result'].includes(f.id)).map(f=>[f.id,Array.isArray(c.customFields?.[f.id])?c.customFields[f.id].map(esc):esc(c.customFields?.[f.id]||'')]))
     })),orders:data.orders.map(o=>({id:o.id,code:esc(o.code),customerName:esc(o.customerName),phone:esc(data.customers.find(c=>c.id===o.customerId)?.phone||''),product:esc(o.productName),sale:esc(person(o.saleId)),leader:esc(person(o.leaderId)),total:o.total,status:o.status,rentalExpiry:o.rentalMonths?fmtDate(o.rentalEndsAt):'Vĩnh viễn'})),careGroups:(data.careGroups||[]).map(g=>({...g,name:esc(g.name),field:g.fieldId,values:g.values.map(esc)}))};
     appState.customers.forEach(c=>{const original=data.customers.find(item=>item.id===c.id);data.fields.forEach(f=>{const value=original.customFields?.[f.id];c[f.id]=Array.isArray(value)?value.map(esc):esc(value||'');});});
   }
@@ -268,7 +268,7 @@
   const formField=(label,html)=>`<div class="form-group" style="margin-bottom:14px"><label for="${html.match(/id="([^"]+)"/)?.[1]||''}" style="display:block">${esc(label)}</label>${html}</div>`;
   const validColor=color=>/^#[a-f0-9]{6}$/i.test(color)?color:'#64748b';
   function fieldControl(cell,field,customer) {
-    const value=customer.customFields?.[field.id]??'',editable=['ADMIN','LEADER','SALE'].includes(data.user.role);
+    const value=customer.customFields?.[field.id]??'',editable=['ADMIN','MANAGER','LEADER','SALE'].includes(data.user.actualRole||data.user.role);
     const control=document.createElement(field.type==='SELECT'?'select':field.type==='NOTE'?'textarea':field.type==='MULTI_SELECT'?'button':'input');
     control.className='chip';control.style.cssText='width:210px;max-width:210px;padding:5px 8px;border-radius:6px;font:inherit;font-size:11px;font-weight:700;border:1px solid var(--border);';
     const applyOptionColor=next=>{const color=validColor(field.options?.find(o=>o.value===next)?.color);control.style.color=color;control.style.backgroundColor=color+'18';};
@@ -301,11 +301,13 @@
     head.querySelectorAll('[data-extra-field]').forEach(n=>n.remove());
     head.querySelectorAll('[data-reference-amount-column]').forEach(n=>n.remove());
     const fields=data.fields.filter(f=>f.active!==false),extra=fields.filter(f=>!baseFields.includes(f.id)&&f.showInTable);
-    const phoneHeader=Array.from(head.cells).find(cell=>cell.textContent.trim()==='SỐ ĐIỆN THOẠI');
+    const phoneHeader=head.querySelector('[data-phone-column]')||Array.from(head.cells).find(cell=>cell.textContent.trim()==='SỐ ĐIỆN THOẠI');
     if(phoneHeader)phoneHeader.dataset.phoneColumn='1';
     else{const th=document.createElement('th');th.dataset.phoneColumn='1';th.textContent='SỐ ĐIỆN THOẠI';head.insertBefore(th,head.cells[2]);}
     baseFields.forEach((id,i)=>{const f=fields.find(f=>f.id===id);head.cells[6+i].hidden=!f;if(f)head.cells[6+i].textContent=f.label;});
     extra.forEach(f=>{const th=document.createElement('th');th.dataset.extraField=f.id;th.textContent=f.label;head.insertBefore(th,head.cells[head.cells.length-3]);});
+    const fixedFilterKeys=['','','','source','leader','sale'];
+    fixedFilterKeys.forEach((key,index)=>{if(key&&head.cells[index])head.cells[index].dataset.customerFilterKey=key;});
     const referenceHeader=document.createElement('th');
     referenceHeader.dataset.referenceAmountColumn='1';
     referenceHeader.textContent='DỮ LIỆU KHÁCH THAM KHẢO';
@@ -366,8 +368,8 @@
       referenceCell.innerHTML='<span class="customer-reference-amount">'+(referenceDigits?money(Number(referenceDigits)):'—')+'</span>';
       row.insertBefore(referenceCell,row.lastElementChild);
     });
-    text('custCountText',body.rows[0]?.cells.length===1?'0 khách':body.rows.length+' khách');
     applyCustomerSourceVisibility();
+    installCustomerColumnFilters(head);
   }
   if(!q('#referenceCustomerPhoneStyles')){const style=document.createElement('style');style.id='referenceCustomerPhoneStyles';style.textContent='.customer-phone-cell{white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--text-main);font-weight:600;font-size:12px}.customer-reference-amount{white-space:nowrap;color:#059669;font-weight:800;font-variant-numeric:tabular-nums}#tab-customers .table-responsive{overflow-x:auto!important;overflow-y:visible!important;position:relative}#tab-customers .customer-data-table,#tab-customers .table-responsive>table{min-width:1420px}#tab-customers .table-responsive>table>thead>tr>th:nth-child(1),#tab-customers .table-responsive>table>tbody>tr>td:nth-child(1){position:sticky;left:0;width:154px;min-width:154px;max-width:154px;background:#fff;z-index:4;box-shadow:1px 0 0 #e2e8f0}#tab-customers .table-responsive>table>thead>tr>th:nth-child(2),#tab-customers .table-responsive>table>tbody>tr>td:nth-child(2){position:sticky;left:154px;width:190px;min-width:190px;max-width:190px;background:#fff;z-index:4;box-shadow:1px 0 0 #e2e8f0}#tab-customers .table-responsive>table>thead>tr>th:nth-child(3),#tab-customers .table-responsive>table>tbody>tr>td:nth-child(3){position:sticky;left:344px;width:142px;min-width:142px;max-width:142px;background:#fff;z-index:4;box-shadow:2px 0 0 #cbd5e1}#tab-customers .table-responsive>table>thead>tr>th:nth-child(-n+3){background:#f1f5f9;z-index:6}#tab-customers .table-responsive>table>tbody>tr:hover>td:nth-child(-n+3){background:#f8fbff}#tab-customers .table-responsive>table>tbody>tr>td:nth-child(-n+3){background:#fff}#tab-customers .table-responsive>table>tbody>tr>td:nth-child(1){font-variant-numeric:tabular-nums;white-space:nowrap}#tab-customers .table-responsive>table>tbody>tr>td:nth-child(2) b{display:block;white-space:normal;overflow-wrap:anywhere}';document.head.appendChild(style);}
   function fieldManager() {
@@ -463,6 +465,75 @@
       };
     });
   }
+
+  let closeCustomerColumnMenu=()=>{};
+  function prepareCustomerColumnFilters(){
+    if(customerFilterState.sale && customerFilterState.sale!=='ALL' && customerFilterState.columns.sale===undefined)customerFilterState.columns.sale=customerFilterState.sale;
+    customerFilterState.sale='ALL';
+    const raw=new Map(data.customers.map(customer=>[customer.id,customer]));
+    const value=(key)=>customer=>raw.get(customer.id)?.[key];
+    const staffLabel=id=>data.members.find(member=>String(member.id)===String(id))?.name||id||'Chưa phân công';
+    const activeFields=data.fields.filter(field=>field.active!==false);
+    const fieldColumn=field=>({key:'field:'+field.id,label:field.label,value:customer=>raw.get(customer.id)?.customFields?.[field.id],labelFor:value=>field.type==='CHECKBOX'?(value==='true'?'Có':value==='false'?'Không':'Trống'):(field.options||[]).find(option=>String(option.value)===value)?.label||value||'Trống'});
+    customerColumnDefinitions=[
+      ...((data.user.actualRole||data.user.role)==='ADMIN'?[{key:'source',label:'Nguồn / Landing Page',value:customer=>{const row=raw.get(customer.id);return data.websites.find(site=>site.id===row?.websiteId)?.name||row?.landingPageName||row?.source;}}]:[]),
+      {key:'leader',label:'Team / Leader',value:customer=>{const row=raw.get(customer.id);return row?.leaderId||row?.managerId||'';},labelFor:staffLabel},
+      {key:'sale',label:'Sale phụ trách',value:customer=>assignedSaleIdForCustomer(customer),labelFor:id=>{const member=data.members.find(item=>String(item.id)===String(id));return member?`${member.name||'Chưa đặt tên'} · ${member.accountId||member.phone||member.id}`:(id||'Chưa phân công');}},
+      ...activeFields.filter(field=>baseFields.includes(field.id)||field.showInTable).map(fieldColumn),
+      {key:'status',label:'Trạng thái',value:value('status'),labelFor:value=>({NEW:'Data mới',CONTACTED:'Đã liên hệ',PAID:'Đã thanh toán',ARCHIVED:'Đã lưu trữ'}[value]||value||'Trống')},
+      {key:'note',label:'Ghi chú',value:value('note')},
+      {key:'referenceAmount',label:'Dữ liệu khách tham khảo',value:customer=>{const row=raw.get(customer.id);return row?.referenceAmount??row?.customFields?.referenceAmount??row?.customFields?.customerReferenceAmount;}}
+    ];
+    const keys=new Set(customerColumnDefinitions.map(column=>column.key));
+    Object.keys(customerFilterState.columns).forEach(key=>{if(!keys.has(key))delete customerFilterState.columns[key];});
+  }
+  function installCustomerColumnFilters(head){
+    head.querySelectorAll('[data-column-filter]').forEach(button=>button.remove());
+    const keys=[null,null,null,'source','leader','sale',null,...baseFields.map(id=>'field:'+id),
+      ...data.fields.filter(field=>field.active!==false&&!baseFields.includes(field.id)&&field.showInTable).map(field=>'field:'+field.id),
+      'status','note','referenceAmount'];
+    keys.forEach((key,index)=>{
+      const cell=head.cells[index],resolvedKey=cell?.dataset?.customerFilterKey||key,column=customerColumnDefinitions.find(column=>column.key===resolvedKey);
+      if(!column||!cell||cell.hidden)return;
+      const selected=customerFilterState.columns[resolvedKey],button=document.createElement('button');
+      button.type='button';button.dataset.columnFilter=resolvedKey;button.textContent='▾';
+      button.className='customer-column-filter'+(selected!==undefined?' is-active':'');
+      button.setAttribute('aria-label','Lọc '+column.label);button.setAttribute('aria-expanded','false');
+      button.title=selected===undefined?'Lọc '+column.label:'Đang lọc: '+(column.labelFor?.(selected)||selected||'Trống');
+      button.onclick=event=>{event.stopPropagation();openCustomerColumnMenu(button,column);};cell.appendChild(button);
+    });
+  }
+  function openCustomerColumnMenu(button,column){
+    closeCustomerColumnMenu();
+    const popup=document.createElement('div');popup.className='customer-column-menu';popup.setAttribute('role','dialog');popup.setAttribute('aria-label','Lọc '+column.label);
+    popup.innerHTML='<div class="customer-column-menu-title"></div><input type="search" placeholder="Tìm giá trị…" aria-label="Tìm giá trị lọc"><div class="customer-column-options"></div>';
+    popup.querySelector('.customer-column-menu-title').textContent=column.label;
+    document.body.appendChild(popup);button.setAttribute('aria-expanded','true');
+    const rect=button.getBoundingClientRect();popup.style.left=Math.max(8,Math.min(rect.right-280,window.innerWidth-288))+'px';
+    if(rect.bottom+380>window.innerHeight&&rect.top>380)popup.style.bottom=(window.innerHeight-rect.top+6)+'px';else popup.style.top=Math.max(8,Math.min(rect.bottom+6,window.innerHeight-380))+'px';
+    const label=value=>String(column.labelFor?.(value)||value||'Trống');
+    const counts=new Map();appState.customers.forEach(customer=>new Set(customerColumnValues(column.value(customer))).forEach(value=>counts.set(value,(counts.get(value)||0)+1)));
+    const values=[...counts.keys()].sort((a,b)=>label(a).localeCompare(label(b),'vi',{numeric:true}));
+    const search=popup.querySelector('input'),list=popup.querySelector('.customer-column-options');
+    const draw=()=>{
+      list.replaceChildren();
+      const add=(value,text)=>{const item=document.createElement('button');item.type='button';item.textContent=text;item.setAttribute('aria-pressed',String(customerFilterState.columns[column.key]===value));item.onclick=()=>{if(value===undefined)delete customerFilterState.columns[column.key];else customerFilterState.columns[column.key]=value;closeCustomerColumnMenu();customerPage=1;renderCustomerTable();};list.appendChild(item);};
+      add(undefined,'Tất cả · Xóa lọc cột này');
+      const query=search.value.trim().toLocaleLowerCase('vi');
+      const filtered=values.filter(value=>label(value).toLocaleLowerCase('vi').includes(query));
+      filtered.forEach(value=>add(value,label(value)+' ('+counts.get(value)+')'));
+      if(!filtered.length){const empty=document.createElement('p');empty.textContent='Không có giá trị phù hợp';list.appendChild(empty);}
+    };
+    const outside=event=>{if(!popup.contains(event.target)&&event.target!==button)closeCustomerColumnMenu();};
+    const keydown=event=>{if(event.key==='Escape'){closeCustomerColumnMenu();button.focus();}};
+    const scroll=event=>{if(!popup.contains(event.target))closeCustomerColumnMenu();};
+    closeCustomerColumnMenu=()=>{popup.remove();button.setAttribute('aria-expanded','false');document.removeEventListener('click',outside);document.removeEventListener('keydown',keydown);window.removeEventListener('resize',closeCustomerColumnMenu);window.removeEventListener('scroll',scroll,true);closeCustomerColumnMenu=()=>{};};
+    document.addEventListener('click',outside);document.addEventListener('keydown',keydown);window.addEventListener('resize',closeCustomerColumnMenu);window.addEventListener('scroll',scroll,true);
+    search.oninput=draw;draw();search.focus();
+  }
+  const columnFilterStyle=document.createElement('style');
+  columnFilterStyle.textContent='.customer-column-filter{margin-left:6px;width:20px;height:20px;border:0;border-radius:5px;background:#eaf2ff;color:#2563eb;cursor:pointer}.customer-column-filter.is-active{background:#2563eb;color:white}.customer-column-menu{position:fixed;z-index:2147483647;width:280px;max-width:calc(100vw - 16px);max-height:370px;display:flex;flex-direction:column;padding:10px;box-sizing:border-box;border:1px solid #dbe3ec;border-radius:12px;background:var(--bg-surface,#fff);color:var(--text-main,#0f172a);box-shadow:0 12px 32px #0f172a24;font-size:12px}.customer-column-menu-title{font-weight:700;padding:4px 4px 10px}.customer-column-menu input{width:100%;box-sizing:border-box;padding:9px 10px;margin-bottom:8px;border:1px solid #dbe3ec;border-radius:7px;background:var(--bg-surface,#fff);color:inherit}.customer-column-options{overflow:auto;min-height:0;max-height:280px}.customer-column-options button{display:block;width:100%;padding:9px 10px;border:0;border-radius:6px;text-align:left;background:transparent;color:inherit;cursor:pointer;overflow-wrap:anywhere;font:inherit}.customer-column-options button:hover,.customer-column-options button[aria-pressed=true]{background:#eff6ff;color:#1d4ed8}.customer-column-options p{padding:8px;color:#64748b}';
+  document.head.appendChild(columnFilterStyle);
   function syncCustomerOwnerFilter(){
     const select=q('#custOwnerFilter');
     if(!select||!data)return;
@@ -480,66 +551,15 @@
     select.value=customerFilterState.owner;
     select.onchange=event=>{customerFilterState.owner=event.target.value||'ALL';customerPage=1;renderCustomerTable();};
   }
-  window.customerSaleFilter=window.customerSaleFilter||customerFilterState.sale||'ALL';
-  function syncCustomerSaleFilter(){
-    const button=q('#custSaleFilterButton'),menu=q('#custSaleFilterMenu');
-    if(!button||!menu||!data)return;
-    menu.style.cssText='position:absolute;top:calc(100% + 6px);right:8px;z-index:120;min-width:250px;max-width:min(320px,calc(100vw - 28px));max-height:300px;overflow:auto;padding:6px;border:1px solid #dbe3ec;border-radius:9px;background:var(--bg-surface,#fff);box-shadow:0 12px 28px rgba(15,23,42,.16);box-sizing:border-box;';
-    menu.hidden=true;
-    const role=data.user?.actualRole||data.user?.role,currentId=data.user?.id;
-    const active=member=>member&&member.active!==false&&member.active!==0&&member.active!=='0';
-    const all=(data.members||[]).filter(active).filter(member=>['MANAGER','LEADER','SALE'].includes(member.role));
-    const visible=role==='ADMIN'
-      ? all
-      : role==='MANAGER'
-        ? all.filter(member=>member.id===currentId||member.managerId===currentId||member.leaderId===currentId)
-        : role==='LEADER'
-          ? all.filter(member=>member.id===currentId||member.leaderId===currentId)
-          : all.filter(member=>member.id===currentId);
-    const previous=String(customerFilterState.sale||window.customerSaleFilter||'ALL');
-    const people=visible.slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'vi'));
-    const selected=people.some(member=>member.id===previous)?previous:'ALL';
-    customerFilterState.sale=selected;
-    window.customerSaleFilter=selected;
-    const roleLabel=member=>member.role==='MANAGER'?'Manager':member.role==='LEADER'?'Leader':'Sale';
-    const item=(value,label,member)=>'<button type="button" data-customer-sale-filter="'+esc(value)+'" '+(value===selected?'aria-pressed="true"':'')+' style="display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:9px 10px;border:0;border-radius:7px;background:'+(value===selected?'#eff6ff':'transparent')+';color:'+(value===selected?'#1d4ed8':'var(--text-main)')+';font:inherit;font-size:12px;text-align:left;cursor:pointer;"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(label)+'</span>'+(member?'<small style="flex:0 0 auto;color:var(--text-muted);font-size:10px;">'+esc(roleLabel(member))+'</small>':'')+'</button>';
-    menu.innerHTML='<div style="padding:7px 10px 6px;color:var(--text-muted);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;">Sale phụ trách</div>'+item('ALL','Tất cả Sale phụ trách')+people.map(member=>item(member.id,(member.name||'Chưa đặt tên')+' · '+(member.accountId||member.phone||member.id),member)).join('');
-    menu.querySelectorAll('[data-customer-sale-filter]').forEach(option=>option.onclick=event=>{
-      event.stopPropagation();
-      customerFilterState.sale=option.dataset.customerSaleFilter||'ALL';
-      window.customerSaleFilter=customerFilterState.sale;
-      menu.hidden=true;
-      customerPage=1;
-      renderCustomerTable();
-    });
-    const selectedPerson=people.find(member=>member.id===selected);
-    button.style.color=selectedPerson?'#2563eb':'var(--text-muted)';
-    button.style.background=selectedPerson?'#eff6ff':'var(--bg-surface)';
-    button.setAttribute('aria-expanded','false');
-    button.title=selectedPerson?'Đang lọc Sale: '+(selectedPerson.name||selectedPerson.id):'Lọc theo Sale phụ trách';
-    button.onclick=event=>{
-      event.stopPropagation();
-      menu.hidden=!menu.hidden;
-      button.setAttribute('aria-expanded',String(!menu.hidden));
-    };
-    if(!menu.dataset.outsideBound){
-      menu.dataset.outsideBound='1';
-      document.addEventListener('click',event=>{
-        if(menu.hidden||menu.contains(event.target)||event.target===button)return;
-        menu.hidden=true;
-        button.setAttribute('aria-expanded','false');
-      });
-    }
-  }
   renderCustomerTable=function(){
     if(!data)return;
     // Lưu cả cuộn ngang của bảng và cuộn dọc của trang trước khi thay các dòng.
     const parents=[];for(let node=q('#customerTableBody')?.parentElement;node;node=node.parentElement)parents.push([node,node.scrollLeft,node.scrollTop]);
-    syncCustomerOwnerFilter();syncCustomerSaleFilter();renders.customers();fillCustomerOptions();dashboard();
+    prepareCustomerColumnFilters();syncCustomerOwnerFilter();renders.customers();fillCustomerOptions();dashboard();
     parents.forEach(([node,left,top])=>{node.scrollLeft=left;node.scrollTop=top;});
     bindReferenceDeleteButtons();
   };
-  if(!q('#referenceCustomerFilterStyles')){const style=document.createElement('style');style.id='referenceCustomerFilterStyles';style.textContent='#tab-customers .table-head-bar{display:flex!important;align-items:center!important;gap:12px!important;padding:12px 14px!important;background:#f8fafc!important;border-bottom:1px solid #e2e8f0!important}#tab-customers .table-head-bar>div:first-child{display:grid!important;grid-template-columns:minmax(220px,1.4fr) repeat(3,minmax(148px,.7fr))!important;gap:8px!important;align-items:center!important;min-width:0!important}#tab-customers #custSearchInput,#tab-customers #custStatusFilter,#tab-customers #custAssignFilter,#tab-customers #custOwnerFilter{width:100%!important;min-width:0!important;height:36px!important;border:1px solid #d7e0ea!important;border-radius:8px!important;background:#fff!important;color:#0f172a!important;box-shadow:0 1px 2px rgba(15,23,42,.03)!important;box-sizing:border-box!important}#tab-customers #custSearchInput{padding:0 12px!important;outline:none!important}#tab-customers #custSearchInput:focus,#tab-customers #custStatusFilter:focus,#tab-customers #custAssignFilter:focus,#tab-customers #custOwnerFilter:focus{border-color:#60a5fa!important;box-shadow:0 0 0 3px rgba(37,99,235,.1)!important}#tab-customers .table-head-bar>div:last-child{flex:0 0 auto!important;white-space:nowrap!important;padding:7px 10px!important;border:1px solid #dbe4ee!important;border-radius:8px!important;background:#fff!important;font-size:11.5px!important}#tab-customers #custSaleFilterButton{width:18px!important;height:18px!important;border:0!important;border-radius:4px!important;background:#eaf2ff!important;color:#2563eb!important;font-size:11px!important}#tab-customers .modern-table thead th{height:42px!important;padding:0 12px!important;white-space:nowrap!important;letter-spacing:.035em!important;font-size:10.5px!important}@media(max-width:1100px){#tab-customers .table-head-bar{align-items:stretch!important;flex-direction:column!important}#tab-customers .table-head-bar>div:first-child{grid-template-columns:minmax(220px,1fr) repeat(3,minmax(140px,1fr))!important;width:100%!important}#tab-customers .table-head-bar>div:last-child{align-self:flex-start!important}}@media(max-width:700px){#tab-customers .table-head-bar>div:first-child{grid-template-columns:1fr 1fr!important}#tab-customers #custSearchInput{grid-column:1/-1!important}}';document.head.appendChild(style);}
+  if(!q('#referenceCustomerFilterStyles')){const style=document.createElement('style');style.id='referenceCustomerFilterStyles';style.textContent='#tab-customers .table-head-bar{display:flex!important;align-items:center!important;gap:12px!important;padding:12px 14px!important;background:#f8fafc!important;border-bottom:1px solid #e2e8f0!important}#tab-customers .table-head-bar>div:first-child{display:grid!important;grid-template-columns:minmax(220px,1.4fr) repeat(3,minmax(148px,.7fr))!important;gap:8px!important;align-items:center!important;min-width:0!important}#tab-customers #custSearchInput,#tab-customers #custStatusFilter,#tab-customers #custAssignFilter,#tab-customers #custOwnerFilter{width:100%!important;min-width:0!important;height:36px!important;border:1px solid #d7e0ea!important;border-radius:8px!important;background:#fff!important;color:#0f172a!important;box-shadow:0 1px 2px rgba(15,23,42,.03)!important;box-sizing:border-box!important}#tab-customers #custSearchInput{padding:0 12px!important;outline:none!important}#tab-customers #custSearchInput:focus,#tab-customers #custStatusFilter:focus,#tab-customers #custAssignFilter:focus,#tab-customers #custOwnerFilter:focus{border-color:#60a5fa!important;box-shadow:0 0 0 3px rgba(37,99,235,.1)!important}#tab-customers .table-head-bar>div:last-child{flex:0 0 auto!important;white-space:nowrap!important;padding:7px 10px!important;border:1px solid #dbe4ee!important;border-radius:8px!important;background:#fff!important;font-size:11.5px!important}#tab-customers .modern-table thead th{height:42px!important;padding:0 12px!important;white-space:nowrap!important;letter-spacing:.035em!important;font-size:10.5px!important}@media(max-width:1100px){#tab-customers .table-head-bar{align-items:stretch!important;flex-direction:column!important}#tab-customers .table-head-bar>div:first-child{grid-template-columns:minmax(220px,1fr) repeat(3,minmax(140px,1fr))!important;width:100%!important}#tab-customers .table-head-bar>div:last-child{align-self:flex-start!important}}@media(max-width:700px){#tab-customers .table-head-bar>div:first-child{grid-template-columns:1fr 1fr!important}#tab-customers #custSearchInput{grid-column:1/-1!important}}';document.head.appendChild(style);}
   if(!q('#referenceCareCompactStyles')){const style=document.createElement('style');style.id='referenceCareCompactStyles';style.textContent=`
     #tab-care .analytics-grid{grid-template-columns:1fr!important;gap:8px!important;margin-bottom:14px!important;align-items:stretch!important}
     #tab-care .analytics-grid>div{display:grid!important;grid-template-columns:minmax(0,1.6fr) auto minmax(190px,.8fr)!important;align-items:center!important;column-gap:18px!important;min-width:0!important;min-height:68px!important;padding:11px 16px!important;border-radius:9px!important;box-shadow:0 2px 8px rgba(15,23,42,.04)!important;box-sizing:border-box!important}
@@ -2353,7 +2373,7 @@
     // Keep the boot screen during that window instead of showing a false login form.
     if(!next && runtime?.crmRuntimeAuthState!=='unauthenticated')return;
     if(!next){data=null;signature='';if(bootFallbackTimer){clearTimeout(bootFallbackTimer);bootFallbackTimer=null;}bootScreen?.setAttribute('hidden','');frame.hidden=false;frame.style.display='block';frame.classList.add('is-login-visible');document.body.classList.remove('reference-ready');q('.app-shell')?.style.setProperty('visibility','hidden');q('.bg-aura')?.style.setProperty('visibility','hidden');return;}
-    const first=!data;if(bootFallbackTimer){clearTimeout(bootFallbackTimer);bootFallbackTimer=null;}data=next;if(!cachedSnapshotUsed)cacheSnapshot(next);frame.hidden=true;frame.style.display='none';frame.classList.remove('is-login-visible');document.body.classList.add('reference-ready');q('.app-shell')?.style.setProperty('visibility','visible');q('.bg-aura')?.style.setProperty('visibility','visible');
+    const first=!data;if(first)customerFilterState.columns={};if(bootFallbackTimer){clearTimeout(bootFallbackTimer);bootFallbackTimer=null;}data=next;if(!cachedSnapshotUsed)cacheSnapshot(next);frame.hidden=true;frame.style.display='none';frame.classList.remove('is-login-visible');document.body.classList.add('reference-ready');q('.app-shell')?.style.setProperty('visibility','visible');q('.bg-aura')?.style.setProperty('visibility','visible');
     const sign=JSON.stringify(data);
     if(!force && !first && (sign===signature||working||q('.modal-overlay.open')||q('#careGroupModal')?.style.display==='flex'||['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName)))return;
     signature=sign;if(first){dateDefaults();bindReferenceSettings();setupSources();installRoleVisibilityObserver();installPendingDataStyles();}

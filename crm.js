@@ -3958,13 +3958,17 @@ function quickMultiSelectModal(customerId, fieldId) {
   const selected = Array.isArray(customer.customFields?.[field.id]) ? customer.customFields[field.id] : [];
   openModal(`Chọn option · ${field.label}`, `<form id="quickMultiSelectForm"><div class="quick-option-list">${field.options.map(option => `<label><input type="checkbox" data-quick-multi-option value="${escapeHtml(option.value)}" ${selected.includes(option.value) ? 'checked' : ''}><span class="field-pill" style="--pill:${escapeHtml(option.color)}">${escapeHtml(option.label)}</span></label>`).join('')}</div><div class="modal-actions"><button class="button" type="button" data-close-modal>Hủy</button><button class="button button-primary" type="submit">Lưu lựa chọn</button></div></form>`);
   $('[data-close-modal]')?.addEventListener('click', closeModal);
-  $('#quickMultiSelectForm').onsubmit = event => {
+  $('#quickMultiSelectForm').onsubmit = async event => {
     event.preventDefault();
     const values = $$('[data-quick-multi-option]:checked').map(input => input.value);
     const result = setCustomerCustomFields(customerId, { [fieldId]: values });
     if (result.error) { toast(result.error); return; }
-    if (result.updated) { saveState(); closeModal(); renderPreservingCustomerScroll(); }
-    else { closeModal(); toast('Lựa chọn chưa thay đổi'); }
+    if (!result.updated) { closeModal(); toast('L?a ch?n ch?a thay ??i'); return; }
+    if (!await persistCustomer(customerById(customerId))) {
+      toast('Ch?a l?u ???c l?a ch?n l?n MySQL. Gi? form m? v? th? l?i.');
+      return;
+    }
+    saveState(); closeModal(); renderPreservingCustomerScroll();
   };
 }
 
