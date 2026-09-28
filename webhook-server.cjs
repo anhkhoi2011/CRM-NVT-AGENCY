@@ -425,7 +425,9 @@ async function handleDbApi(request, response, pathname) {
       if(!/^\$2[aby]\$/.test(row.password_hash))await dbQuery('UPDATE users SET password_hash=? WHERE id=?',[await bcrypt.hash(password,12),row.id]);
       const token=crypto.randomBytes(32).toString('hex');
       await dbQuery('INSERT INTO crm_sessions(token_hash,user_id,ip,user_agent,expires_at,last_seen_at,last_activity) VALUES (?,?,?,?,DATE_ADD(NOW(),INTERVAL 1 DAY),NOW(),?)',[crypto.createHash('sha256').update(token).digest('hex'),row.id,clientIp(request)||null,clientUserAgent(request)||null,'Đang vào CRM']);
+      markLogin('session');
       await recordUserActivity(row,request,'LOGIN','Đăng nhập CRM');
+      markLogin('audit');
       return dbJson(request,response,200,{token,user:crmData.userRow(row)});
     }
     const user=await authUser(request);
@@ -1439,7 +1441,6 @@ async function recoverLegacyInbox() {
     record.persisted = true;
   }
 }
-if (dbConfigured) recoverLegacyInbox().catch(error => console.error('[webhook-recovery] Chưa nhập xong inbox cũ:', error.message));
 const systemAccountsReady = (async () => {
   if (!dbConfigured) return false;
   await crmData.prepare();
