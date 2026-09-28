@@ -1607,7 +1607,13 @@ async function refreshNavigationCounts() {
     return true;
   }catch(error){return false;}finally{navigationCountsReading=false;}
 }
-async function syncServerState() {
+let serverReadPromise = null;
+function syncServerState() {
+  if (serverReadPromise) return serverReadPromise;
+  serverReadPromise = readServerState().finally(() => { serverReadPromise = null; });
+  return serverReadPromise;
+}
+async function readServerState() {
   if(!serverSyncToken||!currentAccount||serverReading||serverSaveRunning||serverSaveTimer||serverConflict)return false;
   if(serverStateLoaded&&(serverPendingRequest||hasServerChanges()))return flushServerPersistence();
   if(serverStateLoaded&&($('#modalRoot')?.children.length||$('#drawerRoot')?.children.length||['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)))return false;
@@ -3963,9 +3969,8 @@ function quickMultiSelectModal(customerId, fieldId) {
     const values = $$('[data-quick-multi-option]:checked').map(input => input.value);
     const result = setCustomerCustomFields(customerId, { [fieldId]: values });
     if (result.error) { toast(result.error); return; }
-    if (!result.updated) { closeModal(); toast('L?a ch?n ch?a thay ??i'); return; }
     if (!await persistCustomer(customerById(customerId))) {
-      toast('Ch?a l?u ???c l?a ch?n l?n MySQL. Gi? form m? v? th? l?i.');
+      toast('Chưa lưu được lựa chọn lên MySQL. Giữ form mở và thử lại.');
       return;
     }
     saveState(); closeModal(); renderPreservingCustomerScroll();
@@ -5771,8 +5776,8 @@ function switchAuthMode(mode) {
   const registering = mode === 'register';
   const loginForm = $('#loginForm');
   const registerForm = $('#registerForm');
-  // ?n/hi?n b?ng c? class, thu?c t?nh hidden v? inline style ?? kh?ng b?
-  // stylesheet mobile c? l?m l? ??ng th?i hai form sau khi F5.
+  // Đồng bộ class, thuộc tính hidden và inline style để tránh
+  // stylesheet cũ hiển thị đồng thời hai form sau khi F5.
   if (loginForm) {
     loginForm.classList.toggle('is-hidden', registering);
     loginForm.hidden = registering;
@@ -5871,7 +5876,7 @@ async function startSession(account, restored = false, token = serverSyncToken, 
   if((['SALE','LEADER'].includes(currentAccount.role)||currentAccount.actualRole==='MANAGER')&&!currentAccount.accountId)currentView='profile';
   $('#loginScreen').classList.add('is-hidden');$('#appShell').classList.remove('is-hidden');
   try { if (window.parent && window.parent !== window) window.parent.dispatchEvent(new Event('crm:session-changed')); } catch (error) {}
-  if (!restored && !['MARKETING','ACCOUNTING'].includes(account.role)) { audit('LOGIN', 'SESSION', `Đăng nhập tài khoản ${account.role}`); saveState(); }
+  // Máy chủ đã ghi nhật ký đăng nhập; không tạo thêm giao dịch toàn bộ state ở đây.
   render();
   startWebhookConsumer();
   startServerSyncPolling();
@@ -5916,7 +5921,7 @@ function trapFocus(container, event) {
 }
 
 function bindGlobalActions() {
-  // Tr?ng th?i m?c ??nh lu?n l? form ??ng nh?p, k? c? khi CSS/HTML c? c?n cache.
+  // Luôn mở form đăng nhập trước khi xác thực phiên.
   switchAuthMode('login');
   $('#loginTab')?.addEventListener('click', () => switchAuthMode('login'));
   $('#registerTab')?.addEventListener('click', () => switchAuthMode('register'));
@@ -6226,21 +6231,25 @@ async function initialize() {
     try { session = JSON.parse(sessionStorage.getItem(SESSION_KEY)); } catch (error) {}
     window.crmRuntimeAuthState = session?.token ? 'restoring' : 'unauthenticated';
     if (session?.token) serverSyncToken = session.token;
-    const authPromise = session?.token ? fetch(`${webhookApiBase()}/api/auth/me`, { headers: { Authorization: `Bearer ${session.token}` }, cache: 'no-store' }) : Promise.resolve(null);
-    const statePromise = session?.token ? fetch(`${webhookApiBase()}/api/state?passive=1`, { headers: { Authorization: `Bearer ${session.token}` }, cache: 'no-store' }) : Promise.resolve(null);
-    const [response,stateResponse] = await Promise.all([authPromise,statePromise]);
-    const account = response?.ok ? (await response.json()).user : null;
-    const initialSnapshot = stateResponse?.ok ? await stateResponse.json().catch(() => null) : null;
+    // /api/state đã xác thực token và trả cả user; không gọi /auth/me lần nữa.
+    const controller = typeof AbortController === 'function' ? new AbortController() : null;
+    const timeout = controller ? setTimeout(() => controller.abort(), WEBHOOK_FETCH_TIMEOUT_MS) : null;
+    let response, initialSnapshot;
+    try {
+      response = session?.token ? await fetch(webhookApiBase()+'/api/state?passive=1', { headers: { Authorization: 'Bearer '+session.token }, cache: 'no-store', signal: controller?.signal }) : null;
+      initialSnapshot = response?.ok ? await response.json() : null;
+    } finally { if (timeout) clearTimeout(timeout); }
+    const account = initialSnapshot?.user || null;
     if (account) {
       // Một lần lỗi mạng không được biến thành logout. Cho MySQL tối đa 3 lần để hồi đáp.
       for (let attempt = 0; attempt < 3; attempt += 1) {
         if (await startSession(account, true, serverSyncToken, initialSnapshot)) {
           window.crmRuntimeAuthState = 'authenticated';
-          if (serverSyncToken && !initialSnapshot) syncServerState();
           return;
         }
         await new Promise(resolve => setTimeout(resolve, 350 * (attempt + 1)));
       }
+      window.crmRuntimeAuthState = 'unauthenticated';
       $('#loginError').textContent='Máy chủ đang chậm hoặc tạm gián đoạn. Phiên đăng nhập vẫn được giữ, hãy thử lại.';
       return;
     }
@@ -6249,7 +6258,10 @@ async function initialize() {
       serverSyncToken='';
       try { sessionStorage.removeItem(SESSION_KEY); } catch (error) {}
     }
-  } catch (error) {}
+  } catch (error) {
+    $('#loginError').textContent='Chưa tải được dữ liệu máy chủ. Vui lòng thử đăng nhập lại.';
+  }
+  if (!currentAccount) window.crmRuntimeAuthState = 'unauthenticated';
   $('#loginScreen').classList.remove('is-hidden');
   $('#appShell').classList.add('is-hidden');
   } finally {

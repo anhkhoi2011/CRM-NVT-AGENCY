@@ -11,17 +11,14 @@
     : currentAccount?.actualRole || currentAccount?.role || '';
   const requireRole = roles => { if (!currentAccount || !serverStateLoaded || !roles.includes(permissionRole())) throw Error('Tài khoản không có quyền thực hiện thao tác này.'); };
   async function persist(action, kind) {
-    // Tr?nh b?o nh?m h?t quy?n trong kho?nh kh?c runtime v?a kh?i ph?c phi?n.
-    // N?u ?? c? token nh?ng snapshot ch?a s?n s?ng, ??ng b? m?t l?n tr??c khi ki?m tra quy?n.
-    if ((!currentAccount || !serverStateLoaded) && serverSyncToken && typeof syncServerState === 'function') {
-      const synced = await syncServerState();
-      if (!synced) throw Error('CRM ch?a ??ng b? xong v?i m?y ch?. Vui l?ng th? l?i sau gi?y l?t.');
-    }
+    if (!serverStateLoaded && currentAccount && serverSyncToken) await syncServerState();
+    if (!currentAccount || !serverStateLoaded) throw Error('Dữ liệu chưa sẵn sàng. Vui lòng chờ đồng bộ rồi thử lại.');
     requireRole(['ADMIN','MANAGER','LEADER','SALE','MARKETING','ACCOUNTING']);
     if (pendingResult) {
       if(pendingResult.kind!==kind) throw Error("Hãy lưu lại thao tác trước đó trước khi chuyển sang thao tác khác.");
       if (!await flushServerPersistence({skipAutomatic:kind.startsWith('add-extra-round-turn:')})) throw Error('Chưa lưu được dữ liệu. Giữ trang mở để thử lại.');
-      const result=pendingResult.result;pendingResult=null;return result;
+      const result=pendingResult.result;pendingResult=null;
+      if (!kind.startsWith('customer-field:')) return result;
     }
     const persistenceBlocked=typeof serverPendingRequest!=='undefined'&&(serverPendingRequest||serverConflict||serverSaveRunning);
     if (!persistenceBlocked&&!await flushServerPersistence()) throw Error('Máy chủ chưa xác nhận dữ liệu trước đó.');

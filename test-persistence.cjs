@@ -206,7 +206,7 @@ test('Dashboard điều hành lấy KPI, doanh thu và cảnh báo thuê từ d�
 });
 
 function authFixture(rows=[],duplicate=false){
- const calls=[],signals=[],c={dbConfigured:true,systemAccountsReady:Promise.resolve(true),crypto:require('node:crypto'),bcrypt:{hash:async p=>'hashed:'+p,compare:async(p,h)=>h==='hashed:'+p},crmData:{userRow:r=>({id:r.id,role:r.role})},dbQuery:async(sql,args)=>{calls.push({sql,args});if(sql.startsWith('SELECT'))return rows;if(duplicate&&sql.startsWith('INSERT INTO users'))throw Object.assign(new Error('duplicate'),{code:'ER_DUP_ENTRY'});return [];},readBody:async r=>Buffer.from(JSON.stringify(r.body||{})),sendJson:(response,status,payload)=>{response.status=status;response.payload=payload;},notifyInboxListeners:e=>signals.push(e),stamp:()=> '2026-09-14 10:00',Buffer,console};
+ const calls=[],signals=[],c={dbConfigured:true,systemSchemaReady:Promise.resolve(true),systemAccountsReady:Promise.resolve(true),crypto:require('node:crypto'),bcrypt:{hash:async p=>'hashed:'+p,compare:async(p,h)=>h==='hashed:'+p},crmData:{userRow:r=>({id:r.id,role:r.role})},dbQuery:async(sql,args)=>{calls.push({sql,args});if(sql.startsWith('SELECT'))return rows;if(duplicate&&sql.startsWith('INSERT INTO users'))throw Object.assign(new Error('duplicate'),{code:'ER_DUP_ENTRY'});return [];},readBody:async r=>Buffer.from(JSON.stringify(r.body||{})),sendJson:(response,status,payload)=>{response.status=status;response.payload=payload;},notifyInboxListeners:e=>signals.push(e),stamp:()=> '2026-09-14 10:00',Buffer,console};
  const text=fs.readFileSync('webhook-server.cjs','utf8');vm.createContext(c);vm.runInContext(text.slice(text.indexOf('function dbJson('),text.indexOf('\n/**',text.indexOf('function dbJson('))),c);
  return {calls,signals,async request(path,body){const response={};await c.handleDbApi({method:'POST',headers:{},body},response,path);return response;}};
 }
@@ -1271,4 +1271,76 @@ test('Sale phụ trách uses the generic column filter value from the actual ass
  vm.runInContext("appState.members=[{id:'sale-a',name:'Sale A',role:'SALE'}];appState.offers=[];customerColumnDefinitions=[{key:'sale',value:customer=>assignedSaleIdForCustomer(customer)}];customerFilterState.columns={sale:'sale-a'}",c);
  assert.equal(vm.runInContext("matchesCustomerColumnFilters({id:'c1',saleId:'sale-a'})",c),true);
  assert.equal(vm.runInContext("matchesCustomerColumnFilters({id:'c2',saleId:'sale-b'})",c),false);
+});
+
+
+test('Concurrent initial sync callers wait for the same authoritative snapshot',async()=>{
+ const c=frontend();let finish,calls=0;
+ c.fetch=()=>{calls++;return new Promise(resolve=>{finish=resolve;});};
+ vm.runInContext("currentAccount={id:'admin',role:'ADMIN'};serverSyncToken='token';render=()=>{};",c);
+ const first=vm.runInContext('syncServerState()',c),second=vm.runInContext('syncServerState()',c);
+ assert.strictEqual(first,second);assert.equal(calls,1);
+ assert.equal(vm.runInContext('serverStateLoaded',c),false);
+ const payload=vm.runInContext('({state:initialState(),versions:{}})',c);
+ finish({ok:true,json:async()=>payload});
+ assert.equal(await first,true);assert.equal(await second,true);
+ assert.equal(vm.runInContext('serverStateLoaded',c),true);
+});
+
+test('Failed sync releases the shared request so a retry can load state',async()=>{
+ const c=frontend();vm.runInContext("currentAccount={id:'admin',role:'ADMIN'};serverSyncToken='token';render=()=>{};",c);
+ assert.equal(await vm.runInContext('syncServerState()',c),false);
+ const payload=vm.runInContext('({state:initialState(),versions:{}})',c);
+ c.fetch=async()=>({ok:true,json:async()=>payload});
+ assert.equal(await vm.runInContext('syncServerState()',c),true);
+});
+
+test('Field retry persists the latest selection after an earlier save failed',async()=>{
+ const c=referenceBridge();
+ vm.runInContext("state.customers=[{id:'c',name:'Customer',phone:'0900000011',customFields:{},status:'NEW'}];state.customFieldDefinitions=[{id:'test',label:'Test',type:'SELECT',active:true,options:[{value:'A',label:'A'},{value:'B',label:'B'}]}];saveState=()=>{};let saves=0;flushServerPersistence=async()=>++saves!==2;",c);
+ await assert.rejects(()=>c.window.crmApi.updateField('c','test','A'),/Chưa lưu/);
+ await c.window.crmApi.updateField('c','test','B');
+ assert.equal(vm.runInContext("state.customers[0].customFields.test",c),'B');
+ assert.ok(vm.runInContext('saves',c)>=4);
+});
+
+test('Restoring shell never exposes cached customer controls before runtime is ready',()=>{
+ const source=fs.readFileSync('reference-crm.js','utf8');
+ const start=source.indexOf('  function refresh(force=false) {'),end=source.indexOf('    const first=!data;',start);
+ const context={normalizeAccountingMenu(){},document:{hidden:false,activeElement:{}},working:false,workflowBusy:false,q:()=>null,frame:{contentWindow:{crmApi:{snapshot:()=>null},crmRuntimeAuthState:'restoring',crmRuntimeBooted:false}},api:null,data:null,rendered:false};
+ vm.createContext(context);vm.runInContext(source.slice(start,end)+' rendered=true; } refresh(true);',context);
+ assert.equal(context.rendered,false);assert.equal(context.data,null);
+});
+
+test('Multi-select retries unchanged values after a failed database save',async()=>{
+ const c=frontend();
+ vm.runInContext("currentAccount={id:'admin',role:'ADMIN',scope:'ALL'};state=initialState();state.customers=[{id:'c',name:'Customer',customFields:{test:[]}}];state.customFieldDefinitions=[{id:'test',label:'Test',type:'MULTI_SELECT',active:true,options:[{value:'A',label:'A',color:'#123456'}]}];openModal=()=>{};let closed=0,writes=0;closeModal=()=>{closed++;};persistCustomer=async()=>++writes>1;saveState=()=>{};renderPreservingCustomerScroll=()=>{};toast=()=>{};quickMultiSelectModal('c','test');",c);
+ c.document.querySelectorAll=()=>[{value:'A'}];
+ const submit=c.document.querySelector('#quickMultiSelectForm').onsubmit;
+ await submit({preventDefault(){}});assert.equal(vm.runInContext('closed',c),0);
+ await submit({preventDefault(){}});assert.equal(vm.runInContext('writes',c),2);assert.equal(vm.runInContext('closed',c),1);
+});
+
+
+test('Saved session restores user and data with one authenticated state request',async()=>{
+ const c=frontend(),calls=[];
+ c.sessionStorage.setItem('nvt-crm-session-v1',JSON.stringify({token:'saved-token'}));
+ const payload=vm.runInContext("({state:initialState(),versions:{},user:{id:'admin',role:'ADMIN'}})",c);
+ vm.runInContext('refreshSessionContext=()=>{};startWebhookConsumer=()=>{};startServerSyncPolling=()=>{};refreshNavigationCounts=()=>{};render=()=>{};',c);
+ c.fetch=async url=>{calls.push(url);return {ok:true,json:async()=>payload};};
+ await c.initialize();
+ assert.equal(calls.length,1);assert.match(calls[0],/api\/state\?passive=1/);
+ assert.equal(c.window.crmRuntimeAuthState,'authenticated');
+ assert.equal(vm.runInContext('serverStateLoaded',c),true);
+});
+
+
+test('Failed session restoration keeps token and exits the loading screen',async()=>{
+ const c=frontend();c.sessionStorage.setItem('nvt-crm-session-v1',JSON.stringify({token:'saved-token'}));
+ vm.runInContext('refreshSessionContext=()=>{};',c);
+ c.fetch=async()=>{throw new Error('offline');};
+ await c.initialize();
+ assert.equal(c.window.crmRuntimeBooted,true);assert.equal(c.window.crmRuntimeAuthState,'unauthenticated');
+ assert.equal(JSON.parse(c.sessionStorage.getItem('nvt-crm-session-v1')).token,'saved-token');
+ assert.match(c.document.querySelector('#loginError').textContent,/Chưa tải/);
 });

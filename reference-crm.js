@@ -3,10 +3,10 @@
 (() => {
   const q=s=>document.querySelector(s), qa=s=>Array.from(document.querySelectorAll(s));
   const ACTIVE_TAB_KEY='nvt-crm-active-tab-v1';
-  const SNAPSHOT_CACHE_KEY='nvt-crm-snapshot-cache-v1';
+  try { sessionStorage.removeItem('nvt-crm-snapshot-cache-v1'); } catch {}
   const frame=q('#crmRuntimeFrame');
   const bootScreen=q('#crmBootScreen');
-  let api=null, data=null, signature='', working=false, refreshTimer=null, bootFallbackTimer=null, selectedCustomer='', careKey='', dataQueuePage=1, dataQueuePageSize=20, dataQueueDateFrom='', dataQueueDateTo='', cachedSnapshotUsed=false, userActivitySnapshot=null, userActivityLoading=false, userActivityRequestedAt=0, lastReportedActivity='';
+  let api=null, data=null, signature='', working=false, refreshTimer=null, bootFallbackTimer=null, selectedCustomer='', careKey='', dataQueuePage=1, dataQueuePageSize=20, dataQueueDateFrom='', dataQueueDateTo='', userActivitySnapshot=null, userActivityLoading=false, userActivityRequestedAt=0, lastReportedActivity='';
     const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));  function referenceNotice(message,type='success') {
     let host=document.getElementById('referenceNoticeHost');
     if(!host){
@@ -212,17 +212,18 @@
   const renders={customers:renderCustomerTable,care:renderCareView,queue:renderDataQueue,orders:renderOrdersTable,drawer:openDrawerForCust,careOpen:openCareGroupModal,careOptions:updateCareGroupOptions,switchTab};
   // Không cho hai lần bấm tạo cùng lúc. Runtime giữ requestId nếu mất phản hồi server.
   async function run(action,done) {
-    if(working)return; if(!api||!data)return;
+    if(working){window.alert('Đang lưu thay đổi trước. Vui lòng chờ rồi chọn lại.');return;} if(!api||!data||!api.snapshot())return;
     working=true;
     try { const result=await action(); if(done)done(result); refresh(true); return result; }
     catch(e){window.alert(e.message||'Không lưu được dữ liệu.');refresh(true); return null;}
     finally{working=false;}
   }
   function project() {
+    const customersById = new Map(data.customers.map(c => [c.id,c]));
     appState={members:data.members,offers:Array.isArray(data.offers)?data.offers:[],pendingOffers:Array.isArray(data.pendingOffers)?data.pendingOffers:[],customers:data.customers.slice().sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||''))||a.id.localeCompare(b.id)).map(c=>({
       id:c.id,saleAcceptedAt:c.saleAcceptedAt||null,ownerId:c.ownerId||null,saleId:c.saleId||null,leaderId:c.leaderId||null,managerId:c.managerId||null,name:esc(c.name),phone:esc(c.phone),email:esc(c.email),createdAt:fmtDate(c.createdAt),source:esc(data.websites.find(w=>w.id===c.websiteId)?.name||c.landingPageName||c.source||''),leader:esc(person(c.leaderId)),sale:esc(person(c.saleId)),level:esc(fieldOptions('customerLevel').find(o=>o.value===c.customFields?.customerLevel)?.label||c.customFields?.customerLevel||''),customerClass:esc(c.customFields?.customerClass||''),customerLevel:esc(c.customFields?.customerLevel||''),documentStatus:esc(c.customFields?.documentStatus||''),result:esc(c.customFields?.result||''),callStatus:esc(c.customFields?.callStatus||''),docStatus:esc(c.customFields?.documentStatus||''),careResult:esc(c.customFields?.result||''),status:c.status,note:esc(c.note),...Object.fromEntries(data.fields.filter(f=>!['customerClass','customerLevel','callStatus','documentStatus','result'].includes(f.id)).map(f=>[f.id,Array.isArray(c.customFields?.[f.id])?c.customFields[f.id].map(esc):esc(c.customFields?.[f.id]||'')]))
-    })),orders:data.orders.map(o=>({id:o.id,code:esc(o.code),customerName:esc(o.customerName),phone:esc(data.customers.find(c=>c.id===o.customerId)?.phone||''),product:esc(o.productName),sale:esc(person(o.saleId)),leader:esc(person(o.leaderId)),total:o.total,status:o.status,rentalExpiry:o.rentalMonths?fmtDate(o.rentalEndsAt):'Vĩnh viễn'})),careGroups:(data.careGroups||[]).map(g=>({...g,name:esc(g.name),field:g.fieldId,values:g.values.map(esc)}))};
-    appState.customers.forEach(c=>{const original=data.customers.find(item=>item.id===c.id);data.fields.forEach(f=>{const value=original.customFields?.[f.id];c[f.id]=Array.isArray(value)?value.map(esc):esc(value||'');});});
+    })),orders:data.orders.map(o=>({id:o.id,code:esc(o.code),customerName:esc(o.customerName),phone:esc(customersById.get(o.customerId)?.phone||''),product:esc(o.productName),sale:esc(person(o.saleId)),leader:esc(person(o.leaderId)),total:o.total,status:o.status,rentalExpiry:o.rentalMonths?fmtDate(o.rentalEndsAt):'Vĩnh viễn'})),careGroups:(data.careGroups||[]).map(g=>({...g,name:esc(g.name),field:g.fieldId,values:g.values.map(esc)}))};
+    appState.customers.forEach(c=>{const original=customersById.get(c.id);data.fields.forEach(f=>{const value=original.customFields?.[f.id];c[f.id]=Array.isArray(value)?value.map(esc):esc(value||'');});});
   }
   // Modal dùng đúng thành phần và màu sắc của giao diện tham chiếu.
   function editor(title, body, onSave) {
@@ -2302,25 +2303,6 @@
   const savedActiveTab=()=>{
     try{return sessionStorage.getItem(ACTIVE_TAB_KEY)||'';}catch{return '';}
   };
-  const sessionTokenHint=()=>{
-    try{
-      const session=JSON.parse(sessionStorage.getItem('nvt-crm-session-v1')||'null');
-      return session?.token?String(session.token).slice(0,24):'';
-    }catch{return '';}
-  };
-  const readCachedSnapshot=()=>{
-    const tokenHint=sessionTokenHint();
-    if(!tokenHint)return null;
-    try{
-      const cached=JSON.parse(sessionStorage.getItem(SNAPSHOT_CACHE_KEY)||'null');
-      return cached?.tokenHint===tokenHint&&cached.snapshot?.user?.id?cached.snapshot:null;
-    }catch{return null;}
-  };
-  const cacheSnapshot=snapshot=>{
-    const tokenHint=sessionTokenHint();
-    if(!tokenHint||!snapshot?.user?.id)return;
-    try{sessionStorage.setItem(SNAPSHOT_CACHE_KEY,JSON.stringify({tokenHint,savedAt:Date.now(),snapshot}));}catch{}
-  };
   const tabAllowedForSnapshot=id=>{
     if(!data||!id||!q('#'+id))return false;
     const view=id.replace(/^tab-/,'');
@@ -2361,11 +2343,8 @@
     // prevents the login/static index screen from flashing after F5.
     if(!api)return;
     let next=api.snapshot();
-    cachedSnapshotUsed=false;
-    if(!next&&runtime?.crmRuntimeAuthState==='restoring'){
-      const cached=readCachedSnapshot();
-      if(cached){next=cached;cachedSnapshotUsed=true;}
-    }
+
+    // Chỉ cho thao tác trên snapshot đã xác thực và tải từ máy chủ.
     // Cho phép mở ngay khi snapshot hợp lệ đã có; cờ boot chỉ cần dùng để
     // xác nhận trạng thái đăng xuất khi snapshot đang là null.
     if(!next && runtime?.crmRuntimeBooted!==true)return;
@@ -2373,7 +2352,7 @@
     // Keep the boot screen during that window instead of showing a false login form.
     if(!next && runtime?.crmRuntimeAuthState!=='unauthenticated')return;
     if(!next){data=null;signature='';if(bootFallbackTimer){clearTimeout(bootFallbackTimer);bootFallbackTimer=null;}bootScreen?.setAttribute('hidden','');frame.hidden=false;frame.style.display='block';frame.classList.add('is-login-visible');document.body.classList.remove('reference-ready');q('.app-shell')?.style.setProperty('visibility','hidden');q('.bg-aura')?.style.setProperty('visibility','hidden');return;}
-    const first=!data;if(first)customerFilterState.columns={};if(bootFallbackTimer){clearTimeout(bootFallbackTimer);bootFallbackTimer=null;}data=next;if(!cachedSnapshotUsed)cacheSnapshot(next);frame.hidden=true;frame.style.display='none';frame.classList.remove('is-login-visible');document.body.classList.add('reference-ready');q('.app-shell')?.style.setProperty('visibility','visible');q('.bg-aura')?.style.setProperty('visibility','visible');
+    const first=!data;if(first)customerFilterState.columns={};if(bootFallbackTimer){clearTimeout(bootFallbackTimer);bootFallbackTimer=null;}data=next;frame.hidden=true;frame.style.display='none';frame.classList.remove('is-login-visible');document.body.classList.add('reference-ready');q('.app-shell')?.style.setProperty('visibility','visible');q('.bg-aura')?.style.setProperty('visibility','visible');
     const sign=JSON.stringify(data);
     if(!force && !first && (sign===signature||working||q('.modal-overlay.open')||q('#careGroupModal')?.style.display==='flex'||['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName)))return;
     signature=sign;if(first){dateDefaults();bindReferenceSettings();setupSources();installRoleVisibilityObserver();installPendingDataStyles();}

@@ -400,12 +400,12 @@ async function handleDbApi(request, response, pathname) {
   try {
     const isAuthRequest = pathname === '/api/auth/login' || pathname === '/api/auth/register';
     const canRunBeforeSystemReady = pathname === '/api/db/health' || isAuthRequest;
-    // X?c th?c ch? c?n schema ?? s?n s?ng; kh?ng ch? provision/seed n?n c?a h? th?ng.
+    // Xác thực cần schema sẵn sàng.
     if (isAuthRequest) {
-      const schemaReady = typeof systemSchemaReady === 'undefined' ? true : await systemSchemaReady;
-      if (!schemaReady) return dbJson(request,response,503,{error:'Schema MySQL ch?a s?n s?ng. Ki?m tra log Node.'});
+      const schemaReady = await systemSchemaReady;
+      if (!schemaReady) return dbJson(request,response,503,{error:'Schema MySQL chưa sẵn sàng. Kiểm tra log Node.'});
     } else if (!canRunBeforeSystemReady && !await systemAccountsReady) {
-      return dbJson(request,response,503,{error:'Kh?i t?o t?i kho?n h? th?ng ch?a ho?n t?t. Ki?m tra schema v? quy?n MySQL trong log Node.'});
+      return dbJson(request,response,503,{error:'Khởi tạo tài khoản hệ thống chưa hoàn tất. Kiểm tra schema và quyền MySQL trong log Node.'});
     }
     markLogin('startup');
     if (pathname === '/api/db/health') return dbJson(request,response,200,await dbHealth());
@@ -1453,13 +1453,13 @@ const systemSchemaReady = (async () => {
   if (!dbConfigured) return false;
   await crmData.prepare();
   return true;
-})().catch(error => { console.error('[mysql] Kh?ng chu?n b? ???c schema:', error.message); return false; });
+})().catch(error => { console.error('[mysql] Không chuẩn bị được schema:', error.message); return false; });
 const systemAccountsReady = systemSchemaReady.then(async ready => {
   if (!ready) return false;
   const result = await provisionSystemAccounts(pool);
-  if (result.applied) console.log('[mysql] ?? c?u h?nh Admin, Marketing, K? to?n theo y?u c?u.');
+  if (result.applied) console.log('[mysql] Đã cấu hình Admin, Marketing, Kế toán theo yêu cầu.');
   return true;
-}).catch(error => { console.error('[mysql] Kh?ng kh?i t?o ???c t?i kho?n h? th?ng:', error.message); return false; });
+}).catch(error => { console.error('[mysql] Không khởi tạo được tài khoản hệ thống:', error.message); return false; });
 // Optional subsystems must not hold up authentication readiness.
 void systemAccountsReady.then(ready => {
   if (!ready || DEMO_MODE) return;
