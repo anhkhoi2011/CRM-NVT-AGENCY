@@ -5,12 +5,15 @@ require('dotenv').config({ path: require('node:path').join(__dirname, '.env') })
 
 const mysql = require('mysql2/promise');
 
+const dbHost = String(process.env.DB_HOST || '').trim();
+const dbUser = String(process.env.DB_USER || '').trim();
+const dbName = String(process.env.DB_NAME || '').trim();
 const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
+  host: dbHost || 'localhost',
   port: Number(process.env.DB_PORT || 3306),
-  user: process.env.DB_USER || '',
+  user: dbUser,
   password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || '',
+  database: dbName,
   waitForConnections: true,
   connectionLimit: Number(process.env.DB_CONNECTION_LIMIT || 5),
   queueLimit: Number(process.env.DB_QUEUE_LIMIT || 20),
@@ -19,7 +22,9 @@ const pool = mysql.createPool({
   dateStrings: true
 });
 
-const dbConfigured = Boolean(process.env.DB_HOST || process.env.DB_NAME || process.env.DB_USER);
+// Chỉ coi MySQL là đã cấu hình khi đủ các định danh bắt buộc. Nếu thiếu một biến,
+// API trả 503 rõ ràng thay vì chờ pool kết nối bằng thông tin rỗng rồi làm login timeout.
+const dbConfigured = Boolean(dbHost && dbUser && dbName);
 async function dbQuery(sql, params = []) { const [rows] = await pool.execute(sql, params); return rows; }
 async function dbHealth() { if (!dbConfigured) return { configured: false }; await pool.query('SELECT 1'); return { configured: true }; }
 

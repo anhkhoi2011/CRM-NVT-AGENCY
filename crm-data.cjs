@@ -334,7 +334,7 @@ function authorize(user,key,old,next,data){
   if(!next)error(403,'Chỉ Admin được lưu trữ khách');
   if(user.role==='SALE') {
    if(next.saleId!==user.id)error(403,'Không được giao khách cho Sale khác');
-   if(old&&!sameExcept(old,next,['name','email','phone','status','note','customFields','updatedAt','saleAcceptedAt','saleId']))error(403,'Không được thay đổi nguồn hoặc đội');
+   if(old&&!sameExcept(old,next,['email','phone','status','note','customFields','updatedAt','saleAcceptedAt','saleId']))error(403,'Không được thay đổi nguồn hoặc đội');
    if(!old&&(next.leaderId!==user.leaderId||next.teamId!==user.teamId))error(403,'Đội không hợp lệ');
   } else if(!customerScope(user,next))error(403,'Không được chuyển khách ngoài đội');
   return;

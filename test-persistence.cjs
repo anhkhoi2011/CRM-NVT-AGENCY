@@ -79,6 +79,18 @@ test('Khách thêm thủ công được lưu trong customers SQL và đọc lạ
  const reread=await f.api.read(admin),restored=reread.state.customers.find(row=>row.id===manual.id);
  assert.equal(saved.ok,true);assert.equal(restored.email,'quangha@example.vn');assert.equal(restored.source,'Khách hàng cũ');assert.equal(restored.manualEntry,true);assert.equal(restored.managerId,'manager');assert.equal(restored.customFields.customerLevel,'L4.1: Hẹn nạp vốn');
 });
+test('Feedback và Quy Trình được lưu trong SQL document store và đọc lại sau F5',async()=>{
+ const f=fixture();
+ const feedback={id:'fb-sql',authorId:'admin',authorName:'Admin',category:'SUPPORT',note:'Đã kiểm tra lỗi webhook',imageData:'',createdAt:'2026-09-28 10:00:00',updatedAt:'2026-09-28 10:00:00'};
+ const process={id:'proc-sql',title:'Quy trình xử lý data mới',summary:'Các bước tiếp nhận và phân data',content:'Kiểm tra nguồn, trùng số và phân người phụ trách.',link:'https://example.com/process',imageData:'',authorId:'admin',createdAt:'2026-09-28 10:00:00',updatedAt:'2026-09-28 10:00:00'};
+ const saved=await f.api.write(admin,'feedback-process-sql',[change('feedbacks',feedback),change('processes',process)]);
+ assert.equal(saved.ok,true);
+ assert.equal(f.db.docs.find(row=>row.collection==='feedbacks'&&row.id==='fb-sql').deleted,0);
+ assert.equal(f.db.docs.find(row=>row.collection==='processes'&&row.id==='proc-sql').deleted,0);
+ const reread=await f.api.read(admin);
+ assert.equal(reread.state.feedbacks.find(row=>row.id==='fb-sql').note,'Đã kiểm tra lỗi webhook');
+ assert.equal(reread.state.processes.find(row=>row.id==='proc-sql').title,'Quy trình xử lý data mới');
+ });
 test('Sale nhận data đang chờ phục hồi đầy đủ số điện thoại và lưu thành công',async()=>{
  const f=fixture();
  f.db.users.push({id:'lead',name:'Leader',role:'LEADER',team_id:'T',active:1},{id:'sale',name:'Sale',role:'SALE',team_id:'T',leader_id:'lead',active:1});
@@ -105,7 +117,22 @@ test('Sale không thấy khách đội khác, không tự PAID hay tự thăng A
  await assert.rejects(f.api.write(sale,'two',[change('orders',{...result.state.orders[0],status:'PAID'},result.versions['orders/o1'])]),e=>e.status===403);
  await assert.rejects(f.api.write(sale,'three',[change('members',{id:'sale',name:'Sale',role:'ADMIN'})]),e=>e.status===403);
 });
-test('Toàn bộ collection phụ đọc lại được; xóa giữ before-image',async()=>{
+test('Chỉ Admin, Leader và Manager được đổi tên khách trong phạm vi; Sale bị từ chối',async()=>{
+  const f=fixture();
+  await f.api.write(admin,'name-permission-seed',[change('members',{id:'lead',name:'Leader',role:'LEADER',teamId:'T',active:true}),change('customers',customer)]);
+  let adminRead=await f.api.read(admin);
+  await f.api.write(admin,'admin-name',[change('customers',{...adminRead.state.customers[0],name:'Tên Admin cập nhật'},adminRead.versions['customers/c1'])]);
+  const leaderAccount={id:'lead',role:'LEADER',teamId:'T',leaderId:'lead'};
+  let leaderRead=await f.api.read(leaderAccount);
+  await f.api.write(leaderAccount,'leader-name',[change('customers',{...leaderRead.state.customers[0],name:'Tên Leader cập nhật'},leaderRead.versions['customers/c1'])]);
+  const saleRead=await f.api.read(sale);
+  await assert.rejects(f.api.write(sale,'sale-name',[change('customers',{...saleRead.state.customers[0],name:'Sale tự đổi tên'},saleRead.versions['customers/c1'])]),e=>e.status===403);
+  const mf=await managerFixture(),managerAccount={id:'mgr',role:'MANAGER'};
+  const managerRead=await mf.api.read(managerAccount);
+  await mf.api.write(managerAccount,'manager-name',[change('customers',{...managerRead.state.customers.find(item=>item.id==='c1'),name:'Tên Manager cập nhật'},managerRead.versions['customers/c1'])]);
+  assert.equal((await mf.api.read(admin)).state.customers.find(item=>item.id==='c1').name,'Tên Manager cập nhật');
+ });
+ test('Toàn bộ collection phụ đọc lại được; xóa giữ before-image',async()=>{
  const f=fixture();const keys=f.api.LISTS.filter(k=>!['customers','orders','products','members'].includes(k));
  const changes=keys.map(key=>change(key,key==='brokerageMetrics'?{id:'row-'+key,memberId:'sale',leaderId:'lead',teamId:'T',period:'2026-09',basicLots:0,microLots:0,nanoLots:0,lotCommissionRate:0,indicatorCommissionRate:0,courseCommissionRate:0,vatRate:.1}:{id:'row-'+key,value:'giữ lâu dài'}));
  for(const key of f.api.OBJECTS)changes.push({key,id:'$',base:null,value:key==='productCategories'?['Dịch vụ']:{test:'giữ'}});

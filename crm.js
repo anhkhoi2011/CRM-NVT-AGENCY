@@ -965,7 +965,8 @@ const WEBHOOK_CONSUMED_KEY = 'nvt-crm-webhook-consumed-v2';
 const WEBHOOK_PENDING_KEY = 'nvt-crm-webhook-pending-v2';
 const WEBHOOK_CONSUMED_RING = 400;
 const WEBHOOK_PENDING_CAP = 200;
-const WEBHOOK_FETCH_TIMEOUT_MS = 8000;
+// cPanel/Passenger thường cần vài giây để đánh thức Node và pool MySQL sau khi idle.
+const WEBHOOK_FETCH_TIMEOUT_MS = 15000;
 const WEBHOOK_POLL_LIVE_MS = 30000;
 const WEBHOOK_POLL_IDLE_MS = 5000;
 
@@ -2364,6 +2365,11 @@ function transactionsTable(events, showReconciliation = false) {
 function canUpdateCustomer(customer) {
   const permissionRole = effectivePermissionRole();
   return !!customer && (permissionRole === 'ADMIN' || (permissionRole === 'MANAGER' && scopedCustomers().includes(customer)) || (permissionRole === 'LEADER' && state.settings.leaderCanUpdate && customer.teamId === currentAccount.teamId && customer.leaderId === currentAccount.leaderId) || (permissionRole === 'SALE' && customer.saleId === currentAccount.saleId));
+}
+
+function canEditCustomerName(customer) {
+  const permissionRole = effectivePermissionRole();
+  return !!customer && ['ADMIN', 'MANAGER', 'LEADER'].includes(permissionRole) && canViewCustomer(customer);
 }
 
 function activeCustomFields(tableOnly = false) {
@@ -3836,10 +3842,11 @@ function openCustomerDrawer(id) {
   const customer = customerById(id);
   if (!canViewCustomer(customer)) { toast('NOT_FOUND · khách hàng nằm ngoài phạm vi tài khoản'); return; }
   const canUpdate = canUpdateCustomer(customer);
+  const canEditName = canEditCustomerName(customer);
+  const canEditCustomerForm = canUpdate || canEditName;
   const orders = scopedOrders().filter(order => order.customerId === id).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const notes = state.notes.filter(note => note.customerId === id).sort((a, b) => b.at.localeCompare(a.at));
   const followUps = scopedTasks().filter(task => task.customerId === id).sort((a, b) => a.dueAt.localeCompare(b.dueAt));
-  const logs = state.audit.filter(item => item.entity === id).slice(0, 8);
   const fieldHistory = state.customerFieldHistory.filter(item => item.customerId === id).sort((a, b) => b.at.localeCompare(a.at));
   const levelHistory = fieldHistory.filter(item => item.fieldId === 'customerLevel');
   const otherFieldHistory = fieldHistory.filter(item => item.fieldId !== 'customerLevel').slice(0, 12);
@@ -3852,25 +3859,28 @@ function openCustomerDrawer(id) {
     : currentAccount.role === 'LEADER'
       ? assignmentCandidates({ leaderId: currentAccount.leaderId, teamId: currentAccount.teamId })
       : [];
-  const assignmentHtml = assignmentTargets.length ? `<div class="section-label">Phân công phụ trách</div><div class="form-grid"><label class="form-field">${currentAccount.role === 'ADMIN' ? 'Leader / Team' : 'Sale trong Team'}<select id="customerAssignee">${assignmentTargets.map(person => `<option value="${escapeHtml(person.id)}" ${(currentAccount.role === 'ADMIN' ? customer.leaderId : customer.saleId) === person.id ? 'selected' : ''}>${escapeHtml(person.name)} · ${escapeHtml(person.teamId)}</option>`).join('')}</select></label><div class="form-field"><span>Thao tác</span><div class="panel-actions"><button class="button button-primary" type="button" data-reassign-customer="${escapeHtml(customer.id)}">${currentAccount.role === 'ADMIN' ? 'Chuyển Leader' : 'Giao Sale'}</button>${(currentAccount.role === 'ADMIN' ? customer.leaderId : customer.saleId) ? `<button class="button button-danger" type="button" data-revoke-customer="${escapeHtml(customer.id)}">Thu hồi về Khách mới</button>` : ''}</div></div></div>` : '';
+  const assignmentHtml = assignmentTargets.length ? `<section class="customer-drawer-section customer-assignment-section"><div class="customer-section-heading"><div><h3>Phân công phụ trách</h3><p>${currentAccount.role === 'ADMIN' ? 'Chọn Leader hoặc Team xử lý khách hàng' : 'Chọn Sale trong phạm vi được phân quyền'}</p></div></div><div class="form-grid"><label class="form-field">${currentAccount.role === 'ADMIN' ? 'Leader / Team' : 'Sale trong Team'}<select id="customerAssignee">${assignmentTargets.map(person => `<option value="${escapeHtml(person.id)}" ${(currentAccount.role === 'ADMIN' ? customer.leaderId : customer.saleId) === person.id ? 'selected' : ''}>${escapeHtml(person.name)} · ${escapeHtml(person.teamId)}</option>`).join('')}</select></label><div class="form-field"><span>Thao tác</span><div class="panel-actions"><button class="button button-primary" type="button" data-reassign-customer="${escapeHtml(customer.id)}">${currentAccount.role === 'ADMIN' ? 'Chuyển Leader' : 'Giao Sale'}</button>${(currentAccount.role === 'ADMIN' ? customer.leaderId : customer.saleId) ? `<button class="button button-danger" type="button" data-revoke-customer="${escapeHtml(customer.id)}">Thu hồi về Khách mới</button>` : ''}</div></div></div></section>` : '';
   const sourceDetails = currentAccount.role === 'ADMIN' ? (() => { const source=customerSourceDetails(customer); return `<dt>Landing page nguồn</dt><dd>${escapeHtml(source.name)}</dd><dt>URL nguồn</dt><dd class="mono">${escapeHtml(source.url || source.domain || 'Nguồn chưa được gắn')}</dd><dt>Nguồn / Campaign</dt><dd>${escapeHtml([customer.source,customer.campaign].filter(Boolean).join(' · '))}</dd>`; })() : '';
   const levelField = state.customFieldDefinitions.find(field => field.id === 'customerLevel') || CUSTOM_FIELD_SEED[0];
-  const levelTimeline = levelHistory.map(item => `<div class="timeline-item history-change"><b>${escapeHtml(customFieldValueLabel(levelField, item.to) || 'Chưa đặt Level')}</b><p>${item.from === '' ? 'Khởi tạo Level' : `${escapeHtml(customFieldValueLabel(levelField, item.from) || 'Trống')} → ${escapeHtml(customFieldValueLabel(levelField, item.to) || 'Trống')}`}</p><small>${escapeHtml(item.at)} · ${escapeHtml(item.actor)} · ${escapeHtml(item.source)}</small></div>`).join('') || '<div class="timeline-item"><b>Chưa có lịch sử Level</b><p>Level đầu tiên sẽ được ghi khi cập nhật.</p><small>CRM</small></div>';
+  const levelTimeline = levelHistory.map(item => `<div class="timeline-item history-change"><b>${escapeHtml(customFieldValueLabel(levelField, item.to) || 'Chưa đặt Level')}</b><p>${item.from === '' ? 'Khởi tạo Level' : `${escapeHtml(customFieldValueLabel(levelField, item.from) || 'Trống')} → ${escapeHtml(customFieldValueLabel(levelField, item.to) || 'Trống')}`}</p><small>${escapeHtml(item.at)} · ${escapeHtml(item.actor)} · ${escapeHtml(item.source)}</small></div>`).join('');
+  const followUpDefault = new Date(Date.now() + 24 * 60 * 60 * 1000);
+  followUpDefault.setHours(9, 0, 0, 0);
+  const followUpDefaultDueAt = `${followUpDefault.getFullYear()}-${String(followUpDefault.getMonth() + 1).padStart(2, '0')}-${String(followUpDefault.getDate()).padStart(2, '0')}T09:00`;
+  const businessFields = activeCustomFields().filter(field => field.type === 'MULTI_SELECT' || field.type === 'NOTE');
+  const businessHtml = businessFields.length ? `<section class="customer-drawer-section customer-business-section"><div class="customer-section-heading"><div><h3>Dữ liệu nghiệp vụ</h3><p>Thông tin bổ sung được lưu riêng theo từng khách hàng</p></div></div>${canUpdate ? `<form id="customerCustomFieldsForm"><div class="form-grid custom-field-grid">${businessFields.map(field => customFieldInput(field, customer.customFields?.[field.id])).join('')}</div><div class="modal-actions"><button class="button button-primary" type="submit">Lưu dữ liệu nghiệp vụ</button></div></form>` : `<div class="custom-field-readonly">${businessFields.map(field => `<div><small>${escapeHtml(field.label)}</small>${customFieldCell(field, customer.customFields?.[field.id])}</div>`).join('')}</div>`}</section>` : '';
+  const updateHtml = `<section class="customer-drawer-section customer-edit-section"><div class="customer-section-heading"><div><h3>Cập nhật nhanh</h3><p>Đổi tên khách hàng hoặc cập nhật trạng thái</p></div></div>${canEditCustomerForm ? `<form id="customerUpdateForm"><div class="form-grid"><label class="form-field">Tên khách hàng<input id="customerName" type="text" maxlength="160" value="${escapeHtml(customer.name || '')}" ${canEditName ? '' : 'readonly'}></label><label class="form-field">Trạng thái<select id="customerStatus" ${canUpdate ? '' : 'disabled'}>${Object.entries(STATUS_META).map(([key, meta]) => `<option value="${key}" ${customer.status === key ? 'selected' : ''}>${escapeHtml(meta.label)}</option>`).join('')}</select></label></div><div class="modal-actions"><button class="button button-primary" type="submit">${canEditName && canUpdate ? 'Lưu thông tin khách hàng' : canEditName ? 'Lưu tên khách hàng' : 'Cập nhật trạng thái'}</button></div></form>` : `<div class="form-hint">Tài khoản hiện tại chỉ được xem thông tin khách hàng.</div>`}</section>`;
+  const productHtml = orders.length || canUpdate ? `<section class="customer-drawer-section"><div class="customer-section-heading section-label-with-action"><div><h3>Sản phẩm & đơn hàng</h3><p>${orders.length ? `${orders.length} đơn hàng đã ghi nhận` : 'Chưa có đơn hàng nào'}</p></div>${canUpdate ? `<button class="button button-small" type="button" data-new-customer-product="${escapeHtml(customer.id)}">+ Thêm</button>` : ''}</div><div class="purchase-list">${orders.map(order => `<button class="purchase-row" type="button" data-customer-order="${escapeHtml(order.id)}"><span><b>${escapeHtml(order.productName)}</b><small>${escapeHtml(order.code)} · SL ${order.qty} · ${escapeHtml(order.createdAt)}</small></span><span class="right"><b>${money(order.total)}</b>${statusBadge(order.status, 'order')}</span></button>`).join('') || '<div class="empty compact"><b>Chưa có sản phẩm</b><span>Đơn hàng mới của khách sẽ hiển thị tại đây.</span></div>'}</div></section>` : '';
+  const notesHtml = notes.length || canUpdate ? `<section class="customer-drawer-section"><div class="customer-section-heading"><div><h3>Ghi chú chăm sóc</h3><p>${notes.length ? `${notes.length} ghi chú gần nhất` : 'Lưu lại nhu cầu và nội dung trao đổi'}</p></div></div>${canUpdate ? `<form id="customerNoteForm"><label class="form-field">Ghi chú mới<textarea id="customerNote" rows="3" maxlength="2000" placeholder="Nhập nhu cầu, trao đổi hoặc thông tin cần theo dõi..."></textarea></label><div class="modal-actions"><button class="button button-primary" type="submit">Thêm ghi chú</button></div></form>` : ''}${notes.length ? `<div class="timeline note-timeline">${notes.map(note => `<div class="timeline-item"><b>${escapeHtml(note.author)} · ${escapeHtml(note.role)}</b><p>${escapeHtml(note.text)}</p><small>${escapeHtml(note.at)}</small><div class="note-actions"><button class="button button-small" type="button" data-edit-note="${escapeHtml(note.id)}">Sửa</button><button class="button button-small button-danger" type="button" data-delete-note="${escapeHtml(note.id)}">Xóa</button></div></div>`).join('')}</div>` : ''}</section>` : '';
+   const followUpHtml = followUps.length || (canUpdate && customer.saleId) ? `<section class="customer-drawer-section"><div class="customer-section-heading"><div><h3>Lịch chăm sóc</h3><p>${followUps.length ? `${followUps.length} lịch đang theo dõi` : 'Tạo lịch gọi lại hoặc gửi báo giá'}</p></div></div>${canUpdate && customer.saleId ? `<form id="customerFollowUpForm"><div class="form-grid"><label class="form-field">Nội dung<input id="followUpType" maxlength="160" required placeholder="Gọi lại / gửi báo giá..."></label><label class="form-field">Hạn xử lý<input id="followUpDueAt" type="datetime-local" required value="${followUpDefaultDueAt}"></label><label class="form-field">Ưu tiên<select id="followUpPriority"><option value="NORMAL">Thường</option><option value="HIGH">Cao</option></select></label></div><div class="modal-actions"><button class="button" type="submit">+ Thêm lịch</button></div></form>` : ''}<div class="follow-up-list">${followUps.map(task => `<div class="follow-up-row"><span><b>${escapeHtml(task.type)}</b><small>${escapeHtml(task.dueAt)} · ${escapeHtml(staffName(task.ownerId))}</small></span><span>${statusBadge(task.status, 'task')}${task.status !== 'DONE' && canUpdate ? `<button class="button button-small" type="button" data-complete-task="${escapeHtml(task.id)}">Hoàn tất</button>` : ''}</span></div>`).join('') || '<div class="empty compact"><b>Chưa có lịch chăm sóc</b><span>Tạo lịch mới ngay trong hồ sơ khách.</span></div>'}</div></section>` : '';
+  const historyHtml = [
+    levelHistory.length ? `<section class="customer-drawer-section customer-history-section"><div class="customer-section-heading"><div><h3>Lịch sử Level</h3><p>Các lần thay đổi được giữ nguyên, không ghi đè</p></div></div><div class="timeline level-history">${levelTimeline}</div></section>` : '',
+    currentAccount.role === 'ADMIN' && resubmissions.length ? `<section class="customer-drawer-section customer-history-section"><div class="customer-section-heading"><div><h3>Lịch sử điền lại form</h3><p>${resubmissions.length} lần gửi lại của khách</p></div></div><div class="timeline">${resubmissions.map(item => `<div class="timeline-item"><b>${item.registeredAccount ? 'DATA TRÙNG - DATA đã đăng ký TK' : 'DATA TRÙNG'}</b><p>${escapeHtml(item.source)} · ${escapeHtml(item.campaign || 'Không có campaign')} · giữ Sale ${escapeHtml(staffName(item.assignedSaleId))}</p><small>${escapeHtml(item.at)} · ${escapeHtml(item.intakeType)}</small></div>`).join('')}</div></section>` : '',
+    currentAccount.role === 'ADMIN' && assignmentHistory.length ? `<section class="customer-drawer-section customer-history-section"><div class="customer-section-heading"><div><h3>Lịch sử phân công</h3><p>${assignmentHistory.length} lần thay đổi phụ trách</p></div></div><div class="timeline">${assignmentHistory.map(item => `<div class="timeline-item"><b>${escapeHtml(item.toSaleName || item.toLeaderName || 'Thu hồi về Khách mới')}</b><p>${escapeHtml(item.reason)} · từ ${escapeHtml(item.fromSaleName || item.fromLeaderName || 'Khách mới')}</p><small>${escapeHtml(item.at)} · ${escapeHtml(item.actor)}</small></div>`).join('')}</div></section>` : '',
+    otherFieldHistory.length ? `<section class="customer-drawer-section customer-history-section"><div class="customer-section-heading"><div><h3>Thay đổi nghiệp vụ</h3><p>${otherFieldHistory.length} cập nhật gần đây</p></div></div><div class="timeline">${otherFieldHistory.map(item => `<div class="timeline-item"><b>${escapeHtml(item.fieldLabel)}</b><p>${escapeHtml(String(customFieldValueLabel(state.customFieldDefinitions.find(field => field.id === item.fieldId), item.from) || 'Trống'))} → ${escapeHtml(String(customFieldValueLabel(state.customFieldDefinitions.find(field => field.id === item.fieldId), item.to) || 'Trống'))}</p><small>${escapeHtml(item.at)} · ${escapeHtml(item.actor)}</small></div>`).join('')}</div></section>` : ''
+  ].join('');
   openDrawer({
     head: `<h2>${escapeHtml(customer.name)}</h2><p>${currentAccount.role === 'SALE' && !customer.saleAcceptedAt ? '•••••' : escapeHtml(customer.phone)}</p>`,
-    body: `${resubmissions.length ? `<div class="duplicate-alert"><b>DATA TRÙNG · ${resubmissions.length} lần gửi lại</b><span>${resubmissions[0].registeredAccount ? 'DATA đã đăng ký TK' : 'Đã giữ đúng người phụ trách trước đó'} · gần nhất ${escapeHtml(resubmissions[0].at)}</span></div>` : ''}<div class="section-label">Thông tin khách hàng</div><dl class="detail-grid"><dt>Email</dt><dd>${escapeHtml(customer.email || 'Chưa cập nhật')}</dd>${sourceDetails}<dt>IP truy cập</dt><dd class="mono">${escapeHtml(customer.ipAddress || 'Chưa xác định')}</dd><dt>Trạng thái</dt><dd>${statusBadge(customer.status)}</dd><dt>Team / Leader</dt><dd>${escapeHtml(customer.teamId || 'Khách mới')} · ${escapeHtml(staffName(customer.leaderId))}</dd><dt>Sale phụ trách</dt><dd>${escapeHtml(staffName(customer.saleId))}</dd><dt>Ngày tạo</dt><dd>${escapeHtml(customer.createdAt)}</dd><dt>Doanh thu thuần</dt><dd>${money(netRevenue(orders))}</dd><dt>Ghi chú gần nhất</dt><dd>${escapeHtml(customer.note)}</dd></dl>
-      ${assignmentHtml}
-      <div class="section-label">Trạng thái khách hàng</div>${canUpdate ? `<form id="customerUpdateForm"><div class="inline-form"><select id="customerStatus">${Object.entries(STATUS_META).map(([key, meta]) => `<option value="${key}" ${customer.status === key ? 'selected' : ''}>${escapeHtml(meta.label)}</option>`).join('')}</select><button class="button button-primary" type="submit">Cập nhật trạng thái</button></div></form>` : `<div class="form-hint">Tài khoản hiện tại chỉ được xem trạng thái.</div>`}
-      <div class="section-label customer-business-section">Dữ liệu nghiệp vụ</div>${canUpdate ? `<form id="customerCustomFieldsForm"><div class="form-grid custom-field-grid">${activeCustomFields().filter(field => field.type === 'MULTI_SELECT' || field.type === 'NOTE').map(field => customFieldInput(field, customer.customFields?.[field.id])).join('')}</div><div class="modal-actions"><button class="button button-primary" type="submit">Lưu dữ liệu nghiệp vụ</button></div></form>` : `<div class="custom-field-readonly">${activeCustomFields().filter(field => field.type === 'MULTI_SELECT' || field.type === 'NOTE').map(field => `<div><small>${escapeHtml(field.label)}</small>${customFieldCell(field, customer.customFields?.[field.id])}</div>`).join('')}</div>`}
-      <div class="section-label">Lịch sử Level khách hàng · Không ghi đè</div><div class="timeline level-history">${levelTimeline}</div>
-      <div class="section-label section-label-with-action">Sản phẩm & đơn hàng đã mua <button class="button button-small" type="button" data-new-customer-product="${escapeHtml(customer.id)}">+ Thêm sản phẩm</button></div><div class="purchase-list">${orders.map(order => `<button class="purchase-row" type="button" data-customer-order="${escapeHtml(order.id)}"><span><b>${escapeHtml(order.productName)}</b><small>${escapeHtml(order.code)} · SL ${order.qty} · ${escapeHtml(order.createdAt)}</small></span><span class="right"><b>${money(order.total)}</b>${statusBadge(order.status, 'order')}</span></button>`).join('') || '<div class="empty compact"><b>Chưa mua sản phẩm</b><span>Khách hàng chưa có đơn hàng nào.</span></div>'}</div>
-      <div class="section-label">Ghi chú chăm sóc</div>${canUpdate ? `<form id="customerNoteForm"><label class="form-field">Ghi chú mới<textarea id="customerNote" rows="3" maxlength="2000" placeholder="Sale ghi nội dung trao đổi, nhu cầu hoặc lịch hẹn..."></textarea></label><div class="modal-actions"><button class="button button-primary" type="submit">Thêm ghi chú</button></div></form>` : ''}<div class="timeline note-timeline">${notes.map(note => `<div class="timeline-item"><b>${escapeHtml(note.author)} · ${escapeHtml(note.role)}</b><p>${escapeHtml(note.text)}</p><small>${escapeHtml(note.at)}</small><div class="note-actions"><button class="button button-small" type="button" data-edit-note="${escapeHtml(note.id)}">Sửa</button><button class="button button-small button-danger" type="button" data-delete-note="${escapeHtml(note.id)}">Xóa</button></div></div>`).join('') || '<div class="timeline-item"><b>Chưa có ghi chú</b><p>Nhập ghi chú để cả Team cùng theo dõi.</p><small>CRM</small></div>'}</div>
-      <div class="section-label">Lịch chăm sóc</div>${canUpdate && customer.saleId ? `<form id="customerFollowUpForm"><div class="form-grid"><label class="form-field">Nội dung<input id="followUpType" maxlength="160" required placeholder="Gọi lại / gửi báo giá..."></label><label class="form-field">Hạn xử lý<input id="followUpDueAt" type="datetime-local" required value="2026-09-08T09:00"></label><label class="form-field">Ưu tiên<select id="followUpPriority"><option value="NORMAL">Thường</option><option value="HIGH">Cao</option></select></label></div><div class="modal-actions"><button class="button" type="submit">+ Thêm lịch chăm sóc</button></div></form>` : ''}<div class="follow-up-list">${followUps.map(task => `<div class="follow-up-row"><span><b>${escapeHtml(task.type)}</b><small>${escapeHtml(task.dueAt)} · ${escapeHtml(staffName(task.ownerId))}</small></span><span>${statusBadge(task.status, 'task')}${task.status !== 'DONE' && canUpdate ? `<button class="button button-small" type="button" data-complete-task="${escapeHtml(task.id)}">Hoàn tất</button>` : ''}</span></div>`).join('') || '<div class="empty compact"><b>Chưa có lịch chăm sóc</b><span>Tạo lịch mới ngay trong hồ sơ khách.</span></div>'}</div>
-      <div class="section-label section-label-with-action">📅 Lịch hẹn khách hàng (Bot nhắc tự động) ${canUpdate ? `<button class="button button-small button-primary" type="button" id="btnNewCustAppointment">+ Đặt lịch hẹn</button>` : ''}</div><div id="customerAppointmentsList" class="follow-up-list"><div class="empty compact"><b>Đang tải lịch hẹn...</b></div></div>
-      ${currentAccount.role === 'ADMIN' && resubmissions.length ? `<div class="section-label">Lịch sử khách điền lại form</div><div class="timeline">${resubmissions.map(item => `<div class="timeline-item"><b>${item.registeredAccount ? 'DATA TRÙNG - DATA đã đăng ký TK' : 'DATA TRÙNG'}</b><p>${escapeHtml(item.source)} · ${escapeHtml(item.campaign || 'Không có campaign')} · giữ Sale ${escapeHtml(staffName(item.assignedSaleId))}</p><small>${escapeHtml(item.at)} · ${escapeHtml(item.intakeType)}</small></div>`).join('')}</div>` : ''}
-      ${currentAccount.role === 'ADMIN' && assignmentHistory.length ? `<div class="section-label">Lịch sử phân công</div><div class="timeline">${assignmentHistory.map(item => `<div class="timeline-item"><b>${escapeHtml(item.toSaleName || item.toLeaderName || 'Thu hồi về Khách mới')}</b><p>${escapeHtml(item.reason)} · từ ${escapeHtml(item.fromSaleName || item.fromLeaderName || 'Khách mới')}</p><small>${escapeHtml(item.at)} · ${escapeHtml(item.actor)}</small></div>`).join('')}</div>` : ''}
-      ${otherFieldHistory.length ? `<div class="section-label">Các thay đổi nghiệp vụ gần đây</div><div class="timeline">${otherFieldHistory.map(item => `<div class="timeline-item"><b>${escapeHtml(item.fieldLabel)}</b><p>${escapeHtml(String(customFieldValueLabel(state.customFieldDefinitions.find(field => field.id === item.fieldId), item.from) || 'Trống'))} → ${escapeHtml(String(customFieldValueLabel(state.customFieldDefinitions.find(field => field.id === item.fieldId), item.to) || 'Trống'))}</p><small>${escapeHtml(item.at)} · ${escapeHtml(item.actor)}</small></div>`).join('')}</div>` : ''}
-      <div class="section-label">Audit</div><div class="timeline">${logs.map(log => `<div class="timeline-item"><b>${escapeHtml(log.action)}</b><p>${escapeHtml(log.detail)}</p><small>${escapeHtml(log.at)} · ${escapeHtml(log.actor)}</small></div>`).join('') || '<div class="timeline-item"><b>Khởi tạo data</b><p>Bản ghi được tạo từ nguồn acquisition.</p><small>System</small></div>'}</div>`
+    body: `<div class="customer-drawer-layout">${resubmissions.length ? `<div class="duplicate-alert"><b>DATA TRÙNG · ${resubmissions.length} lần gửi lại</b><span>${resubmissions[0].registeredAccount ? 'DATA đã đăng ký TK' : 'Đã giữ đúng người phụ trách trước đó'} · gần nhất ${escapeHtml(resubmissions[0].at)}</span></div>` : ''}<section class="customer-drawer-section customer-overview-section"><div class="customer-section-heading"><div><h3>Thông tin chính</h3><p>Thông tin nhận diện và phân loại khách hàng</p></div><span class="customer-section-kicker">Hồ sơ khách</span></div><dl class="detail-grid"><dt>Email</dt><dd>${escapeHtml(customer.email || 'Chưa cập nhật')}</dd>${sourceDetails}<dt>IP truy cập</dt><dd class="mono">${escapeHtml(customer.ipAddress || 'Chưa xác định')}</dd><dt>Trạng thái</dt><dd>${statusBadge(customer.status)}</dd><dt>Team / Leader</dt><dd>${escapeHtml(customer.teamId || 'Khách mới')} · ${escapeHtml(staffName(customer.leaderId))}</dd><dt>Sale phụ trách</dt><dd>${escapeHtml(staffName(customer.saleId))}</dd><dt>Ngày tạo</dt><dd>${escapeHtml(customer.createdAt)}</dd><dt>Doanh thu thuần</dt><dd>${money(netRevenue(orders))}</dd></dl></section>${updateHtml}${assignmentHtml}${businessHtml}<section id="customerCareSection" class="customer-drawer-section customer-care-section"><div class="customer-section-heading"><div><h3>Chăm sóc khách hàng</h3><p>Ghi chú, lịch xử lý và lịch hẹn được quản lý tại đây</p></div></div>${notesHtml}${followUpHtml}<div class="customer-drawer-subsection"><div class="customer-section-heading section-label-with-action"><div><h3>Lịch hẹn</h3><p>Bot Telegram sẽ nhắc trước giờ hẹn</p></div>${canUpdate ? `<button class="button button-small button-primary" type="button" id="btnNewCustAppointment">+ Đặt lịch</button>` : ''}</div><div id="customerAppointmentsList" class="follow-up-list"><div class="empty compact"><b>Đang tải lịch hẹn...</b></div></div></div></section>${productHtml}${historyHtml}</div>`
   });
   if (currentAccount.role !== 'ADMIN') {
     const drawerDetails = $('#drawerRoot .detail-grid');
@@ -3897,16 +3907,25 @@ function openCustomerDrawer(id) {
 async function updateCustomer(id) {
   const customer = customerById(id);
   if (!canViewCustomer(customer)) { closeDrawer(); toast('FORBIDDEN · không thể cập nhật khách ngoài scope'); return; }
-  if (!canUpdateCustomer(customer)) { toast('FORBIDDEN · tài khoản không có quyền cập nhật'); return; }
-  const nextStatus = $('#customerStatus').value;
+  const canUpdate = canUpdateCustomer(customer);
+  const canEditName = canEditCustomerName(customer);
+  if (!canUpdate && !canEditName) { toast('FORBIDDEN · tài khoản không có quyền cập nhật'); return; }
+  const nameInput = $('#customerName');
+  const nextName = nameInput && canEditName ? nameInput.value.trim() : customer.name;
+  if (!nextName || nextName.length > 160) { toast('Tên khách hàng phải có từ 1 đến 160 ký tự'); return; }
+  const nextStatus = canUpdate ? $('#customerStatus').value : customer.status;
   if (!Object.hasOwn(STATUS_META, nextStatus)) { toast('Trạng thái khách hàng không hợp lệ'); return; }
-  if (nextStatus === customer.status) { toast('Trạng thái chưa thay đổi'); return; }
+  if (nextName === customer.name && nextStatus === customer.status) { toast('Thông tin khách hàng chưa thay đổi'); return; }
+  const oldName = customer.name;
   const oldStatus = customer.status;
+  customer.name = nextName;
   customer.status = nextStatus;
   customer.updatedAt = stamp();
-  audit('UPDATE_CUSTOMER_STATUS', customer.id, `${STATUS_META[oldStatus]?.label || oldStatus} -> ${STATUS_META[nextStatus]?.label || nextStatus}`);
+  if (oldName !== nextName) audit('UPDATE_CUSTOMER_NAME', customer.id, `${oldName} -> ${nextName}`);
+  if (oldStatus !== nextStatus) audit('UPDATE_CUSTOMER_STATUS', customer.id, `${STATUS_META[oldStatus]?.label || oldStatus} -> ${STATUS_META[nextStatus]?.label || nextStatus}`);
   if (state.settings.notifyMilestones && ['PAID', 'WON'].includes(nextStatus)) state.notifications.unshift({ id: `NT-${Date.now()}`, role: 'ADMIN', title: 'Khách đạt milestone', text: `${customer.name} chuyển sang ${STATUS_META[nextStatus].label}.`, at: stamp(), readBy: [] });
-  saveState(); render(); openCustomerDrawer(id); toast('Đã cập nhật trạng thái khách hàng');
+  if (!await persistCustomer(customer)) { toast('Không thể lưu khách hàng lên MySQL'); return; }
+  saveState(); render(); openCustomerDrawer(id); toast(oldName !== nextName && oldStatus !== nextStatus ? 'Đã cập nhật tên và trạng thái khách hàng' : oldName !== nextName ? 'Đã cập nhật tên khách hàng' : 'Đã cập nhật trạng thái khách hàng');
 }
 
 async function quickUpdateCustomerStatus(id, nextStatus) {
@@ -4001,10 +4020,16 @@ async function renderCustomerAppointments(customerId) {
     });
     const data = await res.json();
     const list = data.appointments || [];
+    const appointmentSection = container.closest('.customer-drawer-subsection');
     if (!list.length) {
       container.innerHTML = '<div class="empty compact"><b>Chưa có lịch hẹn nào</b><span>Bấm "+ Đặt lịch hẹn" để tạo, Bot Telegram sẽ tự động nhắc trước 15-30 phút.</span></div>';
+      if (appointmentSection && !$('#btnNewCustAppointment')) {
+        appointmentSection.hidden = true;
+        if (!$('#customerCareSection > .customer-drawer-section')) $('#customerCareSection').hidden = true;
+      }
       return;
     }
+    if (appointmentSection) appointmentSection.hidden = false;
     container.innerHTML = list.map(app => {
       const typeLabel = APPOINTMENT_TYPE_LABELS[app.type] || app.type || 'Lịch hẹn';
       const isScheduled = app.status === 'SCHEDULED';
@@ -4047,6 +4072,7 @@ async function renderCustomerAppointments(customerId) {
     });
   } catch (err) {
     container.innerHTML = '<div class="empty compact"><b>Không tải được lịch hẹn</b></div>';
+    if (!$('#btnNewCustAppointment')) container.closest('.customer-drawer-subsection')?.setAttribute('hidden', '');
   }
 }
 
@@ -5945,7 +5971,10 @@ function bindGlobalActions() {
         restoreSubmitButton();
         return;
       } catch (error) {
-        setLoginError('Không kết nối được MySQL. Hãy kiểm tra server.');
+        console.error('[CRM login]', error);
+        setLoginError(error?.name === 'AbortError'
+          ? 'Máy chủ phản hồi quá lâu. Node hoặc MySQL có thể đang khởi động, hãy bấm Đăng nhập lại.'
+          : 'Không kết nối được máy chủ Node. Hãy kiểm tra Node.js App và đường dẫn /api trên cPanel.');
         restoreSubmitButton();
         return;
       }

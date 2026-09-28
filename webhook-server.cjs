@@ -396,7 +396,7 @@ async function handleDbApi(request, response, pathname) {
   if (DEMO_MODE) return handleDemoApi(request,response,pathname);
   if (!dbConfigured) return dbJson(request,response,503,{error:'MySQL chưa được cấu hình. Không thể lưu dữ liệu.'});
   try {
-    const canRunBeforeSystemReady = pathname === '/api/db/health' || pathname === '/api/auth/login' || pathname === '/api/auth/register';
+    const canRunBeforeSystemReady = pathname === '/api/db/health';
     if (!canRunBeforeSystemReady && !await systemAccountsReady) return dbJson(request,response,503,{error:'Khởi tạo tài khoản hệ thống chưa hoàn tất. Kiểm tra schema và quyền MySQL trong log Node.'});
     if (pathname === '/api/db/health') return dbJson(request,response,200,await dbHealth());
     if (pathname === '/api/auth/register' && request.method === 'POST') {
@@ -1394,7 +1394,16 @@ const server = http.createServer(async (request, response) => {
       return sendJson(response, 200, { ok: true }, corsHeaders(request));
     }
     if (pathname === '/api/db/health' || pathname === '/api/navigation-counts' || pathname === '/api/user-activity' || pathname === '/api/admin/user-activity' || pathname.startsWith('/api/auth/') || pathname.startsWith('/api/telegram/') || pathname.startsWith('/api/support/') || pathname.startsWith('/api/users') || pathname.startsWith('/api/customers') || pathname.startsWith('/api/orders') || pathname.startsWith('/api/products') || pathname.startsWith('/api/settings') || pathname === '/api/state') return handleDbApi(request, response, pathname);
-    if (pathname === '/api/health') return sendJson(response, 200, { ok: true, inbox: inbox.length, token: Boolean(WEBHOOK_TOKEN) });
+    if (pathname === '/api/health') {
+      if (DEMO_MODE) return sendJson(response, 200, { ok: true, demo: true, inbox: inbox.length, token: Boolean(WEBHOOK_TOKEN) });
+      if (!dbConfigured) return sendJson(response, 503, { ok: false, mysql: 'not_configured', error: 'MySQL chưa được cấu hình.' });
+      try {
+        await dbHealth();
+        return sendJson(response, 200, { ok: true, mysql: 'ready', inbox: inbox.length, token: Boolean(WEBHOOK_TOKEN) });
+      } catch (error) {
+        return sendJson(response, 503, { ok: false, mysql: 'unavailable', code: error.code || 'DB_ERROR', error: 'Node đang chạy nhưng chưa kết nối được MySQL.' });
+      }
+    }
 
     if (pathname.startsWith('/api/')) {
       sendJson(response, 404, { error: 'Không có endpoint này' });
@@ -1481,7 +1490,12 @@ async function selfCheckHealth() {
     const body = await response.text();
     let payload = null;
     try { payload = JSON.parse(body); } catch { payload = null; }
-    if (response.ok && payload && payload.ok === true) return;
+    // A 503 with `mysql` is still a response from this Node app, not evidence
+    // that another process owns the port. Keep the diagnostic focused on DB.
+    if (payload && (payload.demo === true || Object.hasOwn(payload, 'mysql'))) {
+      if (!response.ok) console.warn(`[webhook] Node đang chạy nhưng trạng thái MySQL là ${payload.mysql || 'chưa sẵn sàng'}.`);
+      return;
+    }
     console.warn(`\n[webhook] CẢNH BÁO: http://localhost:${PORT}/api/health trả về không phải của server này`);
     console.warn(`[webhook]           HTTP ${response.status} · ${body.slice(0, 120).replace(/\s+/g, ' ')}`);
     warnShadowed();

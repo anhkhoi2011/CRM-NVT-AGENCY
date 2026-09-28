@@ -1029,8 +1029,8 @@
  <ul class="nav-list">
  <li><button class="nav-btn active" id="btnSideMindmap" onclick="switchView('tab-mindmap')">Cây Mindmap (Lv1-Lv3)</button></li>
  <li><button class="nav-btn" id="btnSideReport" onclick="switchView('tab-report')">Báo cáo Doanh thu (23)</button></li>
- <li><button class="nav-btn" id="btnSideAccounting" onclick="switchView('tab-accounting')">Kế toán & Chi phí Admin</button></li>
  <li><button class="nav-btn" id="btnSideVatOrders" onclick="switchView('tab-vat-orders')">🧾 Kiểm Tra Đơn & Xuất VAT</button></li>
+ <li><button class="nav-btn" id="btnSideAccounting" onclick="switchView('tab-accounting')">Kế toán & Chi phí Admin</button></li>
  </ul>
  </div>
 
@@ -1063,11 +1063,11 @@
         <button class="mode-tab-btn" id="btnTabReport" onclick="switchView('tab-report')">
           Báo Cáo Doanh Thu
         </button>
-        <button class="mode-tab-btn" id="btnTabAccounting" onclick="switchView('tab-accounting')">
-          Kế Toán Chi Phí
-        </button>
         <button class="mode-tab-btn" id="btnTabVatOrders" onclick="switchView('tab-vat-orders')">
           Đơn Hàng & VAT
+        </button>
+        <button class="mode-tab-btn" id="btnTabAccounting" onclick="switchView('tab-accounting')">
+          Kế Toán & Chi Phí
         </button>
       </div>
     </header>
@@ -1363,148 +1363,6 @@
     <!-- ==========================================================
          VIEW 3: MỤC KẾ TOÁN & QUẢN LÝ CHI PHÍ DO ADMIN NHẬP
          ========================================================== -->
-    <div id="tab-accounting" class="tab-content-panel">
-      <!-- Top P&L Dashboard for Accounting -->
-      <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:18px 20px; margin-bottom:16px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px; border-bottom:1px solid #f1f5f9; padding-bottom:12px;">
-          <div>
-            <div style="font-size:16px; font-weight:900; color:#0f172a; display:flex; align-items:center; gap:8px;">
-              <span>💼</span>
-              <span id="accReportTitle">BÁO CÁO TÀI CHÍNH & KẾ TOÁN CÔNG TY (THÁNG 09/2026)</span>
-              <span id="accMonthStatusBadge" style="font-size:11px; background:#ecfdf5; color:#059669; padding:2px 8px; border-radius:12px; font-weight:800;">ĐÃ ĐỐI SOÁT</span>
-            </div>
-            <div style="font-size:12px; color:#64748b; margin-top:3px;">
-              Kế toán nhập & xem chi phí theo từng tháng. Chuyển đổi linh hoạt giữa các tháng trước và sau để đối soát P&L.
-            </div>
-          </div>
-
-          <!-- CỤM ĐIỀU HƯỚNG & CHỌN THÁNG KẾ TOÁN (TRƯỚC / SAU) -->
-          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-            <div style="display:inline-flex; align-items:center; background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; padding:3px 6px; box-shadow:0 1px 3px rgba(0,0,0,0.05); gap:4px;">
-              <button type="button" class="btn-micro" onclick="navigateAccountingMonth(-1)" style="font-size:12px; font-weight:800; padding:5px 9px; border-radius:6px; background:#ffffff; border:1px solid #cbd5e1; cursor:pointer;" title="Lùi về tháng trước">
-                ◀ Tháng trước
-              </button>
-              
-              <div style="display:flex; align-items:center; gap:4px; padding:0 4px;">
-                <span style="font-size:13px;">📅</span>
-                <select id="accountingMonthSelect" onchange="onAccountingMonthSelectChange(this.value)" style="border:none; background:transparent; font-size:12.5px; font-weight:900; color:#1e293b; padding:4px 6px; cursor:pointer; font-family:'JetBrains Mono'; outline:none;">
-                  <option value="2026-10">Tháng 10/2026 (Kế hoạch)</option>
-                  <option value="2026-09" selected>Tháng 09/2026 (Hiện tại)</option>
-                  <option value="2026-08">Tháng 08/2026 (Tháng trước)</option>
-                  <option value="2026-07">Tháng 07/2026</option>
-                  <option value="2026-06">Tháng 06/2026</option>
-                  <option value="ALL">Tất Cả Các Tháng (Lũy kế)</option>
-                </select>
-              </div>
-
-              <button type="button" class="btn-micro" onclick="navigateAccountingMonth(1)" style="font-size:12px; font-weight:800; padding:5px 9px; border-radius:6px; background:#ffffff; border:1px solid #cbd5e1; cursor:pointer;" title="Tiến đến tháng sau">
-                Tháng sau ▶
-              </button>
-            </div>
-
-            <button class="tool-btn" onclick="exportAccountingToCSV()" style="font-size:12px; font-weight:700;">
-              Xuất Báo Cáo Chi Phí
-            </button>
-            <button class="tool-btn primary" onclick="openExpenseModal()" style="font-size:12px; font-weight:800; background:linear-gradient(135deg, #0284c7, #2563eb);">
-              Thêm Chi Phí Mới
-            </button>
-          </div>
-        </div>
-
-        <!-- 4 Thẻ P&L Sang Trọng -->
-        <div class="kpi-grid-4">
-          <div class="kpi-card blue">
-            <div class="kpi-label">1. Tổng Doanh Thu SP & Dịch Vụ</div>
-            <div class="kpi-val" id="accTotalRevenue" style="color:#0284c7;">448.500.000 đ</div>
-            <div class="kpi-sub">Khóa học (231.5tr) + Chỉ báo (117tr) + VIP (100tr)</div>
-          </div>
-
-          <div class="kpi-card orange">
-            <div class="kpi-label">2. Chi Phí Hoa Hồng (23 Nhân Sự)</div>
-            <div class="kpi-val" id="accTotalCommission" style="color:#ea580c;">191.307.000 đ</div>
-            <div class="kpi-sub">Lot (31.3tr) + SP (149.8tr) + Thưởng (10.3tr)</div>
-          </div>
-
-          <div class="kpi-card purple">
-            <div class="kpi-label">3. Chi Phí Vận Hành (Admin Nhập)</div>
-            <div class="kpi-val" id="accTotalAdminExpense" style="color:#7c3aed;">58.000.000 đ</div>
-            <div class="kpi-sub" id="accExpenseCountSub">Tổng cộng 6 khoản chi trong kỳ</div>
-          </div>
-
-          <div class="kpi-card emerald" style="border:2px solid #10b981; background:linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%);">
-            <div class="kpi-label" style="color:#047857;">4. LỢI NHUẬN RÒNG CÔNG TY (P&L)</div>
-            <div class="kpi-val" id="accNetProfit" style="color:#059669; font-size:24px;">199.193.000 đ</div>
-            <div class="kpi-sub" id="accNetProfitMargin" style="color:#047857; font-weight:800;">Tỷ suất LN ròng: ~44.4% doanh thu</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Khối Bảng Kê Chi Tiết Chi Phí Do Admin Nhập -->
-      <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:18px 20px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
-          <div>
-            <div style="font-size:14px; font-weight:800; color:#0f172a; text-transform:uppercase; display:flex; align-items:center; gap:6px;">
-              <span>📑</span>
-              <span>SỔ CHI TIẾT CHI PHÍ DO ADMIN NHẬP</span>
-              <span id="badgeExpenseCount" style="font-size:11px; background:#f1f5f9; color:#475569; padding:1px 7px; border-radius:10px; font-weight:800;">6 khoản</span>
-            </div>
-            <div style="font-size:11.5px; color:#64748b;">
-              Admin có thể nhập các khoản chi: Marketing ads, thuê mặt bằng, lương phụ cấp, server, tiếp khách...
-            </div>
-          </div>
-
-          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-            <input type="text" id="expenseSearchInput" placeholder="Tìm khoản chi, ghi chú..." oninput="handleExpenseSearch(this.value)" style="font-size:12px; padding:6px 12px; border:1px solid #cbd5e1; border-radius:6px; width:210px;">
-            <select id="expenseCategoryFilter" onchange="handleExpenseCategoryFilter(this.value)" style="font-size:12px; padding:6px 10px; border:1px solid #cbd5e1; border-radius:6px; background:#fff; font-weight:600;">
-              <option value="ALL">Tất cả danh mục chi</option>
-              <option value="Marketing">Marketing & Quảng cáo</option>
-              <option value="Mặt bằng">Thuê Văn Phòng / Mặt Bằng</option>
-              <option value="Lương cứng">Lương Cứng & Phụ Cấp</option>
-              <option value="Hạ tầng / Server">Hạ Tầng / Server VPS</option>
-              <option value="Tiếp khách">Tiếp Khách & Đối Tác</option>
-              <option value="Công cụ">Công Cụ & Phần Mềm</option>
-              <option value="Vận hành">Vận Hành & Đào Tạo</option>
-              <option value="Khác">Chi Phí Khác</option>
-            </select>
-            <button class="tool-btn primary" onclick="openExpenseModal()" style="font-size:12px; font-weight:800;">
-              Nhập Chi Phí
-            </button>
-          </div>
-        </div>
-
-        <div class="table-responsive">
-          <table class="crm-table" id="expenseTable">
-            <thead>
-              <tr>
-                <th style="width:40px; text-align:center;">STT</th>
-                <th style="width:105px;">Ngày Chi</th>
-                <th>Tên Khoản Mục Chi Phí</th>
-                <th style="width:150px;">Danh Mục Chi</th>
-                <th style="text-align:right; width:150px; color:#dc2626;">Số Tiền (VNĐ)</th>
-                <th style="width:160px;">Người Chi / Duyệt</th>
-                <th>Ghi Chú / Chứng Từ</th>
-                <th style="text-align:center; width:120px;">Thao Tác</th>
-              </tr>
-            </thead>
-            <tbody id="expenseTableBody">
-              <!-- Rendered by JS -->
-            </tbody>
-            <tfoot>
-              <tr style="background:#f8fafc; font-weight:900;">
-                <td colspan="4" style="text-align:right;">TỔNG CỘNG CHI PHÍ DO ADMIN NHẬP:</td>
-                <td id="footTotalExpenseAmount" style="text-align:right; font-family:'JetBrains Mono'; color:#dc2626; font-size:14px;">58.000.000 đ</td>
-                <td colspan="3" style="color:#64748b; font-size:11px; font-weight:600;">(Đã tự động trừ vào P&L Kế toán)</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- ==========================================================
-         VIEW 4: KẾ TOÁN KIỂM TRA ĐƠN HÀNG & XUẤT HÓA ĐƠN VAT
-         (KHÁCH THANH TOÁN ĐỦ -> NÚT XUẤT VAT • CỌC -> HIỆN CÒN LẠI • CHI TIẾT BILL SALE UPLOAD)
-         ========================================================== -->
     <div id="tab-vat-orders" class="tab-content-panel">
       <!-- Top Overview Dashboard for Orders & VAT -->
       <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:18px 20px; margin-bottom:16px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
@@ -1653,146 +1511,339 @@
       </div>
     </div>
 
-  </div> <!-- end .content-container -->
+  <div id="tab-accounting" class="tab-content-panel">
+      <!-- Top P&L Dashboard for Accounting -->
+      <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:18px 20px; margin-bottom:16px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px; border-bottom:1px solid #f1f5f9; padding-bottom:12px;">
+          <div>
+            <div style="font-size:16px; font-weight:900; color:#0f172a; display:flex; align-items:center; gap:8px;">
+              <span>💼</span>
+              <span id="accReportTitle">BÁO CÁO TÀI CHÍNH & KẾ TOÁN CÔNG TY (THÁNG 09/2026)</span>
+              <span id="accMonthStatusBadge" style="font-size:11px; background:#ecfdf5; color:#059669; padding:2px 8px; border-radius:12px; font-weight:800;">ĐÃ ĐỐI SOÁT</span>
+            </div>
+            <div style="font-size:12px; color:#64748b; margin-top:3px;">
+              Kế toán nhập & xem chi phí theo từng tháng. Chuyển đổi linh hoạt giữa các tháng trước và sau để đối soát P&L.
+            </div>
+          </div>
+
+          <!-- CỤM ĐIỀU HƯỚNG & CHỌN THÁNG KẾ TOÁN (TRƯỚC / SAU) -->
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <div style="display:inline-flex; align-items:center; background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; padding:3px 6px; box-shadow:0 1px 3px rgba(0,0,0,0.05); gap:4px;">
+              <button type="button" class="btn-micro" onclick="navigateAccountingMonth(-1)" style="font-size:12px; font-weight:800; padding:5px 9px; border-radius:6px; background:#ffffff; border:1px solid #cbd5e1; cursor:pointer;" title="Lùi về tháng trước">
+                ◀ Tháng trước
+              </button>
+              
+              <div style="display:flex; align-items:center; gap:4px; padding:0 4px;">
+                <span style="font-size:13px;">📅</span>
+                <select id="accountingMonthSelect" onchange="onAccountingMonthSelectChange(this.value)" style="border:none; background:transparent; font-size:12.5px; font-weight:900; color:#1e293b; padding:4px 6px; cursor:pointer; font-family:'JetBrains Mono'; outline:none;">
+                  <option value="2026-10">Tháng 10/2026 (Kế hoạch)</option>
+                  <option value="2026-09" selected>Tháng 09/2026 (Hiện tại)</option>
+                  <option value="2026-08">Tháng 08/2026 (Tháng trước)</option>
+                  <option value="2026-07">Tháng 07/2026</option>
+                  <option value="2026-06">Tháng 06/2026</option>
+                  <option value="ALL">Tất Cả Các Tháng (Lũy kế)</option>
+                </select>
+              </div>
+
+              <button type="button" class="btn-micro" onclick="navigateAccountingMonth(1)" style="font-size:12px; font-weight:800; padding:5px 9px; border-radius:6px; background:#ffffff; border:1px solid #cbd5e1; cursor:pointer;" title="Tiến đến tháng sau">
+                Tháng sau ▶
+              </button>
+            </div>
+
+            <button class="tool-btn" onclick="exportAccountingToCSV()" style="font-size:12px; font-weight:700;">
+              Xuất Báo Cáo Chi Phí
+            </button>
+            <button class="tool-btn primary" onclick="openExpenseModal()" style="font-size:12px; font-weight:800; background:linear-gradient(135deg, #0284c7, #2563eb);">
+              Thêm Chi Phí Mới
+            </button>
+          </div>
+        </div>
+
+        <!-- 4 Thẻ P&L Sang Trọng -->
+        <div class="kpi-grid-4">
+          <div class="kpi-card blue">
+            <div class="kpi-label">1. Tổng Doanh Thu SP & Dịch Vụ</div>
+            <div class="kpi-val" id="accTotalRevenue" style="color:#0284c7;">448.500.000 đ</div>
+            <div class="kpi-sub">Khóa học (231.5tr) + Chỉ báo (117tr) + VIP (100tr)</div>
+          </div>
+
+          <div class="kpi-card orange">
+            <div class="kpi-label">2. Chi Phí Hoa Hồng (23 Nhân Sự)</div>
+            <div class="kpi-val" id="accTotalCommission" style="color:#ea580c;">191.307.000 đ</div>
+            <div class="kpi-sub">Lot (31.3tr) + SP (149.8tr) + Thưởng (10.3tr)</div>
+          </div>
+
+          <div class="kpi-card purple">
+            <div class="kpi-label">3. Chi Phí Vận Hành (Admin Nhập)</div>
+            <div class="kpi-val" id="accTotalAdminExpense" style="color:#7c3aed;">58.000.000 đ</div>
+            <div class="kpi-sub" id="accExpenseCountSub">Tổng cộng 6 khoản chi trong kỳ</div>
+          </div>
+
+          <div class="kpi-card emerald" style="border:2px solid #10b981; background:linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%);">
+            <div class="kpi-label" style="color:#047857;">4. LỢI NHUẬN RÒNG CÔNG TY (P&L)</div>
+            <div class="kpi-val" id="accNetProfit" style="color:#059669; font-size:24px;">199.193.000 đ</div>
+            <div class="kpi-sub" id="accNetProfitMargin" style="color:#047857; font-weight:800;">Tỷ suất LN ròng: ~44.4% doanh thu</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Khối Bảng Kê Chi Tiết Chi Phí Do Admin Nhập -->
+      <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:18px 20px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
+          <div>
+            <div style="font-size:14px; font-weight:800; color:#0f172a; text-transform:uppercase; display:flex; align-items:center; gap:6px;">
+              <span>📑</span>
+              <span>SỔ CHI TIẾT CHI PHÍ DO ADMIN NHẬP</span>
+              <span id="badgeExpenseCount" style="font-size:11px; background:#f1f5f9; color:#475569; padding:1px 7px; border-radius:10px; font-weight:800;">6 khoản</span>
+            </div>
+            <div style="font-size:11.5px; color:#64748b;">
+              Admin có thể nhập các khoản chi: Marketing ads, thuê mặt bằng, lương phụ cấp, server, tiếp khách...
+            </div>
+          </div>
+
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <input type="text" id="expenseSearchInput" placeholder="Tìm khoản chi, ghi chú..." oninput="handleExpenseSearch(this.value)" style="font-size:12px; padding:6px 12px; border:1px solid #cbd5e1; border-radius:6px; width:210px;">
+            <select id="expenseCategoryFilter" onchange="handleExpenseCategoryFilter(this.value)" style="font-size:12px; padding:6px 10px; border:1px solid #cbd5e1; border-radius:6px; background:#fff; font-weight:600;">
+              <option value="ALL">Tất cả danh mục chi</option>
+              <option value="Marketing">Marketing & Quảng cáo</option>
+              <option value="Mặt bằng">Thuê Văn Phòng / Mặt Bằng</option>
+              <option value="Lương cứng">Lương Cứng & Phụ Cấp</option>
+              <option value="Hạ tầng / Server">Hạ Tầng / Server VPS</option>
+              <option value="Tiếp khách">Tiếp Khách & Đối Tác</option>
+              <option value="Công cụ">Công Cụ & Phần Mềm</option>
+              <option value="Vận hành">Vận Hành & Đào Tạo</option>
+              <option value="Khác">Chi Phí Khác</option>
+            </select>
+            <button class="tool-btn primary" onclick="openExpenseModal()" style="font-size:12px; font-weight:800;">
+              Nhập Chi Phí
+            </button>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="crm-table" id="expenseTable">
+            <thead>
+              <tr>
+                <th style="width:40px; text-align:center;">STT</th>
+                <th style="width:105px;">Ngày Chi</th>
+                <th>Tên Khoản Mục Chi Phí</th>
+                <th style="width:150px;">Danh Mục Chi</th>
+                <th style="text-align:right; width:150px; color:#dc2626;">Số Tiền (VNĐ)</th>
+                <th style="width:160px;">Người Chi / Duyệt</th>
+                <th>Ghi Chú / Chứng Từ</th>
+                <th style="text-align:center; width:120px;">Thao Tác</th>
+              </tr>
+            </thead>
+            <tbody id="expenseTableBody">
+              <!-- Rendered by JS -->
+            </tbody>
+            <tfoot>
+              <tr style="background:#f8fafc; font-weight:900;">
+                <td colspan="4" style="text-align:right;">TỔNG CỘNG CHI PHÍ DO ADMIN NHẬP:</td>
+                <td id="footTotalExpenseAmount" style="text-align:right; font-family:'JetBrains Mono'; color:#dc2626; font-size:14px;">58.000.000 đ</td>
+                <td colspan="3" style="color:#64748b; font-size:11px; font-weight:600;">(Đã tự động trừ vào P&L Kế toán)</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==========================================================
+         VIEW 4: KẾ TOÁN KIỂM TRA ĐƠN HÀNG & XUẤT HÓA ĐƠN VAT
+         (KHÁCH THANH TOÁN ĐỦ -> NÚT XUẤT VAT • CỌC -> HIỆN CÒN LẠI • CHI TIẾT BILL SALE UPLOAD)
+         ========================================================== -->
+    </div> <!-- end .content-container -->
 </main>
 </div> <!-- end .app-layout -->
 
 <!-- ====================================================================
  MODAL 1: CHỈNH SỬA CƠ CHẾ, SỐ LOT & CHÊNH LỆCH TUYẾN DƯỚI TỪNG NHÂN SỰ
  ==================================================================== -->
+<!-- ====================================================================
+     MODAL 1: CHỈNH SỬA CƠ CHẾ RIÊNG TỪNG NHÂN SỰ (BẢNG SALE RIÊNG, BẢNG QUẢN LÝ RIÊNG)
+     ==================================================================== -->
 <div class="modal-backdrop" id="editModal">
- <div class="modal-card">
- <div class="modal-header">
- <div>
- <h3 id="modalPersonnelName">Chỉnh sửa cơ chế nhân sự</h3>
- <span id="modalPersonnelMeta" style="font-size:11.5px; color:#64748b;">Mã ID: 08049866</span>
- </div>
- <button class="modal-close" onclick="closeEditModal()">✕</button>
- </div>
+  <div class="modal-card" style="max-width: 720px;">
+    <div class="modal-header" style="background:#f8fafc; border-bottom:1px solid #e2e8f0;">
+      <div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <h3 id="modalPersonnelName" style="margin:0; font-size:16px; font-weight:900; color:#0f172a;">Chỉnh sửa: Nhân Sự</h3>
+          <span id="roleBadgeInModal" class="role-badge role-lv3">SALE (LV3)</span>
+        </div>
+        <span id="modalPersonnelMeta" style="font-size:12px; color:#64748b; margin-top:3px; display:block;">Cấp bậc: Sale • ID: 080... • Quản lý: —</span>
+      </div>
+      <button class="modal-close" onclick="closeEditModal()">✕</button>
+    </div>
 
- <div class="modal-body">
- 
- <!-- Nhóm 1: Cơ chế hoa hồng cá nhân -->
- <div style="background:#fff7ed; border:1px solid #fed7aa; padding:12px 14px; border-radius:10px;">
- <div style="font-size:12px; font-weight:800; color:#c2410c; margin-bottom:8px; text-transform:uppercase;">
- 1. Cơ Chế Hoa Hồng Lot Cá Nhân (Định Mức k/lot)
- </div>
- <div class="form-grid-3">
- <div class="form-group">
- <label>Định Mức / Lot (VNĐ)</label>
- <input type="number" id="inputRatePerLot" step="5000" oninput="updateModalPreview()">
- <small style="color:#ea580c; font-size:10.5px; font-weight:700;" id="txtRateK">80k/lot</small>
- </div>
- <div class="form-group" style="grid-column: span 2;">
- <label style="color:#0369a1;">% Hoa Hồng Sản Phẩm (Chỉ Báo & Khóa Học - Mặc định: 10%)</label>
-            <div style="display:flex; gap:6px; align-items:center;">
-              <input type="number" id="inputProductRate" min="0" max="100" step="1" value="10" oninput="updateModalPreview()" style="width:100px; border-color:#38bdf8; font-weight:800; color:#0369a1;">
-              <span style="font-weight:800; color:#0369a1;">%</span>
+    <div class="modal-body" style="max-height:80vh; overflow-y:auto; padding:18px 22px; display:flex; flex-direction:column; gap:14px;">
+      
+      <!-- NHÓM 1: CƠ CHẾ HOA HỒNG LOT & SẢN PHẨM CÁ NHÂN -->
+      <div style="background:#fff7ed; border:1.5px solid #fed7aa; padding:14px; border-radius:10px;">
+        <div style="font-size:12px; font-weight:900; color:#c2410c; margin-bottom:10px; text-transform:uppercase; display:flex; justify-content:space-between; align-items:center;">
+          <span>1. Tinh Chỉnh Cơ Chế Hoa Hồng Riêng Cho Nhân Sự Này</span>
+          <span style="font-size:11px; background:#ffedd5; color:#c2410c; padding:2px 8px; border-radius:12px; font-weight:800; border:1px solid #fdba74;">Tùy Chỉnh Cá Nhân</span>
+        </div>
+        
+        <div class="form-grid-3">
+          <div class="form-group">
+            <label style="font-weight:700; font-size:12px; color:#334155;">Định Mức / Lot (VNĐ)</label>
+            <input type="number" id="inputRatePerLot" step="5000" oninput="updateModalPreview()" style="font-weight:800; color:#c2410c; font-size:13.5px; padding:7px 10px; border:1.5px solid #ea580c; border-radius:6px; width:100%;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px;">
+              <small style="color:#ea580c; font-size:11px; font-weight:800;" id="txtRateK">50k/lot</small>
+              <small style="color:#64748b; font-size:10px;" id="txtRoleHint">Mặc định Sale: 50k/lot</small>
             </div>
+          </div>
+          
+          <div class="form-group" style="grid-column: span 2;">
+            <label style="font-weight:700; font-size:12px; color:#0369a1;">% Hoa Hồng Sản Phẩm (Chỉ Báo & Khóa Học)</label>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <input type="number" id="inputProductRate" min="0" max="100" step="1" value="10" oninput="updateModalPreview()" style="width:110px; border:1.5px solid #38bdf8; font-weight:800; color:#0369a1; padding:7px 10px; border-radius:6px; font-size:13.5px;">
+              <span style="font-weight:800; color:#0369a1; font-size:14px;">%</span>
+              <span style="font-size:11px; color:#64748b;">(Mặc định toàn hệ thống là 10% hoặc 15%)</span>
+            </div>
+            <small style="color:#0284c7; font-size:11px; margin-top:4px; display:block;">Cài đặt này áp dụng riêng cho nhân sự này và tự động lưu khi bấm nút bên dưới.</small>
           </div>
         </div>
       </div>
 
-      <!-- Nhóm 2: Cơ chế Tuyến Dưới (Chỉ cho Vị trí Lv1 & Lv2, Lv3 không có) -->
-      <div id="downlineConfigSection" style="background:#f5f3ff; border:1px solid #ddd6fe; padding:12px 14px; border-radius:10px;">
-        <div style="font-size:12px; font-weight:800; color:#6d28d9; margin-bottom:8px; text-transform:uppercase; display:flex; justify-content:space-between; align-items:center;">
-          <span>2. Cơ Chế Hoa Hồng Tuyến Dưới (Chênh Lệch Lot)</span>
-          <span id="roleBadgeInModal" class="role-badge role-lv1">VỊ TRÍ LV1</span>
+      <!-- NHÓM 2A: GIAO DIỆN RIÊNG DÀNH CHO SALE (LV3) - KHÔNG CÓ TUYẾN DƯỚI -->
+      <div id="downlineSaleNotice" style="display:none; background:#ecfdf5; border:1.5px solid #a7f3d0; padding:14px; border-radius:10px;">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+          <span style="font-size:16px;">💼</span>
+          <span style="font-size:12px; font-weight:900; color:#047857; text-transform:uppercase;">Cơ Chế Dành Cho Chuyên Viên Sale (LV3)</span>
+          <span style="margin-left:auto; font-size:11px; background:#10b981; color:#ffffff; padding:2px 8px; border-radius:10px; font-weight:800;">Trực Tiếp Khách Hàng</span>
         </div>
+        <p style="font-size:12px; color:#065f46; margin:0 0 10px; line-height:1.5;">
+          Nhân sự cấp <strong>Sale (LV3)</strong> nhận hoa hồng trực tiếp trên mỗi lot giao dịch của khách hàng do mình quản lý. 
+          Không có phân cấp quản lý tuyến dưới.
+        </p>
+        <div style="background:#ffffff; border:1px solid #6ee7b7; border-radius:8px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+          <div>
+            <div style="font-size:11px; color:#64748b; font-weight:700;">SỐ LOT CÁ NHÂN:</div>
+            <div style="font-size:14px; font-weight:900; color:#0f172a; font-family:'JetBrains Mono';" id="txtSaleStdLot">0.00 lot</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-size:11px; color:#64748b; font-weight:700;">HOA HỒNG LOT CÁ NHÂN:</div>
+            <div style="font-size:14px; font-weight:900; color:#2563eb; font-family:'JetBrains Mono';" id="txtSaleLotHh">0 đ</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:11px; color:#64748b; font-weight:700;">HH SẢN PHẨM & KHÓA HỌC:</div>
+            <div style="font-size:14px; font-weight:900; color:#0284c7; font-family:'JetBrains Mono';" id="txtSaleProdHh">0 đ</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- NHÓM 2B: GIAO DIỆN RIÊNG DÀNH CHO QUẢN LÝ (LV1 MANAGER & LV2 LEADER) - CÓ TUYẾN DƯỚI -->
+      <div id="downlineConfigSection" style="display:none; background:#f5f3ff; border:1.5px solid #ddd6fe; padding:14px; border-radius:10px;">
+        <div style="font-size:12px; font-weight:900; color:#6d28d9; margin-bottom:10px; text-transform:uppercase; display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:16px;">👔</span>
+            <span>Cơ Chế Quản Lý Tuyến Dưới (Chênh Lệch Lot)</span>
+          </div>
+          <span style="font-size:11px; background:#7c3aed; color:#ffffff; padding:2px 8px; border-radius:10px; font-weight:800;" id="txtDownlineRoleBadge">QUẢN LÝ</span>
+        </div>
+        
         <div class="form-grid-2">
           <div class="form-group" style="grid-column: span 2;">
-            <label>Tổng Lot Tuyến Dưới Tự Động Tính (Lot Chuẩn)</label>
+            <label style="font-weight:700; font-size:12px; color:#4c1d95;">Tổng Lot Tuyến Dưới Tự Động Tính (Lot Chuẩn)</label>
             <div style="display:flex; gap:8px; align-items:center;">
-              <input type="text" id="displayDownlineLots" readonly style="background:#f1f5f9; color:#0f172a; font-weight:800; width:100%;">
-              <button type="button" class="btn-edit-lot" onclick="if(currentEditingPersonnelId) openDownlineModal(currentEditingPersonnelId)" style="white-space:nowrap; padding:6px 12px; font-size:11.5px; font-weight:700; background:#7c3aed; color:#ffffff; border:none; border-radius:6px; cursor:pointer;">Xem Bảng Kê</button>
+              <input type="text" id="displayDownlineLots" readonly style="background:#f1f5f9; color:#0f172a; font-weight:800; width:100%; padding:8px 12px; border:1px solid #cbd5e1; border-radius:6px; font-family:'JetBrains Mono';">
+              <button type="button" class="btn-edit-lot" onclick="if(currentEditingPersonnelId) openDownlineModal(currentEditingPersonnelId)" style="white-space:nowrap; padding:8px 14px; font-size:12px; font-weight:800; background:#7c3aed; color:#ffffff; border:none; border-radius:6px; cursor:pointer;">
+                🔍 Xem Bảng Kê Tuyến Dưới
+              </button>
             </div>
-            <div style="margin-top:5px;">
-              <small style="color:#64748b; font-size:11px;" id="txtSubordinatesCount">0 cấp dưới trực thuộc</small>
+            <div style="display:flex; justify-content:space-between; margin-top:6px; flex-wrap:wrap; gap:4px;">
+              <small style="color:#64748b; font-size:11.5px; font-weight:700;" id="txtSubordinatesCount">0 cấp dưới trực thuộc</small>
+              <small style="color:#7c3aed; font-size:11.5px; font-weight:800;" id="txtDownlineHint">Hưởng chênh lệch động từ cấp dưới</small>
             </div>
           </div>
         </div>
+
+        <div style="background:#ffffff; border:1px solid #c4b5fd; border-radius:8px; padding:10px 14px; margin-top:10px; display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:12px; font-weight:700; color:#5b21b6;">Dự kiến hoa hồng chênh lệch từ tuyến dưới:</span>
+          <span style="font-size:14px; font-weight:900; color:#7c3aed; font-family:'JetBrains Mono';" id="txtDownlineHhDisplay">0 đ</span>
+        </div>
       </div>
 
-      <div id="downlineSaleNotice" style="display:none;"></div>
+      <!-- NHÓM 3: SẢN LƯỢNG THỰC TẾ & XEM TRƯỚC THU NHẬP (LIVE PREVIEW) -->
+      <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:14px; border-radius:10px;">
+        <div style="font-size:12px; font-weight:900; color:#334155; margin-bottom:10px; text-transform:uppercase;">
+          2. Sản Lượng Tháng Này & Dự Toán Thu Nhập Cá Nhân
+        </div>
+        
+        <div class="form-grid-3">
+          <div class="form-group">
+            <label style="font-size:11.5px; font-weight:700;">Lot Tiêu Chuẩn</label>
+            <input type="number" id="inputBasicLot" step="0.5" oninput="updateModalPreview()" style="padding:6px 8px; border:1px solid #cbd5e1; border-radius:6px; width:100%;">
+          </div>
+          <div class="form-group">
+            <label style="font-size:11.5px; font-weight:700;">Lot MINI (x0.8)</label>
+            <input type="number" id="inputMiniLot" step="0.5" oninput="updateModalPreview()" style="padding:6px 8px; border:1px solid #cbd5e1; border-radius:6px; width:100%;">
+          </div>
+          <div class="form-group">
+            <label style="font-size:11.5px; font-weight:700;">Lot Micro (x0.35)</label>
+            <input type="number" id="inputMicroLot" step="0.5" oninput="updateModalPreview()" style="padding:6px 8px; border:1px solid #cbd5e1; border-radius:6px; width:100%;">
+          </div>
+        </div>
 
- <!-- Nhóm 3: Biến số Lot (Lot Cơ bản, Lot Mini, Lot Micro) -->
- <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:12px 14px; border-radius:10px;">
- <div style="font-size:12px; font-weight:800; color:#334155; margin-bottom:8px; text-transform:uppercase;">
- 3. Biến Số Số Lượng Lot Trong Kỳ
- </div>
- <div class="form-grid-3">
- <div class="form-group">
- <label>Lot Tiêu Chuẩn</label>
- <input type="number" id="inputBasicLot" step="0.1" oninput="updateModalPreview()">
- <small style="color:#64748b; font-size:10.5px;">Hệ số 1.0</small>
- </div>
- <div class="form-group">
- <label>Lot MINI</label>
- <input type="number" id="inputMiniLot" step="0.1" oninput="updateModalPreview()">
- <small style="color:#ea580c; font-size:10.5px; font-weight:700;">Quy đổi x 0.8</small>
- </div>
- <div class="form-group">
- <label>Lot Micro</label>
- <input type="number" id="inputMicroLot" step="0.1" oninput="updateModalPreview()">
- <small style="color:#2563eb; font-size:10.5px; font-weight:700;">Quy đổi x 0.35</small>
- </div>
- </div>
- </div>
+        <div class="form-grid-3" style="margin-top:10px;">
+          <div class="form-group">
+            <label style="font-size:11.5px; font-weight:700;">DS Chỉ Báo (VNĐ)</label>
+            <input type="number" id="inputIndicatorRev" step="500000" oninput="updateModalPreview()" style="padding:6px 8px; border:1px solid #cbd5e1; border-radius:6px; width:100%;">
+          </div>
+          <div class="form-group">
+            <label style="font-size:11.5px; font-weight:700;">DS Khóa Học (VNĐ)</label>
+            <input type="number" id="inputCourseRev" step="1000000" oninput="updateModalPreview()" style="padding:6px 8px; border:1px solid #cbd5e1; border-radius:6px; width:100%;">
+          </div>
+          <div class="form-group">
+            <label style="font-size:11.5px; font-weight:700;">Thưởng Nóng KPI</label>
+            <input type="number" id="inputBonus" step="100000" oninput="updateModalPreview()" style="padding:6px 8px; border:1px solid #cbd5e1; border-radius:6px; width:100%;">
+          </div>
+        </div>
 
- <!-- Nhóm 4: Doanh số sản phẩm & thưởng -->
- <div class="form-grid-3">
- <div class="form-group">
- <label>Doanh thu Chỉ Báo (VNĐ)</label>
- <input type="number" id="inputIndicatorRev" step="500000" oninput="updateModalPreview()">
- </div>
- <div class="form-group">
- <label>Doanh thu Khóa Học (VNĐ)</label>
- <input type="number" id="inputCourseRev" step="500000" oninput="updateModalPreview()">
- </div>
- <div class="form-group">
- <label>Thưởng KPI / Nóng (VNĐ)</label>
- <input type="number" id="inputBonus" step="100000" oninput="updateModalPreview()">
- </div>
- </div>
+        <!-- BẢNG PREVIEW TỔNG KẾT DÒNG TIỀN CỦA RIÊNG NHÂN SỰ NÀY -->
+        <div style="background:#ffffff; border:1.5px solid #cbd5e1; border-radius:8px; padding:12px; margin-top:12px;">
+          <div style="font-size:11.5px; font-weight:800; color:#475569; margin-bottom:8px; text-transform:uppercase;">
+            Xem Trước Tổng Thu Nhập Nhận Về:
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:12px;">
+            <span style="color:#64748b;">Tổng Lot chuẩn quy đổi:</span>
+            <span id="previewTotalLot" style="font-weight:800; font-family:'JetBrains Mono';">0.00 lot</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:12px;">
+            <span style="color:#2563eb;">Hoa hồng Lot cá nhân:</span>
+            <span id="previewLotCommission" style="font-weight:800; color:#2563eb; font-family:'JetBrains Mono';">0 đ</span>
+          </div>
+          <div id="previewDownlineRow" style="display:none; justify-content:space-between; margin-bottom:4px; font-size:12px;">
+            <span style="color:#7c3aed;">Hoa hồng chênh lệch tuyến dưới:</span>
+            <span id="previewDownlineHh" style="font-weight:800; color:#7c3aed; font-family:'JetBrains Mono';">0 đ</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:12px;">
+            <span style="color:#0284c7;">Hoa hồng sản phẩm (% riêng):</span>
+            <span id="previewProdHh" style="font-weight:800; color:#0284c7; font-family:'JetBrains Mono';">0 đ</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:12px;">
+            <span style="color:#7e22ce;">Thưởng nóng:</span>
+            <span id="previewBonus" style="font-weight:800; color:#7e22ce; font-family:'JetBrains Mono';">0 đ</span>
+          </div>
+          <div style="border-top:1.5px dashed #e2e8f0; padding-top:8px; display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:13px; font-weight:900; color:#0f172a;">TỔNG THỰC NHẬN CÁ NHÂN:</span>
+            <span id="previewTotalNet" style="font-size:16px; font-weight:900; color:#059669; font-family:'JetBrains Mono';">0 đ</span>
+          </div>
+        </div>
 
- <!-- Live Calculation Box -->
- <div class="live-calc-box">
- <div style="font-size:11.5px; font-weight:800; color:#1e40af; text-transform:uppercase;">
- Kết Quả Tính Toán Tự Động Theo Thời Gian Thực
- </div>
- <div class="calc-row">
- <span>Tổng Lot chuẩn cá nhân:</span>
- <strong id="previewStdLot">0.00 lot</strong>
- </div>
- <div class="calc-row">
- <span>Hoa hồng Lot cá nhân:</span>
- <strong id="previewHhLot" style="color:#2563eb;">0 đ</strong>
- </div>
- <div class="calc-row" id="previewDownlineRow">
- <span>Hoa hồng Tuyến Dưới :</span>
- <strong id="previewHhDownline" style="color:#7c3aed;">0 đ</strong>
- </div>
- <div class="calc-row">
- <span>Hoa hồng Sản phẩm (Chỉ báo + Khóa học):</span>
- <strong id="previewHhProduct">0 đ</strong>
- </div>
- <div class="calc-row">
- <span>Thưởng KPI (Admin Nhập):</span>
- <strong id="previewBonus" style="color:#7e22ce;">0 đ</strong>
- </div>
- <div class="calc-row total">
- <span>TỔNG TIỀN THỰC NHẬN (ĐÃ BỎ THUẾ):</span>
- <span id="previewNetIncome" style="color:#059669; font-size:16px; font-weight:900;">0 đ</span>
- </div>
- </div>
+      </div>
 
- </div>
+    </div>
 
- <div class="modal-footer">
- <button class="tool-btn" onclick="closeEditModal()">Hủy bỏ</button>
- <button class="tool-btn primary" onclick="savePersonnelChanges()"> Lưu & Cập Nhật Hệ Thống</button>
- </div>
- </div>
+    <div class="modal-footer" style="background:#f8fafc; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+      <button class="tool-btn" onclick="closeEditModal()" style="font-weight:700;">Hủy Bỏ</button>
+      <button class="tool-btn primary" id="btnSavePersonnelChanges" onclick="savePersonnelChanges()" style="background:#ea580c; border-color:#ea580c; font-weight:800; font-size:13px; padding:8px 18px;">
+        💾 Lưu Cơ Chế Cho Nhân Sự Này
+      </button>
+    </div>
+  </div>
 </div>
 
 <!-- ====================================================================
@@ -1802,12 +1853,12 @@
   <div class="modal-card" style="max-width: 860px;">
     <div class="modal-header" style="background:#f5f3ff; border-bottom:1px solid #ddd6fe;">
       <div>
-        <h3 id="downlineModalTitle" style="color:#6d28d9; margin:0; font-size:16px;">Bảng Kê Chi Tiết Tuyến Dưới</h3>
+        <h3 id="downlineModalTitle" style="color:#6d28d9; margin:0; font-size:16px; font-weight:800;">Bảng Kê Chi Tiết Tuyến Dưới</h3>
         <span id="downlineModalSubtitle" style="font-size:12px; color:#64748b;">Danh sách nhân sự cấp dưới & hoa hồng chênh lệch nhận được</span>
       </div>
       <button class="modal-close" onclick="closeDownlineModal()">✕</button>
     </div>
-    <div class="modal-body" style="padding:16px;">
+    <div class="modal-body" style="padding:16px; max-height:75vh; overflow-y:auto;">
       <div class="table-responsive">
         <table class="crm-table">
           <thead>
@@ -1836,74 +1887,152 @@
       </div>
     </div>
     <div class="modal-footer" style="background:#f8fafc;">
-      <button type="button" class="tool-btn" onclick="closeDownlineModal()">Đóng</button>
+      <button type="button" class="tool-btn" onclick="closeDownlineModal()" style="font-weight:700;">Đóng Cửa Sổ</button>
     </div>
   </div>
 </div>
 
 <!-- ====================================================================
- MODAL 2: TÙY CHỈNH HỆ SỐ QUY ĐỔI LOT & ĐỊNH MỨC TOÀN HỆ THỐNG
- ==================================================================== -->
+     MODAL 1.2: CẤU HÌNH CƠ CHẾ TOÀN HỆ THỐNG APEX (GỐC SÀN 280K/LOT)
+     ==================================================================== -->
 <div class="modal-backdrop" id="configModal">
- <div class="modal-card" style="max-width:540px;">
- <div class="modal-header">
- <h3> Cấu Hình Biến Số Lot & Định Mức Toàn Hệ Thống</h3>
- <button class="modal-close" onclick="closeConfigModal()">✕</button>
- </div>
- <div class="modal-body">
- <p style="font-size:12.5px; color:#64748b; margin:0 0 10px;">
- Thay đổi hệ số quy đổi và định mức chung cho toàn bộ nhân sự Apex:
- </p>
- 
- <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:12px; border-radius:8px; margin-bottom:12px;">
- <div style="font-size:11.5px; font-weight:800; color:#334155; margin-bottom:8px; text-transform:uppercase;">
- 1. Hệ Số Quy Đổi Lot Chuẩn:
- </div>
- <div class="form-grid-2">
- <div class="form-group">
- <label>1 Lot MINI = ? Lot Chuẩn (Mặc định: 0.8)</label>
- <input type="number" id="cfgMini" step="0.05" value="0.8">
- </div>
- <div class="form-group">
- <label>1 Lot Micro = ? Lot Chuẩn (Mặc định: 0.35)</label>
- <input type="number" id="cfgMicro" step="0.05" value="0.35">
- </div>
- </div>
- </div>
+  <div class="modal-card" style="max-width: 680px;">
+    <div class="modal-header" style="background:#fff7ed; border-bottom:1.5px solid #fed7aa;">
+      <div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <h3 style="margin:0; font-size:16px; font-weight:900; color:#c2410c;">🏢 Cấu Hình Cơ Chế Toàn Hệ Thống Apex</h3>
+          <span style="font-size:11px; background:#ea580c; color:#fff; padding:2px 8px; border-radius:12px; font-family:'JetBrains Mono'; font-weight:800;">GỐC SÀN: 280k/lot</span>
+        </div>
+        <span style="font-size:12px; color:#78350f; margin-top:2px; display:block;">Định mức nhận từ Sàn giao dịch & khung chia tỷ lệ cho các cấp tuyến dưới Apex</span>
+      </div>
+      <button class="modal-close" onclick="closeConfigModal()">✕</button>
+    </div>
 
- <div style="background:#f0f9ff; border:1px solid #bae6fd; padding:12px; border-radius:8px;">
- <div style="font-size:11.5px; font-weight:800; color:#0369a1; margin-bottom:8px; text-transform:uppercase;">
- 2. Tỷ Lệ Hoa Hồng Sản Phẩm Toàn Hệ Thống:
- </div>
- <div class="form-grid-2">
- <div class="form-group">
- <label>% Hoa hồng sản phẩm mặc định (%)</label>
- <input type="number" id="cfgProductRate" step="1" min="0" max="100" value="10">
- </div>
- <div class="form-group" style="display:flex; flex-direction:column; justify-content:center;">
- <label style="color:#64748b;">Hành động nhanh:</label>
- <button type="button" class="tool-btn" style="background:#e0f2fe; color:#0369a1; border-color:#7dd3fc; font-weight:800; padding:6px 10px;" onclick="resetAllProductRateTo10()">
- Đặt lại toàn bộ 23 nhân sự về 10%
- </button>
- </div>
- </div>
- </div>
- </div>
- <div class="modal-footer">
- <button class="tool-btn" onclick="closeConfigModal()">Đóng</button>
- <button class="tool-btn primary" onclick="applyLotConfig()">Áp Dụng Toàn Hệ Thống</button>
- </div>
- </div>
+    <div class="modal-body" style="max-height:80vh; overflow-y:auto; padding:18px 22px; display:flex; flex-direction:column; gap:14px;">
+      
+      <!-- PHẦN 1: ĐỊNH MỨC HOA HỒNG LOT SÀN TRẢ VỀ VÀ PHÂN BỔ TUYẾN DƯỚI -->
+      <div style="background:#fff7ed; border:1.5px solid #fed7aa; padding:14px; border-radius:10px;">
+        <div style="font-size:12px; font-weight:900; color:#c2410c; margin-bottom:10px; text-transform:uppercase; display:flex; justify-content:space-between; align-items:center;">
+          <span>1. Định Mức Nhận Từ Sàn & Khung Chia Tuyến Dưới (VND/Lot):</span>
+          <span style="font-size:11px; color:#ea580c; font-weight:700;">Khung Chuẩn Hệ Thống</span>
+        </div>
+
+        <!-- Mức nhận sàn gốc -->
+        <div style="background:#ffffff; border:1px solid #fdba74; padding:10px 12px; border-radius:8px; margin-bottom:12px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <label style="font-weight:800; font-size:12.5px; color:#9a3412; display:block;">Mức Sàn Trả Về Hệ Thống Apex (Gốc)</label>
+              <span style="font-size:11px; color:#64748b;">Số tiền sàn giao dịch chi trả cho Apex trên mỗi 1 lot chuẩn (Mặc định 280.000 đ)</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <input type="number" id="cfgRateApex" step="10000" value="280000" oninput="updateConfigLotPreview()" style="width:140px; font-weight:900; color:#ea580c; font-size:15px; text-align:right; padding:6px 10px; border:1.5px solid #ea580c; border-radius:6px;">
+              <span style="font-weight:800; color:#9a3412; font-size:12px;">đ/lot</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Các mức chia cho tuyến dưới -->
+        <div style="font-size:11.5px; font-weight:800; color:#475569; margin-bottom:6px;">Khung Mức Chia Tuyến Dưới Mặc Định:</div>
+        <div class="form-grid-3">
+          <div class="form-group" style="background:#eff6ff; border:1px solid #bfdbfe; padding:8px 10px; border-radius:8px;">
+            <label style="color:#1d4ed8; font-weight:800; font-size:11.5px;">1. Manager (LV1)</label>
+            <div style="display:flex; align-items:center; gap:4px; margin-top:3px;">
+              <input type="number" id="cfgRateLv1" step="5000" value="90000" oninput="updateConfigLotPreview()" style="font-weight:800; color:#1d4ed8; border:1px solid #3b82f6; width:100%; border-radius:5px; padding:5px 8px; font-size:13px;">
+              <span style="font-weight:700; color:#1d4ed8; font-size:11px;">đ</span>
+            </div>
+            <small style="color:#2563eb; font-size:10px; display:block; margin-top:3px;">(Thường 80k - 90k)</small>
+          </div>
+          <div class="form-group" style="background:#fff7ed; border:1px solid #fed7aa; padding:8px 10px; border-radius:8px;">
+            <label style="color:#c2410c; font-weight:800; font-size:11.5px;">2. Leader (LV2)</label>
+            <div style="display:flex; align-items:center; gap:4px; margin-top:3px;">
+              <input type="number" id="cfgRateLv2" step="5000" value="70000" oninput="updateConfigLotPreview()" style="font-weight:800; color:#c2410c; border:1px solid #f97316; width:100%; border-radius:5px; padding:5px 8px; font-size:13px;">
+              <span style="font-weight:700; color:#c2410c; font-size:11px;">đ</span>
+            </div>
+            <small style="color:#ea580c; font-size:10px; display:block; margin-top:3px;">(Thường 60k - 70k)</small>
+          </div>
+          <div class="form-group" style="background:#ecfdf5; border:1px solid #a7f3d0; padding:8px 10px; border-radius:8px;">
+            <label style="color:#047857; font-weight:800; font-size:11.5px;">3. Sale (LV3)</label>
+            <div style="display:flex; align-items:center; gap:4px; margin-top:3px;">
+              <input type="number" id="cfgRateLv3" step="5000" value="50000" oninput="updateConfigLotPreview()" style="font-weight:800; color:#047857; border:1px solid #10b981; width:100%; border-radius:5px; padding:5px 8px; font-size:13px;">
+              <span style="font-weight:700; color:#047857; font-size:11px;">đ</span>
+            </div>
+            <small style="color:#059669; font-size:10px; display:block; margin-top:3px;">(Thường 50k - 60k/lot)</small>
+          </div>
+        </div>
+
+        <!-- Live Preview Phân Bổ 1 Lot -->
+        <div style="background:#ffffff; border:1px dashed #fdba74; border-radius:8px; padding:10px 12px; margin-top:10px;">
+          <div style="display:flex; justify-content:space-between; font-size:11.5px; font-weight:800; color:#475569; margin-bottom:6px;">
+            <span>PHÂN PHỐI 1 LOT TIÊU CHUẨN:</span>
+            <span style="color:#c2410c;" id="cfgPreviewSàn">Sàn trả: 280k</span>
+          </div>
+          <div style="font-size:11.5px; color:#334155; line-height:1.7;">
+            <div style="display:flex; justify-content:space-between;">
+              <span>• Sale (LV3) nhận trực tiếp:</span>
+              <strong id="cfgPreviewSale" style="color:#047857;">50k/lot</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between;">
+              <span>• Leader (LV2) nhận chênh lệch từ Sale:</span>
+              <strong id="cfgPreviewLeader" style="color:#c2410c;">+20k/lot (Tổng hưởng 70k)</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between;">
+              <span>• Manager (LV1) nhận chênh lệch từ Leader:</span>
+              <strong id="cfgPreviewManager" style="color:#1d4ed8;">+20k/lot (Tổng hưởng 90k)</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; border-top:1px solid #fed7aa; margin-top:4px; padding-top:4px; font-size:12px;">
+              <span style="font-weight:800; color:#ea580c;">★ CÔNG TY APEX GIỮ LẠI (LỢI NHUẬN RÒNG LOT):</span>
+              <strong id="cfgPreviewApexKeep" style="color:#ea580c; font-size:13px;">190k/lot (190.000 đ)</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PHẦN 2: HỆ SỐ QUY ĐỔI LOT -->
+      <div style="background:#f8fafc; border:1px solid #e2e8f0; padding:12px; border-radius:8px;">
+        <div style="font-size:11.5px; font-weight:800; color:#334155; margin-bottom:8px; text-transform:uppercase;">
+          2. Hệ Số Quy Đổi Lot Chuẩn:
+        </div>
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label style="font-size:11.5px; font-weight:700;">1 Lot MINI = ? Lot Chuẩn (Mặc định: 0.8)</label>
+            <input type="number" id="cfgMini" step="0.05" value="0.8" style="padding:6px 8px; border:1px solid #cbd5e1; border-radius:6px; width:100%;">
+          </div>
+          <div class="form-group">
+            <label style="font-size:11.5px; font-weight:700;">1 Lot Micro = ? Lot Chuẩn (Mặc định: 0.35)</label>
+            <input type="number" id="cfgMicro" step="0.05" value="0.35" style="padding:6px 8px; border:1px solid #cbd5e1; border-radius:6px; width:100%;">
+          </div>
+        </div>
+      </div>
+
+      <!-- PHẦN 3: TỶ LỆ SẢN PHẨM TOÀN HỆ THỐNG -->
+      <div style="background:#f0f9ff; border:1px solid #bae6fd; padding:12px; border-radius:8px;">
+        <div style="font-size:11.5px; font-weight:800; color:#0369a1; margin-bottom:8px; text-transform:uppercase;">
+          3. Tỷ Lệ Hoa Hồng Sản Phẩm Mặc Định Toàn Hệ Thống:
+        </div>
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label style="font-size:11.5px; font-weight:700;">% Hoa hồng sản phẩm mặc định (%)</label>
+            <input type="number" id="cfgProductRate" min="0" max="100" step="1" value="10" style="padding:6px 8px; border:1px solid #7dd3fc; border-radius:6px; width:100%; font-weight:800; color:#0369a1;">
+          </div>
+          <div class="form-group" style="display:flex; flex-direction:column; justify-content:flex-end;">
+            <button type="button" class="tool-btn" onclick="resetAllProductRateTo10()" style="font-size:11.5px; font-weight:700; background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; padding:7px 10px;">
+              Đặt lại toàn bộ 23 nhân sự về 10%
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="modal-footer" style="background:#f8fafc; border-top:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+      <button class="tool-btn" onclick="closeConfigModal()" style="font-weight:700;">Đóng</button>
+      <button class="tool-btn primary" onclick="applyLotConfig()" style="background:#ea580c; border-color:#ea580c; font-weight:800; font-size:13px; padding:8px 20px;">
+        Áp Dụng Cho Toàn Bộ Hệ Thống
+      </button>
+    </div>
+  </div>
 </div>
 
-<!-- ====================================================================
-     MODAL 3: GỬI BÁO CÁO & BẢNG KÊ THU NHẬP ĐẾN NHÂN VIÊN
-     ==================================================================== -->
-
-<!-- ====================================================================
-     MODAL 4: CẤU HÌNH & TINH CHỈNH KHÓA HỌC & HOA HỒNG ĐÀO TẠO
-     Cơ cấu: Sale 15% - Leader 5% - Đào tạo 15% - Công ty 65% (Tất cả đều tinh chỉnh được)
-     ==================================================================== -->
 <div class="modal-backdrop" id="trainingConfigModal" style="z-index: 1070;">
   <div class="modal-card" style="max-width: 1160px; max-height: 92vh; display:flex; flex-direction:column;">
     <div class="modal-header" style="background:#f8fafc; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
@@ -2309,12 +2438,13 @@
  standardMultiplier: 1.0,
  miniMultiplier: 0.8, // 1 lot MINI = 0.8 lot tiêu chuẩn
  microMultiplier: 0.35, // 1 lot Micro = 0.35 lot tiêu chuẩn
- rateLv1: 80000, // Manager: 80k/lot
- rateLv2: 60000, // Leader: 60k/lot
- rateLv3: 50000, // Sale: 50k/lot
- diffLeader: 10000, // Leader nhận chênh lệch 60k - 50k = 10k/lot từ khách Sale
- diffManager: 20000, // Manager nhận chênh lệch 80k - 60k = 20k/lot từ Leader/Sale
- diffManagerDirectSale: 30000 // Manager nhận từ Sale trực tiếp không qua Leader = 80k - 50k = 30k/lot
+ rateApex: 280000, // MẶC ĐỊNH SÀN TRẢ VỀ APEX: 280k/lot (280.000 đ)
+ rateLv1: 90000, // Tuyến dưới Manager: 90k/lot (80k - 90k tùy cài đặt)
+ rateLv2: 70000, // Tuyến dưới Leader: 70k/lot
+ rateLv3: 50000, // Tuyến dưới Sale: 50k/lot
+ diffLeader: 20000, // Leader nhận chênh lệch 70k - 50k = 20k/lot từ khách Sale
+ diffManager: 20000, // Manager nhận chênh lệch 90k - 70k = 20k/lot từ Leader
+ diffManagerDirectSale: 40000 // Manager nhận từ Sale trực tiếp không qua Leader = 90k - 50k = 40k/lot
  };
 
  // ====================================================================
@@ -2335,7 +2465,7 @@
  team: "Nhánh Phương Anh",
  directManager: "—",
  parentId: null,
- ratePerLot: 80000,
+ ratePerLot: 90000,
  customDiffRate: 20000,
  basicLot: 15.0,
  miniLot: 12.0,
@@ -2354,7 +2484,7 @@
  team: "Nhánh Nguyễn Hoàng Khánh",
  directManager: "—",
  parentId: null,
- ratePerLot: 80000,
+ ratePerLot: 90000,
  customDiffRate: 20000,
  basicLot: 20.0,
  miniLot: 15.0,
@@ -2375,7 +2505,7 @@
  team: "Nhóm Trần Thị Tuyết",
  directManager: "Phương Anh - ID: 08049866",
  parentId: "08049866",
- ratePerLot: 60000,
+ ratePerLot: 70000,
  customDiffRate: 10000,
  basicLot: 12.0,
  miniLot: 8.0,
@@ -2394,7 +2524,7 @@
  team: "Nhóm Đỗ Mạnh Hùng",
  directManager: "—",
  parentId: null,
- ratePerLot: 60000,
+ ratePerLot: 70000,
  customDiffRate: 10000,
  basicLot: 15.0,
  miniLot: 10.0,
@@ -2413,7 +2543,7 @@
  team: "Nhóm Đỗ Việt Cường",
  directManager: "Phương Anh - ID: 08049866",
  parentId: "08049866",
- ratePerLot: 60000,
+ ratePerLot: 70000,
  customDiffRate: 10000,
  basicLot: 9.0,
  miniLot: 6.0,
@@ -2432,7 +2562,7 @@
  team: "Nhóm Vũ Thị Quỳnh",
  directManager: "—",
  parentId: null,
- ratePerLot: 60000,
+ ratePerLot: 70000,
  customDiffRate: 10000,
  basicLot: 16.0,
  miniLot: 11.0,
@@ -2451,7 +2581,7 @@
  team: "Nhóm Đặng Tấn Tử",
  directManager: "Nguyễn Hoàng Khánh - ID: 08014278",
  parentId: "08014278",
- ratePerLot: 60000,
+ ratePerLot: 70000,
  customDiffRate: 10000,
  basicLot: 14.0,
  miniLot: 10.0,
@@ -3070,20 +3200,20 @@
  rootG.dataset.nodeId = 'ROOT';
  rootG.dataset.nodeType = 'ROOT';
  rootG.style.cursor = 'pointer';
- rootG.innerHTML = `
- <rect width="230" height="70" rx="14" fill="url(#gradOrange)" stroke="#ff7a45" stroke-width="1.8"/>
- <circle cx="34" cy="35" r="16" fill="rgba(255,255,255,0.2)"/>
- <text x="34" y="38" fill="#ffffff" font-size="10" font-weight="900" text-anchor="middle">APEX</text>
- <text x="60" y="32" fill="#ffffff" font-size="14" font-weight="900" font-family="'Plus Jakarta Sans', sans-serif">HỆ THỐNG APEX</text>
- <text x="60" y="50" fill="#ffedd5" font-size="11" font-weight="700" font-family="'JetBrains Mono', monospace">23 NHÂN SỰ • TOÀN HỆ THỐNG</text>
- `;
+ const apexRateK = (LOT_CONFIG.rateApex ? (LOT_CONFIG.rateApex / 1000) : 280) + 'k/lot';
+  rootG.innerHTML = `
+  <rect width="250" height="74" rx="14" fill="url(#gradOrange)" stroke="#ff7a45" stroke-width="1.8"/>
+  <circle cx="34" cy="37" r="16" fill="rgba(255,255,255,0.2)"/>
+  <text x="34" y="40" fill="#ffffff" font-size="10" font-weight="900" text-anchor="middle">APEX</text>
+  <text x="60" y="28" fill="#ffffff" font-size="14" font-weight="900" font-family="'Plus Jakarta Sans', sans-serif">HỆ THỐNG APEX</text>
+  <text x="60" y="46" fill="#fef08a" font-size="11" font-weight="800" font-family="'JetBrains Mono', monospace">NHẬN SÀN: ${apexRateK}</text>
+  <text x="60" y="63" fill="#ffedd5" font-size="10" font-weight="700" font-family="'JetBrains Mono', monospace">23 NHÂN SỰ • TOÀN HỆ THỐNG</text>
+  `;
  rootG.onclick = (e) => {
-      if (typeof hasMindmapDragged !== 'undefined' && hasMindmapDragged) {
-        e.stopPropagation();
-        return;
-      }
+      e.stopPropagation();
       openConfigModal();
     };
+    rootG.style.pointerEvents = 'all';
     rootG.style.cursor = 'pointer';
     nodesGroup.appendChild(rootG);
 
@@ -3107,12 +3237,10 @@
 
     // Bắt sự kiện click trực tiếp trên Node
     g.onclick = function(e) {
-      if (typeof hasMindmapDragged !== 'undefined' && hasMindmapDragged) {
-        e.stopPropagation();
-        return;
-      }
+      e.stopPropagation();
       openEditPersonnelModal(person.id);
     };
+    g.style.pointerEvents = 'all';
 
     const cardW = 245;
     const cardH = 46;
@@ -3337,6 +3465,42 @@
  // ====================================================================
  // 7. MODAL CHỈNH SỬA CƠ CHẾ VÀ SỐ LOT TỪNG NGƯỜI
  // ====================================================================
+  
+  // Helper định dạng tiền VNĐ toàn cục
+  function formatVND(val) {
+    if (val === null || val === undefined || isNaN(val)) return '0 đ';
+    return Number(val).toLocaleString('vi-VN') + ' đ';
+  }
+
+  // Helper xem trước dòng tiền phân bổ sàn Apex và tuyến dưới trong modal cấu hình
+  function updateConfigLotPreview() {
+    const apexEl = document.getElementById('cfgRateApex');
+    const lv1El = document.getElementById('cfgRateLv1');
+    const lv2El = document.getElementById('cfgRateLv2');
+    const lv3El = document.getElementById('cfgRateLv3');
+
+    const apexRate = apexEl ? (Number(apexEl.value) || 280000) : 280000;
+    const lv1Rate = lv1El ? (Number(lv1El.value) || 90000) : 90000;
+    const lv2Rate = lv2El ? (Number(lv2El.value) || 70000) : 70000;
+    const lv3Rate = lv3El ? (Number(lv3El.value) || 50000) : 50000;
+
+    const diffLeader = Math.max(0, lv2Rate - lv3Rate);
+    const diffManager = Math.max(0, lv1Rate - lv2Rate);
+    const apexKeep = Math.max(0, apexRate - lv1Rate);
+
+    const sanEl = document.getElementById('cfgPreviewSàn');
+    if (sanEl) sanEl.textContent = 'Sàn trả: ' + (apexRate / 1000) + 'k';
+    const saleEl = document.getElementById('cfgPreviewSale');
+    if (saleEl) saleEl.textContent = (lv3Rate / 1000) + 'k/lot';
+    const leaderEl = document.getElementById('cfgPreviewLeader');
+    if (leaderEl) leaderEl.textContent = '+' + (diffLeader / 1000) + 'k/lot (Tổng hưởng ' + (lv2Rate / 1000) + 'k)';
+    const mgrEl = document.getElementById('cfgPreviewManager');
+    if (mgrEl) mgrEl.textContent = '+' + (diffManager / 1000) + 'k/lot (Tổng hưởng ' + (lv1Rate / 1000) + 'k)';
+    const keepEl = document.getElementById('cfgPreviewApexKeep');
+    if (keepEl) keepEl.textContent = (apexKeep / 1000) + 'k/lot (' + formatVND(apexKeep) + ')';
+  }
+
+
   function openEditPersonnelModal(id) {
     if (!id) return;
     const person = APEX_DATA.find(p => String(p.id).trim() === String(id).trim());
@@ -3346,66 +3510,111 @@
     }
 
     currentEditingPersonnelId = id;
+    
+    // Header
     const nameEl = document.getElementById('modalPersonnelName');
     if (nameEl) nameEl.textContent = `Chỉnh sửa: ${person.name}`;
+    
+    const roleBadge = document.getElementById('roleBadgeInModal');
+    if (roleBadge) {
+      roleBadge.className = `role-badge role-${(person.roleLevel || 'LV3').toLowerCase()}`;
+      const roleTxt = person.roleLevel === 'LV1' ? 'MANAGER (LV1)' : (person.roleLevel === 'LV2' ? 'LEADER (LV2)' : 'SALE (LV3)');
+      roleBadge.textContent = roleTxt;
+    }
+
     const metaEl = document.getElementById('modalPersonnelMeta');
-    if (metaEl) metaEl.textContent = `Cấp bậc: ${person.roleTitle} • ID: ${person.id} • Quản lý: ${person.directManager}`;
+    if (metaEl) {
+      metaEl.textContent = `Cấp bậc: ${person.roleTitle || 'Sale'} • ID: ${person.id} • Quản lý trực thuộc: ${person.directManager || '—'}`;
+    }
 
     const fin = calculatePersonnelFinance(person);
 
+    // 1. Nhập định mức Lot & Sản phẩm riêng
     const rateInput = document.getElementById('inputRatePerLot');
     if (rateInput) rateInput.value = fin.ratePerLot;
     const prodInput = document.getElementById('inputProductRate');
-    if (prodInput) prodInput.value = (person.productRate !== undefined) ? person.productRate : 10;
+    if (prodInput) prodInput.value = (person.productRate !== undefined && person.productRate !== null) ? person.productRate : 10;
 
-    const downlineSection = document.getElementById('downlineConfigSection');
-    const downlineSaleNotice = document.getElementById('downlineSaleNotice');
-    const roleBadge = document.getElementById('roleBadgeInModal');
-    const previewDownlineRow = document.getElementById('previewDownlineRow');
+    const txtRateK = document.getElementById('txtRateK');
+    if (txtRateK) txtRateK.textContent = (fin.ratePerLot / 1000) + 'k/lot';
 
-    if (roleBadge) {
-      roleBadge.className = `role-badge role-${person.roleLevel.toLowerCase()}`;
-      roleBadge.textContent = person.roleTitle.toUpperCase();
+    const txtRoleHint = document.getElementById('txtRoleHint');
+    if (txtRoleHint) {
+      if (person.roleLevel === 'LV1') txtRoleHint.textContent = 'Mặc định Manager: 90k/lot (hoặc 80k)';
+      else if (person.roleLevel === 'LV2') txtRoleHint.textContent = 'Mặc định Leader: 70k/lot (hoặc 60k)';
+      else txtRoleHint.textContent = 'Mặc định Sale: 50k/lot (tùy chỉnh 50k - 60k)';
     }
 
+    // 2. Phân chia rõ ràng giữa Sale và Quản lý
+    const downlineSection = document.getElementById('downlineConfigSection');
+    const downlineSaleNotice = document.getElementById('downlineSaleNotice');
+    const previewDownlineRow = document.getElementById('previewDownlineRow');
+
     if (person.roleLevel === 'LV1' || person.roleLevel === 'LV2') {
+      // Quản lý (Manager / Leader)
       if (downlineSection) downlineSection.style.display = 'block';
       if (downlineSaleNotice) downlineSaleNotice.style.display = 'none';
       if (previewDownlineRow) previewDownlineRow.style.display = 'flex';
-      
+
       const dlLotsEl = document.getElementById('displayDownlineLots');
-      if (dlLotsEl) dlLotsEl.value = `${fin.downlineLots} lot tiêu chuẩn`;
+      if (dlLotsEl) dlLotsEl.value = `${fin.downlineLots || 0} lot tiêu chuẩn`;
+      
       const subCountEl = document.getElementById('txtSubordinatesCount');
-      if (subCountEl) subCountEl.textContent = `${fin.subordinatesCount} nhân sự cấp dưới trong cây`;
+      if (subCountEl) subCountEl.textContent = `${fin.subordinatesCount || 0} nhân sự cấp dưới trực thuộc trong cây`;
+      
+      const hintEl = document.getElementById('txtDownlineHint');
+      if (hintEl) {
+        hintEl.textContent = (person.roleLevel === 'LV1')
+          ? `Manager (${(fin.ratePerLot/1000)}k/lot) hưởng chênh lệch động: [${(fin.ratePerLot/1000)}k - định mức cấp dưới]`
+          : `Leader (${(fin.ratePerLot/1000)}k/lot) hưởng chênh lệch động: [${(fin.ratePerLot/1000)}k - định mức Sale]`;
+      }
+
+      const dlHhEl = document.getElementById('txtDownlineHhDisplay');
+      if (dlHhEl) dlHhEl.textContent = formatVND(fin.downlineCommission);
+
+      const dlBadgeEl = document.getElementById('txtDownlineRoleBadge');
+      if (dlBadgeEl) dlBadgeEl.textContent = person.roleLevel === 'LV1' ? 'MANAGER (LV1)' : 'LEADER (LV2)';
     } else {
-      // Vị trí LV3 (Sale)
+      // Sale (LV3) - Không có tuyến dưới
       if (downlineSection) downlineSection.style.display = 'none';
       if (downlineSaleNotice) downlineSaleNotice.style.display = 'block';
       if (previewDownlineRow) previewDownlineRow.style.display = 'none';
-      const dlLotsEl = document.getElementById('displayDownlineLots');
-      if (dlLotsEl) dlLotsEl.value = '0 lot tiêu chuẩn';
+
+      const txtSaleStdLot = document.getElementById('txtSaleStdLot');
+      if (txtSaleStdLot) txtSaleStdLot.textContent = (fin.stdLot || 0).toFixed(2) + ' lot';
+      
+      const txtSaleLotHh = document.getElementById('txtSaleLotHh');
+      if (txtSaleLotHh) txtSaleLotHh.textContent = formatVND(fin.hhLot);
+      
+      const txtSaleProdHh = document.getElementById('txtSaleProdHh');
+      if (txtSaleProdHh) txtSaleProdHh.textContent = formatVND(fin.hhSaleProducts);
     }
 
+    // 3. Điền sản lượng thực tế
     const bLot = document.getElementById('inputBasicLot');
-    if (bLot) bLot.value = person.basicLot;
+    if (bLot) bLot.value = person.basicLot || 0;
     const miniLot = document.getElementById('inputMiniLot');
-    if (miniLot) miniLot.value = person.miniLot;
+    if (miniLot) miniLot.value = person.miniLot || 0;
     const microLot = document.getElementById('inputMicroLot');
-    if (microLot) microLot.value = person.microLot;
+    if (microLot) microLot.value = person.microLot || 0;
 
     const indRev = document.getElementById('inputIndicatorRev');
-    if (indRev) indRev.value = person.indicatorRev;
+    if (indRev) indRev.value = person.indicatorRev || 0;
     const couRev = document.getElementById('inputCourseRev');
-    if (couRev) couRev.value = person.courseRev;
+    if (couRev) couRev.value = person.courseRev || 0;
     const bon = document.getElementById('inputBonus');
     if (bon) bon.value = person.bonus || 0;
 
+    // Nút Lưu có tên nhân sự
+    const btnSave = document.getElementById('btnSavePersonnelChanges');
+    if (btnSave) btnSave.textContent = `💾 Lưu Cơ Chế Cho ${person.name}`;
+
     updateModalPreview();
+
     const modal = document.getElementById('editModal');
     if (modal) {
-      modal.classList.add('active');
       modal.style.display = 'flex';
-      modal.style.zIndex = '99999';
+      modal.classList.add('active');
     }
   }
 
@@ -3439,34 +3648,53 @@
     if (txtRateK) txtRateK.textContent = (ratePerLot / 1000) + 'k/lot';
 
     const stdLot = Number((basicLot * LOT_CONFIG.standardMultiplier + miniLot * LOT_CONFIG.miniMultiplier + microLot * LOT_CONFIG.microMultiplier).toFixed(2));
-    const hhLot = Math.round(stdLot * ratePerLot);
-    
-    // Tuyến Dưới (tính động trực tiếp theo ratePerLot đang nhập trong ô)
-    let hhDownline = 0;
-    if (person.roleLevel === 'LV1' || person.roleLevel === 'LV2') {
-      const dl = getDownlineDetails(person, APEX_DATA, ratePerLot);
-      hhDownline = dl.downlineCommission;
-      const previewDl = document.getElementById('previewHhDownline');
-      if (previewDl) previewDl.textContent = formatMoney(hhDownline);
+    const lotComm = Math.round(stdLot * ratePerLot);
+    const prodComm = Math.round((indicatorRev + courseRev) * (productRate / 100));
+
+    // Tính tuyến dưới với ratePerLot tạm thời
+    const dl = getDownlineDetails(person, APEX_DATA, ratePerLot);
+    const downlineComm = (person.roleLevel === 'LV1' || person.roleLevel === 'LV2') ? dl.downlineCommission : 0;
+
+    // Cập nhật thẻ tóm tắt cho Sale nếu là Sale
+    if (person.roleLevel === 'LV3') {
+      const txtSaleStdLot = document.getElementById('txtSaleStdLot');
+      if (txtSaleStdLot) txtSaleStdLot.textContent = stdLot.toFixed(2) + ' lot';
+      const txtSaleLotHh = document.getElementById('txtSaleLotHh');
+      if (txtSaleLotHh) txtSaleLotHh.textContent = formatVND(lotComm);
+      const txtSaleProdHh = document.getElementById('txtSaleProdHh');
+      if (txtSaleProdHh) txtSaleProdHh.textContent = formatVND(prodComm);
+    } else {
       const dlLotsEl = document.getElementById('displayDownlineLots');
-      if (dlLotsEl) dlLotsEl.value = `${dl.downlineLots} lot tiêu chuẩn (${dl.overrideRateStr})`;
+      if (dlLotsEl) dlLotsEl.value = `${dl.downlineLots} lot tiêu chuẩn`;
+      const dlHhEl = document.getElementById('txtDownlineHhDisplay');
+      if (dlHhEl) dlHhEl.textContent = formatVND(downlineComm);
+      const hintEl = document.getElementById('txtDownlineHint');
+      if (hintEl) {
+        hintEl.textContent = (person.roleLevel === 'LV1')
+          ? `Manager (${(ratePerLot/1000)}k/lot) hưởng chênh lệch động: [${(ratePerLot/1000)}k - định mức cấp dưới]`
+          : `Leader (${(ratePerLot/1000)}k/lot) hưởng chênh lệch động: [${(ratePerLot/1000)}k - định mức Sale]`;
+      }
     }
 
-    const totalProductRev = indicatorRev + courseRev;
-    const hhProduct = Math.round(totalProductRev * (productRate / 100));
-    // ĐÃ BỎ THUẾ VAT: Thực nhận = HH Lot + HH Tuyến Dưới + HH Sản Phẩm + Thưởng
-    const netIncome = hhLot + hhDownline + hhProduct + bonus;
+    const totalNet = lotComm + downlineComm + prodComm + bonus;
 
-    const prevStd = document.getElementById('previewStdLot');
-    if (prevStd) prevStd.textContent = `${stdLot.toFixed(2)} lot (${basicLot} chuẩn + ${(miniLot * LOT_CONFIG.miniMultiplier).toFixed(2)} mini + ${(microLot * LOT_CONFIG.microMultiplier).toFixed(2)} micro)`;
-    const prevHhLot = document.getElementById('previewHhLot');
-    if (prevHhLot) prevHhLot.textContent = formatMoney(hhLot);
-    const prevHhProd = document.getElementById('previewHhProduct');
-    if (prevHhProd) prevHhProd.textContent = `${formatMoney(hhProduct)} (${productRate}% của ${formatMoney(totalProductRev)})`;
+    const prevTotalLot = document.getElementById('previewTotalLot');
+    if (prevTotalLot) prevTotalLot.textContent = stdLot.toFixed(2) + ' lot';
+
+    const prevLotComm = document.getElementById('previewLotCommission');
+    if (prevLotComm) prevLotComm.textContent = formatVND(lotComm);
+
+    const prevDownline = document.getElementById('previewDownlineHh');
+    if (prevDownline) prevDownline.textContent = formatVND(downlineComm);
+
+    const prevProd = document.getElementById('previewProdHh');
+    if (prevProd) prevProd.textContent = formatVND(prodComm);
+
     const prevBonus = document.getElementById('previewBonus');
-    if (prevBonus) prevBonus.textContent = formatMoney(bonus);
-    const prevNet = document.getElementById('previewNetIncome');
-    if (prevNet) prevNet.textContent = formatMoney(netIncome);
+    if (prevBonus) prevBonus.textContent = formatVND(bonus);
+
+    const prevNet = document.getElementById('previewTotalNet');
+    if (prevNet) prevNet.textContent = formatVND(totalNet);
   }
 
   function savePersonnelChanges() {
@@ -3500,171 +3728,102 @@
 
     closeEditModal();
     renderAllViews();
-    alert(`Đã cập nhật thành công dữ liệu và tính toán lại toàn bộ hệ thống cho: ${person.name}!`);
+    alert(`Đã lưu thành công cơ chế riêng (${(person.ratePerLot/1000)}k/lot) và tính toán lại hệ thống cho: ${person.name}!`);
   }
 
-  // ====================================================================
-  // 7.1 MODAL BẢNG KÊ CHI TIẾT TUYẾN DƯỚI (LV1 & LV2)
-  // ====================================================================
-  function openDownlineModal(id) {
-    const person = APEX_DATA.find(p => p.id === id);
+  
+  function openDownlineModal(personnelId) {
+    const person = APEX_DATA.find(p => p.id === personnelId);
     if (!person) return;
 
     const titleEl = document.getElementById('downlineModalTitle');
-    if (titleEl) titleEl.textContent = `Bảng Kê Cấp Dưới: ${person.name} (${person.roleTitle})`;
-    const subTitleEl = document.getElementById('downlineModalSubtitle');
-    if (subTitleEl) subTitleEl.textContent = `Mã ID: ${person.id} • Quản lý: ${person.directManager}`;
+    if (titleEl) titleEl.textContent = `Bảng Kê Chi Tiết Tuyến Dưới: ${person.name} (${person.roleTitle})`;
+    
+    const subEl = document.getElementById('downlineModalSubtitle');
+    if (subEl) subEl.textContent = `Định mức cá nhân: ${(person.ratePerLot / 1000)}k/lot • Quản lý trực thuộc: ${person.directManager || '—'}`;
 
     const tbody = document.getElementById('downlineModalBody');
     if (!tbody) return;
     tbody.innerHTML = '';
 
-    let totalLots = 0;
-    let totalMoney = 0;
-    let stt = 1;
-
-    const personRate = (person.ratePerLot !== undefined && person.ratePerLot !== null)
-      ? Number(person.ratePerLot)
-      : (person.roleLevel === 'LV1' ? 80000 : 60000);
-
+    let subordinates = [];
     if (person.roleLevel === 'LV2') {
-      // Leader: Các Sale (LV3) trực thuộc
-      const sales = APEX_DATA.filter(s => s.parentId === person.id);
-      sales.forEach(sale => {
-        const sLot = getPersonalStdLot(sale);
-        const sRate = (sale.ratePerLot !== undefined && sale.ratePerLot !== null) ? Number(sale.ratePerLot) : LOT_CONFIG.rateLv3;
-        const diffRate = Math.max(0, personRate - sRate);
-        const comm = Math.round(sLot * diffRate);
-        totalLots += sLot;
-        totalMoney += comm;
-
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${stt++}</td>
-          <td>
-            <strong>${sale.name}</strong>
-            <div style="font-size:10px; color:#64748b;">ID: ${sale.id} • Định mức: ${(sRate/1000)}k/lot</div>
-          </td>
-          <td>${getRoleBadgeHtml(sale.roleLevel)}</td>
-          <td style="font-size:11.5px; color:#475569;">Sale trực thuộc Leader</td>
-          <td style="font-family:'JetBrains Mono'; font-weight:700;">${sLot.toFixed(2)} lot</td>
-          <td style="color:#ea580c; font-weight:800; font-family:'JetBrains Mono';">+${(diffRate/1000).toFixed(0)}k/lot <span style="font-size:10px; font-weight:400; color:#64748b;">(${(personRate/1000)}k - ${(sRate/1000)}k)</span></td>
-          <td style="color:#059669; font-weight:800; font-family:'JetBrains Mono';">+${formatMoney(comm)}</td>
-        `;
-        tbody.appendChild(tr);
-      });
+      subordinates = APEX_DATA.filter(p => p.parentId === person.id);
     } else if (person.roleLevel === 'LV1') {
-      // Manager: Leader và Sale trực thuộc
-      const directSubs = APEX_DATA.filter(s => s.parentId === person.id);
-      directSubs.forEach(sub => {
-        if (sub.roleLevel === 'LV2') {
-          // Leader
-          const lRate = (sub.ratePerLot !== undefined && sub.ratePerLot !== null) ? Number(sub.ratePerLot) : LOT_CONFIG.rateLv2;
-          const lLot = getPersonalStdLot(sub);
-          const mgrDiff = Math.max(0, personRate - lRate);
-          const commL = Math.round(lLot * mgrDiff);
-          totalLots += lLot;
-          totalMoney += commL;
-
-          const trL = document.createElement('tr');
-          trL.style.background = '#fff7ed';
-          trL.innerHTML = `
-            <td>${stt++}</td>
-            <td>
-              <strong>${sub.name}</strong>
-              <div style="font-size:10px; color:#c2410c;">Leader Trực Thuộc • ID: ${sub.id} • ${(lRate/1000)}k/lot</div>
-            </td>
-            <td>${getRoleBadgeHtml(sub.roleLevel)}</td>
-            <td style="font-size:11.5px; color:#c2410c; font-weight:700;">Leader cấp 1</td>
-            <td style="font-family:'JetBrains Mono'; font-weight:700;">${lLot.toFixed(2)} lot</td>
-            <td style="color:#2563eb; font-weight:800; font-family:'JetBrains Mono';">+${(mgrDiff/1000).toFixed(0)}k/lot <span style="font-size:10px; font-weight:400; color:#64748b;">(${(personRate/1000)}k - ${(lRate/1000)}k)</span></td>
-            <td style="color:#059669; font-weight:800; font-family:'JetBrains Mono';">+${formatMoney(commL)}</td>
-          `;
-          tbody.appendChild(trL);
-
-          // Sales của Leader này
-          const teamSales = APEX_DATA.filter(s => s.parentId === sub.id);
-          teamSales.forEach(sale => {
-            const sRate = (sale.ratePerLot !== undefined && sale.ratePerLot !== null) ? Number(sale.ratePerLot) : LOT_CONFIG.rateLv3;
-            const sLot = getPersonalStdLot(sale);
-            const diffFromSale = Math.max(0, personRate - Math.max(lRate, sRate));
-            const commS = Math.round(sLot * diffFromSale);
-            totalLots += sLot;
-            totalMoney += commS;
-
-            const trS = document.createElement('tr');
-            trS.innerHTML = `
-              <td>${stt++}</td>
-              <td style="padding-left:24px;">
-                ↳ <span>${sale.name}</span>
-                <div style="font-size:10px; color:#64748b;">ID: ${sale.id} • Dưới ${sub.name} • ${(sRate/1000)}k/lot</div>
-              </td>
-              <td>${getRoleBadgeHtml(sale.roleLevel)}</td>
-              <td style="font-size:11.5px; color:#64748b;">Sale qua Leader ${sub.name}</td>
-              <td style="font-family:'JetBrains Mono'; font-weight:700;">${sLot.toFixed(2)} lot</td>
-              <td style="color:#2563eb; font-weight:800; font-family:'JetBrains Mono';">+${(diffFromSale/1000).toFixed(0)}k/lot <span style="font-size:10px; font-weight:400; color:#64748b;">(${(personRate/1000)}k - ${(Math.max(lRate, sRate)/1000)}k)</span></td>
-              <td style="color:#059669; font-weight:800; font-family:'JetBrains Mono';">+${formatMoney(commS)}</td>
-            `;
-            tbody.appendChild(trS);
-          });
-        } else if (sub.roleLevel === 'LV3') {
-          // Sale trực thuộc Manager
-          const sRate = (sub.ratePerLot !== undefined && sub.ratePerLot !== null) ? Number(sub.ratePerLot) : LOT_CONFIG.rateLv3;
-          const sLot = getPersonalStdLot(sub);
-          const diffDirect = Math.max(0, personRate - sRate);
-          const commDirect = Math.round(sLot * diffDirect);
-          totalLots += sLot;
-          totalMoney += commDirect;
-
-          const trD = document.createElement('tr');
-          trD.style.background = '#f0fdf4';
-          trD.innerHTML = `
-            <td>${stt++}</td>
-            <td>
-              <strong>${sub.name}</strong>
-              <div style="font-size:10px; color:#15803d;">Sale Trực Tiếp (Không qua Leader) • ID: ${sub.id} • ${(sRate/1000)}k/lot</div>
-            </td>
-            <td>${getRoleBadgeHtml(sub.roleLevel)}</td>
-            <td style="font-size:11.5px; color:#15803d; font-weight:700;">Trực thuộc Manager</td>
-            <td style="font-family:'JetBrains Mono'; font-weight:700;">${sLot.toFixed(2)} lot</td>
-            <td style="color:#15803d; font-weight:800; font-family:'JetBrains Mono';">+${(diffDirect/1000).toFixed(0)}k/lot <span style="font-size:10px; font-weight:400; color:#64748b;">(${(personRate/1000)}k - ${(sRate/1000)}k)</span></td>
-            <td style="color:#059669; font-weight:800; font-family:'JetBrains Mono';">+${formatMoney(commDirect)}</td>
-          `;
-          tbody.appendChild(trD);
+      const directDownlines = APEX_DATA.filter(p => p.parentId === person.id);
+      subordinates = [...directDownlines];
+      directDownlines.forEach(d => {
+        if (d.roleLevel === 'LV2') {
+          const subSales = APEX_DATA.filter(s => s.parentId === d.id);
+          subordinates.push(...subSales);
         }
       });
     }
 
-    const footLotEl = document.getElementById('footDownlineTotalLot');
-    if (footLotEl) footLotEl.textContent = totalLots.toFixed(2) + ' lot';
-    const footMoneyEl = document.getElementById('footDownlineTotalMoney');
-    if (footMoneyEl) footMoneyEl.textContent = formatMoney(totalMoney);
+    let totalLots = 0;
+    let totalMoney = 0;
 
-    const downModal = document.getElementById('downlineModal');
-    if (downModal) downModal.classList.add('active');
+    subordinates.forEach((sub, idx) => {
+      const sLot = getPersonalStdLot(sub);
+      const sRate = (sub.ratePerLot !== undefined && sub.ratePerLot !== null) ? Number(sub.ratePerLot) : LOT_CONFIG.rateLv3;
+      const myRate = Number(person.ratePerLot) || (person.roleLevel === 'LV1' ? 90000 : 70000);
+      const diffRate = Math.max(0, myRate - sRate);
+      const comm = Math.round(sLot * diffRate);
+
+      totalLots += sLot;
+      totalMoney += comm;
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${idx + 1}</td>
+        <td><strong>${sub.name}</strong> <span style="font-size:11px; color:#64748b;">(ID: ${sub.id})</span></td>
+        <td><span class="role-badge role-${sub.roleLevel.toLowerCase()}">${sub.roleTitle}</span></td>
+        <td>${sub.parentId === person.id ? '<span style="color:#059669; font-weight:700;">Trực thuộc</span>' : '<span style="color:#64748b;">Cấp 2 qua Leader</span>'}</td>
+        <td style="font-family:'JetBrains Mono'; font-weight:800; color:#0f172a;">${sLot.toFixed(2)} lot</td>
+        <td style="color:#ea580c; font-weight:800; font-family:'JetBrains Mono';">+${(diffRate / 1000).toFixed(0)}k/lot</td>
+        <td style="color:#059669; font-weight:800; font-family:'JetBrains Mono';">${formatVND(comm)}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    const footLot = document.getElementById('footDownlineTotalLot');
+    if (footLot) footLot.textContent = totalLots.toFixed(2) + ' lot';
+    const footMoney = document.getElementById('footDownlineTotalMoney');
+    if (footMoney) footMoney.textContent = formatVND(totalMoney);
+
+    const dlModal = document.getElementById('downlineModal');
+    if (dlModal) dlModal.classList.add('active');
   }
 
   function closeDownlineModal() {
-    const downModal = document.getElementById('downlineModal');
-    if (downModal) downModal.classList.remove('active');
+    const dlModal = document.getElementById('downlineModal');
+    if (dlModal) dlModal.classList.remove('active');
   }
 
- // ====================================================================
- // 8. CẤU HÌNH BIẾN SỐ TOÀN HỆ THỐNG
- // ====================================================================
+
   function openConfigModal() {
+    const apexEl = document.getElementById('cfgRateApex');
+    if (apexEl) apexEl.value = LOT_CONFIG.rateApex || 280000;
+    const lv1El = document.getElementById('cfgRateLv1');
+    if (lv1El) lv1El.value = LOT_CONFIG.rateLv1 || 90000;
+    const lv2El = document.getElementById('cfgRateLv2');
+    if (lv2El) lv2El.value = LOT_CONFIG.rateLv2 || 70000;
+    const lv3El = document.getElementById('cfgRateLv3');
+    if (lv3El) lv3El.value = LOT_CONFIG.rateLv3 || 50000;
+
     const miniEl = document.getElementById('cfgMini');
-    if (miniEl) miniEl.value = LOT_CONFIG.miniMultiplier;
+    if (miniEl) miniEl.value = LOT_CONFIG.miniMultiplier || 0.8;
     const microEl = document.getElementById('cfgMicro');
-    if (microEl) microEl.value = LOT_CONFIG.microMultiplier;
+    if (microEl) microEl.value = LOT_CONFIG.microMultiplier || 0.35;
     const prodEl = document.getElementById('cfgProductRate');
     if (prodEl) prodEl.value = LOT_CONFIG.defaultProductRate || 10;
-    
+
+    updateConfigLotPreview();
+
     const modal = document.getElementById('configModal');
     if (modal) {
-      modal.classList.add('active');
       modal.style.display = 'flex';
-      modal.style.zIndex = '99999';
+      modal.classList.add('active');
     }
   }
 
@@ -3677,6 +3836,26 @@
   }
 
   function applyLotConfig() {
+    const apexEl = document.getElementById('cfgRateApex');
+    if (apexEl) LOT_CONFIG.rateApex = Math.max(0, Number(apexEl.value) || 280000);
+    const lv1El = document.getElementById('cfgRateLv1');
+    if (lv1El) LOT_CONFIG.rateLv1 = Math.max(0, Number(lv1El.value) || 90000);
+    const lv2El = document.getElementById('cfgRateLv2');
+    if (lv2El) LOT_CONFIG.rateLv2 = Math.max(0, Number(lv2El.value) || 70000);
+    const lv3El = document.getElementById('cfgRateLv3');
+    if (lv3El) LOT_CONFIG.rateLv3 = Math.max(0, Number(lv3El.value) || 50000);
+
+    LOT_CONFIG.diffLeader = Math.max(0, LOT_CONFIG.rateLv2 - LOT_CONFIG.rateLv3);
+    LOT_CONFIG.diffManager = Math.max(0, LOT_CONFIG.rateLv1 - LOT_CONFIG.rateLv2);
+    LOT_CONFIG.diffManagerDirectSale = Math.max(0, LOT_CONFIG.rateLv1 - LOT_CONFIG.rateLv3);
+
+    // Cập nhật lại định mức cho 23 nhân sự theo vai trò
+    APEX_DATA.forEach(p => {
+      if (p.roleLevel === 'LV1') p.ratePerLot = LOT_CONFIG.rateLv1;
+      else if (p.roleLevel === 'LV2') p.ratePerLot = LOT_CONFIG.rateLv2;
+      else if (p.roleLevel === 'LV3') p.ratePerLot = LOT_CONFIG.rateLv3;
+    });
+
     const miniEl = document.getElementById('cfgMini');
     if (miniEl) LOT_CONFIG.miniMultiplier = Number(miniEl.value) || 0.8;
     const microEl = document.getElementById('cfgMicro');
@@ -3692,7 +3871,7 @@
 
     closeConfigModal();
     renderAllViews();
-    alert(`Đã cập nhật hệ số quy đổi Lot và áp dụng tỷ lệ ${LOT_CONFIG.defaultProductRate}% sản phẩm cho toàn bộ 23 nhân sự!`);
+    alert(`✓ Đã cập nhật thành công: Sàn trả về Apex ${(LOT_CONFIG.rateApex/1000)}k/lot! Tuyến dưới chia: Manager ${(LOT_CONFIG.rateLv1/1000)}k, Leader ${(LOT_CONFIG.rateLv2/1000)}k, Sale ${(LOT_CONFIG.rateLv3/1000)}k. Công ty Apex giữ lại ${((LOT_CONFIG.rateApex - LOT_CONFIG.rateLv1)/1000)}k/lot!`);
   }
 
   function resetAllProductRateTo10() {
@@ -3990,7 +4169,7 @@
 
       // XỬ LÝ CHẠM CẢM ỨNG (TAP) VÀO Ô NODE:
       // Di chuyển < 14px và nhấc tay trong vòng 500ms -> KÍCH HOẠT MỞ MODAL Ô TƯƠNG ỨNG!
-      if (dist <= 14 && duration < 500) {
+      if (dist <= 16 && duration < 650) {
         const hitEl = document.elementFromPoint(e.clientX, e.clientY);
         const targetNode = potentialTapTarget || getInteractiveNode(hitEl);
         if (targetNode) {
