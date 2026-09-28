@@ -6223,7 +6223,7 @@ async function initialize() {
     window.crmRuntimeAuthState = session?.token ? 'restoring' : 'unauthenticated';
     if (session?.token) serverSyncToken = session.token;
     const authPromise = session?.token ? fetch(`${webhookApiBase()}/api/auth/me`, { headers: { Authorization: `Bearer ${session.token}` }, cache: 'no-store' }) : Promise.resolve(null);
-    const statePromise = session?.token ? fetch(`${webhookApiBase()}/api/state`, { headers: { Authorization: `Bearer ${session.token}` }, cache: 'no-store' }) : Promise.resolve(null);
+    const statePromise = session?.token ? fetch(`${webhookApiBase()}/api/state?passive=1`, { headers: { Authorization: `Bearer ${session.token}` }, cache: 'no-store' }) : Promise.resolve(null);
     const [response,stateResponse] = await Promise.all([authPromise,statePromise]);
     const account = response?.ok ? (await response.json()).user : null;
     const initialSnapshot = stateResponse?.ok ? await stateResponse.json().catch(() => null) : null;

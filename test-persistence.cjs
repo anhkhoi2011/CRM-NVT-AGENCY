@@ -16,7 +16,7 @@ function fixture(){
    if(!db.customers.some(row=>row.id===v[0]))upsert('customers',['id','name','phone','email','source','campaign','website_id','status','note','custom_fields_json','created_at'],[v[0],v[1],v[2],v[3],'Landing Page',v[4],v[5],'NEW',v[6],v[7],v[8]]);
    return [{}];
   }
-  if(sql==='SELECT * FROM crm_documents')return [structuredClone(db.docs)];
+  if(sql.startsWith('SELECT * FROM crm_documents WHERE collection IN'))return [structuredClone(db.docs.filter(row=>v.includes(row.collection)))];
   if(sql.includes('FROM system_settings'))return [[{setting_key:'crm_defaults_v1',setting_value:'true'}]];
   if(sql.includes('FROM users'))return [structuredClone(db.users)];
   for(const key of ['customers','orders','products'])if(sql===`SELECT * FROM ${key}`)return [structuredClone(db[key])];
@@ -1179,4 +1179,20 @@ test('Telegram queue is atomic, replay-safe, and includes repeat-customer webhoo
  assert.equal(f.db.docs.filter(d=>d.collection==='telegramOutbox'&&d.body.kind==='DUPLICATE_ADMIN').length,1);
  assert.equal(f.db.docs.filter(d=>d.collection==='telegramOutbox'&&d.body.kind==='DUPLICATE_OWNER').length,1);
  const g=await automaticFixture();g.fail();await assert.rejects(()=>g.webhook.persistWebhook(landingRecord(851)));assert.equal(g.db.docs.filter(d=>d.collection==='telegramOutbox').length,0);
+});
+
+test('SQL feedback and processes reach the UI snapshot after reload',async()=>{
+ const f=fixture();
+ await f.api.write(admin,'organization-reload',[
+ change('feedbacks',{id:'fb-reload',authorId:'admin',category:'SUPPORT',note:'Saved note',imageData:'',createdAt:'2026-09-28 10:00:00'}),
+ change('processes',{id:'proc-reload',title:'Saved process',summary:'',content:'Steps',link:'',imageData:''})]);
+ const c=referenceBridge();c.payload=await f.api.read(admin,{passive:true});
+ vm.runInContext('applyServerSnapshot(payload)',c);
+ const ui=c.window.crmApi.snapshot();
+ assert.equal(ui.feedbacks[0].note,'Saved note');assert.equal(ui.processes[0].title,'Saved process');
+});
+test('Schema startup skips role ALTER when all roles already exist',async()=>{
+ const queries=[],module={exports:{}};
+ vm.runInNewContext(fs.readFileSync('crm-data.cjs','utf8')+';module.exports.checkRole=ensureRoleColumn;', {module,require:name=>name==='./db.js'?{pool:{query:async sql=>{queries.push(sql);return [[{role_type:"enum('ADMIN','LEADER','SALE','UNASSIGNED','MARKETING','ACCOUNTING','MANAGER')"}]];}}}:require(name)});
+ await module.exports.checkRole();assert.equal(queries.length,1);
 });

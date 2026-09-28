@@ -10,13 +10,18 @@ const SCHEMA = [
  `CREATE TABLE IF NOT EXISTS crm_documents (collection VARCHAR(64) NOT NULL, id VARCHAR(96) NOT NULL, body JSON NOT NULL, deleted TINYINT NOT NULL DEFAULT 0, PRIMARY KEY(collection,id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
  `CREATE TABLE IF NOT EXISTS crm_changes (id BIGINT AUTO_INCREMENT PRIMARY KEY, request_id VARCHAR(96) NOT NULL, actor_id VARCHAR(96) NOT NULL, changes_json JSON NOT NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE KEY(request_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
  `CREATE TABLE IF NOT EXISTS crm_write_lock (id INT PRIMARY KEY) ENGINE=InnoDB`,
- `INSERT IGNORE INTO crm_write_lock(id) VALUES (1)`,
- `ALTER TABLE users MODIFY role ENUM('ADMIN','LEADER','SALE','UNASSIGNED','MARKETING','ACCOUNTING','MANAGER') NOT NULL DEFAULT 'UNASSIGNED'`
+ `INSERT IGNORE INTO crm_write_lock(id) VALUES (1)`
 ];
 let prepared;
 function prepare() {
- if (!prepared) prepared = (async()=>{for(const sql of SCHEMA) await pool.query(sql);await ensureAccountCodeColumn();await ensureProductVatColumn();await ensureTelegramColumns();await ensureUserActivityTables();await ensureCustomerAppointmentsTable();await seedDefaults();await seedProductCatalog();})().catch(e=>{prepared=null;throw e;});
+ if (!prepared) prepared = (async()=>{for(const sql of SCHEMA) await pool.query(sql);await ensureRoleColumn();await ensureAccountCodeColumn();await ensureProductVatColumn();await ensureTelegramColumns();await ensureUserActivityTables();await ensureCustomerAppointmentsTable();await seedDefaults();await seedProductCatalog();})().catch(e=>{prepared=null;throw e;});
  return prepared;
+}
+async function ensureRoleColumn(){
+ const [rows]=await pool.query("SELECT COLUMN_TYPE AS role_type FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='users' AND column_name='role'");
+ const roles=String(rows[0]?.role_type||'');
+ if(!['ADMIN','LEADER','SALE','UNASSIGNED','MARKETING','ACCOUNTING','MANAGER'].every(role=>roles.includes("'"+role+"'")))
+  await pool.query("ALTER TABLE users MODIFY role ENUM('ADMIN','LEADER','SALE','UNASSIGNED','MARKETING','ACCOUNTING','MANAGER') NOT NULL DEFAULT 'UNASSIGNED'");
 }
 async function ensureAccountCodeColumn(){
  const [rows]=await pool.query("SELECT COUNT(*) AS total FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='users' AND column_name='account_code'");
@@ -106,7 +111,7 @@ function coreRow(key,r){
 }
 async function allData(c, options={}){
  const data=Object.fromEntries([...LISTS,...OBJECTS].map(k=>[k,new Map()]));
- const [docs]=await c.query('SELECT * FROM crm_documents');
+ const [docs]=await c.execute('SELECT * FROM crm_documents WHERE collection IN ('+[...LISTS,...OBJECTS].map(()=>'?').join(',')+')',[...LISTS,...OBJECTS]);
  const deleted=new Set();
  for(const d of docs){if(!data[d.collection])continue;if(d.deleted)deleted.add(`${d.collection}/${d.id}`);else data[d.collection].set(d.id,parsed(d.body));}
  for(const key of ['customers','orders','products']){
