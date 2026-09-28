@@ -5,7 +5,7 @@
 })(typeof globalThis!=='undefined'?globalThis:this,()=>function createCustomerSaveQueue({isBusy,setBusy,onChange,persist=()=>{},schedule=fn=>setTimeout(fn,50)}){
   const jobs=[];let running=false,error=null,scheduled=false;
   const emit=()=>onChange({pending:jobs.length,error,running});
-  const checkpoint=()=>persist(jobs.map(({key,payload})=>({key,payload}))); 
+  const checkpoint=()=>persist(jobs.map(({key,payload})=>({key,payload})));
   async function drain(){
     if(running||error||!jobs.length)return;
     if(isBusy()){
