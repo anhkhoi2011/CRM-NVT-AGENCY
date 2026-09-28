@@ -1,0 +1,71 @@
+'use strict';
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const createQueue=require('./customer-save-queue.js');
+const tick=()=>new Promise(resolve=>setImmediate(resolve));
+function fixture(){let busy=false;const states=[],scheduled=[];const queue=createQueue({isBusy:()=>busy,setBusy:value=>{busy=value;},onChange:state=>states.push(state),schedule:fn=>scheduled.push(fn)});return {queue,states,scheduled,setBusy:value=>{busy=value;},get busy(){return busy;}};}
+
+test('Rapid edits of the same and different cells save in order, without parallel requests',async()=>{
+ const f=fixture(),writes=[];let release;
+ f.queue.enqueue('a',async()=>{writes.push('A');await new Promise(resolve=>{release=resolve;});});
+ f.queue.enqueue('b',async()=>{writes.push('B');});
+ f.queue.enqueue('a',async()=>{writes.push('C');});
+ assert.deepEqual(writes,['A']);assert.equal(f.queue.pending,3);
+ release();await tick();assert.deepEqual(writes,['A','B','C']);assert.equal(f.queue.pending,0);assert.equal(f.busy,false);
+ assert.equal(f.states.at(-1).error,null);
+});
+
+test('Network failure retains the failed edit and later choices until explicit retry',async()=>{
+ const f=fixture(),writes=[];let online=false;
+ f.queue.enqueue('a',async()=>{if(!online)throw Error('offline');writes.push('A');});
+ f.queue.enqueue('b',async()=>{writes.push('B');});
+ await tick();assert.equal(f.queue.pending,2);assert.equal(f.busy,false);assert.match(f.states.at(-1).error.message,/offline/);
+ f.queue.enqueue('a',async()=>{writes.push('C');});await tick();assert.equal(f.queue.pending,3);assert.deepEqual(writes,[]);
+ online=true;f.queue.retry();await tick();assert.deepEqual(writes,['A','B','C']);assert.equal(f.queue.pending,0);
+});
+
+test('Selection made while a different form saves waits and is not discarded',async()=>{
+ const f=fixture(),writes=[];f.setBusy(true);
+ f.queue.enqueue('a',async()=>{writes.push('A');});f.queue.enqueue('b',async()=>{writes.push('B');});
+ assert.equal(f.scheduled.length,1);assert.deepEqual(writes,[]);
+ f.setBusy(false);f.scheduled.shift()();await tick();assert.deepEqual(writes,['A','B']);assert.equal(f.queue.pending,0);
+});
+
+test('Retry clicks cannot send a running edit twice',async()=>{
+ const f=fixture();let release,calls=0;
+ f.queue.enqueue('a',async()=>{calls++;await new Promise(resolve=>{release=resolve;});});
+ f.queue.retry();f.queue.retry();assert.equal(calls,1);release();await tick();assert.equal(f.queue.pending,0);
+});
+
+
+test('Background multi-select form closes while an earlier save is running',async()=>{
+ const vm=require('node:vm'),fs=require('node:fs');
+ const source=fs.readFileSync('reference-crm.js','utf8');
+ const start=source.indexOf('  function editor('),end=source.indexOf('  function ensureReferenceEditorStyles()',start);
+ const form={},error={};let removed=false,queued=0;
+ const modal={querySelector:selector=>selector==='form'?form:error,querySelectorAll:()=>[],remove(){removed=true;}};
+ const c={working:true,q:()=>null,ensureReferenceEditorStyles(){},esc:x=>x,document:{createElement:()=>modal,body:{appendChild(){}}},refresh(){}};
+ vm.createContext(c);vm.runInContext(source.slice(start,end),c);
+ c.editor('Options','',()=>{queued++;},true);
+ await form.onsubmit({preventDefault(){},currentTarget:{elements:[]}});
+ assert.equal(queued,1);assert.equal(removed,true);assert.equal(c.working,true);
+});
+
+test('Server allows the queue script loaded before the table bridge',()=>{
+ const fs=require('node:fs'),html=fs.readFileSync('index.html','utf8'),server=fs.readFileSync('webhook-server.cjs','utf8');
+ assert.ok(html.indexOf('src="customer-save-queue.js?')<html.indexOf('src="reference-crm.js?'));
+ assert.ok(server.includes("'/customer-save-queue.js'"));
+});
+
+
+test('Reload restores queued selections from a persisted draft',async()=>{
+ const records=[];let release;
+ const first=createQueue({isBusy:()=>false,setBusy(){},onChange(){},persist:items=>{records.splice(0,records.length,...items);}});
+ first.enqueue('field:c:level',async()=>new Promise(resolve=>{release=resolve;}),{id:'c',value:'L2'});
+ first.enqueue('field:c:status',async()=>{}, {id:'c',value:'Contacted'});
+ assert.equal(records.length,2);
+ const writes=[],second=createQueue({isBusy:()=>false,setBusy(){},onChange(){},persist:items=>{records.splice(0,records.length,...items);}});
+ second.restore(structuredClone(records),payload=>async()=>{writes.push(payload.value);});
+ await tick();assert.deepEqual(writes,['L2','Contacted']);assert.deepEqual(records,[]);
+ release();await tick();
+});

@@ -34,6 +34,7 @@ try { nodemailer = require('nodemailer'); } catch { /* email optional until npm 
 
 const PORT = Number(process.env.PORT || 4173);
 const HOST = process.env.HOST || '0.0.0.0';
+const SERVER_INSTANCE = crypto.randomUUID();
 const REPO_ROOT = path.resolve(__dirname);
 const DEFAULT_WEBHOOK_DATA_DIR = process.env.WEBHOOK_DATA_DIR
   ? path.resolve(process.env.WEBHOOK_DATA_DIR)
@@ -1271,7 +1272,7 @@ async function serveStatic(request, response, urlPathname) {
     }
     return;
   }
-  if (!['/','/index.html','/crm.js','/crm.css','/crm-modern.css','/crm-boot.css','/logo.jpg','/login-background.jpg','/customer-journey.svg','/care-ui.js','/crm-runtime.html','/crm-runtime-api.js','/reference-view.js','/reference-crm.js','/support-chat-widget.js','/nvt-mobile-auth.css','/team-tree-hierarchy.css','/commission_tree_demo.html','/commission-apex-mindmap.svg','/assets/livechat-employee.png'].includes(decoded)) return sendJson(response,404,{error:'Không tìm thấy tài nguyên'});
+  if (!['/','/index.html','/crm.js','/crm.css','/crm-modern.css','/crm-boot.css','/logo.jpg','/login-background.jpg','/customer-journey.svg','/care-ui.js','/crm-runtime.html','/crm-runtime-api.js','/reference-view.js','/reference-crm.js','/customer-save-queue.js','/support-chat-widget.js','/nvt-mobile-auth.css','/team-tree-hierarchy.css','/commission_tree_demo.html','/commission-apex-mindmap.svg','/assets/livechat-employee.png'].includes(decoded)) return sendJson(response,404,{error:'Không tìm thấy tài nguyên'});
 
   let relative = decoded === '/' ? '/index.html' : decoded;
   const absolute = path.resolve(REPO_ROOT, `.${path.posix.normalize(relative)}`);
@@ -1412,6 +1413,9 @@ const server = http.createServer(async (request, response) => {
       return sendJson(response, 200, { ok: true }, corsHeaders(request));
     }
     if (pathname === '/api/db/health' || pathname === '/api/navigation-counts' || pathname === '/api/user-activity' || pathname === '/api/admin/user-activity' || pathname.startsWith('/api/auth/') || pathname.startsWith('/api/telegram/') || pathname.startsWith('/api/support/') || pathname.startsWith('/api/users') || pathname.startsWith('/api/customers') || pathname.startsWith('/api/orders') || pathname.startsWith('/api/products') || pathname.startsWith('/api/settings') || pathname === '/api/state') return handleDbApi(request, response, pathname);
+    if (pathname === '/api/health/live') {
+      return sendJson(response, 200, { ok: true, live: true, instance: SERVER_INSTANCE });
+    }
     if (pathname === '/api/health') {
       if (DEMO_MODE) return sendJson(response, 200, { ok: true, demo: true, inbox: inbox.length, token: Boolean(WEBHOOK_TOKEN) });
       if (!dbConfigured) return sendJson(response, 503, { ok: false, mysql: 'not_configured', error: 'MySQL chưa được cấu hình.' });
@@ -1502,44 +1506,24 @@ server.listen(PORT, HOST, () => {
   }
 });
 
-/* Tự soi lại chính mình qua đúng cái tên người dùng sẽ gõ: "localhost".
-   Trên Windows, một server khác (thường là `python -m http.server 4173` còn sót)
-   có thể giữ cổng này ở họ IPv6 `::` trong khi mình giữ `0.0.0.0` ở IPv4 —
-   `localhost` phân giải sang `::1` trước nên trình duyệt và LadiPage đều rơi vào
-   server kia. Không có lỗi nào hiện ra, chỉ là data không bao giờ tới. Vì vậy
-   phải tự kiểm tra sau khi listen, và nói to lên nếu cổng bị che. */
+// Check process liveness independently of MySQL readiness. Passenger may use
+// a Unix socket instead of the configured TCP port; do not probe another port.
 async function selfCheckHealth() {
+  const address = server.address();
+  if (!address || typeof address === 'string') return;
+  const host = address.address === '0.0.0.0' ? '127.0.0.1' : address.address === '::' ? '::1' : address.address;
+  const url = 'http://' + (net.isIP(host) === 6 ? '[' + host + ']' : host) + ':' + address.port + '/api/health/live';
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 3000);
   try {
-    const response = await fetch(`http://localhost:${PORT}/api/health`, { signal: controller.signal });
-    const body = await response.text();
-    let payload = null;
-    try { payload = JSON.parse(body); } catch { payload = null; }
-    // A 503 with `mysql` is still a response from this Node app, not evidence
-    // that another process owns the port. Keep the diagnostic focused on DB.
-    if (payload && (payload.demo === true || Object.hasOwn(payload, 'mysql'))) {
-      if (!response.ok) console.warn(`[webhook] Node đang chạy nhưng trạng thái MySQL là ${payload.mysql || 'chưa sẵn sàng'}.`);
-      return;
+    const response = await fetch(url, { signal: controller.signal });
+    const payload = await response.json();
+    if (!response.ok || payload.instance !== SERVER_INSTANCE) {
+      console.warn('[webhook] Kiểm tra liveness nhận phản hồi không khớp tiến trình CRM. HTTP ' + response.status);
     }
-    console.warn(`\n[webhook] CẢNH BÁO: http://localhost:${PORT}/api/health trả về không phải của server này`);
-    console.warn(`[webhook]           HTTP ${response.status} · ${body.slice(0, 120).replace(/\s+/g, ' ')}`);
-    warnShadowed();
   } catch (error) {
-    console.warn(`\n[webhook] CẢNH BÁO: không tự gọi được http://localhost:${PORT}/api/health (${error.message})`);
-    warnShadowed();
+    console.warn('[webhook] Không tự kiểm tra được liveness (' + (error.cause?.code || error.name) + '). Chưa đủ bằng chứng kết luận xung đột cổng; kiểm tra proxy và địa chỉ lắng nghe.');
   } finally {
     clearTimeout(timer);
   }
 }
-
-function warnShadowed() {
-  console.warn('[webhook]           Nhiều khả năng "localhost" đang trỏ vào một server khác giữ cùng cổng');
-  console.warn('[webhook]           (hay gặp: `python -m http.server 4173` chạy sót, nó bind IPv6 ::).');
-  console.warn(`[webhook]           Server này vẫn sống ở http://127.0.0.1:${PORT} — nhưng LadiPage gửi vào`);
-  console.warn('[webhook]           "localhost" sẽ KHÔNG tới được. Tắt server kia rồi chạy lại, hoặc dùng PORT khác:');
-  console.warn(`[webhook]             netstat -ano | findstr :${PORT}`);
-  console.warn(`[webhook]             PORT=${PORT + 1} node webhook-server.cjs\n`);
-}
-
-// selfCheckHealth() được gọi trong callback của server.listen — gọi ở đây sẽ đua với bind.

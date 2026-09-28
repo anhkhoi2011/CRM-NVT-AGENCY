@@ -8,7 +8,7 @@
   <link rel="apple-touch-icon" href="./logo.jpg?v=20260918-crm">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
   <style>
     :root, [data-theme="light"] {
       /* Bảng màu Basic Minimalist: Dịu mắt, thanh lịch, chuẩn SaaS Executive */
@@ -1482,9 +1482,40 @@
     </style>
 </head>
 <body>
-<div id=crmBootScreen role=status aria-label=Loading><div class=crm-boot-mark><span class=crm-boot-spinner aria-hidden=true></span><span>NVT-AGENCY</span></div></div>
+<div id=crmBootScreen role=status aria-label="Đang tải CRM"><div class=crm-boot-mark><span class=crm-boot-spinner aria-hidden=true></span><span>NVT AGENCY · Đang tải dữ liệu…</span></div></div>
+
+<script id="crm-boot-watchdog">
+(() => {
+  const boot = document.getElementById('crmBootScreen');
+  if (!boot) return;
+  let failed = false;
+  function showFailure() {
+    if (boot.hidden || failed) return;
+    failed = true;
+    const message = document.createElement('div');
+    message.setAttribute('role', 'alert');
+    message.style.cssText = 'max-width:420px;padding:20px;text-align:center;line-height:1.6';
+    message.textContent = 'CRM chưa tải xong. Có thể kết nối chậm hoặc bản cập nhật chưa được tải đầy đủ. Các thay đổi đang chờ lưu trên trình duyệt vẫn được giữ.';
+    const retry = document.createElement('button');
+    retry.type = 'button';
+    retry.textContent = 'Tải lại CRM';
+    retry.style.cssText = 'display:block;margin:14px auto 0;padding:10px 18px;border:0;border-radius:8px;background:#2563eb;color:#fff;cursor:pointer';
+    retry.onclick = () => location.reload();
+    message.appendChild(retry);
+    boot.replaceChildren(message);
+  }
+  const timer = setTimeout(showFailure, 20000);
+  const observer = new MutationObserver(() => {
+    if (boot.hidden) { clearTimeout(timer); observer.disconnect(); }
+  });
+  observer.observe(boot, { attributes:true, attributeFilter:['hidden'] });
+  window.addEventListener('error', event => {
+    if (event.target?.tagName === 'SCRIPT') showFailure();
+  }, true);
+})();
+</script>
 <!-- Ẩn lớp đăng nhập trong lúc khôi phục phiên để F5 không nhấp nháy về form login. -->
-<iframe id="crmRuntimeFrame" title="Đăng nhập CRM" src="crm-runtime.html?v=20260928-session-save-8" style="display:none;position:fixed;inset:0;width:100%;height:100%;border:0;z-index:2147483647;background:white"></iframe>
+<iframe id="crmRuntimeFrame" title="Đăng nhập CRM" src="crm-runtime.html?v=20260928-clean-status-12" style="display:none;position:fixed;inset:0;width:100%;height:100%;border:0;z-index:2147483647;background:white"></iframe>
 
 
 <div class="bg-aura" style="visibility:hidden"></div>
@@ -2187,10 +2218,7 @@
                 <option value="ALL">Tất cả nhân sự trong phạm vi</option>
               </select>
             </div>
-            <div style="font-size: 12px; color: var(--text-muted); font-weight: 700;">
-              <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #10b981; margin-right: 6px;"></span>
-              <span id="custCountText">6 khách · 5 cột nghiệp vụ</span>
-            </div>
+
           </div>
 
           <div class="table-responsive">
@@ -4659,28 +4687,10 @@
   </div>
 </div>
 
-<script>
-  // Paint the last authenticated shell before the iframe/API finishes restoring.
-  // The reference renderer replaces this static view with the live snapshot.
-  (()=>{
-    try{
-      const session=JSON.parse(sessionStorage.getItem('nvt-crm-session-v1')||'null');
-      if(!session?.token)return;
-      const saved=sessionStorage.getItem('nvt-crm-active-tab-v1')||'tab-dashboard';
-      const target=document.getElementById(saved)||document.getElementById('tab-dashboard');
-      // The Data tab has a legacy static template. Keep the boot screen until
-      // the live renderer replaces it, so F5 never flashes the retired view.
-      if(saved!=='tab-data'){
-        document.getElementById('crmBootScreen')?.setAttribute('hidden','');
-        document.querySelector('.app-shell')?.style.setProperty('visibility','visible');
-        document.querySelectorAll('.tab-section').forEach(section=>section.classList.toggle('active',section===target));
-        document.querySelectorAll('.nav-link[data-tab]').forEach(link=>link.classList.toggle('active',link.dataset.tab===target?.id));
-      }
-    }catch{}
-  })();
-</script>
-<script src="reference-view.js?v=20260928-session-save-8"></script>
-<script src="reference-crm.js?v=20260928-session-save-8"></script>
+
+<script src="reference-view.js?v=20260928-clean-status-12"></script>
+<script src="customer-save-queue.js?v=20260928-clean-status-12"></script>
+<script src="reference-crm.js?v=20260928-clean-status-12"></script>
 <script src="support-chat-widget.js?v=20260926-livechat-scroll-3"></script>
 <script>
   (() => {

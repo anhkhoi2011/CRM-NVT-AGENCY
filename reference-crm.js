@@ -210,9 +210,76 @@
   const fmtDate=v=>{const d=String(v||'');const m=d.match(/^(\d{4})-(\d{2})-(\d{2})(.*)$/);return m?`${m[3]}/${m[2]}/${m[1]}${m[4]}`:d;};
   const fromDay=days=>{const d=new Date(data.today+'T00:00:00Z');d.setUTCDate(d.getUTCDate()-days+1);return d.toISOString().slice(0,10);};
   const renders={customers:renderCustomerTable,care:renderCareView,queue:renderDataQueue,orders:renderOrdersTable,drawer:openDrawerForCust,careOpen:openCareGroupModal,careOptions:updateCareGroupOptions,switchTab};
+  let customerDraftOwner='';
+  const customerDraftValues=new Map();
+  const draftStorageKey=()=> 'nvt-crm-customer-edits-v1:'+customerDraftOwner;
+  const selectionKey=p=>p.kind+':'+p.id+(p.kind==='field'?':'+p.fieldId:'');
+  function selectionAction(payload,restored=false){return async()=>{
+    const session=api?.sessionIdentity();
+    if(!session||session.id!==payload.accountId)throw Error('Phiên đăng nhập đã thay đổi. Bản nháp vẫn được giữ theo tài khoản.');
+    if(session.conflict)throw Error('Lần lưu trước đang xung đột. Bản nháp được giữ lại để kiểm tra.');
+    if(restored){
+      const value=api.customerSelection(payload.id,payload.kind,payload.fieldId);
+      if(JSON.stringify(value)===JSON.stringify(payload.value))return;
+      if(JSON.stringify(value)!==JSON.stringify(payload.base))throw Error('Ô này đã được cập nhật từ nơi khác. Bản nháp được giữ lại, chưa ghi đè.');
+    }
+    return payload.kind==='field'?api.updateField(payload.id,payload.fieldId,payload.value):payload.kind==='leader'?api.assignLeader(payload.id,payload.value):api.assign(payload.id,payload.value);
+  };}
+  function restoreCustomerSelections(){
+    if(customerDraftOwner===data.user.id)return;
+    customerDraftOwner=data.user.id;customerDraftValues.clear();
+    try{
+      const records=JSON.parse(sessionStorage.getItem(draftStorageKey())||'[]');
+      if(!Array.isArray(records)||records.some(r=>!r.payload||r.payload.accountId!==customerDraftOwner||!['field','leader','sale'].includes(r.payload.kind)))throw Error('Bản nháp không hợp lệ.');
+      for(const {payload} of records)customerDraftValues.set(selectionKey(payload),payload.value);
+      customerSaveQueue.restore(records,payload=>selectionAction(payload,true));
+      if(records.length&&q('#tab-customers.active'))fillCustomerOptions();
+    }catch(error){referenceNotice(error.message,'error');}
+  }
+
+  const customerSaveQueue=createCustomerSaveQueue({
+    isBusy:()=>working||workflowBusy,
+    persist:records=>{
+      if(!customerDraftOwner)return;
+      if(records.length)sessionStorage.setItem(draftStorageKey(),JSON.stringify(records));
+      else sessionStorage.removeItem(draftStorageKey());
+    },
+    setBusy:value=>{working=value;},
+    onChange:({pending,error,running})=>{
+      if(!error){
+        q('#customerSaveStatus')?.remove();
+        if(!pending&&!running){customerDraftValues.clear();refresh();}
+        return;
+      }
+      let status=q('#customerSaveStatus');
+      if(!status){
+        status=document.createElement('div');status.id='customerSaveStatus';status.setAttribute('role','status');status.setAttribute('aria-live','polite');
+        status.style.cssText='position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:2147483000;max-width:calc(100vw - 32px);padding:9px 14px;border-radius:10px;background:#fff;border:1px solid #dbe3ed;box-shadow:0 4px 18px #0f172a18;font-size:13px;color:#334155;';
+        document.body.appendChild(status);
+      }
+      status.hidden=false;status.replaceChildren();
+      const label=document.createElement('span');
+      label.textContent='Chưa lưu được. Lựa chọn đang được giữ lại.';status.appendChild(label);
+      if(error){
+        status.title=error.message||'Không kết nối được máy chủ';
+        const retry=document.createElement('button');retry.type='button';retry.textContent='Thử lưu lại';retry.style.cssText='margin-left:10px;cursor:pointer;';retry.onclick=()=>customerSaveQueue.retry();status.appendChild(retry);
+      }else status.removeAttribute('title');
+
+    }
+  });
+  function saveCustomerSelection(kind,id,value,fieldId){
+    if(!data?.user?.id)return;
+    const payload={kind,id,fieldId,value:structuredClone(value),accountId:data.user.id};
+    customerDraftOwner=data.user.id;
+    const key=selectionKey(payload);
+    payload.base=structuredClone(customerDraftValues.has(key)?customerDraftValues.get(key):api.customerSelection(id,kind,fieldId));
+    customerDraftValues.set(key,payload.value);
+    customerSaveQueue.enqueue(key,selectionAction(payload),payload);
+  }
+  window.addEventListener('beforeunload',event=>{if(customerSaveQueue.pending){event.preventDefault();event.returnValue='';}});
   // Không cho hai lần bấm tạo cùng lúc. Runtime giữ requestId nếu mất phản hồi server.
   async function run(action,done) {
-    if(working){window.alert('Đang lưu thay đổi trước. Vui lòng chờ rồi chọn lại.');return;} if(!api||!data||!api.snapshot())return;
+    if(working||customerSaveQueue.pending){referenceNotice('Đang lưu lựa chọn. Bạn có thể tiếp tục chọn trong bảng.');return null;} if(!api||!data||!api.sessionIdentity())return;
     working=true;
     try { const result=await action(); if(done)done(result); refresh(true); return result; }
     catch(e){window.alert(e.message||'Không lưu được dữ liệu.');refresh(true); return null;}
@@ -226,12 +293,12 @@
     appState.customers.forEach(c=>{const original=customersById.get(c.id);data.fields.forEach(f=>{const value=original.customFields?.[f.id];c[f.id]=Array.isArray(value)?value.map(esc):esc(value||'');});});
   }
   // Modal dùng đúng thành phần và màu sắc của giao diện tham chiếu.
-  function editor(title, body, onSave) {
+  function editor(title, body, onSave, background=false) {
     q('#referenceEditor')?.remove();const modal=document.createElement('div');modal.id='referenceEditor';modal.className='modal-overlay open';ensureReferenceEditorStyles();
     modal.innerHTML=`<form class="modal-card reference-editor-card" role="dialog" aria-modal="true" aria-labelledby="refEditorTitle"><div class="modal-header"><h3 id="refEditorTitle">${esc(title)}</h3><button type="button" class="modal-close-btn" data-editor-close aria-label="Đóng">×</button></div><div class="modal-body reference-editor-body">${body}<p data-editor-error role="alert"></p></div><div class="modal-footer"><button type="button" class="btn-action btn-secondary" data-editor-close>Đóng</button>${onSave?'<button class="btn-action btn-primary" type="submit">Lưu</button>':''}</div></form>`;
-    document.body.appendChild(modal);modal.querySelectorAll('[data-editor-close]').forEach(n=>n.onclick=()=>{if(!working){modal.remove();refresh(true);}});
-    modal.querySelector('form').onsubmit=async e=>{e.preventDefault();if(!onSave||working)return;working=true;const controls=Array.from(e.currentTarget.elements),disabled=controls.map(n=>n.disabled);modal.querySelector('[data-editor-error]').textContent='';
-      try{const operation=onSave();controls.forEach(n=>n.disabled=true);await operation;modal.remove();refresh(true);}catch(error){modal.querySelector('[data-editor-error]').textContent=error.message;}finally{working=false;controls.forEach((n,i)=>n.disabled=disabled[i]);}
+    document.body.appendChild(modal);modal.querySelectorAll('[data-editor-close]').forEach(n=>n.onclick=()=>{if(background||!working){modal.remove();refresh(true);}});
+    modal.querySelector('form').onsubmit=async e=>{e.preventDefault();if(!onSave||(!background&&working))return;if(!background)working=true;const controls=Array.from(e.currentTarget.elements),disabled=controls.map(n=>n.disabled);modal.querySelector('[data-editor-error]').textContent='';
+      try{const operation=onSave();controls.forEach(n=>n.disabled=true);await operation;modal.remove();refresh(true);}catch(error){modal.querySelector('[data-editor-error]').textContent=error.message;}finally{if(!background)working=false;controls.forEach((n,i)=>n.disabled=disabled[i]);}
     };return modal;
   }
   function ensureReferenceEditorStyles(){
@@ -269,12 +336,12 @@
   const formField=(label,html)=>`<div class="form-group" style="margin-bottom:14px"><label for="${html.match(/id="([^"]+)"/)?.[1]||''}" style="display:block">${esc(label)}</label>${html}</div>`;
   const validColor=color=>/^#[a-f0-9]{6}$/i.test(color)?color:'#64748b';
   function fieldControl(cell,field,customer) {
-    const value=customer.customFields?.[field.id]??'',editable=['ADMIN','MANAGER','LEADER','SALE'].includes(data.user.actualRole||data.user.role);
+    let value=customerDraftValues.has('field:'+customer.id+':'+field.id)?customerDraftValues.get('field:'+customer.id+':'+field.id):(customer.customFields?.[field.id]??'');const editable=['ADMIN','MANAGER','LEADER','SALE'].includes(data.user.actualRole||data.user.role);
     const control=document.createElement(field.type==='SELECT'?'select':field.type==='NOTE'?'textarea':field.type==='MULTI_SELECT'?'button':'input');
     control.className='chip';control.style.cssText='width:210px;max-width:210px;padding:5px 8px;border-radius:6px;font:inherit;font-size:11px;font-weight:700;border:1px solid var(--border);';
     const applyOptionColor=next=>{const color=validColor(field.options?.find(o=>o.value===next)?.color);control.style.color=color;control.style.backgroundColor=color+'18';};
     applyOptionColor(value);
-    const save=next=>{control.blur();return run(()=>api.updateField(customer.id,field.id,next));};
+    const save=next=>{value=next;control.blur();return saveCustomerSelection('field',customer.id,next,field.id);};
     if(field.type==='SELECT'){
       const coloredOption=o=>{const color=validColor(o.color);return '<option value="'+esc(o.value)+'" '+(o.value===value?'selected ':'')+'style="color:'+color+';background-color:'+color+'18;font-weight:700">'+esc(o.label)+'</option>';};
       control.innerHTML=opt('','— Chưa chọn —',value)+(field.options||[]).map(coloredOption).join('');
@@ -282,7 +349,7 @@
     }
     else if(field.type==='MULTI_SELECT'){
       control.type='button';control.textContent=(field.options||[]).filter(o=>[].concat(value).includes(o.value)).map(o=>o.label).join(', ')||'— Chọn —';
-      control.onclick=()=>{const modal=editor(field.label,`<div style="display:flex;flex-wrap:wrap;gap:12px">${field.options.map(o=>`<label class="chip" style="color:${validColor(o.color)};background:${validColor(o.color)}18"><input type="checkbox" value="${esc(o.value)}" ${[].concat(value).includes(o.value)?'checked':''}> ${esc(o.label)}</label>`).join('')}</div>`,()=>api.updateField(customer.id,field.id,Array.from(modal.querySelectorAll('input:checked'),n=>n.value)));};
+      control.onclick=()=>{const modal=editor(field.label,`<div style="display:flex;flex-wrap:wrap;gap:12px">${field.options.map(o=>`<label class="chip" style="color:${validColor(o.color)};background:${validColor(o.color)}18"><input type="checkbox" value="${esc(o.value)}" ${[].concat(value).includes(o.value)?'checked':''}> ${esc(o.label)}</label>`).join('')}</div>`,()=>{const next=Array.from(modal.querySelectorAll('input:checked'),n=>n.value);value=next;control.textContent=(field.options||[]).filter(o=>next.includes(o.value)).map(o=>o.label).join(', ')||'— Chọn —';saveCustomerSelection('field',customer.id,next,field.id);},true);};
     }else if(field.type==='CHECKBOX'){control.type='checkbox';control.checked=value===true;control.onchange=()=>save(control.checked);}
     else{control.value=value;control.maxLength=field.type==='NOTE'?5000:500;control.onchange=()=>save(control.value);}
     control.disabled=!editable;control.dataset.customerField=field.id;control.setAttribute('aria-label',field.label+' · '+customer.name);cell.replaceChildren(control);
@@ -329,6 +396,7 @@
       }
       // Dùng ID để lưu; tên và số điện thoại chỉ dùng để hiển thị.
       const selectOwner=(cell,kind,people,value,editable)=>{
+        if(customerDraftValues.has(kind+':'+c.id))value=customerDraftValues.get(kind+':'+c.id);
         const select=document.createElement('select');select.className='chip';select.style.cssText='width:210px;max-width:210px;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-surface);font:inherit;font-size:11px';
         select.dataset.assignment=kind;select.setAttribute('aria-label',(kind==='leader'?'Team / Leader':'Sale phụ trách')+' · '+c.name);
         select.innerHTML=opt('',kind==='leader'?'\u2014 Ch\u01b0a ch\u1ecdn Leader \u2014':'\u2014 Ch\u01b0a ph\u00e2n Sale \u2014',value)+people.map(m=>{
@@ -336,7 +404,7 @@
           return '<option value="'+esc(m.id)+'" '+(m.id===value?'selected ':'')+'>'+esc(label)+'</option>';
         }).join('');
         select.disabled=!editable;if(kind==='leader')select.options[0].disabled=true;
-        select.onchange=()=>{const next=select.value;select.blur();run(()=>kind==='leader'?api.assignLeader(c.id,next):api.assign(c.id,next));};cell.replaceChildren(select);
+        select.onchange=()=>{const next=select.value;select.blur();saveCustomerSelection(kind,c.id,next);};cell.replaceChildren(select);
       };
       const pending=(data.offers||[]).find(o=>o.customerId===c.id&&o.status==='PENDING');
       const staff=data.members.filter(m=>m.active!==false),managers=staff.filter(m=>m.role==='MANAGER'),leaders=staff.filter(m=>m.role==='LEADER');
@@ -2335,6 +2403,7 @@
     if(force||renderedTabs.get(id)!==key){job[0]();renderedTabs.set(id,key);}
   }
   function refresh(force=false) {
+    if(customerSaveQueue.pending)return;
     normalizeAccountingMenu();
     if(!force&&(document.hidden||working||workflowBusy||q('.modal-overlay.open')||['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName)))return;
     const runtime=frame.contentWindow;
@@ -2399,9 +2468,10 @@
     q('#toggleLeaderDistribution').disabled=data.user.role!=='ADMIN';q('#assignmentModeSelect').disabled=data.user.role!=='ADMIN';q('#toggleLeaderDistribution').checked=data.leaderDistribution.enabled===true;
     q('#assignmentModeSelect').value=data.settings.assignmentMode||'MANUAL';
     text('autoStatWaiting',data.customers.filter(c=>!c.leaderId).length);text('autoStatLeaders',(data.leaderDistribution.enabledLeaderIds||[]).length);
+    restoreCustomerSelections();
   }
-  updateCustomerClass=(id,value)=>run(()=>api.classify(id,value));
-  assignCustomerSale=(id,value)=>run(()=>api.assign(id,value));
+  updateCustomerClass=(id,value)=>saveCustomerSelection('field',id,value,'customerClass');
+  assignCustomerSale=(id,value)=>saveCustomerSelection('sale',id,value);
   openNewCustomerModal=function(){
     if(!data)return;
     const role=data.user.actualRole||data.user.role,currentId=data.user.id,all=data.members.filter(m=>m.active!==false&&m.active!==0&&m.active!=='0'&&m.active!==null&&m.active!==undefined),leaders=new Set(all.filter(m=>m.role==='LEADER'&&m.managerId===currentId).map(m=>m.id));
@@ -3144,9 +3214,12 @@
   if(!q('#liveClockDisplay')){const clock=document.createElement('time');clock.id='liveClockDisplay';clock.setAttribute('aria-label','Giờ hiện tại');clock.style.cssText='font:500 11px var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-muted);white-space:nowrap';q('#themeBtn')?.before(clock);updateLiveClock();}
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();});
   // Không để màn hình chờ quay vô hạn khi iframe đăng nhập khởi tạo chậm/lỡ sự kiện load.
+  const bootDeadline=Date.now()+20000;
   const revealLoginFallback=()=>{
-    if(data||!bootScreen)return;
+    if(data||!bootScreen||Date.now()>bootDeadline)return;
     const runtime=frame.contentWindow;
+    try{refresh(true);}catch(error){console.error('[crm-boot]',error);return;}
+    if(data)return;
     if(runtime?.crmRuntimeBooted!==true){bootFallbackTimer=setTimeout(revealLoginFallback,250);return;}
     if(runtime?.crmRuntimeAuthState!=='unauthenticated'){bootFallbackTimer=setTimeout(revealLoginFallback,250);return;}
     bootScreen.setAttribute('hidden','');
@@ -3154,6 +3227,9 @@
     frame.style.display='block';
     frame.classList.add('is-login-visible');
   };
+  window.addEventListener('crm:session-changed',()=>refresh(true));
+  // Catch a session that became ready before this script attached its listener.
+  refresh(true);
   bootFallbackTimer=setTimeout(revealLoginFallback,250);
   refreshTimer=setInterval(()=>{if(!document.hidden){refresh();if(q('#tab-audit.active'))loadUserActivity();}},15000);frame.addEventListener('load',()=>refresh(true));
 })();

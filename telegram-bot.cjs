@@ -632,7 +632,7 @@ async function notifyNewLead(customer, offer = null) {
 
 async function notifyWebhookLeadAdmins(customer, receivedAt, deliveredChatIds = [], source = null) {
   try {
-    const admins = await dbQuery("SELECT telegram_chat_id FROM users WHERE role = 'ADMIN' AND active = 1 AND telegram_chat_id IS NOT NULL");
+    const admins = String(SYSTEM_ADMIN_CHAT_ID || '').trim() ? [] : await dbQuery("SELECT telegram_chat_id FROM users WHERE role = 'ADMIN' AND active = 1 AND telegram_chat_id IS NOT NULL");
     // Data webhook phải luôn về đúng hộp thư Admin đã cấu hình, không phụ thuộc
     // việc Admin đã liên kết Telegram trong hồ sơ CRM hay chưa. Nếu chưa có
     // biến môi trường thì mới dùng các tài khoản Admin đã liên kết làm fallback.
@@ -695,7 +695,7 @@ async function notifyDuplicateOwner(customer, notice) {
 
 async function notifyDuplicateLeadAdmins(customer, receivedAt, ownerSaleId = null, waitingForAcceptance = false, source = null) {
   try {
-    const admins = await dbQuery("SELECT telegram_chat_id FROM users WHERE role = 'ADMIN' AND active = 1 AND telegram_chat_id IS NOT NULL");
+    const admins = String(SYSTEM_ADMIN_CHAT_ID || '').trim() ? [] : await dbQuery("SELECT telegram_chat_id FROM users WHERE role = 'ADMIN' AND active = 1 AND telegram_chat_id IS NOT NULL");
     const configuredAdminChatId = String(SYSTEM_ADMIN_CHAT_ID || '').trim();
     const linkedAdminChatIds = admins.map(row => row.telegram_chat_id).filter(Boolean).map(String);
     const chatIds = configuredAdminChatId ? [configuredAdminChatId] : [...new Set(linkedAdminChatIds)];
@@ -1024,12 +1024,15 @@ async function runTelegramScheduler() {
            AND meeting_time <= DATE_ADD(NOW(), INTERVAL remind_minutes MINUTE)`
       );
 
+      // Reuse one recipient read for this scan instead of re-querying per meeting.
+      const allStaffToRemind = upcomingMeetings.length
+        ? await dbQuery('SELECT telegram_chat_id, role FROM users WHERE active = 1 AND telegram_chat_id IS NOT NULL')
+        : [];
       for (const mb of upcomingMeetings) {
-        let roleFilter = '';
-        if (mb.target === 'SALE') roleFilter = ` AND role = 'SALE'`;
-        else if (mb.target === 'MANAGERS') roleFilter = ` AND role IN ('ADMIN', 'MANAGER', 'LEADER')`;
-
-        const staffToRemind = await dbQuery(`SELECT telegram_chat_id FROM users WHERE active = 1 AND telegram_chat_id IS NOT NULL${roleFilter}`);
+        const staffToRemind = allStaffToRemind.filter(member =>
+          mb.target === 'SALE' ? member.role === 'SALE' :
+          mb.target === 'MANAGERS' ? ['ADMIN', 'MANAGER', 'LEADER'].includes(member.role) : true
+        );
         const chatIdsToRemind = staffToRemind.map(s => s.telegram_chat_id).filter(Boolean);
 
         const remindText = `⏰ <b>NHẮC NHỞ: CUỘC HỌP SẮP DIỄN RA TRONG ${mb.remind_minutes} PHÚT NỮA!</b>\n\n` +

@@ -120,6 +120,12 @@
       if(!await flushServerPersistence())throw Error('Hoàn tất lưu trước khi đổi Team.');
       managerTeamSelection=leaderId;currentAccount=hydrateSessionAccount({...currentAccount,role:'MANAGER'});closeModal();closeDrawer();return {ok:true};
     },
+    sessionIdentity(){return currentAccount&&serverStateLoaded?{id:currentAccount.id,conflict:serverConflict}:null;},
+    customerSelection(id,kind,fieldId){
+      const customer=customerById(id);
+      if(!currentAccount||!serverStateLoaded||!customer||!canViewCustomer(customer))throw Error('Không còn quyền xem khách hàng trong bản nháp.');
+      return structuredClone(kind==='field'?(customer.customFields?.[fieldId]??''):kind==='leader'?(customer.leaderId||''):(customer.saleId||''));
+    },
     snapshot() {
       if (!currentAccount || !serverStateLoaded) return null;
       if(currentAccount.actualRole==='MANAGER')currentAccount=hydrateSessionAccount(currentAccount);

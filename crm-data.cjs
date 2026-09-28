@@ -69,10 +69,14 @@ async function seedProductCatalog(){
   if(marker.length){await c.commit();return {applied:false,inserted:0};}
   const catalog=require('./product-catalog.json');
   let inserted=0;
+  // Keep ID/SKU comparisons in MySQL so the database collation remains authoritative.
+  const [existingProducts]=catalog.length ? await c.execute(
+   'SELECT candidate.id FROM ('+catalog.map(()=> 'SELECT ? AS id, ? AS sku').join(' UNION ALL ')+') AS candidate WHERE EXISTS (SELECT 1 FROM products p WHERE p.id=candidate.id OR p.sku=candidate.sku)',
+   catalog.flatMap(product=>[product.id,product.sku])
+  ) : [[]];
+  const existingIds=new Set(existingProducts.map(row=>String(row.id)));
   for(const product of catalog){
-   // Không ghi đè sản phẩm đã được Admin sửa; trùng ID hoặc SKU đều được xem là đã có.
-   const [existing]=await c.execute('SELECT id FROM products WHERE id=? OR sku=? LIMIT 1',[product.id,product.sku]);
-   if(existing.length)continue;
+   if(existingIds.has(String(product.id)))continue;
    await c.execute('INSERT INTO products(id,sku,name,category,price,type,rental_months,active) VALUES (?,?,?,?,?,?,?,?)',[product.id,product.sku,product.name,product.category,product.price,product.type,product.rentalMonths,product.active===false?0:1]);
    inserted++;
   }
@@ -87,11 +91,13 @@ async function seedDefaults(){
   const [existing]=await c.query("SELECT setting_key,setting_value FROM system_settings");
   if(!existing.some(r=>r.setting_key==='crm_defaults_v1')){
    const defaults=require('./crm-defaults.json');
+   const [existingCollections]=await c.execute('SELECT DISTINCT collection FROM crm_documents');
+   const presentCollections=new Set(existingCollections.map(row=>String(row.collection)));
    for(const [key,value] of Object.entries(defaults)){
-    const [rows]=await c.execute('SELECT id FROM crm_documents WHERE collection=? LIMIT 1',[key]);
-    if(rows.length)continue;
+    if(presentCollections.has(key))continue;
     const actual=key==='settings'?(parsed(existing.find(r=>r.setting_key==='crm')?.setting_value,value)):value;
     for(const r of LISTS.includes(key)?actual:[actual])await c.execute('INSERT IGNORE INTO crm_documents(collection,id,body,deleted) VALUES (?,?,?,0)',[key,LISTS.includes(key)?r.id:'$',JSON.stringify(r)]);
+    presentCollections.add(key);
    }
    await c.execute("INSERT INTO system_settings(setting_key,setting_value) VALUES ('crm_defaults_v1','true')");
   }
@@ -165,14 +171,21 @@ async function mirrorAttendanceRecords(c,data){
  }
  let legacy=[];
  try{[legacy]=await c.query('SELECT id,user_id,attendance_date,check_in_time,status FROM staff_attendance');}catch{}
+ const changedRecords=new Map();
  for(const row of legacy||[]){
   const rawAt=String(row.check_in_time||'').replace('T',' ');
   const date=String(row.attendance_date||rawAt.slice(0,10)).slice(0,10);
   if(!date||date.length!==10)continue;
   const id=String(row.id||`ATT-${date}-${row.user_id}`),member=data.members.get(String(row.user_id));
   const record=normalize(id,{id,accountId:String(row.user_id),date,at:rawAt||`${date} 00:00:00`,status:row.status,ip:'Telegram',note:'Điểm danh qua Telegram'},member);
+  if(canonical(data.attendance.get(id))!==canonical(record))changedRecords.set(id,record);
   data.attendance.set(id,record);
-  await c.execute('INSERT INTO crm_documents(collection,id,body,deleted) VALUES (?,?,?,0) ON DUPLICATE KEY UPDATE body=VALUES(body),deleted=0',['attendance',id,JSON.stringify(record)]);
+ }
+ // Legacy check-ins rarely change; avoid rewriting all history on every active read.
+ const records=[...changedRecords.values()];
+ for(let offset=0;offset<records.length;offset+=100){
+  const batch=records.slice(offset,offset+100);
+  await c.execute('INSERT INTO crm_documents(collection,id,body,deleted) VALUES '+batch.map(()=>'(?,?,?,0)').join(',')+' ON DUPLICATE KEY UPDATE body=VALUES(body),deleted=0',batch.flatMap(record=>['attendance',record.id,JSON.stringify(record)]));
  }
 }
 // Phạm vi Manager lấy từ bản ghi đã lưu, tuyệt đối không lấy danh sách quyền từ request.

@@ -1552,6 +1552,25 @@ function saveState() {
   if(!currentAccount||!serverStateLoaded)return;
   setSaveStatus('Đang chờ lưu MySQL…');scheduleServerPersistence();
 }
+function pendingWriteStorageKey(accountId=currentAccount?.id){return 'nvt-crm-pending-write-v1:'+accountId;}
+function rememberPendingWrite(request){
+  sessionStorage.setItem(pendingWriteStorageKey(),JSON.stringify({actorId:currentAccount.id,requestId:request.requestId,changes:request.changes,skipAutomatic:request.skipAutomatic===true}));
+}
+async function recoverPendingWrite(account){
+  const raw=sessionStorage.getItem(pendingWriteStorageKey(account.id));
+  if(!raw)return null;
+  const request=JSON.parse(raw);
+  if(request.actorId!==account.id)throw Error('Bản nháp thuộc tài khoản khác.');
+  const controller=typeof AbortController==='function'?new AbortController():null;
+  const timer=controller?setTimeout(()=>controller.abort(),15000):null;
+  try{
+    const response=await fetch(webhookApiBase()+'/api/state',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+serverSyncToken},body:JSON.stringify({requestId:request.requestId,changes:request.changes,skipAutomatic:request.skipAutomatic}),signal:controller?.signal});
+    const payload=await response.json();
+    if(!response.ok)throw Error(payload.error||'Chưa khôi phục được lần lưu trước. Bản nháp vẫn được giữ.');
+    sessionStorage.removeItem(pendingWriteStorageKey(account.id));
+    return payload;
+  }finally{if(timer)clearTimeout(timer);}
+}
 async function flushServerPersistence(requestOptions = {}) {
   clearTimeout(serverSaveTimer);serverSaveTimer=null;
   if(serverSavePromise)return serverSavePromise;
@@ -1565,6 +1584,7 @@ async function flushServerPersistence(requestOptions = {}) {
           serverPendingRequest={requestId:makeRecordId('SAVE'),changes,snapshot:serverRecords(),skipAutomatic:Boolean(requestOptions.skipAutomatic)};
         }
         const request=serverPendingRequest,token=serverSyncToken;
+        rememberPendingWrite(request);
         const controller=typeof AbortController==='function'?new AbortController():null;
         const timeout=setTimeout(()=>controller?.abort(),15000);
         let response;
@@ -1583,6 +1603,7 @@ async function flushServerPersistence(requestOptions = {}) {
           throw new Error(payload.error||`HTTP ${response.status}`);
         }
         applyServerSnapshot(payload,request.snapshot);serverPendingRequest=null;
+        sessionStorage.removeItem(pendingWriteStorageKey());
       }while(hasServerChanges());
       setSaveStatus('Đã lưu MySQL');return true;
     }catch(error){setSaveStatus(error.message+' — chưa lưu, giữ trang mở',true);return false;}
@@ -1617,18 +1638,18 @@ async function readServerState() {
   if(!serverSyncToken||!currentAccount||serverReading||serverSaveRunning||serverSaveTimer||serverConflict)return false;
   if(serverStateLoaded&&(serverPendingRequest||hasServerChanges()))return flushServerPersistence();
   if(serverStateLoaded&&($('#modalRoot')?.children.length||$('#drawerRoot')?.children.length||['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)))return false;
-  serverReading=true;const version=serverMutationVersion,token=serverSyncToken;
+  serverReading=true;const wasLoaded=serverStateLoaded,version=serverMutationVersion,token=serverSyncToken;
   try{
     const controller=typeof AbortController==='function'?new AbortController():null;
     const timeout=controller?setTimeout(()=>controller.abort(),WEBHOOK_FETCH_TIMEOUT_MS):null;
-    let response;
-    try{response=await fetch(webhookApiBase()+'/api/state?passive=1',{headers:{Authorization:'Bearer '+token},cache:'no-store',signal:controller?controller.signal:undefined});}
+    let response,payload;
+    try{response=await fetch(webhookApiBase()+'/api/state?passive=1',{headers:{Authorization:'Bearer '+token},cache:'no-store',signal:controller?controller.signal:undefined});payload=await response.json();}
     finally{if(timeout)clearTimeout(timeout);}
-    const payload=await response.json();if(!response.ok)throw new Error(payload.error||'Không tải được dữ liệu');
+    if(!response.ok)throw new Error(payload.error||'Không tải được dữ liệu');
     if(version!==serverMutationVersion||token!==serverSyncToken||(serverStateLoaded&&hasServerChanges()))return false;
     const before=stableJson(state);applyServerSnapshot(payload);
     setSaveStatus('Đã đồng bộ MySQL');
-    if(before!==stableJson(state)&&!$('#modalRoot')?.children.length&&!$('#drawerRoot')?.children.length&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName))render();
+    if(wasLoaded&&before!==stableJson(state)&&!$('#modalRoot')?.children.length&&!$('#drawerRoot')?.children.length&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName))render();
     return true;
   }catch(error){setSaveStatus(error.message,true);return false;}finally{serverReading=false;}
 }
@@ -2678,7 +2699,7 @@ function customersView() {
   const sourceCell = customer => currentAccount.role === 'ADMIN' ? (() => { const source = customerSourceDetails(customer); const meta = [customer.source, customer.campaign].filter(Boolean).join(' · '); return `<td><div class="cell-main">${escapeHtml(source.name)}</div><div class="cell-sub mono">${source.url ? escapeHtml(source.url) : escapeHtml(source.domain || 'Nguồn chưa được gắn')}</div><div class="cell-sub">${escapeHtml(meta)}</div></td>`; })() : '';
   const columnCount = 7 + tableFields.length + (currentAccount.role === 'ADMIN' ? 1 : 0);
   return pageHead(title, 'Quản lý trạng thái, Sale phụ trách, ghi chú, lịch chăm sóc và sản phẩm đã mua trên cùng hồ sơ.', createButton) +
-    `<section class="panel customer-table-panel"><div class="toolbar"><input id="customerSearch" type="search" placeholder="Ten, SDT, email, Level, ghi chu..." value="${escapeHtml(globalQuery)}"><select id="customerStatusFilter"><option value="ALL">Tất cả trạng thái</option>${Object.entries(STATUS_META).map(([key, meta]) => `<option value="${key}" ${customerStatusFilter === key ? 'selected' : ''}>${escapeHtml(meta.label)}</option>`).join('')}</select>${customerOwnerOptions()}<span class="spacer"></span><span class="data-note">${customers.length} khách · ${tableFields.length} cột nghiệp vụ</span></div><div class="table-wrap"><table class="customer-data-table"><thead><tr><th>Ngày data</th><th>Khách hàng</th>${sourceHeader}<th>Team / Leader</th><th>Sale phụ trách</th>${tableFields.map(field => `<th>${escapeHtml(field.label)}</th>`).join('')}<th>Trạng thái</th><th>Ghi chú mới nhất</th><th></th></tr></thead><tbody>${visibleCustomers.map(customer => { const leader = STAFF.find(person => person.id === customer.leaderId); const dataDate = dataDateParts(customer.createdAt); return `<tr><td class="data-date-cell"><b>${escapeHtml(dataDate.date)}</b><small>${escapeHtml(dataDate.time)}</small></td><td><div class="cell-main">${escapeHtml(customer.name)}</div><div class="cell-sub">${currentAccount.role === 'SALE' && !customer.saleAcceptedAt ? (() => { const offer = state.dataOffers.find(o => o.customerId === customer.id && o.saleId === currentAccount.saleId && o.status === 'PENDING'); return offer ? `<span class="status status-pending">⏱ còn ${Math.floor(offerMinutesLeft(offer) / 60)}h${offerMinutesLeft(offer) % 60}p</span>` : '<span class="status status-pending">Chờ nhận data</span>'; })() : escapeHtml(customer.phone)}</div></td>${sourceCell(customer)}<td><div class="cell-main">${escapeHtml(leader?.name || 'Chưa phân Leader')}</div>${leader ? `<div class="cell-sub">Team ${escapeHtml(customer.teamId)}</div>` : ''}</td><td class="col-staff">${quickSaleControl(customer)}</td>${tableFields.map(field => `<td>${customFieldTableControl(field, customer)}</td>`).join('')}<td>${quickStatusControl(customer)}</td><td><div class="cell-main mono">${escapeHtml(customer.updatedAt.slice(5))}</div><div class="cell-sub note-preview">${escapeHtml(customer.note)}</div></td><td>${currentAccount.role === 'SALE' && !customer.saleAcceptedAt ? `<button class="button button-small button-primary" data-accept-data="${escapeHtml(customer.id)}">Nhận data</button>` : ''}<button class="button button-small" data-open-customer="${escapeHtml(customer.id)}">Chi tiết</button></td></tr>`; }).join('') || `<tr><td colspan="${columnCount}"><div class="empty"><b>Không tìm thấy khách hàng</b><span>Hãy thử từ khóa hoặc bộ lọc khác.</span></div></td></tr>`}</tbody></table></div>${customerPagination}</section>${currentAccount.role === 'ADMIN' ? `<section class="panel" style="margin-top:14px"><div class="panel-head"><div><div class="panel-title">Lịch sử kết nối & cập nhật data</div></div><button class="button button-small" id="importCustomersSecondaryButton">+ Nguồn data</button></div><div class="table-wrap"><table><thead><tr><th>Thời gian</th><th>Nguồn</th><th>File / Endpoint</th><th>Số bản ghi</th><th>Người thực hiện</th><th>Trạng thái</th></tr></thead><tbody>${state.imports.slice(0, 8).map(item => `<tr><td class="mono">${escapeHtml(item.importedAt)}</td><td><b>${escapeHtml(item.source)}</b></td><td>${escapeHtml(item.filename)}</td><td>${number(item.records)}</td><td>${escapeHtml(item.actor)}</td><td>${item.status === 'SUCCESS' ? '<span class="status status-paid">Thành công</span>' : '<span class="status status-cancelled">Thất bại</span>'}</td></tr>`).join('')}</tbody></table></div></section>` : ''}`;
+    `<section class="panel customer-table-panel"><div class="toolbar"><input id="customerSearch" type="search" placeholder="Ten, SDT, email, Level, ghi chu..." value="${escapeHtml(globalQuery)}"><select id="customerStatusFilter"><option value="ALL">Tất cả trạng thái</option>${Object.entries(STATUS_META).map(([key, meta]) => `<option value="${key}" ${customerStatusFilter === key ? 'selected' : ''}>${escapeHtml(meta.label)}</option>`).join('')}</select>${customerOwnerOptions()}<span class="spacer"></span></div><div class="table-wrap"><table class="customer-data-table"><thead><tr><th>Ngày data</th><th>Khách hàng</th>${sourceHeader}<th>Team / Leader</th><th>Sale phụ trách</th>${tableFields.map(field => `<th>${escapeHtml(field.label)}</th>`).join('')}<th>Trạng thái</th><th>Ghi chú mới nhất</th><th></th></tr></thead><tbody>${visibleCustomers.map(customer => { const leader = STAFF.find(person => person.id === customer.leaderId); const dataDate = dataDateParts(customer.createdAt); return `<tr><td class="data-date-cell"><b>${escapeHtml(dataDate.date)}</b><small>${escapeHtml(dataDate.time)}</small></td><td><div class="cell-main">${escapeHtml(customer.name)}</div><div class="cell-sub">${currentAccount.role === 'SALE' && !customer.saleAcceptedAt ? (() => { const offer = state.dataOffers.find(o => o.customerId === customer.id && o.saleId === currentAccount.saleId && o.status === 'PENDING'); return offer ? `<span class="status status-pending">⏱ còn ${Math.floor(offerMinutesLeft(offer) / 60)}h${offerMinutesLeft(offer) % 60}p</span>` : '<span class="status status-pending">Chờ nhận data</span>'; })() : escapeHtml(customer.phone)}</div></td>${sourceCell(customer)}<td><div class="cell-main">${escapeHtml(leader?.name || 'Chưa phân Leader')}</div>${leader ? `<div class="cell-sub">Team ${escapeHtml(customer.teamId)}</div>` : ''}</td><td class="col-staff">${quickSaleControl(customer)}</td>${tableFields.map(field => `<td>${customFieldTableControl(field, customer)}</td>`).join('')}<td>${quickStatusControl(customer)}</td><td><div class="cell-main mono">${escapeHtml(customer.updatedAt.slice(5))}</div><div class="cell-sub note-preview">${escapeHtml(customer.note)}</div></td><td>${currentAccount.role === 'SALE' && !customer.saleAcceptedAt ? `<button class="button button-small button-primary" data-accept-data="${escapeHtml(customer.id)}">Nhận data</button>` : ''}<button class="button button-small" data-open-customer="${escapeHtml(customer.id)}">Chi tiết</button></td></tr>`; }).join('') || `<tr><td colspan="${columnCount}"><div class="empty"><b>Không tìm thấy khách hàng</b><span>Hãy thử từ khóa hoặc bộ lọc khác.</span></div></td></tr>`}</tbody></table></div>${customerPagination}</section>${currentAccount.role === 'ADMIN' ? `<section class="panel" style="margin-top:14px"><div class="panel-head"><div><div class="panel-title">Lịch sử kết nối & cập nhật data</div></div><button class="button button-small" id="importCustomersSecondaryButton">+ Nguồn data</button></div><div class="table-wrap"><table><thead><tr><th>Thời gian</th><th>Nguồn</th><th>File / Endpoint</th><th>Số bản ghi</th><th>Người thực hiện</th><th>Trạng thái</th></tr></thead><tbody>${state.imports.slice(0, 8).map(item => `<tr><td class="mono">${escapeHtml(item.importedAt)}</td><td><b>${escapeHtml(item.source)}</b></td><td>${escapeHtml(item.filename)}</td><td>${number(item.records)}</td><td>${escapeHtml(item.actor)}</td><td>${item.status === 'SUCCESS' ? '<span class="status status-paid">Thành công</span>' : '<span class="status status-cancelled">Thất bại</span>'}</td></tr>`).join('')}</tbody></table></div></section>` : ''}`;
 }
 
 // Ty trong rieng trong Team, khong thay doi ty trong Admin chia xuong Leader.
@@ -5864,6 +5885,14 @@ async function startSession(account, restored = false, token = serverSyncToken, 
   selectedPoolIds.clear();
   customerOwnerFilter = 'ALL';
   try { sessionStorage.setItem(SESSION_KEY, JSON.stringify({ token: serverSyncToken })); } catch (error) {}
+  try {
+    const recovered=await recoverPendingWrite(account);
+    if(recovered)initialSnapshot=recovered;
+  } catch(error) {
+    // Keep the draft, but do not block authenticated read access or overwrite conflicts.
+    serverConflict=true;
+    setSaveStatus(error.message,true);
+  }
   if(initialSnapshot&&initialSnapshot.state){applyServerSnapshot(initialSnapshot);} else if(!await syncServerState()){
     // Không xóa token khi MySQL hoặc mạng lỗi tạm thời; initialize() sẽ thử khôi phục lại.
     $('#appShell').classList.add('is-hidden');
@@ -5876,8 +5905,8 @@ async function startSession(account, restored = false, token = serverSyncToken, 
   if((['SALE','LEADER'].includes(currentAccount.role)||currentAccount.actualRole==='MANAGER')&&!currentAccount.accountId)currentView='profile';
   $('#loginScreen').classList.add('is-hidden');$('#appShell').classList.remove('is-hidden');
   try { if (window.parent && window.parent !== window) window.parent.dispatchEvent(new Event('crm:session-changed')); } catch (error) {}
-  // Máy chủ đã ghi nhật ký đăng nhập; không tạo thêm giao dịch toàn bộ state ở đây.
-  render();
+  // Giao diện ngoài tự dựng snapshot; không dựng thêm dashboard trong iframe ẩn.
+  if (!(window.parent && window.parent !== window && window.crmApi)) render();
   startWebhookConsumer();
   startServerSyncPolling();
   refreshNavigationCounts();
@@ -6267,6 +6296,7 @@ async function initialize() {
   } finally {
     // This runs only after session restoration and the MySQL state check finish.
     window.crmRuntimeBooted = true;
+    try { if (window.parent && window.parent !== window) window.parent.dispatchEvent(new Event('crm:session-changed')); } catch {}
   }
 }
 

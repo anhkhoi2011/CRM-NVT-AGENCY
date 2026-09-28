@@ -175,7 +175,6 @@ window.setCarePage = setCarePage;
       return matchText && matchStatus && matchAssign && matchOwner && matchesCustomerColumnFilters(c);
     });
 
-    document.getElementById('custCountText').innerText = `${filtered.length} khách · 5 cột nghiệp vụ`;
     
     const totalCust = appState.customers.length;
     const connectedCust = appState.customers.filter(c => c.callStatus === 'Đã gọi được' || c.status === 'PAID' || c.status === 'CONTACTED').length;

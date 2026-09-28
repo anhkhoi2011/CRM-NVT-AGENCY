@@ -2,11 +2,12 @@
 const test=require('node:test'), assert=require('node:assert/strict'), fs=require('node:fs'), vm=require('node:vm');
 // CSDL giả lập giao dịch để kiểm tra logic; không thay thế thử nghiệm MySQL trên hosting.
 function fixture(){
- let db={docs:[],customers:[],orders:[],products:[{id:'p1',sku:'TEST',name:'Test product',category:'Test',price:120,type:'RENTAL',rental_months:3,active:1,created_at:'2026-08-01 08:00:00'}],users:[],history:[],webhookEvents:[]};let backup,fail=false;
- const events=[];
+ let db={docs:[],customers:[],orders:[],products:[{id:'p1',sku:'TEST',name:'Test product',category:'Test',price:120,type:'RENTAL',rental_months:3,active:1,created_at:'2026-08-01 08:00:00'}],users:[],history:[],webhookEvents:[],staffAttendance:[]};let backup,fail=false;
+ const events=[],queries=[];
  const c={async beginTransaction(){backup=structuredClone(db);events.push('begin');},async commit(){events.push('commit');},async rollback(){db=backup;events.push('rollback');},release(){events.push('release');},
  async query(sql){return this.execute(sql,[]);},
  async execute(sql,v){
+  queries.push({sql,values:v});
   if(sql.includes('FROM crm_write_lock')){events.push('lock');return [[{id:1}]];}
   if(sql.startsWith('INSERT INTO webhook_events')){if(!db.webhookEvents.some(e=>e.dedupe===v[1]))db.webhookEvents.push({id:v[0],dedupe:v[1]});return [{}];}
   if(sql.includes('FROM webhook_events WHERE dedupe_key'))return [db.webhookEvents.filter(e=>e.dedupe===v[0])];
@@ -19,11 +20,19 @@ function fixture(){
   if(sql.startsWith('SELECT * FROM crm_documents WHERE collection IN'))return [structuredClone(db.docs.filter(row=>v.includes(row.collection)))];
   if(sql.includes('FROM system_settings'))return [[{setting_key:'crm_defaults_v1',setting_value:'true'}]];
   if(sql.includes('FROM users'))return [structuredClone(db.users)];
+  if(sql.includes('FROM staff_attendance'))return [structuredClone(db.staffAttendance)];
   for(const key of ['customers','orders','products'])if(sql===`SELECT * FROM ${key}`)return [structuredClone(db[key])];
   if(sql.startsWith('SELECT actor_id'))return [db.history.filter(x=>x.request_id===v[0])];
   if(sql.startsWith('INSERT INTO crm_changes')){db.history.push({request_id:v[0],actor_id:v[1],changes_json:JSON.parse(v[2])});return [{}];}
   if(sql.startsWith('INSERT INTO crm_documents')){
    if(fail)throw new Error('Disk/database failure');
+   if(sql.includes('VALUES (?,?,?,0)')){
+    for(let i=0;i<v.length;i+=3){
+     const row={collection:v[i],id:v[i+1],body:JSON.parse(v[i+2]),deleted:0};
+     db.docs=db.docs.filter(x=>x.collection!==row.collection||x.id!==row.id);db.docs.push(row);
+    }
+    return [{}];
+   }
    const row={collection:v[0],id:v[1],body:JSON.parse(v[2]),deleted:v[3]||0};db.docs=db.docs.filter(x=>x.collection!==row.collection||x.id!==row.id);db.docs.push(row);return [{}];
   }
   if(sql.startsWith('INSERT INTO customers')){
@@ -42,7 +51,7 @@ function fixture(){
  vm.runInNewContext(fs.readFileSync('crm-data.cjs','utf8'),{module,require:name=>name==='./db.js'?{pool:{query:async()=>[{}],getConnection:async()=>c}}:require(name),Buffer,console});
  const webhook={exports:{}};
  vm.runInNewContext(fs.readFileSync('webhook-store.cjs','utf8'),{module:webhook,URL,require:name=>name==='./db.js'?{dbConfigured:true,pool:{query:async()=>[{}],getConnection:async()=>c}}:name==='./crm-data.cjs'?module.exports:require(name)});
- return {api:module.exports,webhook:webhook.exports,events,get db(){return db;},fail(){fail=true;}};
+ return {api:module.exports,webhook:webhook.exports,events,queries,get db(){return db;},fail(){fail=true;}};
 }
 const admin={id:'admin',role:'ADMIN'},sale={id:'sale',role:'SALE',teamId:'T',leaderId:'lead'};
 const customer={id:'c1',name:'Khách thử',phone:'0912345678',saleId:'sale',teamId:'T',leaderId:'lead',status:'NEW',createdAt:'2026-08-01 09:00:00',customFields:{level:'L3'}};
@@ -298,6 +307,13 @@ function productSeedFixture(existing=[],failSku=''){
  const events=[];
  const c={async beginTransaction(){backup={products:structuredClone(products),marker};events.push('begin');},async commit(){events.push('commit');},async rollback(){products=backup.products;marker=backup.marker;events.push('rollback');},release(){},async query(sql){if(sql.includes('crm_write_lock'))return [[{id:1}]];throw new Error('Unexpected query: '+sql);},async execute(sql,v=[]){
   if(sql.includes("setting_key='product_catalog_20260914_v1'"))return [marker?[{setting_key:'product_catalog_20260914_v1'}]:[]];
+  if(sql.startsWith('SELECT candidate.id FROM')){
+   events.push('catalog-read');
+   const matched=[];
+   const same=(a,b)=>String(a||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()===String(b||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+   for(let i=0;i<v.length;i+=2)if(products.some(item=>same(item.id,v[i])||same(item.sku,v[i+1])))matched.push({id:v[i]});
+   return [matched];
+  }
   if(sql.startsWith('SELECT id FROM products'))return [products.filter(item=>item.id===v[0]||item.sku===v[1]).map(item=>({id:item.id}))];
   if(sql.startsWith('INSERT INTO products')){if(v[1]===failSku)throw new Error('Catalog failure');products.push({id:v[0],sku:v[1],name:v[2],category:v[3],price:v[4],type:v[5],rental_months:v[6],active:v[7]});return [{}];}
   if(sql.startsWith('INSERT INTO system_settings')){marker=true;return [{}];}
@@ -614,11 +630,13 @@ test('Đăng nhập thành công mở lại nút để có thể đăng nhập t
  assert.equal(vm.runInContext("document.querySelector('#loginForm button[type=\"submit\"]').disabled",c),false);
 });
 
-test('Reference layout retains every original ID and the exact stylesheet',()=>{
+test('Reference layout retains active IDs and stylesheet, excluding removed customer count',()=>{
  const h=fs.readFileSync('index.html','utf8'),layout=JSON.parse(fs.readFileSync('reference-layout.json','utf8'));
  const css=[...h.matchAll(/<style>([\s\S]*?)<\/style>/g)].map(m=>m[1]).join('\n');
  assert.equal(require('node:crypto').createHash('sha256').update(css).digest('hex'),layout.styleHash);
- for(const id of layout.ids)assert.ok(h.includes(`id="${id}"`),id);
+ // Customer count badge removed at user request; remaining IDs stay compatible.
+ for(const id of layout.ids.filter(id=>id!=='custCountText'))assert.ok(h.includes(`id="${id}"`),id);
+ assert.ok(!h.includes('id="custCountText"'));
  assert.doesNotMatch(h,/<link[^>]+href=".*crm(?:-modern)?\.css/);
 });
 test('Distribution rounds stay visible when the current round has no enabled recipients',()=>{
@@ -1307,7 +1325,7 @@ test('Field retry persists the latest selection after an earlier save failed',as
 test('Restoring shell never exposes cached customer controls before runtime is ready',()=>{
  const source=fs.readFileSync('reference-crm.js','utf8');
  const start=source.indexOf('  function refresh(force=false) {'),end=source.indexOf('    const first=!data;',start);
- const context={normalizeAccountingMenu(){},document:{hidden:false,activeElement:{}},working:false,workflowBusy:false,q:()=>null,frame:{contentWindow:{crmApi:{snapshot:()=>null},crmRuntimeAuthState:'restoring',crmRuntimeBooted:false}},api:null,data:null,rendered:false};
+ const context={customerSaveQueue:{pending:0},normalizeAccountingMenu(){},document:{hidden:false,activeElement:{}},working:false,workflowBusy:false,q:()=>null,frame:{contentWindow:{crmApi:{snapshot:()=>null},crmRuntimeAuthState:'restoring',crmRuntimeBooted:false}},api:null,data:null,rendered:false};
  vm.createContext(context);vm.runInContext(source.slice(start,end)+' rendered=true; } refresh(true);',context);
  assert.equal(context.rendered,false);assert.equal(context.data,null);
 });
@@ -1343,4 +1361,24 @@ test('Failed session restoration keeps token and exits the loading screen',async
  assert.equal(c.window.crmRuntimeBooted,true);assert.equal(c.window.crmRuntimeAuthState,'unauthenticated');
  assert.equal(JSON.parse(c.sessionStorage.getItem('nvt-crm-session-v1')).token,'saved-token');
  assert.match(c.document.querySelector('#loginError').textContent,/Chưa tải/);
+});
+
+
+test('Pending SQL write is replayed with the same request ID after reload and cleared only on acknowledgement',async()=>{
+ const c=frontend(),calls=[];
+ vm.runInContext("currentAccount={id:'admin',role:'ADMIN'};serverSyncToken='token';serverStateLoaded=true;",c);
+ const request={requestId:'SAVE-stable',changes:[{key:'customers',id:'c',base:null,value:{id:'c',name:'Saved'}}],skipAutomatic:false};
+ c.sessionStorage.setItem('nvt-crm-pending-write-v1:admin',JSON.stringify({actorId:'admin',...request}));
+ c.fetch=async(url,options)=>{calls.push({url,body:JSON.parse(options.body)});return {ok:true,json:async()=>({ok:true,state:vm.runInContext('initialState()',c),versions:{}})};};
+ const result=await vm.runInContext("recoverPendingWrite({id:'admin'})",c);
+ assert.equal(result.ok,true);assert.equal(calls.length,1);assert.equal(calls[0].body.requestId,'SAVE-stable');
+ assert.equal(c.sessionStorage.getItem('nvt-crm-pending-write-v1:admin'),null);
+});
+
+test('Failed replay retains SQL draft and does not silently overwrite it',async()=>{
+ const c=frontend();vm.runInContext("currentAccount={id:'admin',role:'ADMIN'};serverSyncToken='token';",c);
+ c.sessionStorage.setItem('nvt-crm-pending-write-v1:admin',JSON.stringify({actorId:'admin',requestId:'SAVE-1',changes:[]}));
+ c.fetch=async()=>({ok:false,json:async()=>({error:'Conflict'})});
+ await assert.rejects(()=>vm.runInContext("recoverPendingWrite({id:'admin'})",c),/Conflict/);
+ assert.ok(c.sessionStorage.getItem('nvt-crm-pending-write-v1:admin'));
 });
