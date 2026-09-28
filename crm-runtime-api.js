@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 // Cầu nối cùng origin: dùng lại nghiệp vụ, phiên đăng nhập và hàng đợi lưu của CRM.
 // Frame chỉ hiển thị lúc đăng nhập; tuyệt đối không đưa DOM/CSS runtime vào trang mẫu.
 (() => {
@@ -13,7 +13,7 @@
   async function persist(action, kind) {
     if (!serverStateLoaded && currentAccount && serverSyncToken) await syncServerState();
     if (!currentAccount || !serverStateLoaded) throw Error('Dữ liệu chưa sẵn sàng. Vui lòng chờ đồng bộ rồi thử lại.');
-    requireRole(['ADMIN','MANAGER','LEADER','SALE','MARKETING','ACCOUNTING']);
+    requireRole(['ADMIN','MANAGER','LEADER','SALE','MARKETING','ACCOUNTING','UNASSIGNED']);
     if (pendingResult) {
       if(pendingResult.kind!==kind) throw Error("Hãy lưu lại thao tác trước đó trước khi chuyển sang thao tác khác.");
       if (!await flushServerPersistence({skipAutomatic:kind.startsWith('add-extra-round-turn:')})) throw Error('Chưa lưu được dữ liệu. Giữ trang mở để thử lại.');
@@ -92,7 +92,7 @@
     openWorkflow,workflowRoot,workflowEvent,
     exportData(kind,start,end){requireRole(['ADMIN','LEADER','MARKETING','ACCOUNTING']);const methods={customers:exportCustomers,orders:exportOrders,revenue:exportRevenue,marketing:exportMarketing,team:exportTeam,reports:exportFullReport};if(!methods[kind])throw Error('Loại xuất không hợp lệ.');if(start&&end){customDateStart=start;customDateEnd=end;datePreset='CUSTOM';}methods[kind]();},
     async attendanceSettings(input){requireRole(['ADMIN']);return persist(()=>{const time=cleanClockTime(input.deadline,'');if(!time)throw Error('Giờ vào làm không hợp lệ.');state.settings.attendanceIp=String(input.ip||'').slice(0,200);state.settings.attendanceDeadline=time;state.settings.acceptTimeoutHours=24;return {ok:true};},'attendance-settings');},
-    async checkIn(){requireRole(['ADMIN','MANAGER','LEADER','SALE']);return persist(()=>{const changed=checkInToday({save:false,render:false});return {ok:true,alreadyCheckedIn:changed===false};},'check-in');},
+    async checkIn(){requireRole(['ADMIN','MANAGER','LEADER','SALE','MARKETING','ACCOUNTING','UNASSIGNED']);return persist(()=>{const changed=checkInToday({save:false,render:false});return {ok:true,alreadyCheckedIn:changed===false};},'check-in');},
     async saveBrokerageMetric(metric){
       requireRole(['ADMIN']);
       return persist(()=>{
@@ -341,7 +341,7 @@
       },'care:'+ (id||'new'));
     },
     async saveFeedback(id,input) {
-      requireRole(['ADMIN','MANAGER','LEADER','SALE','MARKETING','ACCOUNTING']);
+      requireRole(['ADMIN','MANAGER','LEADER','SALE','MARKETING','ACCOUNTING','UNASSIGNED']);
       return persist(()=>{
         const existing=(state.feedbacks||[]).find(item=>item.id===id);
         if(id&&!existing)throw Error('Feedback không còn tồn tại.');
@@ -358,7 +358,7 @@
       },'feedback:'+(id||'new'));
     },
     async removeFeedback(id) {
-      requireRole(['ADMIN','MANAGER','LEADER','SALE','MARKETING','ACCOUNTING']);
+      requireRole(['ADMIN','MANAGER','LEADER','SALE','MARKETING','ACCOUNTING','UNASSIGNED']);
       return persist(()=>{
         const item=(state.feedbacks||[]).find(row=>row.id===id);
         if(!item)throw Error('Feedback không còn tồn tại.');
@@ -370,11 +370,12 @@
       requireRole(['ADMIN']);
       return persist(()=>{
         const existing=(state.processes||[]).find(item=>item.id===id);
-        if(id&&!existing)throw Error('Quy trình không còn tồn tại.');
-        const title=String(input.title||'').trim(),summary=String(input.summary||'').trim(),content=String(input.content||'').trim(),link=String(input.link||'').trim(),imageData=String(input.imageData||'');
-        if(!title||title.length>200||summary.length>500||!content||content.length>20000)throw Error('Kiểm tra tiêu đề, mô tả và nội dung quy trình.');
-        if(link&&!/^https?:\/\/[^\s]+$/i.test(link))throw Error('Link quy trình phải bắt đầu bằng http:// hoặc https://.');
-        if(imageData&&(!/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(imageData)||imageData.length>2_800_000))throw Error('Ảnh quy trình không hợp lệ hoặc quá lớn.');
+        if(id&&!existing)throw Error('Quy trinh khong con ton tai.');
+        const title=String(input.title||'').trim(),summary=String(input.summary||'').trim(),content=String(input.content||'').trim(),link=String(input.link||'').trim();
+        const imageData=Array.isArray(input.imageData)?input.imageData.map(value=>String(value||'')).filter(Boolean):String(input.imageData||'').trim()?[String(input.imageData).trim()]:[];
+        if(!title||title.length>200||summary.length>500||!content||content.length>20000)throw Error('Kiem tra tieu de, mo ta va noi dung quy trinh.');
+        if(link&&!/^https?:\/\/[^\s]+$/i.test(link))throw Error('Link quy trinh phai bat dau bang http:// hoac https://.');
+        if(imageData.length>10||imageData.some(value=>!/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(value)||value.length>2_800_000))throw Error('Anh quy trinh khong hop le, qua lon hoac vuot qua 10 anh.');
         const item=existing||{id:makeRecordId('PROC'),createdAt:stamp()};Object.assign(item,{title,summary,content,link,imageData,updatedAt:stamp(),authorId:currentAccount.id});
         if(existing){const index=state.processes.findIndex(row=>row.id===id);state.processes[index]=item;}else state.processes.unshift(item);
         audit(existing?'UPDATE_PROCESS':'CREATE_PROCESS',item.id,title);return {id:item.id};

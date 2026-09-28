@@ -228,21 +228,21 @@ const NAVIGATION = {
     ['Phân tích', [['dashboard', 'Tổng quan', '◫'], ['marketing', 'Dữ liệu marketing', '⌁'], ['websites', 'Websites', '◇']]],
     ['Tra cứu', [['customers', 'Khách hàng', '♙'], ['orders', 'Đơn hàng', '▤'], ['products', 'Sản phẩm', '□']]],
     ['Ch\u0103m s\u00f3c', [['care', 'Ch\u0103m s\u00f3c kh\u00e1ch', 'care'], ['feedback', 'Kho Feedback', '\u25c9'], ['processes', 'Quy Tr\u00ecnh', '\u2637']]],
-    ['Cá nhân', [['notifications', 'Thông báo', '●']]]
+    ['Cá nhân', [['attendance', 'Điểm danh', '✓'], ['notifications', 'Thông báo', '●']]]
   ],
   ACCOUNTING: [
     ['Kế toán', [['dashboard', 'Tổng quan', '◫'], ['orders', 'Đơn hàng', '▤'], ['revenue', 'Doanh thu', '₫'], ['products', 'Sản phẩm', '□']]],
     ['Tra cứu', [['customers', 'Khách hàng', '♙']]],
     ['Ch\u0103m s\u00f3c', [['care', 'Ch\u0103m s\u00f3c kh\u00e1ch', 'care']]],
-    ['Cá nhân', [['notifications', 'Thông báo', '●']]]
+    ['Cá nhân', [['attendance', 'Điểm danh', '✓'], ['notifications', 'Thông báo', '●']]]
   ],
   LEADER: [
     ['Vận hành', [['dashboard', 'Tổng quan đội', '◫'], ['customers', 'Khách hàng Team', '♙'], ['pool', 'Chia data cho Sale', '↔']] ],
     ['Kinh doanh', [['orders', 'Đơn hàng', '▤'], ['revenue', 'Doanh thu', '₫']]],
     ['Đội nhóm', [['team', 'Hiệu suất Sale', '♧'], ['businessReport', 'Báo cáo kinh doanh', '◫'], ['care', 'Chăm sóc khách', '❦'], ['notifications', 'Thông báo', '●']]],
-    ['Cá nhân', [['profile', 'Hồ sơ của tôi', '●']]]
+    ['Cá nhân', [['attendance', 'Điểm danh', '✓'], ['profile', 'Hồ sơ của tôi', '●']]]
   ],
-  UNASSIGNED: [['Cá nhân', [['dashboard', 'Tổng quan', '◫'], ['profile', 'Hồ sơ của tôi', '●'], ['notifications', 'Thông báo', '●']]]],
+  UNASSIGNED: [['Cá nhân', [['dashboard', 'Tổng quan', '◫'], ['attendance', 'Điểm danh', '✓'], ['profile', 'Hồ sơ của tôi', '●'], ['notifications', 'Thông báo', '●']]]],
   SALE: [
     ['Kh\u00e1ch h\u00e0ng c\u1ee7a t\u00f4i', [['dashboard', 'T\u1ed5ng quan', '◫'], ['customers', 'Kh\u00e1ch c\u1ee7a t\u00f4i', '♙'], ['accept', 'Data ch\u1edd nh\u1eadn', '⤓'], ['care', 'Ch\u0103m s\u00f3c kh\u00e1ch', '♡']]],
     ['Kinh doanh', [['orders', 'T\u1ea1o \u0111\u01a1n cho kh\u00e1ch', '▤'], ['revenue', 'Doanh thu c\u1ee7a t\u00f4i', '₫']]],
@@ -3435,7 +3435,7 @@ function attendanceCalendarHtml(accountId) {
 
 function attendanceView() {
   const today = dayIso(0);
-  const attendanceRoles = new Set(['SALE', 'LEADER', 'MANAGER']);
+  const attendanceRoles = new Set(['SALE', 'LEADER', 'MANAGER', 'MARKETING', 'ACCOUNTING', 'UNASSIGNED']);
   const rows = state.attendance.filter(item => item.date === today && activeStaff().some(person => person.id === item.accountId && attendanceRoles.has(person.role)) && (currentAccount.role === 'ADMIN' || item.teamId === currentAccount.teamId)).sort((a, b) => a.at.localeCompare(b.at));
   if (currentAccount.role !== 'ADMIN') {
     const myAccountId = attendanceAccountId();

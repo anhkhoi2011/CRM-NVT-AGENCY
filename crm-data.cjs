@@ -261,8 +261,9 @@ function readable(user,key,r,data){
  if(key==='feedbacks'||key==='processes')return true;
  if(user.role==='MANAGER')return managerReadable(user,key,r,data);
  if(user.role==='ADMIN')return true;
- if(user.role==='MARKETING')return ['customers','orders','products','customFieldDefinitions','productCategories','websites','traffic','careGroups'].includes(key) || (key==='notifications'&&(r.role==='ALL'||r.role==='MARKETING'||r.saleId===user.id));
- if(user.role==='ACCOUNTING')return ['customers','orders','products','productCategories','careGroups'].includes(key) || (key==='notifications'&&(r.role==='ALL'||r.role==='ACCOUNTING'||r.saleId===user.id));
+ if(user.role==='MARKETING')return key==='attendance' ? r.accountId===user.id : ['customers','orders','products','customFieldDefinitions','productCategories','websites','traffic','careGroups'].includes(key) || (key==='notifications'&&(r.role==='ALL'||r.role==='MARKETING'||r.saleId===user.id));
+ if(user.role==='UNASSIGNED')return key==='attendance' ? r.accountId===user.id : false;
+ if(user.role==='ACCOUNTING')return key==='attendance' ? r.accountId===user.id : ['customers','orders','products','productCategories','careGroups'].includes(key) || (key==='notifications'&&(r.role==='ALL'||r.role==='ACCOUNTING'||r.saleId===user.id));
  if(!['LEADER','SALE'].includes(user.role))return false;
  if(key==='members')return r.id===user.id||r.id===user.leaderId||(user.role==='LEADER'&&r.teamId===user.teamId);
  if(key==='customers')return customerScope(user,r)||!!pendingOffer(data,user,r.id);
@@ -336,7 +337,7 @@ function authorize(user,key,old,next,data){
  if(user.role==='MANAGER')return authorizeManager(user,key,old,next,data);
  if(user.role==='ADMIN')return;
  if(key==='members'&&old?.id===user.id&&next&&next.id===user.id&&sameExcept(old,next,['name','accountId','email','phone','initials','avatar']))return;
- if(['MARKETING','ACCOUNTING'].includes(user.role))error(403,'Tài khoản chỉ có quyền xem, không được cập nhật dữ liệu');
+ if(['MARKETING','ACCOUNTING','UNASSIGNED'].includes(user.role)){if(key==='attendance'&&!old&&next&&next.accountId===user.id&&next.date===new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Ho_Chi_Minh'}))return;error(403,'Tài khoản chỉ được điểm danh hôm nay và xem lịch sử cá nhân');}
  if(!['LEADER','SALE'].includes(user.role))error(403,'Tài khoản đang chờ Admin phân quyền');
  const r=next||old;
  if(key==='members'&&r?.id===user.id&&old&&next&&sameExcept(old,next,['name','accountId','email','phone','initials','avatar']))return;
@@ -407,7 +408,8 @@ function validate(key,value,id){
   if(typeof value.summary!=='string'||value.summary.length>500)error(400,'M\u00f4 t\u1ea3 ng\u1eafn quy tr\u00ecnh kh\u00f4ng h\u1ee3p l\u1ec7');
   if(typeof value.content!=='string'||!value.content.trim()||value.content.length>20000)error(400,'N\u1ed9i dung quy tr\u00ecnh kh\u00f4ng h\u1ee3p l\u1ec7');
   if(typeof value.link!=='string'||value.link.length>500||value.link&&!/^https?:\/\/[^\s]+$/i.test(value.link))error(400,'Link quy tr\u00ecnh kh\u00f4ng h\u1ee3p l\u1ec7');
-  if(typeof value.imageData!=='string'||(value.imageData!==''&&(!/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(value.imageData)||value.imageData.length>2_800_000)))error(400,'\u1ea2nh quy tr\u00ecnh kh\u00f4ng h\u1ee3p l\u1ec7 ho\u1eb7c qu\u00e1 l\u1edbn');
+  const processImages=Array.isArray(value.imageData)?value.imageData:(typeof value.imageData==='string'?[value.imageData]:null);
+  if(!processImages||processImages.length>10||processImages.some(image=>typeof image!=='string'||(image!==''&&(!/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(image)||image.length>2_800_000))))error(400,'\u1ea2nh quy tr\u00ecnh kh\u00f4ng h\u1ee3p l\u1ec7 ho\u1eb7c qu\u00e1 l\u1edbn');
  }
  if(key==='brokerageMetrics'){
   if(!/^[0-9]{4}-[0-9]{2}$/.test(String(value.period||'')))error(400,'Kỳ báo cáo lot không hợp lệ');

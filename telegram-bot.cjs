@@ -840,22 +840,25 @@ async function notifyStaleLeadWarning(customer, sale, leader) {
  */
 async function sendMorningCheckinAlert() {
   try {
-    const staff = await dbQuery(`SELECT telegram_chat_id, name FROM users WHERE role IN ('SALE', 'LEADER') AND active = 1 AND telegram_chat_id IS NOT NULL`);
+    const staff = await dbQuery(`SELECT telegram_chat_id, name, role FROM users WHERE role <> 'ADMIN' AND active = 1 AND telegram_chat_id IS NOT NULL`);
     const inlineKeyboard = {
       inline_keyboard: [
         [{ text: '✅ BẤM ĐIỂM DANH NGAY', callback_data: 'checkin' }]
       ]
     };
 
+    let failed = 0;
     for (const member of staff) {
       const msg = `⏰ <b>THÔNG BÁO ĐIỂM DANH ĐẦU NGÀY (09:00 - 09:15)</b>\n\n` +
         `Chào buổi sáng <b>${escapeHtml(member.name)}</b>! Chúc bạn ngày mới bùng nổ doanh số.\n` +
         `Vui lòng bấm nút bên dưới để hoàn tất điểm danh ca làm việc hôm nay:`;
-      await sendMessage(member.telegram_chat_id, msg, { reply_markup: inlineKeyboard });
+      try { const result = await sendMessage(member.telegram_chat_id, msg, { reply_markup: inlineKeyboard }); if (result?.ok === false) failed += 1; } catch (error) { failed += 1; console.error('[Telegram Bot] check-in reminder failed:', member.telegram_chat_id, error.message); }
     }
   } catch (err) {
     console.error('[Telegram Bot] sendMorningCheckinAlert error:', err.message);
+    return { failed: 1 };
   }
+  return { failed };
 }
 
 /**
@@ -1054,8 +1057,8 @@ async function runTelegramScheduler() {
 
     // 2. Điểm danh lúc 09:00 - 09:10 sáng hàng ngày
     if (hour === 9 && minute >= 0 && minute <= 10 && lastCheckinDate !== vnDateStr) {
-      lastCheckinDate = vnDateStr;
-      await sendMorningCheckinAlert();
+      const reminderResult = await sendMorningCheckinAlert();
+      if (reminderResult?.failed === 0) lastCheckinDate = vnDateStr;
     }
 
     // 3. Báo cáo tuần tối Chủ Nhật lúc 20:00 - 20:10

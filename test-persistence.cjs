@@ -240,7 +240,7 @@ test('Đồng bộ giữ tham chiếu của form đang mở để lần sửa ti
  assert.equal(vm.runInContext('state.customers[0].name',c),'C');assert.equal(vm.runInContext('pendingChanges()[0].value.name',c),'C');
 });
 
-test('Marketing/Kế toán có dữ liệu tra cứu nhưng không có quyền ghi hay xem cài đặt/tài khoản',async()=>{
+test('Marketing/Kế toán có dữ liệu tra cứu, được điểm danh cá nhân nhưng không có quyền ghi dữ liệu khác',async()=>{
  const f=fixture();await f.api.write(admin,'initial',[change('customers',customer),change('orders',order),{key:'settings',id:'$',base:null,value:{dataBotToken:'private'}},change('traffic',{id:'tr1',source:'Ads'})]);
  for(const role of ['MARKETING','ACCOUNTING']){
   const user={id:role,role},r=await f.api.read(user);
@@ -1276,11 +1276,11 @@ test('Column filters combine across the full dataset and discover new custom fie
 
 test('Non-default data headers including new columns receive filters with valid arrow labels',()=>{
  const source=fs.readFileSync('reference-crm.js','utf8'),start=source.indexOf('  function installCustomerColumnFilters('),end=source.indexOf('  function openCustomerColumnMenu(',start);
- const keys=[null,null,null,'source','leader','sale',null,'field:customerLevel','field:customerClass','field:callStatus','field:documentStatus','field:result','field:newField','status','note','referenceAmount',null];
- const cells=keys.map(()=>({children:[],appendChild(button){this.children.push(button);}}));
- const c=vm.createContext({document:{createElement:()=>({dataset:{},setAttribute(){}})},customerFilterState:{columns:{}},customerColumnDefinitions:keys.filter(Boolean).map(key=>({key,label:key})),baseFields:['customerLevel','customerClass','callStatus','documentStatus','result'],data:{fields:[{id:'newField',active:true,showInTable:true}]},head:{cells,querySelectorAll:()=>[]},openCustomerColumnMenu:()=>{}});
+ const cells=Array.from({length:17},()=>({dataset:{},children:[],appendChild(button){this.children.push(button);}}));
+ const expected=new Map([[3,'source'],[4,'leader'],[5,'sale'],[6,'field:customerLevel'],[7,'field:customerClass'],[8,'field:callStatus'],[9,'field:documentStatus'],[10,'field:result'],[13,'status'],[14,'note'],[15,'referenceAmount']]);
+ const c=vm.createContext({document:{createElement:()=>({dataset:{},setAttribute(){}})},customerFilterState:{columns:{}},customerColumnDefinitions:Array.from(expected.values()).map(key=>({key,label:key})),baseFields:['customerLevel','customerClass','callStatus','documentStatus','result'],data:{fields:[{id:'newField',active:true,showInTable:true}]},head:{cells,querySelectorAll:()=>[]},openCustomerColumnMenu:()=>{}});
  vm.runInContext(source.slice(start,end)+';installCustomerColumnFilters(head)',c);
- keys.forEach((key,index)=>{assert.equal(cells[index].children[0]?.dataset.columnFilter,key||undefined);if(key)assert.equal(cells[index].children[0].textContent,'▾');});
+ cells.forEach((cell,index)=>{const key=expected.get(index);assert.equal(cell.children[0]?.dataset.columnFilter,key);if(key)assert.equal(cell.children[0].textContent,'\u25be');});
 });
 
 test('Sale phụ trách uses the generic column filter value from the actual assignment',()=>{
