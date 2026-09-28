@@ -6,6 +6,8 @@ async function provisionSystemAccounts(pool) {
   const c = await pool.getConnection();
   let locked = false;
   try {
+    const [existingMarker] = await c.execute('SELECT setting_key FROM system_settings WHERE setting_key=?', [MIGRATION_KEY]);
+    if (existingMarker.length) return { applied: false };
     const [lock] = await c.query("SELECT GET_LOCK(CONCAT(LEFT(DATABASE(),40), ':nvt-accounts-v1'),30) AS acquired");
     if (Number(lock[0]?.acquired) !== 1) throw new Error('Không lấy được khóa khởi tạo tài khoản');
     locked = true;

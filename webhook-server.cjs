@@ -395,9 +395,12 @@ async function handleDbApi(request, response, pathname) {
   if (request.method === 'OPTIONS') { response.writeHead(204, { 'Access-Control-Allow-Origin': request.headers.origin || '*', 'Access-Control-Allow-Headers': 'Content-Type, Authorization', 'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS' }); return response.end(); }
   if (DEMO_MODE) return handleDemoApi(request,response,pathname);
   if (!dbConfigured) return dbJson(request,response,503,{error:'MySQL chưa được cấu hình. Không thể lưu dữ liệu.'});
+  const loginTiming = pathname === '/api/auth/login' ? {started:Date.now(),last:Date.now(),phases:{}} : null;
+  const markLogin = phase => { if(loginTiming){const now=Date.now();loginTiming.phases[phase]=now-loginTiming.last;loginTiming.last=now;} };
   try {
     const canRunBeforeSystemReady = pathname === '/api/db/health';
     if (!canRunBeforeSystemReady && !await systemAccountsReady) return dbJson(request,response,503,{error:'Khởi tạo tài khoản hệ thống chưa hoàn tất. Kiểm tra schema và quyền MySQL trong log Node.'});
+    markLogin('startup');
     if (pathname === '/api/db/health') return dbJson(request,response,200,await dbHealth());
     if (pathname === '/api/auth/register' && request.method === 'POST') {
       const body = await readDbBody(request);
@@ -413,8 +416,11 @@ async function handleDbApi(request, response, pathname) {
     if (pathname === '/api/auth/login' && request.method === 'POST') {
       const body = await readDbBody(request), identifier=String(body.identifier||'').trim().toLowerCase();
       const rows=await dbQuery('SELECT * FROM users WHERE (phone=? OR LOWER(email)=?) AND active=1 LIMIT 1',[identifier,identifier]);
+      markLogin('lookup');
       const row=rows[0], password=String(body.password||'');
-      if(!row||!await passwordMatches(password,row.password_hash))return dbJson(request,response,401,{error:'Thông tin đăng nhập không đúng'});
+      const matched=!!row && await passwordMatches(password,row.password_hash);
+      markLogin('password');
+      if(!matched)return dbJson(request,response,401,{error:'Thông tin đăng nhập không đúng'});
       if(row.role==='UNASSIGNED')return dbJson(request,response,403,{error:'Tài khoản đã đăng ký, đang chờ Admin phân chức vụ.'});
       if(!/^\$2[aby]\$/.test(row.password_hash))await dbQuery('UPDATE users SET password_hash=? WHERE id=?',[await bcrypt.hash(password,12),row.id]);
       const token=crypto.randomBytes(32).toString('hex');
@@ -519,7 +525,9 @@ async function handleDbApi(request, response, pathname) {
       return dbJson(request,response,request.method==='POST'?201:200,result);
     }
     return dbJson(request,response,404,{error:'API không tồn tại'});
-  }catch(e){console.error('[mysql-api]',e.message);const duplicate=e.code==='ER_DUP_ENTRY';return dbJson(request,response,e.status||(duplicate||e instanceof SyntaxError?400:500),{error:e.status?e.message:duplicate?'ID tài khoản, số điện thoại hoặc email đã tồn tại':e instanceof SyntaxError?'JSON không hợp lệ':'Không lưu được MySQL. Giữ trang mở và thử lại.'});}
+  }catch(e){console.error('[mysql-api]',e.message);const duplicate=e.code==='ER_DUP_ENTRY';return dbJson(request,response,e.status||(duplicate||e instanceof SyntaxError?400:500),{error:e.status?e.message:duplicate?'ID tài khoản, số điện thoại hoặc email đã tồn tại':e instanceof SyntaxError?'JSON không hợp lệ':'Không lưu được MySQL. Giữ trang mở và thử lại.'});} finally {
+    if(loginTiming){const total=Date.now()-loginTiming.started;if(total>=1000)console.warn('[login-timing]',JSON.stringify({totalMs:total,...loginTiming.phases}));}
+  }
 }
 
 /**
@@ -1435,11 +1443,16 @@ if (dbConfigured) recoverLegacyInbox().catch(error => console.error('[webhook-re
 const systemAccountsReady = (async () => {
   if (!dbConfigured) return false;
   await crmData.prepare();
-  await supportChat.prepare();
   const result = await provisionSystemAccounts(pool);
   if (result.applied) console.log('[mysql] Đã cấu hình Admin, Marketing, Kế toán theo yêu cầu.');
   return true;
 })().catch(error => { console.error('[mysql] Không khởi tạo được tài khoản:', error.message); return false; });
+// Optional subsystems must not hold up authentication readiness.
+void systemAccountsReady.then(ready => {
+  if (!ready || DEMO_MODE) return;
+  void supportChat.prepare().catch(error => console.error('[support-init]', error.code || 'INIT_ERROR'));
+  void recoverLegacyInbox().catch(error => console.error('[webhook-recovery]', error.code || 'RECOVERY_ERROR'));
+});
 server.listen(PORT, HOST, () => {
   const lan = HOST === '0.0.0.0' ? ' (mọi interface — máy khác trong LAN vào được)' : '';
   console.log(`\nCRM webhook server chạy tại http://localhost:${PORT}${lan}`);
@@ -1458,12 +1471,12 @@ server.listen(PORT, HOST, () => {
     // Passenger may finish a webhook response before a background send has
     // completed. Keep draining the durable outbox independently of browser
     // traffic so Admin and assignee notices are retried after failures.
-    void telegramBot.drainLeadNotifications();
+    void systemAccountsReady.then(ready => { if (ready) return telegramBot.drainLeadNotifications(); });
     setInterval(() => {
-      void telegramBot.drainLeadNotifications();
+      void systemAccountsReady.then(ready => { if (ready) return telegramBot.drainLeadNotifications(); });
     }, 15000);
     setInterval(() => {
-      telegramBot.runTelegramScheduler().catch(err => console.warn('[Telegram Scheduler]', err.message));
+      void systemAccountsReady.then(ready => ready && telegramBot.runTelegramScheduler()).catch(err => console.warn('[Telegram Scheduler]', err.message));
     }, 60000);
   }
   if (TELEGRAM_WEBHOOK_URL) {

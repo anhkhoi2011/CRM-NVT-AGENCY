@@ -1196,3 +1196,22 @@ test('Schema startup skips role ALTER when all roles already exist',async()=>{
  vm.runInNewContext(fs.readFileSync('crm-data.cjs','utf8')+';module.exports.checkRole=ensureRoleColumn;', {module,require:name=>name==='./db.js'?{pool:{query:async sql=>{queries.push(sql);return [[{role_type:"enum('ADMIN','LEADER','SALE','UNASSIGNED','MARKETING','ACCOUNTING','MANAGER')"}]];}}}:require(name)});
  await module.exports.checkRole();assert.equal(queries.length,1);
 });
+
+test('Existing provision marker skips startup advisory lock and account mutations',async()=>{
+ let released=false;
+ const {provisionSystemAccounts}=require('./system-accounts.cjs');
+ const result=await provisionSystemAccounts({getConnection:async()=>({
+ execute:async(sql)=>{assert.match(sql,/^SELECT setting_key/);return [[{setting_key:'done'}]];},
+ query:async()=>{throw Error('Existing accounts must not wait for migration lock');},
+ release:()=>{released=true;}
+ })});
+ assert.equal(result.applied,false);assert.equal(released,true);
+});
+test('Login still authenticates before issuing a session',async()=>{
+ const f=authFixture([{id:'active-admin',role:'ADMIN',password_hash:'correct-password'}]);
+ const denied=await f.request('/api/auth/login',{identifier:'admin@example.test',password:'wrong'});
+ assert.equal(denied.status,401);assert.equal(f.calls.some(call=>call.sql.startsWith('INSERT INTO crm_sessions')),false);
+ const accepted=await f.request('/api/auth/login',{identifier:'admin@example.test',password:'correct-password'});
+ assert.equal(accepted.status,200);assert.ok(accepted.payload.token);
+ assert.ok(f.calls.some(call=>call.sql.startsWith('INSERT INTO crm_sessions')));
+});
