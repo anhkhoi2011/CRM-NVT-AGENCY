@@ -97,6 +97,7 @@ async function setUserActivity(request,view){
  return {detail,changed:rows[0]?.last_activity!==detail};
 }
 async function adminUserActivity(){
+ await crmData.prepare();
  const [users,sessions,events]=await Promise.all([
   dbQuery(`SELECT id,name,role,account_code,active FROM users WHERE active=1 ORDER BY FIELD(role,'ADMIN','MANAGER','LEADER','SALE','MARKETING','ACCOUNTING','UNASSIGNED'),name`),
   dbQuery(`SELECT user_id,ip,last_seen_at,last_activity,TIMESTAMPDIFF(SECOND,last_seen_at,NOW()) AS idle_seconds FROM crm_sessions WHERE expires_at>NOW() ORDER BY last_seen_at DESC`),

@@ -5050,8 +5050,14 @@ function offerOrAssignSale(customer, target, reason, source, previous, direct = 
   return true;
 }
 
+function currentSaleIdentity() {
+  return String(currentAccount?.saleId || currentAccount?.id || '').trim();
+}
+
 function pendingOffersForMe() {
-  return state.dataOffers.filter(item => item.status === 'PENDING' && item.saleId === currentAccount.saleId && customerById(item.customerId) && Date.parse(String(item.offeredAt).replace(' ', 'T') + '+07:00') + offerDeadlineMs() > Date.now()).sort((a, b) => a.offeredAt.localeCompare(b.offeredAt) || a.id.localeCompare(b.id));
+  const saleId = currentSaleIdentity();
+  if (!saleId) return [];
+  return state.dataOffers.filter(item => item.status === 'PENDING' && String(item.saleId || '') === saleId && customerById(item.customerId) && Date.parse(String(item.offeredAt).replace(' ', 'T') + '+07:00') + offerDeadlineMs() > Date.now()).sort((a, b) => a.offeredAt.localeCompare(b.offeredAt) || a.id.localeCompare(b.id));
 }
 
 // Thong ke data da duoc giao theo ngay giao, doc lap voi hang cho nhan.
