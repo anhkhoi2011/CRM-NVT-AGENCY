@@ -22,7 +22,7 @@ const connectionOptions = {
   database: dbName,
   waitForConnections: true,
   queueLimit: 0,
-  connectTimeout: setting('DB_CONNECT_TIMEOUT', 10000),
+  connectTimeout: setting('DB_CONNECT_TIMEOUT', 5000),
   enableKeepAlive: true,
   keepAliveInitialDelay: 0,
   charset: 'utf8mb4',
@@ -30,18 +30,18 @@ const connectionOptions = {
 };
 function createManagedPool(limit, queueLimit) {
   const raw = mysql.createPool({ ...connectionOptions, connectionLimit: limit,
-    maxIdle: Math.max(0, limit - 1), idleTimeout: 60000 });
+    maxIdle: Math.max(1, Math.ceil(limit * 0.5)), idleTimeout: 30000 });
   raw.on('connection', connection => connection.on('error', error => {
     console.warn('[mysql-connection]', error.code || 'CONNECTION_ERROR');
   }));
   return managedPool(raw, { limit, queueLimit,
-    acquireTimeout: setting('DB_ACQUIRE_TIMEOUT', 10000),
-    queryTimeout: setting('DB_QUERY_TIMEOUT', 10000) });
+    acquireTimeout: setting('DB_ACQUIRE_TIMEOUT', 5000),
+    queryTimeout: setting('DB_QUERY_TIMEOUT', 5000) });
 }
-const pool = createManagedPool(Math.min(setting('DB_CONNECTION_LIMIT', 8), 8), setting('DB_QUEUE_LIMIT', 0, 0));
+const pool = createManagedPool(setting('DB_CONNECTION_LIMIT', 60), setting('DB_QUEUE_LIMIT', 0, 0));
 // Authentication must not wait behind large CRM snapshots or Telegram outbox
 // delivery. Keep a small, independent pool for login and session creation.
-const authPool = createManagedPool(Math.min(setting('DB_AUTH_CONNECTION_LIMIT', 3), 4), setting('DB_AUTH_QUEUE_LIMIT', 0, 0));
+const authPool = createManagedPool(setting('DB_AUTH_CONNECTION_LIMIT', 25), setting('DB_AUTH_QUEUE_LIMIT', 0, 0));
 // Advisory locks must stay on one connection, isolated from foreground queries.
 const telegramPool = createManagedPool(1, 1);
 

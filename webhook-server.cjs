@@ -543,8 +543,8 @@ async function handleDbApi(request, response, pathname) {
     return dbJson(request,response,404,{error:'API không tồn tại'});
    }catch(e){
     console.error('[mysql-api]',pathname,e.code||'ERROR',e.message);
-    const unavailable=/^DB_/.test(e.code||'')||['ETIMEDOUT','ECONNRESET','ECONNREFUSED','PROTOCOL_CONNECTION_LOST','ER_CON_COUNT_ERROR','ER_USER_LIMIT_REACHED'].includes(e.code);
-    if(unavailable)return dbJson(request,response,503,{code:e.code,error:'Kết nối cơ sở dữ liệu đang bận hoặc gián đoạn. Vui lòng thử lại; dữ liệu đã lưu không bị xóa.'});
+    const unavailable=/^DB_/.test(e.code||'')||['ETIMEDOUT','ECONNRESET','ECONNREFUSED','PROTOCOL_CONNECTION_LOST','ER_CON_COUNT_ERROR','ER_USER_LIMIT_REACHED','ER_LOCK_WAIT_TIMEOUT','ER_LOCK_DEADLOCK','PROTOCOL_SEQUENCE_TIMEOUT'].includes(e.code);
+    if(unavailable)return dbJson(request,response,503,{code:e.code,error:'Máy chủ đang bận, vui lòng thử lại sau vài giây'});
 const duplicate=e.code==='ER_DUP_ENTRY';return dbJson(request,response,e.status||(duplicate||e instanceof SyntaxError?400:500),{error:e.status?e.message:duplicate?'ID tài khoản, số điện thoại hoặc email đã tồn tại':e instanceof SyntaxError?'JSON không hợp lệ':'Không lưu được MySQL. Giữ trang mở và thử lại.'});} finally {
     if(loginTiming){const total=Date.now()-loginTiming.started;if(total>=1000)console.warn('[login-timing]',JSON.stringify({totalMs:total,...loginTiming.phases}));}
   }

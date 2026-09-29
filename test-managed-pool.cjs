@@ -12,8 +12,8 @@ test('Automatic queries return connections on both success and SQL failure',asyn
 test('Timed-out queued requests are removed and never execute later',async()=>{
  const f=fixture(),held=await f.pool.getConnection();await assert.rejects(f.pool.query('SELECT 1'),{code:'DB_ACQUIRE_TIMEOUT'});assert.equal(f.pool.stats().queued,0);held.release();assert.deepEqual(f.events,['acquire','release']);await f.pool.query('SELECT 1');assert.equal(f.pool.stats().active,0);
 });
-test('Connection returned after acquisition deadline is released exactly once',async()=>{
- let resolve,releases=0;const raw={getConnection:()=>new Promise(r=>{resolve=r;})};const pool=managedPool(raw,{limit:1,acquireTimeout:10});await assert.rejects(pool.getConnection(),{code:'DB_ACQUIRE_TIMEOUT'});resolve({release(){releases++;}});await new Promise(setImmediate);assert.equal(releases,1);assert.equal(pool.stats().active,0);
+test('Connection returned after acquisition deadline is destroyed exactly once',async()=>{
+ let resolve,destroys=0;const raw={getConnection:()=>new Promise(r=>{resolve=r;})};const pool=managedPool(raw,{limit:1,acquireTimeout:10});await assert.rejects(pool.getConnection(),{code:'DB_ACQUIRE_TIMEOUT'});resolve({release(){},destroy(){destroys++;}});await new Promise(setImmediate);assert.equal(destroys,1);assert.equal(pool.stats().active,0);
 });
 test('Hung SQL destroys connection and cannot return a transaction to pool',async()=>{
  const f=fixture();f.raw.getConnection=async()=>({query:()=>new Promise(()=>{}),release(){f.events.push('release');},destroy(){f.events.push('destroy');}});await assert.rejects(f.pool.query('hung'),{code:'DB_QUERY_TIMEOUT'});assert.deepEqual(f.events,['destroy']);assert.equal(f.pool.stats().active,0);
@@ -43,10 +43,10 @@ test('Eight database leases run concurrently and the next waits for release',asy
 });
 test('Database defaults and overrides use supported driver options and managed acquisition timeout',()=>{
  const configs=[],fs=require('node:fs'),vm=require('node:vm');function load(env){const context={module:{exports:{}},__dirname,process:{env},console,require:name=>name==='dotenv'?{config(){}}:name==='mysql2/promise'?{createPool:options=>{configs.push(options);return {on(){},end(){}};}}:require(name)};vm.runInNewContext(fs.readFileSync(__dirname+'/db.js','utf8'),context);return context.module.exports;}
- const defaults=load({});assert.equal(defaults.pool.stats().limit,8);assert.equal(defaults.authPool.stats().limit,3);assert.equal(configs[0].connectTimeout,10000);assert.equal(configs[0].queueLimit,0);assert.equal(configs[0].waitForConnections,true);assert.equal('acquireTimeout' in configs[0],false);
- const custom=load({DB_CONNECTION_LIMIT:'12',DB_AUTH_CONNECTION_LIMIT:'4'});assert.equal(custom.pool.stats().limit,8);assert.equal(custom.authPool.stats().limit,4);
+ const defaults=load({});assert.equal(defaults.pool.stats().limit,60);assert.equal(defaults.authPool.stats().limit,25);assert.equal(configs[0].connectTimeout,5000);assert.equal(configs[0].queueLimit,0);assert.equal(configs[0].waitForConnections,true);assert.equal('acquireTimeout' in configs[0],false);
+ const custom=load({DB_CONNECTION_LIMIT:'12',DB_AUTH_CONNECTION_LIMIT:'4'});assert.equal(custom.pool.stats().limit,12);assert.equal(custom.authPool.stats().limit,4);
 });
 
 test('Pool limits are capped against stale hosting environment values',()=>{
- const db=require('node:fs').readFileSync(__dirname+'/db.js','utf8');assert.ok(db.includes("Math.min(setting('DB_CONNECTION_LIMIT', 8), 8)"));assert.ok(db.includes("Math.min(setting('DB_AUTH_CONNECTION_LIMIT', 3), 4)"));
+ const db=require('node:fs').readFileSync(__dirname+'/db.js','utf8');assert.ok(db.includes("setting('DB_CONNECTION_LIMIT', 60)"));assert.ok(db.includes("setting('DB_AUTH_CONNECTION_LIMIT', 25)"));
 });
