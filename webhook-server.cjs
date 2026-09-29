@@ -35,6 +35,7 @@ try { nodemailer = require('nodemailer'); } catch { /* email optional until npm 
 const PORT = Number(process.env.PORT || 4173);
 const HOST = process.env.HOST || '0.0.0.0';
 const SERVER_INSTANCE = crypto.randomUUID();
+const BUILD_VERSION = '15ef897-login-stability';
 const REPO_ROOT = path.resolve(__dirname);
 const DEFAULT_WEBHOOK_DATA_DIR = process.env.WEBHOOK_DATA_DIR
   ? path.resolve(process.env.WEBHOOK_DATA_DIR)
@@ -1424,7 +1425,7 @@ const server = http.createServer(async (request, response) => {
     }
     if (pathname === '/api/db/health' || pathname === '/api/navigation-counts' || pathname === '/api/user-activity' || pathname === '/api/admin/user-activity' || pathname.startsWith('/api/auth/') || pathname.startsWith('/api/telegram/') || pathname.startsWith('/api/support/') || pathname.startsWith('/api/users') || pathname.startsWith('/api/customers') || pathname.startsWith('/api/orders') || pathname.startsWith('/api/products') || pathname.startsWith('/api/settings') || pathname === '/api/state') return await handleDbApi(request, response, pathname);
     if (pathname === '/api/health/live') {
-      return sendJson(response, 200, { ok: true, live: true, instance: SERVER_INSTANCE });
+      return sendJson(response, 200, { ok: true, live: true, instance: SERVER_INSTANCE, build: BUILD_VERSION });
     }
     if (pathname === '/api/health') {
       if (DEMO_MODE) return sendJson(response, 200, { ok: true, demo: true, inbox: inbox.length, token: Boolean(WEBHOOK_TOKEN) });
@@ -1451,6 +1452,11 @@ const server = http.createServer(async (request, response) => {
     if (!response.headersSent) sendJson(response, 500, { error: 'Lỗi server' });
   }
 });
+
+// Keep proxy/Passenger requests finite even if a downstream dependency stops responding.
+server.requestTimeout = Number(process.env.HTTP_REQUEST_TIMEOUT || 15000);
+server.headersTimeout = Number(process.env.HTTP_HEADERS_TIMEOUT || 20000);
+server.keepAliveTimeout = Number(process.env.HTTP_KEEPALIVE_TIMEOUT || 5000);
 
 loadInbox();
 // Khôi phục inbox cũ theo ID ổn định; không xóa file gốc sau khi nhập.

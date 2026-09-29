@@ -20,15 +20,15 @@ Defaults per Node process:
 
 | Variable | Default |
 | --- | ---: |
-| DB_CONNECTION_LIMIT | 30 |
-| DB_AUTH_CONNECTION_LIMIT | 2 |
+| DB_CONNECTION_LIMIT | 8 |
+| DB_AUTH_CONNECTION_LIMIT | 3 |
 | Telegram lock pool | 1 |
 | DB_QUEUE_LIMIT / DB_AUTH_QUEUE_LIMIT | 0 |
 | DB_CONNECT_TIMEOUT | 10000 ms |
 | DB_ACQUIRE_TIMEOUT | 10000 ms |
 | DB_QUERY_TIMEOUT | 10000 ms |
 
-queueLimit=0 means no count limit, but every queued operation has a deadline. Set a finite queue limit if request spikes require earlier rejection. Timeout values are independent stages, not a total HTTP request budget. Existing cPanel environment values override defaults. Do not assume 6 GB RAM determines max_user_connections: up to 33 connections per Node process, multiplied by Passenger process count and other apps, must fit MySQL limits.
+queueLimit=0 means no count limit, but every queued operation has a deadline. Set a finite queue limit if request spikes require earlier rejection. Timeout values are independent stages, not a total HTTP request budget. Existing cPanel environment values override defaults. Do not assume 6 GB RAM determines max_user_connections: up to 12 connections per Node process, multiplied by Passenger process count and other apps, must fit MySQL limits.
 
 No SQL schema migration is required. .cpanel.yml copies both new runtime modules before restarting the Node app. Credentials and .env remain outside Git.
 
@@ -47,3 +47,11 @@ Full CRM snapshots still load and transform the whole dataset before applying pe
 - Public hosting probes before this deployment: GET /api/health/live returned 200 in approximately 0.36 seconds; a single invalid POST /api/auth/login returned 401 in approximately 0.13 seconds. POST /api/login (not a route in this source) timed out after 12 seconds.
 - One batch of 20 simultaneous POSTs to /api/auth/login with an empty JSON object returned 10 HTTP 401 responses and 10 timeouts (12 seconds). This exercises invalid login lookup only, not successful password verification or state loading.
 - Production intermittency is NOT verified as resolved. The pending code was not yet deployed during these probes. Repeat checks after deployment and correlate Node/Passenger logs with timeout timestamps; distinguish DNS/TLS/proxy queuing from database and application time.
+
+## Connection-limit correction
+
+The previous 30-connection business-pool default was too aggressive for a cPanel Passenger deployment. Each Node process also has auth and Telegram pools, and multiple Passenger workers multiply the total. A 30 + 2 + 1 layout can exhaust MySQL's per-user limit and make the dedicated auth pool wait or fail. The safe default is now 8 business + 3 auth + 1 Telegram per process. Keep cPanel variables at these values unless the hosting provider confirms max_user_connections and Passenger process count.
+
+## Production guardrails
+
+The business pool now hard-caps at 8 connections and the auth pool at 4 even if stale cPanel environment variables request a higher value. This prevents a previously configured `DB_CONNECTION_LIMIT=30` from multiplying across Passenger workers and exhausting MySQL. HTTP request, header, and keep-alive timeouts are also explicit. `/api/health/live` reports build `15ef897-login-stability` after deployment so the active backend can be verified.

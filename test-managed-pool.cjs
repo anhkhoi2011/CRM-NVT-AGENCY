@@ -38,11 +38,15 @@ test('Deployment copies both new runtime modules to the Node app',()=>{
  const text=require('node:fs').readFileSync(__dirname+'/.cpanel.yml','utf8');const line=text.split('\n').find(line=>line.includes('webhook-server.cjs')&&line.includes('$CRMPATH'));assert.ok(line.includes('managed-pool.cjs'));assert.ok(line.includes('process-safety.cjs'));
 });
 
-test('Thirty database leases run concurrently and the next waits for release',async()=>{
- const f=fixture({limit:30,acquireTimeout:1000});const leases=await Promise.all(Array.from({length:30},()=>f.pool.getConnection()));assert.equal(f.pool.stats().active,30);const pending=f.pool.getConnection();assert.equal(f.pool.stats().queued,1);leases[0].release();const last=await pending;assert.equal(f.pool.stats().active,30);leases.slice(1).forEach(c=>c.release());last.release();assert.equal(f.pool.stats().active,0);assert.equal(f.pool.stats().queued,0);
+test('Eight database leases run concurrently and the next waits for release',async()=>{
+ const f=fixture({limit:8,acquireTimeout:1000});const leases=await Promise.all(Array.from({length:8},()=>f.pool.getConnection()));assert.equal(f.pool.stats().active,8);const pending=f.pool.getConnection();assert.equal(f.pool.stats().queued,1);leases[0].release();const last=await pending;assert.equal(f.pool.stats().active,8);leases.slice(1).forEach(c=>c.release());last.release();assert.equal(f.pool.stats().active,0);assert.equal(f.pool.stats().queued,0);
 });
 test('Database defaults and overrides use supported driver options and managed acquisition timeout',()=>{
  const configs=[],fs=require('node:fs'),vm=require('node:vm');function load(env){const context={module:{exports:{}},__dirname,process:{env},console,require:name=>name==='dotenv'?{config(){}}:name==='mysql2/promise'?{createPool:options=>{configs.push(options);return {on(){},end(){}};}}:require(name)};vm.runInNewContext(fs.readFileSync(__dirname+'/db.js','utf8'),context);return context.module.exports;}
- const defaults=load({});assert.equal(defaults.pool.stats().limit,30);assert.equal(defaults.authPool.stats().limit,2);assert.equal(configs[0].connectTimeout,10000);assert.equal(configs[0].queueLimit,0);assert.equal(configs[0].waitForConnections,true);assert.equal('acquireTimeout' in configs[0],false);
- const custom=load({DB_CONNECTION_LIMIT:'12',DB_AUTH_CONNECTION_LIMIT:'4'});assert.equal(custom.pool.stats().limit,12);assert.equal(custom.authPool.stats().limit,4);
+ const defaults=load({});assert.equal(defaults.pool.stats().limit,8);assert.equal(defaults.authPool.stats().limit,3);assert.equal(configs[0].connectTimeout,10000);assert.equal(configs[0].queueLimit,0);assert.equal(configs[0].waitForConnections,true);assert.equal('acquireTimeout' in configs[0],false);
+ const custom=load({DB_CONNECTION_LIMIT:'12',DB_AUTH_CONNECTION_LIMIT:'4'});assert.equal(custom.pool.stats().limit,8);assert.equal(custom.authPool.stats().limit,4);
+});
+
+test('Pool limits are capped against stale hosting environment values',()=>{
+ const db=require('node:fs').readFileSync(__dirname+'/db.js','utf8');assert.ok(db.includes("Math.min(setting('DB_CONNECTION_LIMIT', 8), 8)"));assert.ok(db.includes("Math.min(setting('DB_AUTH_CONNECTION_LIMIT', 3), 4)"));
 });

@@ -38,10 +38,10 @@ function createManagedPool(limit, queueLimit) {
     acquireTimeout: setting('DB_ACQUIRE_TIMEOUT', 10000),
     queryTimeout: setting('DB_QUERY_TIMEOUT', 10000) });
 }
-const pool = createManagedPool(setting('DB_CONNECTION_LIMIT', 30), setting('DB_QUEUE_LIMIT', 0, 0));
+const pool = createManagedPool(Math.min(setting('DB_CONNECTION_LIMIT', 8), 8), setting('DB_QUEUE_LIMIT', 0, 0));
 // Authentication must not wait behind large CRM snapshots or Telegram outbox
 // delivery. Keep a small, independent pool for login and session creation.
-const authPool = createManagedPool(setting('DB_AUTH_CONNECTION_LIMIT', 2), setting('DB_AUTH_QUEUE_LIMIT', 0, 0));
+const authPool = createManagedPool(Math.min(setting('DB_AUTH_CONNECTION_LIMIT', 3), 4), setting('DB_AUTH_QUEUE_LIMIT', 0, 0));
 // Advisory locks must stay on one connection, isolated from foreground queries.
 const telegramPool = createManagedPool(1, 1);
 
