@@ -5995,11 +5995,11 @@ function bindGlobalActions() {
       try {
         const controller = typeof AbortController === 'function' ? new AbortController() : null;
         const timer = controller ? setTimeout(() => controller.abort(), WEBHOOK_FETCH_TIMEOUT_MS) : null;
-        let response;
+        let response, payload;
         try {
           response = await fetch(base + '/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ identifier: /^\d{9,15}$/.test(phone) ? phone : email, password }), signal: controller ? controller.signal : undefined });
+          payload = await response.json().catch(error => { if (error?.name === 'AbortError') throw error; return {}; });
         } finally { if (timer) clearTimeout(timer); }
-        const payload = await response.json().catch(() => ({}));
         if (response.ok && payload.user) {
           await startSession(payload.user, false, payload.token);
           restoreSubmitButton();

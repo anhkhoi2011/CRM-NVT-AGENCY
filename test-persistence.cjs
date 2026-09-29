@@ -215,9 +215,11 @@ test('Dashboard điều hành lấy KPI, doanh thu và cảnh báo thuê từ d�
 });
 
 function authFixture(rows=[],duplicate=false,schemaReady=Promise.resolve(true)){
- const calls=[],signals=[],c={dbConfigured:true,systemSchemaReady:schemaReady,systemAccountsReady:Promise.resolve(true),crypto:require('node:crypto'),bcrypt:{hash:async p=>'hashed:'+p,compare:async(p,h)=>h==='hashed:'+p},crmData:{userRow:r=>({id:r.id,role:r.role})},dbQuery:async(sql,args)=>{calls.push({sql,args});if(sql.startsWith('SELECT'))return rows;if(duplicate&&sql.startsWith('INSERT INTO users'))throw Object.assign(new Error('duplicate'),{code:'ER_DUP_ENTRY'});return [];},readBody:async r=>Buffer.from(JSON.stringify(r.body||{})),sendJson:(response,status,payload)=>{response.status=status;response.payload=payload;},notifyInboxListeners:e=>signals.push(e),stamp:()=> '2026-09-14 10:00',Buffer,console};
+ const calls=[],signals=[];
+ const query=async(sql,args)=>{calls.push({sql,args});if(sql.startsWith('SELECT'))return rows;if(duplicate&&sql.startsWith('INSERT INTO users'))throw Object.assign(new Error('duplicate'),{code:'ER_DUP_ENTRY'});return [];};
+ const c={dbConfigured:true,systemSchemaReady:schemaReady,systemAccountsReady:Promise.resolve(true),crypto:require('node:crypto'),bcrypt:{hash:async p=>'hashed:'+p,compare:async(p,h)=>h==='hashed:'+p},crmData:{userRow:r=>({id:r.id,role:r.role})},dbQuery:query,authQuery:query,readBody:async r=>Buffer.from(JSON.stringify(r.body||{})),sendJson:(response,status,payload)=>{response.status=status;response.payload=payload;},notifyInboxListeners:e=>signals.push(e),stamp:()=> '2026-09-14 10:00',Buffer,console};
  const text=fs.readFileSync('webhook-server.cjs','utf8');vm.createContext(c);vm.runInContext(text.slice(text.indexOf('function dbJson('),text.indexOf('\n/**',text.indexOf('function dbJson('))),c);
- return {calls,signals,async request(path,body){const response={};await c.handleDbApi({method:'POST',headers:{},body},response,path);return response;}};
+ return {calls,signals,context:c,async request(path,body){const response={};await c.handleDbApi({method:'POST',headers:{},body},response,path);return response;}};
 }
 test('Login khong cho seed CRM hoan tat',async()=>{
  let release;
@@ -240,6 +242,7 @@ test('User log dùng phiên máy chủ để ghi IP, đăng nhập, đăng xuấ
  const server=fs.readFileSync('webhook-server.cjs','utf8'),ui=fs.readFileSync('reference-crm.js','utf8');
  assert.match(server,/user_activity_logs/);assert.match(server,/api\/admin\/user-activity/);assert.match(server,/recordUserActivity\(row,request,'LOGIN','Đăng nhập CRM'\)/);assert.match(server,/recordUserActivity\(user,request,'LOGOUT','Đăng xuất CRM'\)/);assert.match(server,/clientIp\(request\)/);
  assert.match(ui,/Trạng thái nhân sự/);assert.match(ui,/ĐANG LÀM GÌ/);assert.match(ui,/Lịch sử hoạt động/);assert.match(ui,/reportUserActivity\(id\)/);
+ assert.match(ui,/\(roleA==='ADMIN'\)!==\(roleB==='ADMIN'\)/);assert.match(ui,/Boolean\(a\.online\)!==Boolean\(b\.online\)/);assert.match(ui,/const people=orderedUsers\.map/);
 });
 
 test('Đồng bộ giữ tham chiếu của form đang mở để lần sửa tiếp theo được lưu',()=>{
@@ -1240,6 +1243,11 @@ test('Login still authenticates before issuing a session',async()=>{
  assert.equal(accepted.status,200);assert.ok(accepted.payload.token);
  assert.ok(f.calls.some(call=>call.sql.startsWith('INSERT INTO crm_sessions')));
 });
+test('Login uses the dedicated auth pool and one indexed identifier column',()=>{
+ const db=fs.readFileSync('db.js','utf8'),server=fs.readFileSync('webhook-server.cjs','utf8');
+ assert.match(db,/const authPool = createManagedPool/);assert.match(db,/DB_AUTH_CONNECTION_LIMIT/);assert.match(db,/async function authQuery/);
+ assert.match(server,/const rows=await authQuery\(`/);assert.match(server,/phone\?'phone=\?':'email=\?'/);assert.match(server,/await authQuery\('INSERT INTO crm_sessions/);
+});
 
 test('Direct owner filter includes international phones and manager recipients without mixing team customers',()=>{
  const source=fs.readFileSync('reference-view.js','utf8');
@@ -1388,4 +1396,28 @@ test('Failed replay retains SQL draft and does not silently overwrite it',async(
  c.fetch=async()=>({ok:false,json:async()=>({error:'Conflict'})});
  await assert.rejects(()=>vm.runInContext("recoverPendingWrite({id:'admin'})",c),/Conflict/);
  assert.ok(c.sessionStorage.getItem('nvt-crm-pending-write-v1:admin'));
+});
+
+test('Twenty concurrent logins complete when the business query path is stalled',async()=>{
+ const f=authFixture([{id:'sale-test',role:'SALE',password_hash:'correct-password'}]);
+ f.context.dbQuery=()=>new Promise(()=>{});
+ const results=await Promise.all(Array.from({length:20},()=>f.request('/api/auth/login',{identifier:'0912345678',password:'correct-password'})));
+ assert.ok(results.every(result=>result.status===200&&result.payload.token));
+ assert.equal(new Set(results.map(result=>result.payload.token)).size,20);
+});
+test('Login returns structured 503 on acquisition timeout, without creating a session',async()=>{
+ const f=authFixture();f.context.authQuery=async()=>{throw Object.assign(Error('queue timed out'),{code:'DB_ACQUIRE_TIMEOUT'});};
+ const result=await f.request('/api/auth/login',{identifier:'0912345678',password:'password'});
+ assert.equal(result.status,503);assert.equal(result.payload.code,'DB_ACQUIRE_TIMEOUT');assert.equal(f.calls.length,0);
+});
+
+test('Login body timeout restores submit button without starting a session',async()=>{
+ const c=frontend();await c.initialize();let cleared=false,bodyCovered=false;
+ c.setTimeout=()=>123;c.clearTimeout=id=>{if(id===123)cleared=true;};c.AbortController=AbortController;
+ c.fetch=async()=>({ok:true,status:200,json:async()=>{bodyCovered=!cleared;throw Object.assign(Error('body stalled'),{name:'AbortError'});}});
+ vm.runInContext('startSession=async()=>{throw Error("Must not start session");};document.querySelector("#loginPhone").value="0900000001";document.querySelector("#loginPassword").value="dummy";',c);
+ await vm.runInContext('document.querySelector("#loginForm").onsubmit({preventDefault(){}})',c);
+ assert.equal(bodyCovered,true);assert.equal(cleared,true);
+ assert.equal(c.document.querySelector('#loginForm button[type="submit"]').disabled,false);
+ assert.match(c.document.querySelector('#loginError').textContent,/Máy chủ phản hồi quá lâu/);
 });

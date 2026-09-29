@@ -82,7 +82,7 @@ async function seedProductCatalog(){
   }
   await c.execute("INSERT INTO system_settings(setting_key,setting_value) VALUES ('product_catalog_20260914_v1','true')");
   await c.commit();return {applied:true,inserted};
- }catch(e){await c.rollback();throw e;}finally{c.release();}
+ }catch(e){await c.rollback().catch(()=>{});throw e;}finally{c.release();}
 }
 async function seedDefaults(){
  const c=await pool.getConnection();
@@ -102,7 +102,7 @@ async function seedDefaults(){
    await c.execute("INSERT INTO system_settings(setting_key,setting_value) VALUES ('crm_defaults_v1','true')");
   }
   await c.commit();
- }catch(e){await c.rollback();throw e;}finally{c.release();}
+ }catch(e){await c.rollback().catch(()=>{});throw e;}finally{c.release();}
 }
 function error(status,message){throw Object.assign(new Error(message),{status});}
 function parsed(value,fallback={}){if(typeof value==='string')return JSON.parse(value);return value??fallback;}
@@ -654,7 +654,7 @@ async function distributeAutomatic(c, data = null) {
  return count || (roundsChanged?1:0);
 }
 
-async function read(user, options={}){await prepare();const c=await pool.getConnection();try{await c.beginTransaction();if(options.passive!==true)await c.query('SELECT id FROM crm_write_lock WHERE id=1 FOR UPDATE');const data=await allData(c,{mirrorAttendance:options.passive!==true});if(options.passive===true){const result=snapshot(user,data);await c.commit();return result;}await expireOffers(c,data);const assigned=await distributeAutomatic(c,data);await warnRentalExpiry(c,data);const result=snapshot(user,assigned?await allData(c):data);await c.commit();return result;}catch(e){await c.rollback();throw e;}finally{c.release();}}
+async function read(user, options={}){await prepare();const c=await pool.getConnection();try{await c.beginTransaction();if(options.passive!==true)await c.query('SELECT id FROM crm_write_lock WHERE id=1 FOR UPDATE');const data=await allData(c,{mirrorAttendance:options.passive!==true});if(options.passive===true){const result=snapshot(user,data);await c.commit();return result;}await expireOffers(c,data);const assigned=await distributeAutomatic(c,data);await warnRentalExpiry(c,data);const result=snapshot(user,assigned?await allData(c):data);await c.commit();return result;}catch(e){await c.rollback().catch(()=>{});throw e;}finally{c.release();}}
 async function write(user,requestId,changes,options={}){
  if(typeof requestId!=='string'||!/^[-\w]{1,96}$/.test(requestId)||!Array.isArray(changes)||changes.length>2000)error(400,'Gói lưu không hợp lệ');
  await prepare();const c=await pool.getConnection();
@@ -705,6 +705,6 @@ async function write(user,requestId,changes,options={}){
   }
   await c.execute('INSERT INTO crm_changes(request_id,actor_id,changes_json) VALUES (?,?,?)',[requestId,user.id,JSON.stringify(history)]);
   const updated=await allData(c);const assigned=options.skipAutomatic===true?0:await distributeAutomatic(c,updated);const result=snapshot(user,assigned?await allData(c):updated);await c.commit();return {...result,ok:true};
- }catch(e){await c.rollback();throw e;}finally{c.release();}
+ }catch(e){await c.rollback().catch(()=>{});throw e;}finally{c.release();}
 }
 module.exports={queueTelegramNotice,snapshot,distributeAutomatic,prepare,seedProductCatalog,read,write,revision,canonical,coreRow,userRow,authorize,readable,validate,LISTS,OBJECTS,SCHEMA};

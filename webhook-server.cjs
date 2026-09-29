@@ -24,7 +24,7 @@ const net = require('node:net');
 const zlib = require('node:zlib');
 const bcrypt = require('bcryptjs');
 const crmData = require('./crm-data.cjs');
-const { dbConfigured, dbQuery, dbHealth, pool } = require('./db.js');
+const { dbConfigured, dbQuery, authQuery, dbHealth, pool } = require('./db.js');
 const { provisionSystemAccounts } = require('./system-accounts.cjs');
 const { persistWebhook } = require('./webhook-store.cjs');
 const telegramBot = require('./telegram-bot.cjs');
@@ -426,16 +426,17 @@ async function handleDbApi(request, response, pathname) {
     }
     if (pathname === '/api/auth/login' && request.method === 'POST') {
       const body = await readDbBody(request), identifier=String(body.identifier||'').trim().toLowerCase();
-      const rows=await dbQuery('SELECT * FROM users WHERE active=1 AND (phone=? OR email=?) LIMIT 1',[identifier,identifier]);
+      const phone=/^\d{9,15}$/.test(identifier);
+      const rows=await authQuery(`SELECT * FROM users WHERE active=1 AND ${phone?'phone=?':'email=?'} LIMIT 1`,[identifier]);
       markLogin('lookup');
       const row=rows[0], password=String(body.password||'');
       const matched=!!row && await passwordMatches(password,row.password_hash);
       markLogin('password');
       if(!matched)return dbJson(request,response,401,{error:'Thông tin đăng nhập không đúng'});
       if(row.role==='UNASSIGNED')return dbJson(request,response,403,{error:'Tài khoản đã đăng ký, đang chờ Admin phân chức vụ.'});
-      if(!/^\$2[aby]\$/.test(row.password_hash))await dbQuery('UPDATE users SET password_hash=? WHERE id=?',[await bcrypt.hash(password,12),row.id]);
+      if(!/^\$2[aby]\$/.test(row.password_hash))await authQuery('UPDATE users SET password_hash=? WHERE id=?',[await bcrypt.hash(password,12),row.id]);
       const token=crypto.randomBytes(32).toString('hex');
-      await dbQuery('INSERT INTO crm_sessions(token_hash,user_id,ip,user_agent,expires_at,last_seen_at,last_activity) VALUES (?,?,?,?,DATE_ADD(NOW(),INTERVAL 1 DAY),NOW(),?)',[crypto.createHash('sha256').update(token).digest('hex'),row.id,clientIp(request)||null,clientUserAgent(request)||null,'Đang vào CRM']);
+      await authQuery('INSERT INTO crm_sessions(token_hash,user_id,ip,user_agent,expires_at,last_seen_at,last_activity) VALUES (?,?,?,?,DATE_ADD(NOW(),INTERVAL 1 DAY),NOW(),?)',[crypto.createHash('sha256').update(token).digest('hex'),row.id,clientIp(request)||null,clientUserAgent(request)||null,'Đang vào CRM']);
       markLogin('session');
       // Nhat ky dang nhap khong duoc chan phan hoi xac thuc; ghi nen de nguoi dung vao CRM ngay.
       void recordUserActivity(row,request,'LOGIN','Đăng nhập CRM').catch(error=>console.warn('[user-activity login]',error.message));
@@ -445,7 +446,7 @@ async function handleDbApi(request, response, pathname) {
     const user=await authUser(request);
     if(!user)return dbJson(request,response,401,{error:'Phiên đã hết hạn. Đăng nhập lại để tiếp tục.'});
     await touchUserSession(request);
-    if(pathname.startsWith('/api/support/'))return handleSupportApi(request,response,pathname,user);
+    if(pathname.startsWith('/api/support/'))return await handleSupportApi(request,response,pathname,user);
     if(pathname==='/api/auth/me')return dbJson(request,response,200,{user});
     if(pathname==='/api/auth/logout' && request.method==='POST'){await recordUserActivity(user,request,'LOGOUT','Đăng xuất CRM');await dbQuery('DELETE FROM crm_sessions WHERE token_hash=?',[tokenHash(request)]);return dbJson(request,response,200,{ok:true});}
     if(pathname==='/api/user-activity' && request.method==='POST'){
@@ -539,7 +540,11 @@ async function handleDbApi(request, response, pathname) {
       return dbJson(request,response,request.method==='POST'?201:200,result);
     }
     return dbJson(request,response,404,{error:'API không tồn tại'});
-  }catch(e){console.error('[mysql-api]',e.message);const duplicate=e.code==='ER_DUP_ENTRY';return dbJson(request,response,e.status||(duplicate||e instanceof SyntaxError?400:500),{error:e.status?e.message:duplicate?'ID tài khoản, số điện thoại hoặc email đã tồn tại':e instanceof SyntaxError?'JSON không hợp lệ':'Không lưu được MySQL. Giữ trang mở và thử lại.'});} finally {
+   }catch(e){
+    console.error('[mysql-api]',pathname,e.code||'ERROR',e.message);
+    const unavailable=/^DB_/.test(e.code||'')||['ETIMEDOUT','ECONNRESET','ECONNREFUSED','PROTOCOL_CONNECTION_LOST','ER_CON_COUNT_ERROR','ER_USER_LIMIT_REACHED'].includes(e.code);
+    if(unavailable)return dbJson(request,response,503,{code:e.code,error:'Kết nối cơ sở dữ liệu đang bận hoặc gián đoạn. Vui lòng thử lại; dữ liệu đã lưu không bị xóa.'});
+const duplicate=e.code==='ER_DUP_ENTRY';return dbJson(request,response,e.status||(duplicate||e instanceof SyntaxError?400:500),{error:e.status?e.message:duplicate?'ID tài khoản, số điện thoại hoặc email đã tồn tại':e instanceof SyntaxError?'JSON không hợp lệ':'Không lưu được MySQL. Giữ trang mở và thử lại.'});} finally {
     if(loginTiming){const total=Date.now()-loginTiming.started;if(total>=1000)console.warn('[login-timing]',JSON.stringify({totalMs:total,...loginTiming.phases}));}
   }
 }
@@ -584,6 +589,7 @@ const MIME = {
 
 let inbox = [];
 let inboxFlushScheduled = false;
+let inboxFlushRunning = false;
 
 function loadInbox() {
   try {
@@ -595,25 +601,26 @@ function loadInbox() {
   }
 }
 
-function flushInbox() {
-  inboxFlushScheduled = false;
-  const tmp = `${INBOX_FILE}.${process.pid}.tmp`;
-  try { fs.mkdirSync(path.dirname(INBOX_FILE), { recursive: true }); } catch (error) {
-    console.error('[inbox] cannot create inbox directory:', error.message);
-    return;
-  }
+async function flushInbox() {
+  if(inboxFlushRunning)return;
+  inboxFlushRunning=true;
+  const tmp = INBOX_FILE + '.' + process.pid + '.tmp';
   try {
-    fs.writeFileSync(tmp, JSON.stringify(inbox, null, 2), 'utf8');
-    fs.renameSync(tmp, INBOX_FILE);
+    await fsp.mkdir(path.dirname(INBOX_FILE), { recursive: true });
+    do {
+      inboxFlushScheduled=false;
+      await fsp.writeFile(tmp, JSON.stringify(inbox), 'utf8');
+      await fsp.rename(tmp, INBOX_FILE);
+    } while(inboxFlushScheduled);
   } catch (error) {
-    console.error('[inbox] không ghi được file inbox:', error.message);
-  }
+    console.error('[inbox] Không ghi được file inbox:', error.message);
+  } finally { inboxFlushRunning=false; inboxFlushScheduled=false; }
 }
 
 function scheduleFlush() {
   if (inboxFlushScheduled) return;
   inboxFlushScheduled = true;
-  setImmediate(flushInbox);
+  if(!inboxFlushRunning)setImmediate(flushInbox);
 }
 
 /* ------------------------------------------------------- LadiPage adapter */
@@ -1325,11 +1332,11 @@ const server = http.createServer(async (request, response) => {
       await handleWebhook(request, response, decodeURIComponent(webhookMatch[1]));
       return;
     }
-    if (pathname === '/api/data-sources/inbox') return handleInbox(request, response, url);
-    if (pathname === '/api/data-sources/stream') return handleInboxStream(request, response);
-    if (pathname === '/api/session-context') return handleSessionContext(request, response);
-    if (pathname === '/api/email/status') return handleEmailStatus(request, response);
-    if (pathname === '/api/email/notify') return handleEmailNotify(request, response);
+    if (pathname === '/api/data-sources/inbox') return await handleInbox(request, response, url);
+    if (pathname === '/api/data-sources/stream') return await handleInboxStream(request, response);
+    if (pathname === '/api/session-context') return await handleSessionContext(request, response);
+    if (pathname === '/api/email/status') return await handleEmailStatus(request, response);
+    if (pathname === '/api/email/notify') return await handleEmailNotify(request, response);
     if (pathname === '/api/telegram/webhook' || pathname === '/api/telegram/support-webhook') {
       if (request.method === 'POST') {
         const supportWebhook = pathname === '/api/telegram/support-webhook';
@@ -1415,7 +1422,7 @@ const server = http.createServer(async (request, response) => {
       await dbQuery('UPDATE customer_appointments SET status = ?, note = COALESCE(?, note) WHERE id = ?', [status, body.note || null, id]);
       return sendJson(response, 200, { ok: true }, corsHeaders(request));
     }
-    if (pathname === '/api/db/health' || pathname === '/api/navigation-counts' || pathname === '/api/user-activity' || pathname === '/api/admin/user-activity' || pathname.startsWith('/api/auth/') || pathname.startsWith('/api/telegram/') || pathname.startsWith('/api/support/') || pathname.startsWith('/api/users') || pathname.startsWith('/api/customers') || pathname.startsWith('/api/orders') || pathname.startsWith('/api/products') || pathname.startsWith('/api/settings') || pathname === '/api/state') return handleDbApi(request, response, pathname);
+    if (pathname === '/api/db/health' || pathname === '/api/navigation-counts' || pathname === '/api/user-activity' || pathname === '/api/admin/user-activity' || pathname.startsWith('/api/auth/') || pathname.startsWith('/api/telegram/') || pathname.startsWith('/api/support/') || pathname.startsWith('/api/users') || pathname.startsWith('/api/customers') || pathname.startsWith('/api/orders') || pathname.startsWith('/api/products') || pathname.startsWith('/api/settings') || pathname === '/api/state') return await handleDbApi(request, response, pathname);
     if (pathname === '/api/health/live') {
       return sendJson(response, 200, { ok: true, live: true, instance: SERVER_INSTANCE });
     }

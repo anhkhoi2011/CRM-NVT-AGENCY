@@ -7,7 +7,7 @@
  * nhắc lịch hẹn khách hàng, cảnh báo data nóng 12h, nhắc điểm danh 09h00.
  */
 
-const { pool, dbQuery } = require('./db.js');
+const { pool, telegramPool, dbQuery } = require('./db.js');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const supportChat = require('./support-chat.cjs');
@@ -1105,7 +1105,7 @@ async function drainLeadNotifications(){
  let connection,locked=false,processed=0;
  const parse=value=>typeof value==='string'?JSON.parse(value):value;
  try{
-  connection=await pool.getConnection();
+  connection=await telegramPool.getConnection();
   const [locks]=await connection.query("SELECT GET_LOCK(CONCAT('crm-telegram-',DATABASE()),0) AS acquired");
   locked=Number(locks[0]?.acquired)===1;
   if(!locked)return {skipped:true};

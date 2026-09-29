@@ -227,7 +227,7 @@ async function persistWebhook(record) {
     await connection.commit();
     return { eventId, customerId: record.status === 'NEW' ? customerId : null, duplicate: replay, replay, source: sourceSnapshot };
   } catch (error) {
-    await connection.rollback();
+    await connection.rollback().catch(()=>{});
     throw error;
   } finally { connection.release(); }
 }

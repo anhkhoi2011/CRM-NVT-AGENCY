@@ -39,7 +39,7 @@ async function provisionSystemAccounts(pool) {
     await c.commit();
     return { applied: true };
   } catch (error) {
-    await c.rollback();
+    await c.rollback().catch(()=>{});
     throw error;
   } finally {
     if (locked) await c.query("SELECT RELEASE_LOCK(CONCAT(LEFT(DATABASE(),40), ':nvt-accounts-v1'))").catch(()=>{});

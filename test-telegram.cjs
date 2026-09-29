@@ -15,7 +15,7 @@ function fixture(){
  const connection={query,execute:query,release(){locks.push('connection-release');}};
  const module={exports:{}};
  vm.runInNewContext(fs.readFileSync('telegram-bot.cjs','utf8'),{module,console,AbortSignal,Buffer,FormData,Blob,process:{env:{TELEGRAM_BOT_TOKEN:'test-only',TELEGRAM_ADMIN_CHAT_ID:'999'}},fetch:async(url,options)=>{sent.push({method:url.split('/').pop(),...JSON.parse(options.body)});return {json:async()=>({ok:!failure,result:{message_id:321}})};},require:name=>{
-  if(name==='./db.js')return {pool:{getConnection:async()=>connection},dbQuery:async(sql,args=[])=>{
+  if(name==='./db.js')return {pool:{getConnection:async()=>connection},telegramPool:{getConnection:async()=>connection},dbQuery:async(sql,args=[])=>{
    if(sql.includes('FROM users'))return sql.includes("role = 'ADMIN'")?users.filter(u=>u.role==='ADMIN'):users.filter(u=>u.id===args[0]);
    throw Error(sql);
   }};
