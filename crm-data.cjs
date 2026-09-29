@@ -117,11 +117,24 @@ function coreRow(key,r){
 }
 async function allData(c, options={}){
  const data=Object.fromEntries([...LISTS,...OBJECTS].map(k=>[k,new Map()]));
- const [docs]=await c.execute('SELECT * FROM crm_documents WHERE collection IN ('+[...LISTS,...OBJECTS].map(()=>'?').join(',')+')',[...LISTS,...OBJECTS]);
+ const collections=[...LISTS,...OBJECTS];
+ const placeholders=collections.map(()=>'?').join(',');
+ // These reads are independent. Keeping them in one Promise.all avoids making
+ // the state snapshot wait through a long chain of unrelated queries.
+ const [docsResult,customersResult,ordersResult,productsResult,usersResult,settingsResult]=await Promise.all([
+  c.execute('SELECT * FROM crm_documents WHERE collection IN ('+placeholders+')',collections),
+  c.query('SELECT * FROM customers'),
+  c.query('SELECT * FROM orders'),
+  c.query('SELECT * FROM products'),
+  c.query('SELECT id,account_code,phone,email,name,role,team_id,leader_id,telegram_chat_id,telegram_username,active,created_at FROM users'),
+  c.query('SELECT setting_key,setting_value FROM system_settings')
+ ]);
+ const [docs]=docsResult;
  const deleted=new Set();
  for(const d of docs){if(!data[d.collection])continue;if(d.deleted)deleted.add(`${d.collection}/${d.id}`);else data[d.collection].set(d.id,parsed(d.body));}
+ const actualRows={customers:customersResult[0],orders:ordersResult[0],products:productsResult[0]};
  for(const key of ['customers','orders','products']){
-  const [rows]=await c.query(`SELECT * FROM ${key}`);
+  const rows=actualRows[key];
   // Ba bang nay la nguon ton tai that. Neu Admin xoa truc tiep trong MySQL,
   // snapshot cu trong crm_documents khong duoc phep lam ban ghi quay lai giao dien.
   const actualIds=new Set(rows.map(row=>String(row.id)));
@@ -136,7 +149,7 @@ async function allData(c, options={}){
   const sourceUrl=website.sourceUrl||(website.domain?`https://${String(website.domain).replace(/^https?:\/\//,'').replace(/\/+$/,'')}/`:'');
   data.customers.set(id,{...customer,websiteId:customer.websiteId||website.id,landingPageName:customer.landingPageName||website.name||website.domain,landingPageUrl:customer.landingPageUrl||sourceUrl,landingPageDomain:customer.landingPageDomain||website.domain});
  }
- const [users]=await c.query('SELECT id,account_code,phone,email,name,role,team_id,leader_id,telegram_chat_id,telegram_username,active,created_at FROM users');
+ const [users]=usersResult;
  const actualUserIds=new Set(users.map(u=>String(u.id)));
  if(actualUserIds.size>0){for(const id of data.members.keys())if(!actualUserIds.has(String(id)))data.members.delete(id);}
  for(const u of users){
@@ -144,7 +157,7 @@ async function allData(c, options={}){
   const row=userRow(u);
   data.members.set(u.id,{...data.members.get(u.id),...row,active:row.active,loginEnabled:true,initials:data.members.get(u.id)?.initials||String(u.name).trim().split(/\s+/).slice(-2).map(x=>x[0]).join('').toUpperCase()});
  }
-  const [settings]=await c.query('SELECT setting_key,setting_value FROM system_settings');
+  const [settings]=settingsResult;
   if(!data.settings.has('$')) {const row=settings.find(r=>r.setting_key==='crm');if(row)data.settings.set('$',parsed(row.setting_value));}
   if(options.mirrorAttendance!==false)await mirrorAttendanceRecords(c,data);
   return data;

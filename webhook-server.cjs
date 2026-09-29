@@ -35,7 +35,7 @@ try { nodemailer = require('nodemailer'); } catch { /* email optional until npm 
 const PORT = Number(process.env.PORT || 4173);
 const HOST = process.env.HOST || '0.0.0.0';
 const SERVER_INSTANCE = crypto.randomUUID();
-const BUILD_VERSION = '15ef897-login-stability';
+const BUILD_VERSION = '20260929-login-state-fast';
 const REPO_ROOT = path.resolve(__dirname);
 const DEFAULT_WEBHOOK_DATA_DIR = process.env.WEBHOOK_DATA_DIR
   ? path.resolve(process.env.WEBHOOK_DATA_DIR)
@@ -157,6 +157,14 @@ async function passwordMatches(value, stored) {
   if (/^\$2[aby]\$/.test(stored || '')) return bcrypt.compare(value, stored);
   // Hỗ trợ mật khẩu cũ; nâng cấp sang bcrypt sau lần đăng nhập đúng.
   return value.length > 0 && value === stored;
+}
+
+async function hashPassword(value) {
+  return bcrypt.hash(value, 10);
+}
+
+function needsPasswordRehash(stored) {
+  return /^\$2[aby]\$/.test(stored || '') && typeof bcrypt.getRounds === 'function' && bcrypt.getRounds(stored) > 10;
 }
 
 // Chế độ demo chỉ được bật chủ động bằng DEMO_MODE=1. npm start/cPanel không bật cờ này.
@@ -420,7 +428,7 @@ async function handleDbApi(request, response, pathname) {
       const name = String(body.name || '').trim(), accountId = String(body.accountId || '').trim().toUpperCase(), password = String(body.password || '');
       if (!/^\d{9,15}$/.test(phone) || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length>254 || !name || name.length>160 || !/^[A-Z0-9][A-Z0-9._-]{2,63}$/.test(accountId) || password.length<8 || Buffer.byteLength(password)>72) return dbJson(request,response,400,{error:'Họ tên, ID tài khoản, SĐT, email hoặc mật khẩu không hợp lệ.'});
       const id = `u-reg-${crypto.randomUUID()}`;
-      try { await dbQuery("INSERT INTO users(id,account_code,phone,email,password_hash,name,role,active) VALUES (?,?,?,?,?,?,'UNASSIGNED',1)",[id,accountId||null,phone,email,await bcrypt.hash(password,12),name]); }
+      try { await dbQuery("INSERT INTO users(id,account_code,phone,email,password_hash,name,role,active) VALUES (?,?,?,?,?,?,'UNASSIGNED',1)",[id,accountId||null,phone,email,await hashPassword(password),name]); }
       catch(e) { if(e.code==='ER_DUP_ENTRY')return dbJson(request,response,400,{error:'ID tài khoản, số điện thoại hoặc email đã tồn tại'});throw e; }
       notifyInboxListeners({id,kind:'users',receivedAt:stamp()});
       return dbJson(request,response,201,{success:true,message:'Đăng ký thành công',id});
@@ -428,14 +436,18 @@ async function handleDbApi(request, response, pathname) {
     if (pathname === '/api/auth/login' && request.method === 'POST') {
       const body = await readDbBody(request), identifier=String(body.identifier||'').trim().toLowerCase();
       const phone=/^\d{9,15}$/.test(identifier);
-      const rows=await authQuery(`SELECT * FROM users WHERE active=1 AND ${phone?'phone=?':'email=?'} LIMIT 1`,[identifier]);
+      const rows=await authQuery(`SELECT id,account_code,phone,email,password_hash,name,role,team_id,leader_id,telegram_chat_id,telegram_username,active,created_at FROM users WHERE active=1 AND ${phone?'phone=?':'email=?'} LIMIT 1`,[identifier]);
       markLogin('lookup');
       const row=rows[0], password=String(body.password||'');
       const matched=!!row && await passwordMatches(password,row.password_hash);
       markLogin('password');
       if(!matched)return dbJson(request,response,401,{error:'Thông tin đăng nhập không đúng'});
       if(row.role==='UNASSIGNED')return dbJson(request,response,403,{error:'Tài khoản đã đăng ký, đang chờ Admin phân chức vụ.'});
-      if(!/^\$2[aby]\$/.test(row.password_hash))await authQuery('UPDATE users SET password_hash=? WHERE id=?',[await bcrypt.hash(password,12),row.id]);
+      if(!/^\$2[aby]\$/.test(row.password_hash)) {
+        void hashPassword(password).then(hash => authQuery('UPDATE users SET password_hash=? WHERE id=?',[hash,row.id])).catch(error => console.warn('[password-upgrade]',error.code||error.message));
+      } else if (needsPasswordRehash(row.password_hash)) {
+        void hashPassword(password).then(hash => authQuery('UPDATE users SET password_hash=? WHERE id=?',[hash,row.id])).catch(error => console.warn('[password-rehash]',error.code||error.message));
+      }
       const token=crypto.randomBytes(32).toString('hex');
       await authQuery('INSERT INTO crm_sessions(token_hash,user_id,ip,user_agent,expires_at,last_seen_at,last_activity) VALUES (?,?,?,?,DATE_ADD(NOW(),INTERVAL 1 DAY),NOW(),?)',[crypto.createHash('sha256').update(token).digest('hex'),row.id,clientIp(request)||null,clientUserAgent(request)||null,'Đang vào CRM']);
       markLogin('session');
@@ -502,7 +514,7 @@ async function handleDbApi(request, response, pathname) {
       const rows=await dbQuery('SELECT password_hash FROM users WHERE id=?',[id]);
       if(!rows.length)return dbJson(request,response,404,{error:'Nhân sự chưa có tài khoản đăng nhập'});
       if(id===user.id&&!await passwordMatches(String(body.currentPassword||''),rows[0].password_hash))return dbJson(request,response,400,{error:'Mật khẩu hiện tại không đúng'});
-      await dbQuery('UPDATE users SET password_hash=? WHERE id=?',[await bcrypt.hash(password,12),id]);
+      await dbQuery('UPDATE users SET password_hash=? WHERE id=?',[await hashPassword(password),id]);
       await dbQuery('DELETE FROM crm_sessions WHERE user_id=?',[id]);
       return dbJson(request,response,200,{ok:true});
     }
@@ -900,15 +912,57 @@ function decodeBody(buffer, contentType) {
 
 /* --------------------------------------------------------------- helpers */
 
+function acceptedContentEncoding(request) {
+  const value = String(request?.headers?.['accept-encoding'] || '').toLowerCase();
+  const quality = token => {
+    const match = value.match(new RegExp(`(?:^|,)\\s*${token}\\s*(?:;\\s*q=([0-9.]+))?`));
+    return match && Number(match[1] ?? 1) > 0 ? Number(match[1] ?? 1) : 0;
+  };
+  const gzip = quality('gzip');
+  const deflate = quality('deflate');
+  if (gzip >= deflate && gzip > 0) return 'gzip';
+  if (deflate > 0) return 'deflate';
+  return '';
+}
+
 function sendJson(response, status, payload, extraHeaders = {}) {
   const body = JSON.stringify(payload);
-  response.writeHead(status, {
+  const source = Buffer.from(body);
+  const headers = {
     'Content-Type': 'application/json; charset=utf-8',
-    'Content-Length': Buffer.byteLength(body),
+    'Content-Length': source.length,
     'Cache-Control': 'no-store',
     ...extraHeaders
+  };
+  const vary = new Set(String(headers.Vary || '').split(',').map(item => item.trim()).filter(Boolean));
+  vary.add('Accept-Encoding');
+  headers.Vary = [...vary].join(', ');
+  const request = response.req;
+  const encoding = source.length > 1024 ? acceptedContentEncoding(request) : '';
+  if (!encoding) {
+    response.writeHead(status, headers);
+    response.end(source);
+    return Promise.resolve();
+  }
+  return new Promise(resolve => {
+    const done = (error, compressed) => {
+      if (error) {
+        delete headers['Content-Encoding'];
+        headers['Content-Length'] = source.length;
+        response.writeHead(status, headers);
+        response.end(source);
+      } else {
+        headers['Content-Encoding'] = encoding;
+        headers['Content-Length'] = compressed.length;
+        response.writeHead(status, headers);
+        response.end(compressed);
+      }
+      resolve();
+    };
+    const options = { level: zlib.constants.Z_BEST_SPEED };
+    if (encoding === 'gzip') zlib.gzip(source, options, done);
+    else zlib.deflate(source, options, done);
   });
-  response.end(body);
 }
 
 function emailCorsHeaders(request) {
