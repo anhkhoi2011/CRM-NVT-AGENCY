@@ -400,13 +400,16 @@ async function handleDbApi(request, response, pathname) {
   const markLogin = phase => { if(loginTiming){const now=Date.now();loginTiming.phases[phase]=now-loginTiming.last;loginTiming.last=now;} };
   try {
     const isAuthRequest = pathname === '/api/auth/login' || pathname === '/api/auth/register';
-    const canRunBeforeSystemReady = pathname === '/api/db/health' || isAuthRequest;
-    // Xác thực cần schema sẵn sàng.
-    if (isAuthRequest) {
+    const isStateRead = pathname === '/api/state' && request.method === 'GET';
+    // Dang nhap khong duoc cho seed/migration CRM chay ngam. Users va crm_sessions
+    // la cac bang nen; truy van truc tiep de tra loi nhanh, loi thieu bang se tra ve ro rang.
+    // Snapshot chi can schema CRM, khong can cho provision tai khoan he thong xong.
+    if (!isAuthRequest && !isStateRead && pathname !== '/api/db/health' && !await systemAccountsReady) {
+      return dbJson(request,response,503,{error:'Khoi tao tai khoan he thong chua hoan tat. Kiem tra log Node.'});
+    }
+    if (isStateRead) {
       const schemaReady = await systemSchemaReady;
-      if (!schemaReady) return dbJson(request,response,503,{error:'Schema MySQL chưa sẵn sàng. Kiểm tra log Node.'});
-    } else if (!canRunBeforeSystemReady && !await systemAccountsReady) {
-      return dbJson(request,response,503,{error:'Khởi tạo tài khoản hệ thống chưa hoàn tất. Kiểm tra schema và quyền MySQL trong log Node.'});
+      if (!schemaReady) return dbJson(request,response,503,{error:'Schema MySQL chua san sang. Kiem tra log Node.'});
     }
     markLogin('startup');
     if (pathname === '/api/db/health') return dbJson(request,response,200,await dbHealth());
@@ -423,7 +426,7 @@ async function handleDbApi(request, response, pathname) {
     }
     if (pathname === '/api/auth/login' && request.method === 'POST') {
       const body = await readDbBody(request), identifier=String(body.identifier||'').trim().toLowerCase();
-      const rows=await dbQuery('SELECT * FROM users WHERE (phone=? OR LOWER(email)=?) AND active=1 LIMIT 1',[identifier,identifier]);
+      const rows=await dbQuery('SELECT * FROM users WHERE active=1 AND (phone=? OR email=?) LIMIT 1',[identifier,identifier]);
       markLogin('lookup');
       const row=rows[0], password=String(body.password||'');
       const matched=!!row && await passwordMatches(password,row.password_hash);

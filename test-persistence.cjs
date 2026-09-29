@@ -214,11 +214,18 @@ test('Dashboard điều hành lấy KPI, doanh thu và cảnh báo thuê từ d�
  assert.doesNotMatch(html,/26\.000\.000/);
 });
 
-function authFixture(rows=[],duplicate=false){
- const calls=[],signals=[],c={dbConfigured:true,systemSchemaReady:Promise.resolve(true),systemAccountsReady:Promise.resolve(true),crypto:require('node:crypto'),bcrypt:{hash:async p=>'hashed:'+p,compare:async(p,h)=>h==='hashed:'+p},crmData:{userRow:r=>({id:r.id,role:r.role})},dbQuery:async(sql,args)=>{calls.push({sql,args});if(sql.startsWith('SELECT'))return rows;if(duplicate&&sql.startsWith('INSERT INTO users'))throw Object.assign(new Error('duplicate'),{code:'ER_DUP_ENTRY'});return [];},readBody:async r=>Buffer.from(JSON.stringify(r.body||{})),sendJson:(response,status,payload)=>{response.status=status;response.payload=payload;},notifyInboxListeners:e=>signals.push(e),stamp:()=> '2026-09-14 10:00',Buffer,console};
+function authFixture(rows=[],duplicate=false,schemaReady=Promise.resolve(true)){
+ const calls=[],signals=[],c={dbConfigured:true,systemSchemaReady:schemaReady,systemAccountsReady:Promise.resolve(true),crypto:require('node:crypto'),bcrypt:{hash:async p=>'hashed:'+p,compare:async(p,h)=>h==='hashed:'+p},crmData:{userRow:r=>({id:r.id,role:r.role})},dbQuery:async(sql,args)=>{calls.push({sql,args});if(sql.startsWith('SELECT'))return rows;if(duplicate&&sql.startsWith('INSERT INTO users'))throw Object.assign(new Error('duplicate'),{code:'ER_DUP_ENTRY'});return [];},readBody:async r=>Buffer.from(JSON.stringify(r.body||{})),sendJson:(response,status,payload)=>{response.status=status;response.payload=payload;},notifyInboxListeners:e=>signals.push(e),stamp:()=> '2026-09-14 10:00',Buffer,console};
  const text=fs.readFileSync('webhook-server.cjs','utf8');vm.createContext(c);vm.runInContext(text.slice(text.indexOf('function dbJson('),text.indexOf('\n/**',text.indexOf('function dbJson('))),c);
  return {calls,signals,async request(path,body){const response={};await c.handleDbApi({method:'POST',headers:{},body},response,path);return response;}};
 }
+test('Login khong cho seed CRM hoan tat',async()=>{
+ let release;
+ const stalledSchema=new Promise(resolve=>{release=resolve;});
+ const f=authFixture([{id:'active-admin',role:'ADMIN',password_hash:'correct-password'}],false,stalledSchema);
+ const result=await Promise.race([f.request('/api/auth/login',{identifier:'admin@example.test',password:'correct-password'}),new Promise((_,reject)=>setTimeout(()=>reject(new Error('login waited for schema seed')),500))]);
+ assert.equal(result.status,200);release(true);
+});
 test('Đăng ký công khai lưu hash và báo Admin ngay sau insert',async()=>{
  const f=authFixture();const result=await f.request('/api/auth/register',{phone:'0912345678',email:'sale@example.vn',name:'Sale',accountId:'SALE001',password:'password123'});
  assert.equal(result.status,201);assert.equal(f.signals.length,1);assert.equal(f.signals[0].kind,'users');const insert=f.calls.find(x=>x.sql.startsWith('INSERT'));assert.equal(insert.args[1],'SALE001');assert.equal(insert.args[4],'hashed:password123');assert.ok(insert.sql.includes("'UNASSIGNED'"));
