@@ -81,8 +81,17 @@ function clientIp(request){
 }
 function clientUserAgent(request){return String(request.headers?.['user-agent']||'').replace(/[\r\n]/g,' ').slice(0,512);}
 function activityLabel(view){return ACTIVITY_LABELS[String(view||'').replace(/^tab-/,'')]||'Đang sử dụng CRM';}
+let userActivitySchemaReady=null;
+function ensureUserActivitySchema(){
+ if(!userActivitySchemaReady){
+  userActivitySchemaReady=dbQuery(`CREATE TABLE IF NOT EXISTS user_activity_logs (id BIGINT AUTO_INCREMENT PRIMARY KEY, user_id VARCHAR(96) NOT NULL, action VARCHAR(48) NOT NULL, detail VARCHAR(255) NOT NULL DEFAULT '', ip VARCHAR(64) NULL, user_agent VARCHAR(512) NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, INDEX idx_user_activity_user_time (user_id,created_at), INDEX idx_user_activity_time (created_at)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`)
+   .then(()=>true)
+   .catch(error=>{userActivitySchemaReady=null;throw error;});
+ }
+ return userActivitySchemaReady;
+}
 async function recordUserActivity(user,request,action,detail){
- try{await dbQuery('INSERT INTO user_activity_logs(user_id,action,detail,ip,user_agent) VALUES (?,?,?,?,?)',[user.id,String(action||'').slice(0,48),String(detail||'').slice(0,255),clientIp(request)||null,clientUserAgent(request)||null]);}
+ try{await ensureUserActivitySchema();await dbQuery('INSERT INTO user_activity_logs(user_id,action,detail,ip,user_agent) VALUES (?,?,?,?,?)',[user.id,String(action||'').slice(0,48),String(detail||'').slice(0,255),clientIp(request)||null,clientUserAgent(request)||null]);}
  catch(error){console.warn('[user-activity] Không ghi được lịch sử:',error.code||error.message);}
 }
 async function touchUserSession(request){
@@ -97,12 +106,17 @@ async function setUserActivity(request,view){
  return {detail,changed:rows[0]?.last_activity!==detail};
 }
 async function adminUserActivity(){
- await crmData.prepare();
- const [users,sessions,events]=await Promise.all([
+ const [users,sessions]=await Promise.all([
   dbQuery(`SELECT id,name,role,account_code,active FROM users WHERE active=1 ORDER BY FIELD(role,'ADMIN','MANAGER','LEADER','SALE','MARKETING','ACCOUNTING','UNASSIGNED'),name`),
-  dbQuery(`SELECT user_id,ip,last_seen_at,last_activity,TIMESTAMPDIFF(SECOND,last_seen_at,NOW()) AS idle_seconds FROM crm_sessions WHERE expires_at>NOW() ORDER BY last_seen_at DESC`),
-  dbQuery(`SELECT a.id,a.user_id,a.action,a.detail,a.ip,a.created_at AS at,u.name,u.role FROM user_activity_logs a JOIN users u ON u.id=a.user_id ORDER BY a.id DESC LIMIT 300`)
+  dbQuery(`SELECT user_id,ip,last_seen_at,last_activity,TIMESTAMPDIFF(SECOND,last_seen_at,NOW()) AS idle_seconds FROM crm_sessions WHERE expires_at>NOW() ORDER BY last_seen_at DESC`)
  ]);
+ let events=[];
+ try{
+  await ensureUserActivitySchema();
+  events=await dbQuery(`SELECT a.id,a.user_id,a.action,a.detail,a.ip,a.created_at AS at,u.name,u.role FROM user_activity_logs a JOIN users u ON u.id=a.user_id ORDER BY a.id DESC LIMIT 300`);
+ }catch(error){
+  console.warn('[user-activity] History unavailable:',error.code||error.message);
+ }
  const latestSession=new Map();for(const session of sessions)if(!latestSession.has(session.user_id))latestSession.set(session.user_id,session);
  const latestEvent=new Map();for(const event of events)if(!latestEvent.has(event.user_id))latestEvent.set(event.user_id,event);
  return {generatedAt:stamp(),users:users.map(user=>{const session=latestSession.get(user.id),event=latestEvent.get(user.id),online=Number(session?.idle_seconds)<=120;return {id:user.id,name:user.name,role:user.role,accountId:user.account_code||'',online,lastSeen:session?.last_seen_at||null,activity:online?(session?.last_activity||'Đang sử dụng CRM'):'Đã ngoại tuyến',ip:session?.ip||event?.ip||'',lastEvent:event||null};}),events};
@@ -407,6 +421,19 @@ async function handleDbApi(request, response, pathname) {
   if (DEMO_MODE) return handleDemoApi(request,response,pathname);
   if (!dbConfigured) return dbJson(request,response,503,{error:'MySQL chưa được cấu hình. Không thể lưu dữ liệu.'});
   const loginTiming = pathname === '/api/auth/login' ? {started:Date.now(),last:Date.now(),phases:{}} : null;
+  // Share one deadline across body, lookup, password verification and session write.
+  const loginStep = async action => {
+    const remaining = 12000 - (Date.now() - loginTiming.started);
+    const timeout = () => Object.assign(new Error('Login deadline exceeded'), {code:'DB_LOGIN_TIMEOUT',status:503});
+    if (remaining <= 0) throw timeout();
+    let timer;
+    try {
+      return await Promise.race([
+        Promise.resolve().then(action),
+        new Promise((_, reject) => { timer = setTimeout(() => reject(timeout()), remaining); })
+      ]);
+    } finally { clearTimeout(timer); }
+  };
   const markLogin = phase => { if(loginTiming){const now=Date.now();loginTiming.phases[phase]=now-loginTiming.last;loginTiming.last=now;} };
   try {
     const isAuthRequest = pathname === '/api/auth/login' || pathname === '/api/auth/register';
@@ -435,12 +462,12 @@ async function handleDbApi(request, response, pathname) {
       return dbJson(request,response,201,{success:true,message:'Đăng ký thành công',id});
     }
     if (pathname === '/api/auth/login' && request.method === 'POST') {
-      const body = await readDbBody(request), identifier=String(body.identifier||'').trim().toLowerCase();
+      const body = await loginStep(() => readDbBody(request)), identifier=String(body.identifier||'').trim().toLowerCase();
       const phone=/^\d{9,15}$/.test(identifier);
-      const rows=await authQuery(`SELECT id,account_code,phone,email,password_hash,name,role,team_id,leader_id,telegram_chat_id,telegram_username,active,created_at FROM users WHERE active=1 AND ${phone?'phone=?':'email=?'} LIMIT 1`,[identifier]);
+      const rows=await loginStep(() => authQuery(`SELECT id,account_code,phone,email,password_hash,name,role,team_id,leader_id,telegram_chat_id,telegram_username,active,created_at FROM users WHERE active=1 AND ${phone?'phone=?':'email=?'} LIMIT 1`,[identifier]));
       markLogin('lookup');
       const row=rows[0], password=String(body.password||'');
-      const matched=!!row && await passwordMatches(password,row.password_hash);
+      const matched=!!row && await loginStep(() => passwordMatches(password,row.password_hash));
       markLogin('password');
       if(!matched)return dbJson(request,response,401,{error:'Thông tin đăng nhập không đúng'});
       if(row.role==='UNASSIGNED')return dbJson(request,response,403,{error:'Tài khoản đã đăng ký, đang chờ Admin phân chức vụ.'});
@@ -450,7 +477,7 @@ async function handleDbApi(request, response, pathname) {
         void hashPassword(password).then(hash => authQuery('UPDATE users SET password_hash=? WHERE id=?',[hash,row.id])).catch(error => console.warn('[password-rehash]',error.code||error.message));
       }
       const token=crypto.randomBytes(32).toString('hex');
-      await authQuery('INSERT INTO crm_sessions(token_hash,user_id,ip,user_agent,expires_at,last_seen_at,last_activity) VALUES (?,?,?,?,DATE_ADD(NOW(),INTERVAL 1 DAY),NOW(),?)',[crypto.createHash('sha256').update(token).digest('hex'),row.id,clientIp(request)||null,clientUserAgent(request)||null,'Đang vào CRM']);
+      await loginStep(() => authQuery('INSERT INTO crm_sessions(token_hash,user_id,ip,user_agent,expires_at,last_seen_at,last_activity) VALUES (?,?,?,?,DATE_ADD(NOW(),INTERVAL 1 DAY),NOW(),?)',[crypto.createHash('sha256').update(token).digest('hex'),row.id,clientIp(request)||null,clientUserAgent(request)||null,'Đang vào CRM']));
       markLogin('session');
       // Nhat ky dang nhap khong duoc chan phan hoi xac thuc; ghi nen de nguoi dung vao CRM ngay.
       void recordUserActivity(row,request,'LOGIN','Đăng nhập CRM').catch(error=>console.warn('[user-activity login]',error.message));
@@ -556,7 +583,8 @@ async function handleDbApi(request, response, pathname) {
     return dbJson(request,response,404,{error:'API không tồn tại'});
    }catch(e){
     console.error('[mysql-api]',pathname,e.code||'ERROR',e.message);
-    const unavailable=/^DB_/.test(e.code||'')||['ETIMEDOUT','ECONNRESET','ECONNREFUSED','PROTOCOL_CONNECTION_LOST','ER_CON_COUNT_ERROR','ER_USER_LIMIT_REACHED','ER_LOCK_WAIT_TIMEOUT','ER_LOCK_DEADLOCK','PROTOCOL_SEQUENCE_TIMEOUT'].includes(e.code);
+    const unavailable=/^DB_/.test(e.code||'')||['ETIMEDOUT','ECONNRESET','ECONNREFUSED','ECONNABORTED','ENOTFOUND','EAI_AGAIN','PROTOCOL_CONNECTION_LOST','ER_CON_COUNT_ERROR','ER_USER_LIMIT_REACHED','ER_LOCK_WAIT_TIMEOUT','ER_LOCK_DEADLOCK','PROTOCOL_SEQUENCE_TIMEOUT','PROTOCOL_ENQUEUE_AFTER_FATAL_ERROR'].includes(e.code);
+    // Convert database failures, including login failures, into a fast JSON 503.
     if(unavailable)return dbJson(request,response,503,{code:e.code,error:'Máy chủ đang bận, vui lòng thử lại sau vài giây'});
 const duplicate=e.code==='ER_DUP_ENTRY';return dbJson(request,response,e.status||(duplicate||e instanceof SyntaxError?400:500),{error:e.status?e.message:duplicate?'ID tài khoản, số điện thoại hoặc email đã tồn tại':e instanceof SyntaxError?'JSON không hợp lệ':'Không lưu được MySQL. Giữ trang mở và thử lại.'});} finally {
     if(loginTiming){const total=Date.now()-loginTiming.started;if(total>=1000)console.warn('[login-timing]',JSON.stringify({totalMs:total,...loginTiming.phases}));}

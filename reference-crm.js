@@ -1087,36 +1087,36 @@
   // Khoi nay chi thay phan hien thi, khong thay doi du lieu hay quyen truy cap.
   function renderTeamHierarchyV6(){
     const host=q('#teamHierarchyOverview');if(!host||!data?.user)return;
-    if(!q('#teamHierarchyV6Styles')){
-      const style=document.createElement('style');
-      style.id='teamHierarchyV6Styles';
-      style.textContent='.tree-root-container,.branch-card-box{border:1px solid var(--border);border-radius:10px;background:var(--bg-surface);overflow:hidden;box-shadow:var(--shadow-sm)}.tree-root-container+.tree-root-container{margin-top:12px}.tree-root-header,.branch-card-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;cursor:pointer;background:var(--bg-surface)}.tree-root-header:hover,.branch-card-header:hover{background:var(--bg-subtle)}.tree-node-info{display:flex;align-items:center;gap:10px;min-width:0}.avatar-circle{display:grid;place-items:center;width:36px;height:36px;flex:0 0 auto;border-radius:50%;font-size:12px;font-weight:800}.avatar-manager{background:#dbeafe;color:#1d4ed8}.avatar-leader{background:#ede9fe;color:#6d28d9}.avatar-sale{background:#dcfce7;color:#15803d}.node-title-group{min-width:0}.node-name-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.node-main-name{color:var(--text-main);font-weight:800;line-height:1.25}.node-role-pill{display:inline-flex;align-items:center;min-height:22px;padding:3px 8px;border-radius:999px;font-size:10px;font-weight:800;letter-spacing:.04em}.pill-manager{background:#dbeafe;color:#1d4ed8}.pill-leader{background:#ede9fe;color:#6d28d9}.pill-sale{background:#dcfce7;color:#15803d}.node-meta-desc{display:block;margin-top:4px;color:var(--text-muted);font-size:11px}.btn-toggle-round{display:grid;place-items:center;flex:0 0 auto;width:30px;height:30px;border:1px solid var(--border);border-radius:50%;background:var(--bg-subtle);color:var(--text-main);font-size:18px;font-weight:700;line-height:1}.tree-body-branches,.leader-sub-tree{padding:10px 12px 12px;border-top:1px solid var(--border-light);background:var(--bg-subtle)}.sub-branch-item{margin-top:8px}.sub-branch-item:first-child{margin-top:0}.branch-card-header{padding:12px 14px}.branch-card-box{box-shadow:none}.branch-card-box>div[id]{background:var(--bg-surface);padding:0 12px 10px}.customer-sub-panel{padding-top:8px}.tree-root-header:focus-visible,.branch-card-header:focus-visible{outline:2px solid #2563eb;outline-offset:-2px}@media(max-width:560px){.tree-root-header,.branch-card-header{padding:12px}.tree-body-branches,.leader-sub-tree{padding:8px}.node-main-name{font-size:13px!important}}';
-      document.head.appendChild(style);
-    }
-    const role=data.user.actualRole||data.user.role,all=data.managerHierarchy?.members||data.members||[],members=all.filter(m=>m.active!==false&&['MANAGER','LEADER','SALE'].includes(m.role)),current=members.find(m=>m.id===data.user.id)||data.user,customers=data.managerHierarchy?.customers||data.customers||[];
-    const managerTeamLabel=m=>{const teams=[...new Set(members.filter(x=>x.role==='LEADER'&&x.managerId===m.id).map(x=>String(x.teamId||'').trim()).filter(Boolean))];return teams.length?teams.join(', '):String(m.teamId||'').trim()||'Chua gan Team';};
-    const initials=n=>String(n||'?').trim().split(/\s+/).slice(-2).map(x=>x[0]||'').join('').toUpperCase()||'?';
-    const list=(title,rows)=>'<div class="customer-sub-panel"><div class="customer-panel-title">'+esc(title)+' ('+rows.length+')</div>'+(rows.length?rows.map(c=>'<div class="customer-item-row" data-team-customer="'+esc(c.id)+'" role="button" tabindex="0"><div class="cust-left"><div class="cust-dot"></div><div><span class="cust-name">'+esc(c.name||'Chua dat ten')+'</span><span class="cust-phone"> · '+esc(c.phone||'')+'</span></div></div><span class="cust-meta-badge">'+esc(c.status||'MOI')+'</span></div>').join(''):'<div style="font-size:12px;color:#94a3b8;padding:6px 0">Chua co khach hang</div>')+'</div>';
-    const sales=l=>members.filter(m=>m.role==='SALE'&&m.leaderId===l.id),managerSales=m=>members.filter(s=>s.role==='SALE'&&(s.managerId===m.id||s.leaderId===m.id)),person=(m,k,rows)=>'<div class="sub-branch-item"><div class="branch-card-box"><div class="branch-card-header" data-toggle-id="'+esc(k+'-'+m.id)+'"><div class="tree-node-info"><div class="avatar-circle avatar-'+k+'">'+esc(initials(m.name))+'</div><div class="node-title-group"><div class="node-name-row"><span class="node-main-name">'+esc(m.name||'Chua dat ten')+' ('+k+')</span><span class="node-role-pill pill-'+k+'">'+k.toUpperCase()+'</span></div><span class="node-meta-desc">'+rows.length+' khach cua '+k+'</span></div></div><div class="btn-toggle-round">+</div></div><div id="'+esc(k+'-'+m.id)+'" hidden>'+list('Khach cua '+k,rows)+'</div></div></div>';
-    const leaders=members.filter(m=>m.role==='LEADER'&&(role==='ADMIN'||role==='MANAGER'&&m.managerId===current.id||role==='LEADER'&&m.id===current.id||role==='SALE'&&m.id===current.leaderId)),managers=members.filter(m=>m.role==='MANAGER'&&(role==='ADMIN'||role==='MANAGER'&&m.id===current.id));
-    const directCustomers=(member,kind)=>kind==='manager'
-      ? customers.filter(c=>c.ownerId===member.id||c.saleId===member.id)
-      : customers.filter(c=>c.ownerId===member.id||c.saleId===member.id||(kind==='leader'&&c.leaderId===member.id&&!c.saleId));
-    const leaderNode=l=>{const own=directCustomers(l,'leader'),children=sales(l).map(s=>person(s,'sale',customers.filter(c=>c.saleId===s.id))).join('');return '<div class="tree-branch-node"><div class="branch-card-box"><div class="branch-card-header" data-toggle-id="group-'+esc(l.id)+'"><div class="tree-node-info"><div class="avatar-circle avatar-leader">'+esc(initials(l.name))+'</div><div class="node-title-group"><div class="node-name-row"><span class="node-main-name">'+esc(l.name||'Chua dat ten')+' (leader)</span><span class="node-role-pill pill-leader">LEADER</span></div><span class="node-meta-desc">'+sales(l).length+' Sale truc thuoc</span></div></div><div class="btn-toggle-round">+</div></div><div id="group-'+esc(l.id)+'" class="leader-sub-tree" hidden>'+person(l,'leader',own)+(children||'<div class="team-hierarchy-empty">Chua co Sale truc thuoc</div>')+'</div></div></div>';};
-    const managerNode=m=>{const ls=leaders.filter(l=>l.managerId===m.id),directSales=managerSales(m),own=directCustomers(m,'manager'),saleCount=directSales.length+ls.reduce((n,l)=>n+sales(l).length,0),directSaleNodes=directSales.map(s=>person(s,'sale',customers.filter(c=>c.saleId===s.id))).join('');return '<div class="tree-root-container"><div class="tree-root-header" data-toggle-id="root-'+esc(m.id)+'"><div class="tree-node-info"><div class="avatar-circle avatar-manager">M</div><div class="node-title-group"><div class="node-name-row"><span class="node-main-name" style="font-size:16px">Team '+esc(managerTeamLabel(m))+' (manager)</span><span class="node-role-pill pill-manager">MANAGER</span></div><span class="node-meta-desc">'+ls.length+' Leader · '+saleCount+' Sale</span></div></div><div class="btn-toggle-round">+</div></div><div id="root-'+esc(m.id)+'" class="tree-body-branches" hidden>'+person(m,'manager',own)+directSaleNodes+ls.map(leaderNode).join('')+'</div></div>';};
-    const roots=managers.map(managerNode),orphan=leaders.filter(l=>!l.managerId||!managers.some(m=>m.id===l.managerId));
-    orphan.forEach(l=>{const own=directCustomers(l,'leader'),children=sales(l).map(s=>person(s,'sale',customers.filter(c=>c.saleId===s.id))).join('');roots.push('<div class="tree-root-container"><div class="tree-root-header" data-toggle-id="orphan-'+esc(l.id)+'"><div class="tree-node-info"><div class="avatar-circle avatar-leader">'+esc(initials(l.name))+'</div><div class="node-title-group"><div class="node-name-row"><span class="node-main-name" style="font-size:16px">Team '+esc(l.name||l.teamId||'Chua dat ten')+' (leader)</span><span class="node-role-pill pill-leader">LEADER</span></div><span class="node-meta-desc">'+sales(l).length+' Sale · '+own.length+' khach</span></div></div><div class="btn-toggle-round">+</div></div><div id="orphan-'+esc(l.id)+'" class="tree-body-branches" hidden>'+person(l,'leader',own)+children+'</div></div>');});
-    host.innerHTML=roots.join('')||'<div class="team-hierarchy-empty">Chua co du lieu doi ngu</div>';
-    const memberCard=qa('#tab-team .kpi-bento-card')[0];
-    if(memberCard){
-      primaryText(memberCard.querySelector('.kpi-hero-num'),members.length);
-      memberCard.querySelectorAll('.kpi-foot-stat .value').forEach((node,index)=>{node.textContent=index===0?leaders.length+' người':index===1?members.filter(member=>member.role==='SALE').length+' người':members.length?'100%':'0%';});
-      const online=memberCard.querySelector('.kpi-trend-pill');if(online)online.textContent=members.length+' Online';
-    }
-    host.querySelectorAll('[data-toggle-id]').forEach(h=>h.onclick=e=>{e.preventDefault();e.stopPropagation();const n=document.getElementById(h.dataset.toggleId);if(!n)return;const open=n.hidden;n.hidden=!open;const i=h.querySelector('.btn-toggle-round');if(i)i.textContent=open?'−':'+';});
-    host.querySelectorAll('[data-team-customer]').forEach(row=>{const open=()=>workflow('customer',row.dataset.teamCustomer);row.onclick=e=>{e.stopPropagation();open();};row.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open();}};});
+    if(!q('#teamHierarchyV6Styles')){const style=document.createElement('style');style.id='teamHierarchyV6Styles';style.textContent='.team-tree-root{display:grid;gap:12px}.team-tree-manager{border:1px solid #cbd5e1;border-radius:12px;background:#fff;overflow:hidden;box-shadow:0 3px 12px rgba(15,23,42,.05)}.team-tree-manager-head{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:14px 16px;border:0;border-left:4px solid #2563eb;background:#f8fafc;color:#0f172a;text-align:left;cursor:pointer}.team-tree-manager-head:hover{background:#eff6ff}.team-tree-manager-head[aria-expanded=true]{border-bottom:1px solid #bfdbfe;background:#eff6ff}.team-tree-body{display:grid;gap:10px;padding:12px;background:#f8fafc}.team-tree-member{border:1px solid #dbe3ec;border-radius:9px;background:#fff;overflow:hidden}.team-tree-member-head{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:11px 12px;border:0;background:#fff;color:#0f172a;text-align:left;cursor:pointer}.team-tree-member-head:hover{background:#f8fafc}.team-tree-member-body{padding:8px 10px;border-top:1px solid #e2e8f0;background:#fff}.team-tree-avatar{display:grid;place-items:center;width:34px;height:34px;flex:0 0 auto;border-radius:9px;font-size:11px;font-weight:900}.team-tree-avatar.manager{background:#dbeafe;color:#1d4ed8}.team-tree-avatar.leader{background:#ede9fe;color:#6d28d9}.team-tree-avatar.sale{background:#dcfce7;color:#15803d}.team-tree-person{display:flex;align-items:center;gap:9px;min-width:0}.team-tree-person-copy{display:grid;gap:3px;min-width:0}.team-tree-person-copy b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}.team-tree-person-copy small{color:#64748b;font-size:10.5px}.team-tree-count{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;color:#475569;font-size:10.5px;font-weight:800}.team-tree-chevron{font-size:18px;font-weight:800;color:#2563eb}.team-tree-data{display:grid;gap:5px;margin:0 0 8px}.team-tree-data:last-child{margin-bottom:0}.team-tree-data-title{color:#64748b;font-size:10px;font-weight:800;text-transform:uppercase}.team-tree-data-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 8px;border:1px solid #e2e8f0;border-radius:7px;background:#f8fafc;color:#0f172a;text-align:left;cursor:pointer}.team-tree-data-row:hover{border-color:#93c5fd;background:#eff6ff}.team-tree-data-row b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}.team-tree-data-row small{color:#64748b;font-size:10px;white-space:nowrap}.team-tree-empty{padding:14px 8px;color:#64748b;text-align:center;font-size:11px}.team-tree-orphan{border-color:#f59e0b}.team-tree-orphan .team-tree-manager-head{border-left-color:#f59e0b;background:#fffbeb}.team-tree-orphan .team-tree-manager-head[aria-expanded=true]{background:#fef3c7}@media(max-width:640px){.team-tree-manager-head,.team-tree-member-head{padding:11px 10px}.team-tree-body{padding:9px}.team-tree-person-copy b{font-size:11.5px}}';document.head.appendChild(style);}
+    const role=data.user.actualRole||data.user.role,all=(data.managerHierarchy?.members||data.members||[]).filter(m=>m&&m.active!==false&&['MANAGER','LEADER','SALE'].includes(m.role)),current=(all.find(m=>String(m.id)===String(data.user.id))||data.user),byId=id=>all.find(m=>String(m.id)===String(id)),members=all,visibleCustomers=data.managerHierarchy?.customers||data.customers||[];
+    const leaderOf=member=>member?.role==='LEADER'?member:(member?.leaderId?byId(member.leaderId):null);
+    const managerOf=member=>{if(!member)return null;if(member.role==='MANAGER')return member;const leader=leaderOf(member);return member.managerId?byId(member.managerId):(leader?.managerId?byId(leader.managerId):null);};
+    const managerLeaders=manager=>members.filter(m=>m.role==='LEADER'&&managerOf(m)?.id===manager.id);
+    const leaderSales=leader=>members.filter(m=>m.role==='SALE'&&leaderOf(m)?.id===leader.id&&(!leader.teamId||!m.teamId||String(m.teamId)===String(leader.teamId)));
+    const directManagerSales=manager=>members.filter(m=>m.role==='SALE'&&managerOf(m)?.id===manager.id&&!leaderOf(m));
+    const ownCustomers=(member,kind)=>visibleCustomers.filter(customer=>kind==='sale'
+      ?String(customer.saleId||'')===String(member.id)
+      :kind==='leader'
+        ?String(customer.saleId||'')===String(member.id)||(String(customer.leaderId||'')===String(member.id)&&!customer.saleId)
+        :String(customer.saleId||'')===String(member.id)||(String(customer.managerId||'')===String(member.id)&&!customer.leaderId&&!customer.saleId));
+    const initials=name=>String(name||'?').trim().split(/\s+/).slice(-2).map(part=>part[0]||'').join('').toUpperCase()||'?';
+    const dataRows=(member,kind)=>{const rows=ownCustomers(member,kind).slice().sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));return '<div class="team-tree-data"><span class="team-tree-data-title">Data phu trach ('+rows.length+')</span>'+(rows.length?rows.map(customer=>'<button type="button" class="team-tree-data-row" data-team-customer="'+esc(customer.id)+'"><b>'+esc(customer.name||'Chua dat ten')+'</b><small>'+esc(customer.phone||'')+'</small></button>').join(''):'<div class="team-tree-empty">Chua co data</div>')+'</div>';};
+    const memberCard=(member,kind,children)=>{const nested=children||'';const rows=ownCustomers(member,kind);return '<article class="team-tree-member"><button type="button" class="team-tree-member-head" data-team-member-toggle="'+esc(member.id)+'"><span class="team-tree-person"><span class="team-tree-avatar '+kind+'">'+esc(initials(member.name))+'</span><span class="team-tree-person-copy"><b>'+esc(kind==='manager'?'Manager: ':kind==='leader'?'Leader: ':'Sale: ')+esc(member.name||'Chua dat ten')+'</b><small>'+esc(kind==='leader'?'Team '+(member.teamId||'Chua gan Team'):kind==='sale'?'Sale truc thuoc':'Data nhan truc tiep')+'</small></span></span><span class="team-tree-count"><span>'+rows.length+' data</span><span class="team-tree-chevron">+</span></span></button><div class="team-tree-member-body" data-team-member-body="'+esc(member.id)+'" hidden>'+dataRows(member,kind)+nested+'</div></article>';};
+    const managerRoots=role==='ADMIN'?members.filter(m=>m.role==='MANAGER'):role==='MANAGER'?[current].filter(m=>m?.role==='MANAGER'):[ ];
+    const visibleLeaders=role==='ADMIN'?members.filter(m=>m.role==='LEADER'):role==='MANAGER'?managerLeaders(current):role==='LEADER'?[current]:current?.leaderId?[byId(current.leaderId)].filter(Boolean):[];
+    const visibleSales=role==='ADMIN'?members.filter(m=>m.role==='SALE'):role==='MANAGER'?members.filter(m=>m.role==='SALE'&&managerOf(m)?.id===current.id):role==='LEADER'?leaderSales(current):[current].filter(m=>m.role==='SALE');
+    const leaderCard=leader=>memberCard(leader,'leader',leaderSales(leader).filter(s=>visibleSales.some(v=>v.id===s.id)).map(s=>memberCard(s,'sale','')).join(''));
+    const managerCard=manager=>{const leaders=managerLeaders(manager).filter(l=>visibleLeaders.some(v=>v.id===l.id)),direct=directManagerSales(manager).filter(s=>visibleSales.some(v=>v.id===s.id)),managerRows=ownCustomers(manager,'manager');const nested=dataRows(manager,'manager')+direct.map(s=>memberCard(s,'sale','')).join('')+leaders.map(leaderCard).join('');return '<section class="team-tree-manager"><button type="button" class="team-tree-manager-head" data-team-root-toggle="'+esc(manager.id)+'" aria-expanded="false"><span class="team-tree-person"><span class="team-tree-avatar manager">M</span><span class="team-tree-person-copy"><b>Manager: '+esc(manager.name||'Chua dat ten')+'</b><small>'+esc([...new Set(leaders.map(l=>l.teamId).filter(Boolean))].join(', ')||'Chua gan Team')+' · '+leaders.length+' Leader · '+(direct.length+leaders.reduce((sum,l)=>sum+leaderSales(l).filter(s=>visibleSales.some(v=>v.id===s.id)).length,0))+' Sale</small></span></span><span class="team-tree-chevron">+</span></button><div class="team-tree-body" data-team-root-body="'+esc(manager.id)+'" hidden>'+nested+'</div></section>';};
+    const roots=managerRoots.map(managerCard),assignedLeaderIds=new Set(managerRoots.flatMap(manager=>managerLeaders(manager).map(leader=>leader.id))),orphanLeaders=visibleLeaders.filter(leader=>!assignedLeaderIds.has(leader.id));
+    if(orphanLeaders.length)roots.push('<section class="team-tree-manager team-tree-orphan"><button type="button" class="team-tree-manager-head" data-team-root-toggle="orphan-leaders" aria-expanded="false"><span class="team-tree-person"><span class="team-tree-avatar leader">L</span><span class="team-tree-person-copy"><b>Chua gan Manager</b><small>'+orphanLeaders.length+' Leader · '+orphanLeaders.reduce((sum,l)=>sum+leaderSales(l).length,0)+' Sale</small></span></span><span class="team-tree-chevron">+</span></button><div class="team-tree-body" data-team-root-body="orphan-leaders" hidden>'+orphanLeaders.map(leaderCard).join('')+'</div></section>');
+    const shownSales=new Set([...managerRoots.flatMap(manager=>directManagerSales(manager)),...visibleLeaders.flatMap(leader=>leaderSales(leader))].map(member=>member.id)),orphanSales=visibleSales.filter(sale=>!shownSales.has(sale.id));
+    if(orphanSales.length)roots.push('<section class="team-tree-manager team-tree-orphan"><button type="button" class="team-tree-manager-head" data-team-root-toggle="orphan-sales" aria-expanded="false"><span class="team-tree-person"><span class="team-tree-avatar sale">S</span><span class="team-tree-person-copy"><b>Chua gan Leader</b><small>'+orphanSales.length+' Sale</small></span></span><span class="team-tree-chevron">+</span></button><div class="team-tree-body" data-team-root-body="orphan-sales" hidden>'+orphanSales.map(sale=>memberCard(sale,'sale','')).join('')+'</div></section>');
+    host.innerHTML='<div class="team-hierarchy-head"><div><div class="team-hierarchy-title">Cay doi ngu</div><div class="team-hierarchy-subtitle">Thu tu quan ly: Manager → Leader → Sale</div></div></div><div class="team-tree-root">'+(roots.join('')||'<div class="team-tree-empty">Chua co du lieu doi ngu</div>')+'</div>';
+    host.querySelectorAll('[data-team-root-toggle]').forEach(button=>button.onclick=()=>{const body=host.querySelector('[data-team-root-body="'+CSS.escape(button.dataset.teamRootToggle)+'"]');if(!body)return;const open=body.hidden;body.hidden=!open;button.setAttribute('aria-expanded',String(open));button.querySelector('.team-tree-chevron').textContent=open?'−':'+';});
+    host.querySelectorAll('[data-team-member-toggle]').forEach(button=>button.onclick=()=>{const body=host.querySelector('[data-team-member-body="'+CSS.escape(button.dataset.teamMemberToggle)+'"]');if(!body)return;const open=body.hidden;body.hidden=!open;button.setAttribute('aria-expanded',String(open));button.querySelector('.team-tree-chevron').textContent=open?'−':'+';});
+    host.querySelectorAll('[data-team-customer]').forEach(button=>button.onclick=()=>workflow('customer',button.dataset.teamCustomer));
+    const memberCardKpi=qa('#tab-team .kpi-bento-card')[0];if(memberCardKpi){primaryText(memberCardKpi.querySelector('.kpi-hero-num'),members.length);memberCardKpi.querySelectorAll('.kpi-foot-stat .value').forEach((node,index)=>{node.textContent=index===0?members.filter(m=>m.role==='LEADER').length+' nguoi':index===1?members.filter(m=>m.role==='SALE').length+' nguoi':members.length?'100%':'0%';});const online=memberCardKpi.querySelector('.kpi-trend-pill');if(online)online.textContent=members.length+' hoat dong';}
   }
-
   function team(){
     const bodies=qa('#tab-team tbody'),role=data.user.actualRole||data.user.role;
     const pendingPanel=bodies[0]?.closest('.table-container');
@@ -1126,313 +1126,21 @@
       pendingPanel.style.setProperty('display',isAdmin?'':'none','important');
     }
     const pending=role==='ADMIN'?data.registeredAccounts.filter(m=>m.role==='UNASSIGNED'):[];
-    const availableMembers=data.managerHierarchy?.members||data.members;
-    const members=availableMembers.filter(m=>m.active!==false&&(role==='ADMIN'?['MANAGER','LEADER','SALE'].includes(m.role):role==='MANAGER'?['LEADER','SALE'].includes(m.role):m.id===data.user.leaderId||m.role==='SALE'&&m.leaderId===data.user.leaderId)).sort((a,b)=>({ADMIN:0,MANAGER:1,LEADER:2,SALE:3}[a.role]??3)-({ADMIN:0,MANAGER:1,LEADER:2,SALE:3}[b.role]??3));
-    const managerTeamLabel=m=>{const teams=[...new Set(availableMembers.filter(x=>x.active!==false&&x.role==='LEADER'&&x.managerId===m.id).map(x=>String(x.teamId||'').trim()).filter(Boolean))];return teams.length?teams.join(', '):String(m.teamId||'').trim()||'Chua gan Team';};
-    const hierarchyOverview=q('#teamHierarchyOverview');
-    if(hierarchyOverview){
-      if(!q('#teamHierarchyStyles')){
-        const style=document.createElement('style');
-        style.id='teamHierarchyStyles';
-        style.textContent='.team-hierarchy-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}.team-hierarchy-title{font-size:15px;color:var(--text-main);font-weight:800}.team-hierarchy-subtitle{margin-top:3px;font-size:11.5px;color:var(--text-muted)}.team-manager-group{border-top:1px solid var(--border);padding-top:14px;margin-top:14px}.team-manager-group:first-of-type{border-top:0;padding-top:0;margin-top:0}.team-manager-head{display:flex;align-items:center;gap:8px;margin-bottom:10px;color:var(--text-main);font-size:12px;font-weight:800}.team-manager-head:before{content:"";width:8px;height:8px;border-radius:50%;background:#2563eb;flex:0 0 auto}.team-leader-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px}.team-leader-card{border:1px solid var(--border);border-radius:10px;background:var(--bg-subtle);overflow:hidden}.team-leader-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer}.team-leader-toggle:hover{background:rgba(37,99,235,.05)}.team-leader-main{display:flex;align-items:center;gap:10px;min-width:0}.team-leader-avatar,.team-sale-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#dbeafe;color:#1d4ed8;font-weight:900;font-size:13px;flex:0 0 auto}.team-leader-info{min-width:0}.team-leader-name{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:800;color:var(--text-main)}.team-leader-meta{display:block;margin-top:3px;font-size:11px;color:var(--text-muted)}.team-leader-chevron{font-size:18px;line-height:1;color:#64748b;flex:0 0 auto}.team-sale-list{border-top:1px solid var(--border);padding:6px 10px 9px;background:var(--bg-surface)}.team-sale-row{display:flex;align-items:center;gap:9px;padding:8px 4px}.team-sale-avatar{width:28px;height:28px;font-size:11px;background:#dcfce7;color:#15803d}.team-sale-info{min-width:0}.team-sale-name{display:block;font-size:12px;font-weight:700;color:var(--text-main)}.team-sale-phone{display:block;margin-top:2px;font-size:10.5px;color:var(--text-muted)}.team-hierarchy-empty{padding:16px 8px;color:var(--text-muted);font-size:12px;text-align:center}.team-hierarchy-more{font-size:11px;color:var(--text-muted);margin-top:2px}';
-        document.head.appendChild(style);
-      }
-      const current=data.members.find(m=>m.id===data.user.id)||data.user;
-      const scopeSource=(data.managerHierarchy?.members||data.members||[]).filter(m=>m.active!==false);
-      const scopedIds=new Set(scopeSource.map(m=>m.id));
-      if(current?.id&&!scopedIds.has(current.id)&&current.active!==false)scopeSource.push(current);
-      const scoped=scopeSource.filter(m=>['MANAGER','LEADER','SALE'].includes(m.role));
-      const managerList=(role==='ADMIN'?scoped:role==='MANAGER'?[current,...scoped.filter(m=>m.id!==current?.id&&m.role==='MANAGER')]:scoped.filter(m=>m.role==='MANAGER')).filter((m,i,a)=>m?.id&&a.findIndex(x=>x.id===m.id)===i);
-      let leaderList=scoped.filter(m=>m.role==='LEADER');
-      if(role==='LEADER'&&current?.id)leaderList=[current];
-      if(role==='SALE'&&current?.leaderId)leaderList=scoped.filter(m=>m.id===current.leaderId&&m.role==='LEADER');
-      const initials=name=>String(name||'?').trim().split(/\s+/).slice(-2).map(part=>part[0]||'').join('').toUpperCase()||'?';
-      const nameOf=id=>scoped.find(m=>m.id===id)?.name||data.members.find(m=>m.id===id)?.name||'Ch0a phn';
-      const makeLeaderCard=leader=>{
-        const sales=scoped.filter(m=>m.role==='SALE'&&(role==='SALE'?m.id===current?.id:m.leaderId===leader.id));
-        const manager=managerList.find(m=>m.id===leader.managerId);
-        const detail=sales.length?sales.map(s=>'<div class="team-sale-row"><div class="team-sale-avatar">'+esc(initials(s.name))+'</div><div class="team-sale-info"><span class="team-sale-name">'+esc(s.name||'Ch0a c t00n')+'</span><span class="team-sale-phone">'+esc(s.phone||s.accountId||'Ch0a c thng tin')+'</span></div></div>').join(''):'<div class="team-hierarchy-empty">Ch0a c Sale trong team</div>';
-        return '<div class="team-leader-card"><button type="button" class="team-leader-toggle" aria-expanded="false"><span class="team-leader-main"><span class="team-leader-avatar">'+esc(initials(leader.name))+'</span><span class="team-leader-info"><span class="team-leader-name">'+esc('Team '+(leader.name||leader.teamId||'Ch0a phn'))+'</span><span class="team-leader-meta">Leader: '+esc(leader.name||'—')+' · '+sales.length+' Sale'+(manager?' · Qun l1: '+esc(manager.name):'')+'</span></span></span><span class="team-leader-chevron">+</span></button><div class="team-sale-list" hidden>'+detail+'</div></div>';
-      };
-      const renderGroup=(manager,leaders)=>'<div class="team-manager-group">'+(manager?'<div class="team-manager-head">Qun l1: '+esc(manager.name||'—')+'</div>':'<div class="team-manager-head">Ch0a phn Manager</div>')+'<div class="team-leader-list">'+(leaders.length?leaders.map(makeLeaderCard).join(''):'<div class="team-hierarchy-empty">Ch0a c Leader</div>')+'</div></div>';
-      const groups=[];
-      managerList.forEach(manager=>groups.push(renderGroup(manager,leaderList.filter(leader=>leader.managerId===manager.id))));
-      const unassignedLeaders=leaderList.filter(leader=>!managerList.some(manager=>manager.id===leader.managerId));
-      if(unassignedLeaders.length||!groups.length)groups.push(renderGroup(null,unassignedLeaders.length?unassignedLeaders:leaderList));
-      hierarchyOverview.innerHTML='<div class="team-hierarchy-head"><div><div class="team-hierarchy-title">C0y ng5</div><div class="team-hierarchy-subtitle">B1m vo Leader/Team  xem Sale ph trch</div></div></div>'+(groups.join('')||'<div class="team-hierarchy-empty">Ch0a c d0 liu 1i ng5</div>');
-      hierarchyOverview.querySelectorAll('.team-leader-toggle').forEach(button=>{button.onclick=()=>{const detail=button.nextElementSibling,open=detail.hidden;detail.hidden=!open;button.setAttribute('aria-expanded',String(open));const icon=button.querySelector('.team-leader-chevron');if(icon)icon.textContent=open?'−':'+';};});
-    }
-    // Dynamic team hierarchy is rendered above this table.
-    if(hierarchyOverview){
-      const hierarchyCurrent=data.members.find(m=>m.id===data.user.id)||data.user;
-      const hierarchySource=(data.managerHierarchy?.members||data.members||[]).filter(m=>m.active!==false);
-      if(hierarchyCurrent?.id&&!hierarchySource.some(m=>m.id===hierarchyCurrent.id)&&hierarchyCurrent.active!==false)hierarchySource.push(hierarchyCurrent);
-      const hierarchyMembers=hierarchySource.filter(m=>['MANAGER','LEADER','SALE'].includes(m.role));
-      const hierarchyManagers=(role==='ADMIN'?hierarchyMembers.filter(m=>m.role==='MANAGER'):role==='MANAGER'?[hierarchyCurrent,...hierarchyMembers.filter(m=>m.role==='MANAGER'&&m.id!==hierarchyCurrent?.id)]:[]).filter((m,i,a)=>m?.id&&a.findIndex(x=>x.id===m.id)===i);
-      let hierarchyLeaders=hierarchyMembers.filter(m=>m.role==='LEADER');
-      if(role==='LEADER'&&hierarchyCurrent?.id)hierarchyLeaders=[hierarchyCurrent];
-      if(role==='SALE'&&hierarchyCurrent?.leaderId)hierarchyLeaders=hierarchyMembers.filter(m=>m.id===hierarchyCurrent.leaderId&&m.role==='LEADER');
-      const initials=name=>String(name||'?').trim().split(/\s+/).slice(-2).map(part=>part[0]||'').join('').toUpperCase()||'?';
-      const displayTeamName=member=>{
-        if(member?.role==='MANAGER')return 'Team '+(member.name||member.teamId||'Chua phan')+' (manager)';
-        const leader=hierarchyMembers.find(m=>m.role==='LEADER'&&(member.role==='LEADER'?m.id===member.id:m.id===member.leaderId));
-        if(leader)return 'Team '+(leader.name||leader.teamId||'Chua phan')+' (leader)';
-        return member?.teamId?'Team '+member.teamId:'Chua phan Team';
-      };
-      const leaderCard=leader=>{
-        const sales=hierarchyMembers.filter(m=>m.role==='SALE'&&(role==='SALE'?m.id===hierarchyCurrent?.id:m.leaderId===leader.id));
-        const manager=hierarchyManagers.find(m=>m.id===leader.managerId);
-        const saleRows=sales.length?sales.map(s=>'<div class="team-sale-row"><div class="team-sale-avatar">'+esc(initials(s.name))+'</div><div class="team-sale-info"><span class="team-sale-name">'+esc(s.name||'Ch&#432;a c&#243; t&#234;n')+'</span><span class="team-sale-phone">'+esc(s.phone||s.accountId||'Ch&#432;a c&#243; th&#244;ng tin')+'</span></div></div>').join(''):'<div class="team-hierarchy-empty">Ch&#432;a c&#243; Sale trong team</div>';
-        return '<div class="team-leader-card"><button type="button" class="team-leader-toggle" aria-expanded="false"><span class="team-leader-main"><span class="team-leader-avatar">'+esc(initials(leader.name))+'</span><span class="team-leader-info"><span class="team-leader-name">'+esc(displayTeamName(leader))+'</span><span class="team-leader-meta">Leader: '+esc(leader.name||'Chua phan')+' &middot; '+sales.length+' Sale'+(manager?' &middot; Qu&#7843;n l&#253;: '+esc(manager.name):'')+'</span></span></span><span class="team-leader-chevron">+</span></button><div class="team-sale-list" hidden>'+saleRows+'</div></div>';
-      };
-      const hierarchyGroups=[];
-      hierarchyManagers.forEach(manager=>hierarchyGroups.push('<div class="team-manager-group"><div class="team-manager-head">'+esc(displayTeamName(manager))+'</div><div class="team-leader-list">'+(hierarchyLeaders.filter(leader=>leader.managerId===manager.id).map(leaderCard).join('')||'<div class="team-hierarchy-empty">Ch&#432;a c&#243; Leader</div>')+'</div></div>'));
-      const unassignedLeaders=hierarchyLeaders.filter(leader=>!hierarchyManagers.some(manager=>manager.id===leader.managerId));
-      if(unassignedLeaders.length||!hierarchyGroups.length)hierarchyGroups.push('<div class="team-manager-group"><div class="team-manager-head">Ch&#432;a ph&#226;n Manager</div><div class="team-leader-list">'+(unassignedLeaders.length?unassignedLeaders.map(leaderCard).join(''):'<div class="team-hierarchy-empty">Ch&#432;a c&#243; d&#7919; li&#7879;u &#273;&#7897;i ng&#361;</div>')+'</div></div>');
-      hierarchyOverview.innerHTML='<div class="team-hierarchy-head"><div><div class="team-hierarchy-title">C&#226;y ng&#361; &#273;&#7897;i ng&#361;</div><div class="team-hierarchy-subtitle">B&#7845;m v&#224;o Leader/Team &#273;&#7875; xem c&#225;c Sale ph&#7909; tr&#225;ch</div></div></div>'+hierarchyGroups.join('');
-      hierarchyOverview.querySelectorAll('.team-leader-toggle').forEach(button=>button.onclick=()=>{
-        const detail=button.nextElementSibling;
-        const open=detail.hidden;
-        detail.hidden=!open;
-        button.setAttribute('aria-expanded',String(open));
-      });
-    }
-    // Dat lai cay hien thi sau khoi render cu de dam bao Manager/Leader luon dung cap.
+    const availableMembers=(data.managerHierarchy?.members||data.members||[]).filter(m=>m&&m.active!==false&&m.active!==0&&m.active!=='0');
+    const memberById=id=>availableMembers.find(member=>String(member.id)===String(id));
+    const leaderForMember=member=>member?.role==='LEADER'?member:member?.leaderId?memberById(member.leaderId):null;
+    const managerForMember=member=>{if(!member)return null;if(member.role==='MANAGER')return member;const leader=leaderForMember(member);return member.managerId?memberById(member.managerId):leader?.managerId?memberById(leader.managerId):null;};
+    const scopedMembers=role==='ADMIN'
+      ?availableMembers.filter(member=>['MANAGER','LEADER','SALE'].includes(member.role))
+      :role==='MANAGER'
+        ?availableMembers.filter(member=>member.id===data.user.id||managerForMember(member)?.id===data.user.id)
+        :role==='LEADER'
+          ?availableMembers.filter(member=>member.id===data.user.id||leaderForMember(member)?.id===data.user.id)
+          :availableMembers.filter(member=>member.id===data.user.id);
+    const members=scopedMembers.sort((a,b)=>({ADMIN:0,MANAGER:1,LEADER:2,SALE:3}[a.role]??3)-({ADMIN:0,MANAGER:1,LEADER:2,SALE:3}[b.role]??3)||String(a.name||'').localeCompare(String(b.name||''),'vi'));
+    const managerTeamLabel=m=>{const teams=[...new Set(availableMembers.filter(x=>x.active!==false&&x.role==='LEADER'&&managerForMember(x)?.id===m.id).map(x=>String(x.teamId||'').trim()).filter(Boolean))];return teams.length?teams.join(', '):String(m.teamId||'').trim()||'Chua gan Team';};
     renderTeamHierarchyV6();
-    const start=q('#teamStartDate')?.value,end=q('#teamEndDate')?.value;
-    const revenue=m=>(data.managerHierarchy?.financialEvents||data.financialEvents).filter(e=>(!start||e.occurredAt?.slice(0,10)>=start)&&(!end||e.occurredAt?.slice(0,10)<=end)&&(data.managerHierarchy?.orders||data.orders).some(o=>o.id===e.orderId&&(m.role==='LEADER'?o.leaderId===m.id:o.saleId===m.id))).reduce((s,e)=>s+Number(e.amount||0),0);
-    const customers=m=>(data.managerHierarchy?.customers||data.customers).filter(c=>m.role==='MANAGER'?(c.ownerId===m.id||c.saleId===m.id):m.role==='LEADER'?(c.saleId===m.id||(c.leaderId===m.id&&!c.saleId)):c.saleId===m.id).length;
-    table(bodies[0],pending.map(m=>[m.name,m.phone,m.email,'Chờ phân chức vụ','']));
-    Array.from(bodies[0]?.rows||[]).forEach((r,i)=>{const b=r.querySelector('button');if(b){b.removeAttribute('onclick');b.onclick=()=>memberEditor(pending[i].id);b.disabled=data.user.role!=='ADMIN';}});
-    const teamColumnName=m=>m.role==='MANAGER'?'Team '+managerTeamLabel(m)+' (manager)':(data.members.find(x=>x.role==='LEADER'&&(m.role==='LEADER'?x.id===m.id:x.id===m.leaderId))?('Team '+(data.members.find(x=>x.role==='LEADER'&&(m.role==='LEADER'?x.id===m.id:x.id===m.leaderId)).name||'Chua phan')+' (leader)'):(m.teamId?'Team '+m.teamId:'Chua phan Team'));
-    table(bodies[1],members.map(m=>[m.name+(m.phone?' · '+m.phone:''),m.role,teamColumnName(m),m.managerId?person(m.managerId):m.leaderId?person(m.leaderId):'—',customers(m),money(revenue(m)),'']));
-    Array.from(bodies[1]?.rows||[]).forEach((r,i)=>{const m=members[i],buttons=r.querySelectorAll('button');buttons.forEach(b=>{b.removeAttribute('onclick');b.disabled=data.user.role!=='ADMIN';});if(buttons[0])buttons[0].onclick=()=>memberEditor(m.id);if(buttons[1]){buttons[1].onclick=()=>passwordEditor(m.id);buttons[1].disabled=data.user.role!=='ADMIN'||!m.loginEnabled;}if(buttons[2]){buttons[2].disabled=data.user.role!=='ADMIN'||!['SALE','LEADER'].includes(m.role)||m.id===data.user.id;buttons[2].onclick=()=>{if(confirm('Xóa thành viên khỏi đội ngũ và thu hồi khách theo quy trình hiện có?'))run(()=>api.removeMember(m.id));};}});
-    const add=q('#tab-team .headline-row button');add.removeAttribute('onclick');add.onclick=()=>memberEditor();add.disabled=data.user.role!=='ADMIN';
-    const description=bodies[0]?.closest('.table-container')?.querySelector('.table-head-bar > div > div');if(description)description.textContent='Admin phân chức vụ trước khi tài khoản được sử dụng.';
-    const cards=qa('#tab-team .kpi-bento-card'); // team KPI scope is applied below
-    const scopedCustomers=data.managerHierarchy?.customers||data.customers||[];
-    const scopedOrders=data.managerHierarchy?.orders||data.orders||[];
-    const scopedEvents=data.managerHierarchy?.financialEvents||data.financialEvents||[];
-    const scopedTasks=data.managerHierarchy?.tasks||data.tasks||[];
-    const inRange=value=>(!start||String(value||'').slice(0,10)>=start)&&(!end||String(value||'').slice(0,10)<=end);
-    const eventOrderIds=new Set(scopedOrders.map(order=>order.id));
-    const teamRevenueValue=money(scopedEvents.filter(event=>eventOrderIds.has(event.orderId)&&inRange(event.occurredAt)).reduce((sum,event)=>sum+Number(event.amount||0),0));
-    const activeTasks=scopedTasks.filter(task=>task.status!=='DONE');
-    const parseDate=value=>{const raw=String(value||'').trim();if(!raw)return NaN;const normalized=raw.includes('T')?raw:raw.replace(' ','T');return Date.parse(/[zZ]|[+-]\d{2}:?\d{2}$/.test(normalized)?normalized:normalized+'+07:00');};
-    const isOverdue=task=>task.status==='OVERDUE'||(task.status!=='DONE'&&Number.isFinite(parseDate(task.dueAt))&&parseDate(task.dueAt)<Date.now());
-    const overdueTasks=activeTasks.filter(task=>inRange(task.dueAt||task.createdAt)&&isOverdue(task));
-    // A newly allocated data row keeps its recipient on the pending offer until
-    // the Sale accepts it. Count that allocation as an assigned customer too.
-    const assignedCustomerIds=new Set();
-    const hasStoredOwner=customer=>[
-      customer.saleId,
-      customer.leaderId,
-      customer.managerId,
-      customer.ownerId,
-      customer.assigneeId,
-      customer.assignedTo,
-      customer.teamId
-    ].some(Boolean)||Boolean(String(customer.sale||'').trim()&&!/chưa\s*phân/i.test(String(customer.sale)));
-    scopedCustomers.forEach(customer=>{if(hasStoredOwner(customer))assignedCustomerIds.add(customer.id);});
-    const scopedCustomerIds=new Set(scopedCustomers.map(customer=>customer.id));
-    [...(data.offers||[]),...(data.pendingOffers||[])].forEach(offer=>{
-      const hasRecipient=[offer.saleId,offer.leaderId,offer.managerId,offer.ownerId].some(Boolean);
-      if(offer.status==='PENDING'&&hasRecipient&&scopedCustomerIds.has(offer.customerId))assignedCustomerIds.add(offer.customerId);
-    });
-    const assignedCustomers=scopedCustomers.filter(customer=>assignedCustomerIds.has(customer.id));
-    const calledCustomers=assignedCustomers.filter(customer=>['Đã gọi được','Đã gọi','Đã kết nối'].includes(customer.customFields?.callStatus)||customer.customFields?.callStatus==='Đã gọi được');
-    const paidOrders=scopedOrders.filter(order=>inRange(order.paidAt||order.createdAt)&&['PAID','COURSE_GRANTED'].includes(order.status));
-    const target=members.filter(member=>member.role==='SALE').reduce((sum,member)=>sum+Number(member.target||0),0);
-    const progress=target?Math.min(100,scopedEvents.filter(event=>eventOrderIds.has(event.orderId)&&inRange(event.occurredAt)).reduce((sum,event)=>sum+Number(event.amount||0),0)/target*100):0;
-    const metrics=[members.length,teamRevenueValue,assignedCustomers.length,overdueTasks.length];
-    cards.forEach((card,i)=>{primaryText(card.querySelector('.kpi-hero-num'),metrics[i]);});
-    cards[0]?.querySelectorAll('.kpi-foot-stat .value').forEach((node,i)=>{if(i===0)node.textContent=members.filter(member=>member.role==='LEADER').length+' người';else if(i===1)node.textContent=members.filter(member=>member.role==='SALE').length+' người';else node.textContent=members.length?'100%':'0%';});
-    const online=cards[0]?.querySelector('.kpi-trend-pill');if(online)online.textContent=members.length+' hoạt động';
-    const foot=(i,values)=>cards[i]?.querySelectorAll('.kpi-foot-stat .value').forEach((n,j)=>n.textContent=values[j]);
-    foot(1,[paidOrders.length+' đơn',target?money(target):'Chưa đặt',target?progress.toFixed(1)+'%':'—']);
-    foot(2,[assignedCustomers.length+' khách',(scopedCustomers.length-assignedCustomers.length)+' khách',assignedCustomers.length?(calledCustomers.length/assignedCustomers.length*100).toFixed(1)+'%':'—']);
-  }
-  renderOrdersTable=drawOrders;
-  filterOrdersDate=()=>drawOrders();
-  // Dùng các lớp của mẫu cho form mới, giữ nguyên bố cục trang sản phẩm.
-  function productModal(id=null) {
-    if(data.user.role!=='ADMIN')return;
-    ensureProductImageStyles();
-    const p=data.products.find(p=>p.id===id)||{name:'',sku:'',category:'',price:0,type:'SALE',vatRate:0.1,active:true};
-    q('#referenceProductModal')?.remove();
-    const modal=document.createElement('div');modal.id='referenceProductModal';modal.className='modal-overlay open';
-    modal.innerHTML=`<form id="referenceProductForm" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="referenceProductTitle" style="max-height:92dvh;overflow-y:auto;width:min(600px,calc(100vw - 24px))">
-      <div class="modal-header"><h3 id="referenceProductTitle">${id?'Sửa':'Thêm'} sản phẩm</h3><button type="button" class="modal-close-btn" data-product-close aria-label="Đóng">×</button></div>
-      <div class="modal-body"><div class="grid-2-col" style="grid-template-columns:repeat(auto-fit,minmax(min(210px,100%),1fr));gap:16px">
-      <div class="form-group"><label for="refProductName">Tên sản phẩm *</label><input id="refProductName" name="name" required maxlength="200" value="${esc(p.name)}"></div>
-      <div class="form-group"><label for="refProductSku">Mã SKU</label><input id="refProductSku" name="sku" maxlength="60" value="${esc(p.sku)}"></div>
-      <div class="form-group"><label for="refProductType">Loại sản phẩm</label><select id="refProductType" name="type">${opt('SALE','Bên Bán',p.type)+opt('RENTAL','Bên Thuê',p.type)}</select></div>
-      <div class="form-group"><label for="refProductMonths">Gói thuê</label><select id="refProductMonths" name="rentalMonths">${opt('','Chọn gói')+[1,3,6,12].map(n=>opt(String(n),n+' tháng',String(p.rentalMonths))).join('')}</select></div>
-      <div class="form-group"><label for="refProductCategory">Danh mục *</label><input id="refProductCategory" name="category" list="refProductCategories" required maxlength="100" value="${esc(p.category)}"><datalist id="refProductCategories">${(data.productCategories||[]).map(c=>opt(c,c)).join('')}</datalist></div>
-      <div class="form-group"><label for="refProductPrice">Đơn giá chưa VAT *</label><input id="refProductPrice" name="price" type="number" required min="0" step="1" value="${esc(p.price)}"></div>
-      <div class="form-group"><label for="refProductVat">VAT (%)</label><input id="refProductVat" name="vatRate" type="number" required min="0" max="100" step="0.01" value="${esc(Number(p.vatRate ?? 0.1)*100)}" placeholder="10"></div>
-      <div class="form-group"><label for="refProductActive">Trạng thái</label><select id="refProductActive" name="active">${opt('true','Hoạt động',String(p.active!==false))+opt('false','Tạm dừng',String(p.active!==false))}</select></div>
-      <div class="form-group" style="grid-column:1/-1"><label for="refProductImage">\u1ea2nh s\u1ea3n ph\u1ea9m</label><div class="reference-product-image-picker"><div class="reference-product-image-preview" id="refProductImagePreview">${p.imageData?`<img src="${esc(p.imageData)}" alt="\u1ea2nh s\u1ea3n ph\u1ea9m">`:'<span>Ch\u01b0a c\u00f3 \u1ea3nh</span>'}</div><div class="reference-product-image-actions"><input id="refProductImage" type="file" accept="image/jpeg,image/png,image/webp" aria-describedby="refProductImageHelp"><small id="refProductImageHelp">JPG, PNG ho\u1eb7c WEBP. T\u1ed1i \u0111a 2 MB.</small><button type="button" class="btn-action btn-secondary" id="refProductImageRemove" ${p.imageData?'':'hidden'}>X\u00f3a \u1ea3nh</button></div></div></div>
-      </div><p id="refProductError" role="alert" style="color:var(--red,#dc2626)"></p></div>
-      <div class="modal-footer"><button type="button" class="btn-action btn-secondary" data-product-close>Hủy</button><button type="submit" class="btn-action btn-primary">Lưu sản phẩm</button></div></form>`;
-    document.body.appendChild(modal);
-    modal.querySelectorAll('[data-product-close]').forEach(n=>n.onclick=()=>{if(!working){modal.remove();refresh(true);}});
-    const sync=()=>{q('#refProductMonths').disabled=q('#refProductType').value!=='RENTAL';q('#refProductMonths').required=!q('#refProductMonths').disabled;};q('#refProductType').onchange=sync;sync();
-    let selectedImageData='',removeImage=false;
-    const imageInput=q('#refProductImage'),imagePreview=q('#refProductImagePreview'),removeImageButton=q('#refProductImageRemove');
-    const renderImagePreview=imageData=>{imagePreview.replaceChildren();if(imageData){const image=document.createElement('img');image.src=imageData;image.alt='\u1ea2nh s\u1ea3n ph\u1ea9m xem tr\u01b0\u1edbc';imagePreview.appendChild(image);}else imagePreview.innerHTML='<span>Ch\u01b0a c\u00f3 \u1ea3nh</span>';removeImageButton.hidden=!imageData;};
-    imageInput.onchange=async()=>{const file=imageInput.files?.[0];if(!file)return;try{selectedImageData=await prepareProductImage(file);removeImage=false;renderImagePreview(selectedImageData);text('refProductError','');}catch(error){imageInput.value='';text('refProductError',error.message||'Kh\u00f4ng th\u1ec3 d\u00f9ng \u1ea3nh n\u00e0y.');}};
-    removeImageButton.onclick=()=>{selectedImageData='';removeImage=true;imageInput.value='';renderImagePreview('');};
-    q('#referenceProductForm').onsubmit=async event=>{
-      event.preventDefault();if(working)return;working=true;
-      const form=event.currentTarget,input=Object.fromEntries(new FormData(form));input.active=input.active==='true';
-      input.imageData=selectedImageData||(removeImage?'':String(p.imageData||''));
-      const controls=Array.from(form.elements);controls.forEach(n=>n.disabled=true);text('refProductError','');
-      try{await api.saveProduct(id,input);modal.remove();refresh(true);}
-      catch(error){text('refProductError',error.message||'Chưa lưu được sản phẩm.');}
-      finally{working=false;controls.forEach(n=>n.disabled=false);if(modal.isConnected)sync();}
-    };
-    q('#refProductName').focus();
-  }
-  function catalog(){
-    ensureProductImageStyles();
-    const body=q('#tab-products tbody');
-    table(body,data.products.map(p=>[p.name,p.sku,p.type==='RENTAL'?'Bên Thuê':'Bên Bán',p.type==='RENTAL'?p.rentalMonths+' tháng':'Vĩnh viễn',money(p.price),(Number(p.vatRate??.1)*100).toFixed(2).replace(/\.00$/,'')+'% ('+money(Math.round(p.price*Number(p.vatRate??.1)))+')',p.active===false?'Tạm dừng':p.type==='RENTAL'?'Đang cho thuê':'Đang bán','']));
-    Array.from(body.rows).forEach((row,i)=>{const p=data.products[i],button=row.querySelector('button');if(button){button.removeAttribute('onclick');button.onclick=()=>productModal(p.id);button.disabled=data.user.role!=='ADMIN';}const chip=row.cells[6]?.querySelector('.chip');if(chip)chip.className='chip '+(p.active===false?'chip-warm':'chip-green');});
-    Array.from(body.rows).forEach((row,i)=>{const p=data.products[i],productCell=row.cells[0],nameHost=productCell?.querySelector('.cell-main')||productCell,heading=nameHost?.querySelector('b')||nameHost?.querySelector('strong')||nameHost;if(!p||!heading||heading.querySelector('.reference-product-thumb'))return;const label=document.createElement('span');label.textContent=p.name||'';const thumb=document.createElement(p.imageData?'img':'span');thumb.className='reference-product-thumb';if(p.imageData){thumb.src=p.imageData;thumb.alt='';}else thumb.textContent=String(p.name||'?').trim().slice(0,1).toUpperCase()||'?';const entry=document.createElement('div');entry.className='reference-product-name';entry.append(thumb,label);if(heading===nameHost)nameHost.replaceChildren(entry);else heading.replaceWith(entry);});
-    const buttons=qa('#tab-products .headline-row button');buttons.forEach(n=>n.removeAttribute('onclick'));
-    buttons[1].onclick=()=>productModal();buttons[1].disabled=data.user.role!=='ADMIN';
-    buttons[0].onclick=()=>{q('#referencePriceModal')?.remove();const modal=document.createElement('div');modal.id='referencePriceModal';modal.className='modal-overlay open';modal.innerHTML=`<div class="modal-card" role="dialog" aria-modal="true" aria-label="Biểu giá" style="max-height:92dvh;overflow:auto;width:min(800px,calc(100vw - 24px))"><div class="modal-header"><h3>Biểu giá sản phẩm</h3><button class="modal-close-btn" aria-label="Đóng">×</button></div><div class="modal-body table-responsive"><table class="modern-table"><thead><tr><th>Sản phẩm</th><th>Gói</th><th>Chưa VAT</th><th>Gồm VAT</th></tr></thead><tbody>${data.products.filter(p=>p.active!==false).map(p=>'<tr><td>'+esc(p.name)+'</td><td>'+(p.type==='RENTAL'?p.rentalMonths+' tháng':'Vĩnh viễn')+'</td><td>'+money(p.price)+'</td><td>'+money(Number(p.price)+Math.round(p.price*Number(p.vatRate??.1)))+'</td></tr>').join('')}</tbody></table></div></div>`;document.body.appendChild(modal);modal.querySelector('button').onclick=()=>{modal.remove();refresh(true);};};
-    const cards=qa('#tab-products .bento-card'),sale=data.products.filter(p=>p.type!=='RENTAL'),rental=data.products.filter(p=>p.type==='RENTAL');
-    const stats=[['TỔNG SẢN PHẨM',data.products.length+' sản phẩm','Danh mục hiện tại'],['BÊN BÁN',sale.length+' sản phẩm','Khóa học & sản phẩm bán'],['BÊN THUÊ',rental.length+' sản phẩm','Chỉ báo & công cụ cho thuê'],['ĐANG HOẠT ĐỘNG',data.products.filter(p=>p.active!==false).length+' sản phẩm',data.products.filter(p=>p.active===false).length+' tạm dừng']];
-    cards.forEach((card,i)=>Array.from(card.children).forEach((n,j)=>n.textContent=stats[i]?.[j]||''));
-  }
-  function memberEditor(id=null) {
-    if(data.user.role!=='ADMIN')return;const m=data.members.concat(data.registeredAccounts).find(m=>m.id===id)||{name:'',email:'',phone:'',role:'LEADER',teamId:''};
-    const protectedRole=!['SALE','LEADER','MANAGER','UNASSIGNED'].includes(m.role),role=m.role==='UNASSIGNED'?'SALE':m.role;
-    const modal=editor(id?'Cập nhật thành viên':'Thêm thành viên',formField('Họ tên',`<input id="refMemberName" required maxlength="160" value="${esc(m.name)}">`)+formField('ID tài khoản',`<input id="refMemberAccountId" maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9._-]{2,63}" value="${esc(m.accountId||'')}">`)+formField('Số điện thoại',`<input id="refMemberPhone" type="tel" maxlength="20" value="${esc(m.phone)}">`)+formField('Email',`<input id="refMemberEmail" type="email" maxlength="254" value="${esc(m.email)}">`)+formField('Chức vụ',`<select id="refMemberRole" ${protectedRole?'disabled':''}>${(protectedRole?[role]:['MANAGER','LEADER','SALE']).map(r=>opt(r,r,role)).join('')}</select>`)+formField('Team (tự động theo Leader)',`<input id="refMemberTeam" maxlength="20" readonly ${protectedRole?'disabled':''} value="${esc(m.teamId)}">`)+formField('Leader trực tiếp',`<select id="refMemberLeader">${opt('','Không áp dụng')+data.members.filter(l=>['LEADER','MANAGER'].includes(l.role)&&l.active!==false&&l.id!==id).map(l=>opt(l.id,l.name+' · '+(l.role==='MANAGER'?'MANAGER':l.teamId),m.leaderId)).join('')}</select>`)+formField('Manager quản lý (Admin phân công)',`<select id="refMemberManager">${opt('','Chưa giao Manager')+data.members.filter(m=>m.role==='MANAGER'&&m.active!==false&&m.id!==id).map(x=>opt(x.id,x.name,m.managerId)).join('')}</select>`),()=>api.saveMember(id,{name:q('#refMemberName').value,accountId:q('#refMemberAccountId').value,phone:q('#refMemberPhone').value,email:q('#refMemberEmail').value,role:q('#refMemberRole').value,teamId:q('#refMemberTeam').value,leaderId:q('#refMemberLeader').value,managerId:q('#refMemberManager').value}));
-    const memberModal=modal.querySelector('.modal-card'),memberBody=modal.querySelector('.modal-body');
-    memberModal?.classList.add('member-editor-modal');memberBody?.classList.add('member-editor-body');
-    if(memberBody){
-      const style=document.createElement('style');style.textContent='.member-editor-modal{width:min(620px,calc(100vw - 24px))!important;max-height:92dvh!important}.member-editor-body{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px!important;padding:16px!important}.member-editor-body .form-group{margin:0!important;min-width:0}.member-editor-body>[data-editor-error]{grid-column:1/-1;margin:0}.member-editor-body input,.member-editor-body select{min-height:40px;padding:9px 11px}.member-editor-body .form-group label{font-size:11px}.member-editor-modal .modal-footer{padding:12px 16px}@media(max-width:560px){.member-editor-body{grid-template-columns:1fr!important;padding:13px!important;gap:10px!important}}';memberBody.appendChild(style);
-      const field=id=>document.getElementById(id)?.closest('.form-group');
-      if(role==='MANAGER')field('refMemberTeam')?.setAttribute('hidden','');
-      if(role!=='SALE')field('refMemberLeader')?.setAttribute('hidden','');
-      if(role!=='LEADER')field('refMemberManager')?.setAttribute('hidden','');
-    }
-    const sync=()=>{const memberRole=q('#refMemberRole').value,sale=memberRole==='SALE',leader=memberRole==='LEADER';q('#refMemberLeader').disabled=!sale;q('#refMemberLeader').required=sale;q('#refMemberTeam').required=!protectedRole&&memberRole!=='MANAGER';q('#refMemberTeam').disabled=protectedRole||memberRole==='MANAGER';q('#refMemberTeam').readOnly=memberRole!=='MANAGER';if(memberRole==='LEADER'&&!q('#refMemberTeam').value.trim())q('#refMemberTeam').value=teamIdFromName(q('#refMemberName').value);q('#refMemberManager').disabled=!leader;q('#refMemberTeam').closest('.form-group').hidden=memberRole==='MANAGER';q('#refMemberLeader').closest('.form-group').hidden=!sale;q('#refMemberManager').closest('.form-group').hidden=!leader;};q('#refMemberRole').onchange=sync;q('#refMemberName').oninput=()=>{if(['LEADER','SALE'].includes(q('#refMemberRole').value)&&!q('#refMemberTeam').dataset.manual)q('#refMemberTeam').value=teamIdFromName(q('#refMemberName').value);};q('#refMemberLeader').onchange=()=>{const l=data.members.find(m=>m.id===q('#refMemberLeader').value);if(l){if(l.role==='LEADER')q('#refMemberTeam').value=l.teamId;q('#refMemberTeam').dataset.manual='leader';}};sync();
-  }
-  function passwordEditor(id){editor('Đặt lại mật khẩu',formField('Mật khẩu mới','<input id="refPassword" type="password" required minlength="8" autocomplete="new-password">')+formField('Nhập lại mật khẩu','<input id="refPasswordConfirm" type="password" required autocomplete="new-password">'),()=>api.resetPassword(id,q('#refPassword').value,q('#refPasswordConfirm').value));}
-  // Render cay doi ngu theo thu tu Manager -> Leader -> Sale.
-  // Khoi nay chi thay phan hien thi, khong thay doi du lieu hay quyen truy cap.
-  function renderTeamHierarchyV6(){
-    const host=q('#teamHierarchyOverview');if(!host||!data?.user)return;
-    if(!q('#teamHierarchyV6Styles')){
-      const style=document.createElement('style');
-      style.id='teamHierarchyV6Styles';
-      style.textContent='.tree-root-container,.branch-card-box{border:1px solid var(--border);border-radius:10px;background:var(--bg-surface);overflow:hidden;box-shadow:var(--shadow-sm)}.tree-root-container+.tree-root-container{margin-top:12px}.tree-root-header,.branch-card-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;cursor:pointer;background:var(--bg-surface)}.tree-root-header:hover,.branch-card-header:hover{background:var(--bg-subtle)}.tree-node-info{display:flex;align-items:center;gap:10px;min-width:0}.avatar-circle{display:grid;place-items:center;width:36px;height:36px;flex:0 0 auto;border-radius:50%;font-size:12px;font-weight:800}.avatar-manager{background:#dbeafe;color:#1d4ed8}.avatar-leader{background:#ede9fe;color:#6d28d9}.avatar-sale{background:#dcfce7;color:#15803d}.node-title-group{min-width:0}.node-name-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.node-main-name{color:var(--text-main);font-weight:800;line-height:1.25}.node-role-pill{display:inline-flex;align-items:center;min-height:22px;padding:3px 8px;border-radius:999px;font-size:10px;font-weight:800;letter-spacing:.04em}.pill-manager{background:#dbeafe;color:#1d4ed8}.pill-leader{background:#ede9fe;color:#6d28d9}.pill-sale{background:#dcfce7;color:#15803d}.node-meta-desc{display:block;margin-top:4px;color:var(--text-muted);font-size:11px}.btn-toggle-round{display:grid;place-items:center;flex:0 0 auto;width:30px;height:30px;border:1px solid var(--border);border-radius:50%;background:var(--bg-subtle);color:var(--text-main);font-size:18px;font-weight:700;line-height:1}.tree-body-branches,.leader-sub-tree{padding:10px 12px 12px;border-top:1px solid var(--border-light);background:var(--bg-subtle)}.sub-branch-item{margin-top:8px}.sub-branch-item:first-child{margin-top:0}.branch-card-header{padding:12px 14px}.branch-card-box{box-shadow:none}.branch-card-box>div[id]{background:var(--bg-surface);padding:0 12px 10px}.customer-sub-panel{padding-top:8px}.tree-root-header:focus-visible,.branch-card-header:focus-visible{outline:2px solid #2563eb;outline-offset:-2px}@media(max-width:560px){.tree-root-header,.branch-card-header{padding:12px}.tree-body-branches,.leader-sub-tree{padding:8px}.node-main-name{font-size:13px!important}}';
-      document.head.appendChild(style);
-    }
-    const role=data.user.actualRole||data.user.role,all=data.managerHierarchy?.members||data.members||[],members=all.filter(m=>m.active!==false&&['MANAGER','LEADER','SALE'].includes(m.role)),current=members.find(m=>m.id===data.user.id)||data.user,customers=data.managerHierarchy?.customers||data.customers||[];
-    const managerTeamLabel=m=>{const teams=[...new Set(members.filter(x=>x.role==='LEADER'&&x.managerId===m.id).map(x=>String(x.teamId||'').trim()).filter(Boolean))];return teams.length?teams.join(', '):String(m.teamId||'').trim()||'Chua gan Team';};
-    const initials=n=>String(n||'?').trim().split(/\s+/).slice(-2).map(x=>x[0]||'').join('').toUpperCase()||'?';
-    const list=(title,rows)=>'<div class="customer-sub-panel"><div class="customer-panel-title">'+esc(title)+' ('+rows.length+')</div>'+(rows.length?rows.map(c=>'<div class="customer-item-row" data-team-customer="'+esc(c.id)+'" role="button" tabindex="0"><div class="cust-left"><div class="cust-dot"></div><div><span class="cust-name">'+esc(c.name||'Chua dat ten')+'</span><span class="cust-phone"> · '+esc(c.phone||'')+'</span></div></div><span class="cust-meta-badge">'+esc(c.status||'MOI')+'</span></div>').join(''):'<div style="font-size:12px;color:#94a3b8;padding:6px 0">Chua co khach hang</div>')+'</div>';
-    const sales=l=>members.filter(m=>m.role==='SALE'&&m.leaderId===l.id),managerSales=m=>members.filter(s=>s.role==='SALE'&&(s.managerId===m.id||s.leaderId===m.id)),person=(m,k,rows)=>'<div class="sub-branch-item"><div class="branch-card-box"><div class="branch-card-header" data-toggle-id="'+esc(k+'-'+m.id)+'"><div class="tree-node-info"><div class="avatar-circle avatar-'+k+'">'+esc(initials(m.name))+'</div><div class="node-title-group"><div class="node-name-row"><span class="node-main-name">'+esc(m.name||'Chua dat ten')+' ('+k+')</span><span class="node-role-pill pill-'+k+'">'+k.toUpperCase()+'</span></div><span class="node-meta-desc">'+rows.length+' khach cua '+k+'</span></div></div><div class="btn-toggle-round">+</div></div><div id="'+esc(k+'-'+m.id)+'" hidden>'+list('Khach cua '+k,rows)+'</div></div></div>';
-    const leaders=members.filter(m=>m.role==='LEADER'&&(role==='ADMIN'||role==='MANAGER'&&m.managerId===current.id||role==='LEADER'&&m.id===current.id||role==='SALE'&&m.id===current.leaderId)),managers=members.filter(m=>m.role==='MANAGER'&&(role==='ADMIN'||role==='MANAGER'&&m.id===current.id));
-    const directCustomers=(member,kind)=>kind==='manager'
-      ? customers.filter(c=>c.ownerId===member.id||c.saleId===member.id)
-      : customers.filter(c=>c.ownerId===member.id||c.saleId===member.id||(kind==='leader'&&c.leaderId===member.id&&!c.saleId));
-    const leaderNode=l=>{const own=directCustomers(l,'leader'),children=sales(l).map(s=>person(s,'sale',customers.filter(c=>c.saleId===s.id))).join('');return '<div class="tree-branch-node"><div class="branch-card-box"><div class="branch-card-header" data-toggle-id="group-'+esc(l.id)+'"><div class="tree-node-info"><div class="avatar-circle avatar-leader">'+esc(initials(l.name))+'</div><div class="node-title-group"><div class="node-name-row"><span class="node-main-name">'+esc(l.name||'Chua dat ten')+' (leader)</span><span class="node-role-pill pill-leader">LEADER</span></div><span class="node-meta-desc">'+sales(l).length+' Sale truc thuoc</span></div></div><div class="btn-toggle-round">+</div></div><div id="group-'+esc(l.id)+'" class="leader-sub-tree" hidden>'+person(l,'leader',own)+(children||'<div class="team-hierarchy-empty">Chua co Sale truc thuoc</div>')+'</div></div></div>';};
-    const managerNode=m=>{const ls=leaders.filter(l=>l.managerId===m.id),directSales=managerSales(m),own=directCustomers(m,'manager'),saleCount=directSales.length+ls.reduce((n,l)=>n+sales(l).length,0),directSaleNodes=directSales.map(s=>person(s,'sale',customers.filter(c=>c.saleId===s.id))).join('');return '<div class="tree-root-container"><div class="tree-root-header" data-toggle-id="root-'+esc(m.id)+'"><div class="tree-node-info"><div class="avatar-circle avatar-manager">M</div><div class="node-title-group"><div class="node-name-row"><span class="node-main-name" style="font-size:16px">Team '+esc(managerTeamLabel(m))+' (manager)</span><span class="node-role-pill pill-manager">MANAGER</span></div><span class="node-meta-desc">'+ls.length+' Leader · '+saleCount+' Sale</span></div></div><div class="btn-toggle-round">+</div></div><div id="root-'+esc(m.id)+'" class="tree-body-branches" hidden>'+person(m,'manager',own)+directSaleNodes+ls.map(leaderNode).join('')+'</div></div>';};
-    const roots=managers.map(managerNode),orphan=leaders.filter(l=>!l.managerId||!managers.some(m=>m.id===l.managerId));
-    orphan.forEach(l=>{const own=directCustomers(l,'leader'),children=sales(l).map(s=>person(s,'sale',customers.filter(c=>c.saleId===s.id))).join('');roots.push('<div class="tree-root-container"><div class="tree-root-header" data-toggle-id="orphan-'+esc(l.id)+'"><div class="tree-node-info"><div class="avatar-circle avatar-leader">'+esc(initials(l.name))+'</div><div class="node-title-group"><div class="node-name-row"><span class="node-main-name" style="font-size:16px">Team '+esc(l.name||l.teamId||'Chua dat ten')+' (leader)</span><span class="node-role-pill pill-leader">LEADER</span></div><span class="node-meta-desc">'+sales(l).length+' Sale · '+own.length+' khach</span></div></div><div class="btn-toggle-round">+</div></div><div id="orphan-'+esc(l.id)+'" class="tree-body-branches" hidden>'+person(l,'leader',own)+children+'</div></div>');});
-    host.innerHTML=roots.join('')||'<div class="team-hierarchy-empty">Chua co du lieu doi ngu</div>';
-    host.querySelectorAll('[data-toggle-id]').forEach(h=>h.onclick=e=>{e.preventDefault();e.stopPropagation();const n=document.getElementById(h.dataset.toggleId);if(!n)return;const open=n.hidden;n.hidden=!open;const i=h.querySelector('.btn-toggle-round');if(i)i.textContent=open?'−':'+';});
-    host.querySelectorAll('[data-team-customer]').forEach(row=>{const open=()=>workflow('customer',row.dataset.teamCustomer);row.onclick=e=>{e.stopPropagation();open();};row.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open();}};});
-  }
 
-  function team(){
-    const bodies=qa('#tab-team tbody'),role=data.user.actualRole||data.user.role;
-    const pendingPanel=bodies[0]?.closest('.table-container');
-    if(pendingPanel){
-      const isAdmin=role==='ADMIN';
-      pendingPanel.hidden=!isAdmin;
-      pendingPanel.style.setProperty('display',isAdmin?'':'none','important');
-    }
-    const pending=role==='ADMIN'?data.registeredAccounts.filter(m=>m.role==='UNASSIGNED'):[];
-    const availableMembers=data.managerHierarchy?.members||data.members;
-    const members=availableMembers.filter(m=>m.active!==false&&(role==='ADMIN'?['MANAGER','LEADER','SALE'].includes(m.role):role==='MANAGER'?['LEADER','SALE'].includes(m.role):m.id===data.user.leaderId||m.role==='SALE'&&m.leaderId===data.user.leaderId)).sort((a,b)=>({ADMIN:0,MANAGER:1,LEADER:2,SALE:3}[a.role]??3)-({ADMIN:0,MANAGER:1,LEADER:2,SALE:3}[b.role]??3));
-    const managerTeamLabel=m=>{const teams=[...new Set(availableMembers.filter(x=>x.active!==false&&x.role==='LEADER'&&x.managerId===m.id).map(x=>String(x.teamId||'').trim()).filter(Boolean))];return teams.length?teams.join(', '):String(m.teamId||'').trim()||'Chua gan Team';};
-    const hierarchyOverview=q('#teamHierarchyOverview');
-    if(hierarchyOverview){
-      if(!q('#teamHierarchyStyles')){
-        const style=document.createElement('style');
-        style.id='teamHierarchyStyles';
-        style.textContent='.team-hierarchy-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}.team-hierarchy-title{font-size:15px;color:var(--text-main);font-weight:800}.team-hierarchy-subtitle{margin-top:3px;font-size:11.5px;color:var(--text-muted)}.team-manager-group{border-top:1px solid var(--border);padding-top:14px;margin-top:14px}.team-manager-group:first-of-type{border-top:0;padding-top:0;margin-top:0}.team-manager-head{display:flex;align-items:center;gap:8px;margin-bottom:10px;color:var(--text-main);font-size:12px;font-weight:800}.team-manager-head:before{content:"";width:8px;height:8px;border-radius:50%;background:#2563eb;flex:0 0 auto}.team-leader-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px}.team-leader-card{border:1px solid var(--border);border-radius:10px;background:var(--bg-subtle);overflow:hidden}.team-leader-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer}.team-leader-toggle:hover{background:rgba(37,99,235,.05)}.team-leader-main{display:flex;align-items:center;gap:10px;min-width:0}.team-leader-avatar,.team-sale-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#dbeafe;color:#1d4ed8;font-weight:900;font-size:13px;flex:0 0 auto}.team-leader-info{min-width:0}.team-leader-name{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;font-weight:800;color:var(--text-main)}.team-leader-meta{display:block;margin-top:3px;font-size:11px;color:var(--text-muted)}.team-leader-chevron{font-size:18px;line-height:1;color:#64748b;flex:0 0 auto}.team-sale-list{border-top:1px solid var(--border);padding:6px 10px 9px;background:var(--bg-surface)}.team-sale-row{display:flex;align-items:center;gap:9px;padding:8px 4px}.team-sale-avatar{width:28px;height:28px;font-size:11px;background:#dcfce7;color:#15803d}.team-sale-info{min-width:0}.team-sale-name{display:block;font-size:12px;font-weight:700;color:var(--text-main)}.team-sale-phone{display:block;margin-top:2px;font-size:10.5px;color:var(--text-muted)}.team-hierarchy-empty{padding:16px 8px;color:var(--text-muted);font-size:12px;text-align:center}.team-hierarchy-more{font-size:11px;color:var(--text-muted);margin-top:2px}';
-        document.head.appendChild(style);
-      }
-      const current=data.members.find(m=>m.id===data.user.id)||data.user;
-      const scopeSource=(data.managerHierarchy?.members||data.members||[]).filter(m=>m.active!==false);
-      const scopedIds=new Set(scopeSource.map(m=>m.id));
-      if(current?.id&&!scopedIds.has(current.id)&&current.active!==false)scopeSource.push(current);
-      const scoped=scopeSource.filter(m=>['MANAGER','LEADER','SALE'].includes(m.role));
-      const managerList=(role==='ADMIN'?scoped:role==='MANAGER'?[current,...scoped.filter(m=>m.id!==current?.id&&m.role==='MANAGER')]:scoped.filter(m=>m.role==='MANAGER')).filter((m,i,a)=>m?.id&&a.findIndex(x=>x.id===m.id)===i);
-      let leaderList=scoped.filter(m=>m.role==='LEADER');
-      if(role==='LEADER'&&current?.id)leaderList=[current];
-      if(role==='SALE'&&current?.leaderId)leaderList=scoped.filter(m=>m.id===current.leaderId&&m.role==='LEADER');
-      const initials=name=>String(name||'?').trim().split(/\s+/).slice(-2).map(part=>part[0]||'').join('').toUpperCase()||'?';
-      const nameOf=id=>scoped.find(m=>m.id===id)?.name||data.members.find(m=>m.id===id)?.name||'Ch 0a ph n';
-      const makeLeaderCard=leader=>{
-        const sales=scoped.filter(m=>m.role==='SALE'&&(role==='SALE'?m.id===current?.id:m.leaderId===leader.id));
-        const manager=managerList.find(m=>m.id===leader.managerId);
-        const detail=sales.length?sales.map(s=>'<div class="team-sale-row"><div class="team-sale-avatar">'+esc(initials(s.name))+'</div><div class="team-sale-info"><span class="team-sale-name">'+esc(s.name||'Ch 0a c  t 00n')+'</span><span class="team-sale-phone">'+esc(s.phone||s.accountId||'Ch 0a c  th ng tin')+'</span></div></div>').join(''):'<div class="team-hierarchy-empty">Ch 0a c  Sale trong team</div>';
-        return '<div class="team-leader-card"><button type="button" class="team-leader-toggle" aria-expanded="false"><span class="team-leader-main"><span class="team-leader-avatar">'+esc(initials(leader.name))+'</span><span class="team-leader-info"><span class="team-leader-name">'+esc('Team '+(leader.name||leader.teamId||'Ch 0a ph n'))+'</span><span class="team-leader-meta">Leader: '+esc(leader.name||'—')+' · '+sales.length+' Sale'+(manager?' · Qu n l 1: '+esc(manager.name):'')+'</span></span></span><span class="team-leader-chevron">+</span></button><div class="team-sale-list" hidden>'+detail+'</div></div>';
-      };
-      const renderGroup=(manager,leaders)=>'<div class="team-manager-group">'+(manager?'<div class="team-manager-head">Qu n l 1: '+esc(manager.name||'—')+'</div>':'<div class="team-manager-head">Ch 0a ph n Manager</div>')+'<div class="team-leader-list">'+(leaders.length?leaders.map(makeLeaderCard).join(''):'<div class="team-hierarchy-empty">Ch 0a c  Leader</div>')+'</div></div>';
-      const groups=[];
-      managerList.forEach(manager=>groups.push(renderGroup(manager,leaderList.filter(leader=>leader.managerId===manager.id))));
-      const unassignedLeaders=leaderList.filter(leader=>!managerList.some(manager=>manager.id===leader.managerId));
-      if(unassignedLeaders.length||!groups.length)groups.push(renderGroup(null,unassignedLeaders.length?unassignedLeaders:leaderList));
-      hierarchyOverview.innerHTML='<div class="team-hierarchy-head"><div><div class="team-hierarchy-title">C 0y ng 5</div><div class="team-hierarchy-subtitle">B 1m v o Leader/Team    xem Sale ph  tr ch</div></div></div>'+(groups.join('')||'<div class="team-hierarchy-empty">Ch 0a c  d 0 li u  1 i ng 5</div>');
-      hierarchyOverview.querySelectorAll('.team-leader-toggle').forEach(button=>{button.onclick=()=>{const detail=button.nextElementSibling,open=detail.hidden;detail.hidden=!open;button.setAttribute('aria-expanded',String(open));const icon=button.querySelector('.team-leader-chevron');if(icon)icon.textContent=open?'−':'+';};});
-    }
-    // Dynamic team hierarchy is rendered above this table.
-    if(hierarchyOverview){
-      const hierarchyCurrent=data.members.find(m=>m.id===data.user.id)||data.user;
-      const hierarchySource=(data.managerHierarchy?.members||data.members||[]).filter(m=>m.active!==false);
-      if(hierarchyCurrent?.id&&!hierarchySource.some(m=>m.id===hierarchyCurrent.id)&&hierarchyCurrent.active!==false)hierarchySource.push(hierarchyCurrent);
-      const hierarchyMembers=hierarchySource.filter(m=>['MANAGER','LEADER','SALE'].includes(m.role));
-      const hierarchyManagers=(role==='ADMIN'?hierarchyMembers.filter(m=>m.role==='MANAGER'):role==='MANAGER'?[hierarchyCurrent,...hierarchyMembers.filter(m=>m.role==='MANAGER'&&m.id!==hierarchyCurrent?.id)]:[]).filter((m,i,a)=>m?.id&&a.findIndex(x=>x.id===m.id)===i);
-      let hierarchyLeaders=hierarchyMembers.filter(m=>m.role==='LEADER');
-      if(role==='LEADER'&&hierarchyCurrent?.id)hierarchyLeaders=[hierarchyCurrent];
-      if(role==='SALE'&&hierarchyCurrent?.leaderId)hierarchyLeaders=hierarchyMembers.filter(m=>m.id===hierarchyCurrent.leaderId&&m.role==='LEADER');
-      const initials=name=>String(name||'?').trim().split(/\s+/).slice(-2).map(part=>part[0]||'').join('').toUpperCase()||'?';
-      const displayTeamName=member=>{
-        if(member?.role==='MANAGER')return 'Team '+(member.name||member.teamId||'Chua phan')+' (manager)';
-        const leader=hierarchyMembers.find(m=>m.role==='LEADER'&&(member.role==='LEADER'?m.id===member.id:m.id===member.leaderId));
-        if(leader)return 'Team '+(leader.name||leader.teamId||'Chua phan')+' (leader)';
-        return member?.teamId?'Team '+member.teamId:'Chua phan Team';
-      };
-      const leaderCard=leader=>{
-        const sales=hierarchyMembers.filter(m=>m.role==='SALE'&&(role==='SALE'?m.id===hierarchyCurrent?.id:m.leaderId===leader.id));
-        const manager=hierarchyManagers.find(m=>m.id===leader.managerId);
-        const saleRows=sales.length?sales.map(s=>'<div class="team-sale-row"><div class="team-sale-avatar">'+esc(initials(s.name))+'</div><div class="team-sale-info"><span class="team-sale-name">'+esc(s.name||'Ch&#432;a c&#243; t&#234;n')+'</span><span class="team-sale-phone">'+esc(s.phone||s.accountId||'Ch&#432;a c&#243; th&#244;ng tin')+'</span></div></div>').join(''):'<div class="team-hierarchy-empty">Ch&#432;a c&#243; Sale trong team</div>';
-        return '<div class="team-leader-card"><button type="button" class="team-leader-toggle" aria-expanded="false"><span class="team-leader-main"><span class="team-leader-avatar">'+esc(initials(leader.name))+'</span><span class="team-leader-info"><span class="team-leader-name">'+esc(displayTeamName(leader))+'</span><span class="team-leader-meta">Leader: '+esc(leader.name||'Chua phan')+' &middot; '+sales.length+' Sale'+(manager?' &middot; Qu&#7843;n l&#253;: '+esc(manager.name):'')+'</span></span></span><span class="team-leader-chevron">+</span></button><div class="team-sale-list" hidden>'+saleRows+'</div></div>';
-      };
-      const hierarchyGroups=[];
-      hierarchyManagers.forEach(manager=>hierarchyGroups.push('<div class="team-manager-group"><div class="team-manager-head">'+esc(displayTeamName(manager))+'</div><div class="team-leader-list">'+(hierarchyLeaders.filter(leader=>leader.managerId===manager.id).map(leaderCard).join('')||'<div class="team-hierarchy-empty">Ch&#432;a c&#243; Leader</div>')+'</div></div>'));
-      const unassignedLeaders=hierarchyLeaders.filter(leader=>!hierarchyManagers.some(manager=>manager.id===leader.managerId));
-      if(unassignedLeaders.length||!hierarchyGroups.length)hierarchyGroups.push('<div class="team-manager-group"><div class="team-manager-head">Ch&#432;a ph&#226;n Manager</div><div class="team-leader-list">'+(unassignedLeaders.length?unassignedLeaders.map(leaderCard).join(''):'<div class="team-hierarchy-empty">Ch&#432;a c&#243; d&#7919; li&#7879;u &#273;&#7897;i ng&#361;</div>')+'</div></div>');
-      hierarchyOverview.innerHTML='<div class="team-hierarchy-head"><div><div class="team-hierarchy-title">C&#226;y ng&#361; &#273;&#7897;i ng&#361;</div><div class="team-hierarchy-subtitle">B&#7845;m v&#224;o Leader/Team &#273;&#7875; xem c&#225;c Sale ph&#7909; tr&#225;ch</div></div></div>'+hierarchyGroups.join('');
-      hierarchyOverview.querySelectorAll('.team-leader-toggle').forEach(button=>button.onclick=()=>{
-        const detail=button.nextElementSibling;
-        const open=detail.hidden;
-        detail.hidden=!open;
-        button.setAttribute('aria-expanded',String(open));
-      });
-    }
-    // Dat lai cay hien thi sau khoi render cu de dam bao Manager/Leader luon dung cap.
-    renderTeamHierarchyV6();
     const start=q('#teamStartDate')?.value,end=q('#teamEndDate')?.value;
     const revenue=m=>(data.managerHierarchy?.financialEvents||data.financialEvents).filter(e=>(!start||e.occurredAt?.slice(0,10)>=start)&&(!end||e.occurredAt?.slice(0,10)<=end)&&(data.managerHierarchy?.orders||data.orders).some(o=>o.id===e.orderId&&(m.role==='LEADER'?o.leaderId===m.id:o.saleId===m.id))).reduce((s,e)=>s+Number(e.amount||0),0);
     const customers=m=>(data.managerHierarchy?.customers||data.customers).filter(c=>m.role==='MANAGER'?(c.ownerId===m.id||c.saleId===m.id):m.role==='LEADER'?(c.saleId===m.id||(c.leaderId===m.id&&!c.saleId)):c.saleId===m.id).length;
@@ -1470,7 +1178,6 @@
     const overdueAge=task=>{const due=parseDate(task.dueAt);return Number.isFinite(due)?Math.max(0,Date.now()-due):0;};
     foot(3,[overdueTasks.filter(task=>overdueAge(task)>=86400000).length,overdueTasks.filter(task=>overdueAge(task)>=172800000).length,activeTasks.length?((activeTasks.length-overdueTasks.length)/activeTasks.length*100).toFixed(1)+'%':'—']);
     const exportButton=qa('#tab-team button').find(b=>b.textContent.trim()==='Xuất CSV');if(exportButton){exportButton.removeAttribute('onclick');exportButton.onclick=()=>{const rows=[['Họ tên','SĐT','Email','Chức vụ','Team','Khách hàng','Doanh thu'],...members.map(m=>[m.name,m.phone,m.email,m.role,m.teamId,customers(m),revenue(m)])];const csv='\uFEFF'+rows.map(r=>r.map(v=>'"'+String(v??'').replace(/^[=+@-]/,"'").replaceAll('"','""')+'"').join(',')).join('\r\n');const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})),a=document.createElement('a');a.href=url;a.download='doi-ngu.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};}
-    renderTeamHierarchyV6();
     const hierarchyStats=(data.managerHierarchy?.members||data.members||[]).filter(member=>member.active!==false&&['MANAGER','LEADER','SALE'].includes(member.role));
     const memberCard=qa('#tab-team .kpi-bento-card')[0];
     if(memberCard){
@@ -1796,7 +1503,7 @@
     toggleTelegramMeeting(root);
   }
   let noticeFilter=0;
-  const userActivityToken=()=>{try{const session=JSON.parse(sessionStorage.getItem('nvt-crm-session-v1')||'{}');return String(session.token||session.accessToken||'').trim();}catch{return '';}};
+  const userActivityToken=()=>{try{const session=JSON.parse(sessionStorage.getItem('nvt-crm-session-v1')||'{}');const stored=String(session.token||session.accessToken||'').trim();if(stored)return stored;}catch{}try{return typeof serverSyncToken!=='undefined'?String(serverSyncToken||'').trim():'';}catch{return '';}};
   const userActivityTime=value=>{const raw=String(value||'').replace('T',' ').replace(/\.\d+Z?$/,'');return raw&&raw!=='null'?raw.slice(0,19):'Chưa ghi nhận';};
   const userRoleLabel=role=>({ADMIN:'Admin',MANAGER:'Manager',LEADER:'Leader',SALE:'Sale',MARKETING:'Marketing',ACCOUNTING:'Kế toán',UNASSIGNED:'Chờ phân quyền'})[role]||role||'Chưa xác định';
   const userEventLabel=event=>({LOGIN:'Đăng nhập',LOGOUT:'Đăng xuất',OPEN_SCREEN:'Mở màn hình'})[event]||event||'Hoạt động hệ thống';
@@ -1806,7 +1513,10 @@
     const token=userActivityToken();if(!token)return null;
     userActivityLoading=true;
     try{
-      const response=await fetch('/api/admin/user-activity',{headers:{Authorization:`Bearer ${token}`},cache:'no-store'});
+      const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),10000);
+      let response;
+      try{response=await fetch('/api/admin/user-activity',{headers:{Authorization:`Bearer ${token}`},cache:'no-store',signal:controller.signal});}
+      finally{clearTimeout(timeout);}
       const payload=await response.json().catch(()=>({}));if(!response.ok)throw Error(payload.error||'Không tải được User log.');
       userActivitySnapshot=payload;userActivityRequestedAt=Date.now();
       renderUserLog();
@@ -2991,45 +2701,23 @@
     header.removeAttribute('hidden');
   }
   function renderAutoRecipientStats(){
-    const host=q('#autoRecipientStats');
-    if(!host||!data)return;
-    const role=data.user?.actualRole||data.user?.role||'ADMIN';
-    const all=(data.members||[]).filter(member=>member&&member.active!==false&&member.active!==0&&['MANAGER','LEADER','SALE'].includes(member.role));
-    const hierarchy=data.managerHierarchy?.members||[];
-    const visible=role==='ADMIN'
-      ? all
-      : hierarchy.length
-        ? all.filter(member=>hierarchy.some(item=>item.id===member.id))
-        : [...all.filter(member=>member.id===data.user?.id),...all.filter(member=>member.leaderId===data.user?.id||member.managerId===data.user?.id)];
-    const currentId=String(data.user?.id||'');
-    const people=visible.filter(member=>String(member.id)===currentId);
-    const received=new Map(people.map(member=>[member.id,new Set()]));
-    const add=(memberId,customerId)=>{if(memberId&&customerId&&received.has(memberId))received.get(memberId).add(customerId);};
-    (data.customers||[]).forEach(customer=>{
-      add(customer.managerId,customer.id);
-      add(customer.ownerId,customer.id);
-      add(customer.leaderId,customer.id);
-      add(customer.saleId,customer.id);
-    });
-    (data.offers||[]).filter(offer=>offer&&offer.customerId&&['PENDING','ACCEPTED','EXPIRED'].includes(offer.status)).forEach(offer=>{
-      add(offer.managerId,offer.customerId);
-      add(offer.leaderId,offer.customerId);
-      add(offer.saleId,offer.customerId);
-    });
-    const roleLabel=member=>member.role==='MANAGER'?'Manager':member.role==='LEADER'?'Leader':'Sale';
-    const roleClass=member=>member.role.toLowerCase();
-    const initials=member=>String(member.initials||member.name||'NV').split(/\s+/).map(part=>part[0]||'').join('').slice(0,2).toUpperCase();
-    const rows=people.slice().sort((a,b)=>{
-      const roleOrder={MANAGER:0,LEADER:1,SALE:2};
-      return (roleOrder[a.role]??9)-(roleOrder[b.role]??9)||String(a.name||'').localeCompare(String(b.name||''),'vi');
-    }).map(member=>'<div class="auto-recipient-row"><span class="auto-recipient-avatar '+roleClass(member)+'">'+esc(initials(member))+'</span><span class="auto-recipient-person"><b>'+esc(member.name||'Chua dat ten')+'</b><small>'+esc(roleLabel(member))+(member.teamId?' · '+esc(member.teamId):'')+'</small></span><span class="auto-recipient-total"><b>'+received.get(member.id).size+'</b><small>data</small></span></div>').join('');
-    host.innerHTML='<div class="auto-recipient-head"><div><b>Data cá nhân của tôi</b><small>Chỉ hiển thị số data tài khoản đang đăng nhập đã nhận</small></div><span class="auto-recipient-count">'+(people.length?'Cá nhân':'Không nhận data')+'</span></div><div class="auto-recipient-list">'+(rows||'<div class="auto-recipient-empty">Tài khoản hiện tại chưa có data được giao.</div>')+'</div>';
-    if(!q('#autoRecipientStatsStyles')){
-      const style=document.createElement('style');
-      style.id='autoRecipientStatsStyles';
-      style.textContent='#dataSubViewAuto #autoRecipientStats{margin-top:14px;border:1px solid #dbe3ec;border-radius:12px;background:#fff;overflow:hidden;box-shadow:0 5px 16px rgba(15,23,42,.05)}#dataSubViewAuto .auto-recipient-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid #e2e8f0;background:#f8fafc}.auto-recipient-head>div{display:grid;gap:4px;min-width:0}.auto-recipient-head b{color:#0f172a;font-size:13px}.auto-recipient-head small{color:#64748b;font-size:11px}.auto-recipient-count{padding:6px 9px;border:1px solid #bfdbfe;border-radius:7px;background:#eff6ff;color:#1d4ed8;font-size:11px;font-weight:800;white-space:nowrap}.auto-recipient-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:12px}.auto-recipient-row{display:grid;grid-template-columns:34px minmax(0,1fr) auto;align-items:center;gap:10px;min-width:0;padding:10px 11px;border:1px solid #e2e8f0;border-radius:9px;background:#fff}.auto-recipient-row:hover{border-color:#bfdbfe;background:#f8fbff}.auto-recipient-avatar{display:grid;place-items:center;width:34px;height:34px;border-radius:9px;background:#dbeafe;color:#1d4ed8;font:800 11px var(--font-mono,monospace)}.auto-recipient-avatar.manager{background:#fef3c7;color:#a16207}.auto-recipient-avatar.leader{background:#ede9fe;color:#6d28d9}.auto-recipient-avatar.sale{background:#dcfce7;color:#15803d}.auto-recipient-person{display:grid;gap:3px;min-width:0}.auto-recipient-person b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#0f172a;font-size:12px}.auto-recipient-person small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#64748b;font-size:10.5px}.auto-recipient-total{display:grid;justify-items:end;gap:2px}.auto-recipient-total b{color:#2563eb;font:800 18px var(--font-mono,monospace);line-height:1}.auto-recipient-total small{color:#64748b;font-size:10px}.auto-recipient-empty{grid-column:1/-1;padding:24px;text-align:center;color:#64748b;font-size:12px}@media(max-width:700px){#dataSubViewAuto .auto-recipient-list{grid-template-columns:1fr}#dataSubViewAuto .auto-recipient-head{align-items:flex-start;flex-direction:column}}';
-      document.head.appendChild(style);
-    }
+    const host=q('#autoRecipientStats');if(!host||!data)return;
+    const role=data.user?.actualRole||data.user?.role||'ADMIN',all=(data.members||[]).filter(member=>member&&member.active!==false&&member.active!==0&&['MANAGER','LEADER','SALE'].includes(member.role)),currentId=String(data.user?.id||'');
+    const visible=role==='ADMIN'?all:role==='MANAGER'?(data.managerHierarchy?.members||all).filter(member=>member.id===currentId||member.managerId===currentId||member.leaderId===currentId):role==='LEADER'?[...all.filter(member=>member.id===currentId||member.leaderId===currentId)]:all.filter(member=>member.id===currentId);
+    const people=visible.filter((member,index,list)=>member?.id&&list.findIndex(item=>item.id===member.id)===index);
+    const received=new Map(people.map(member=>[member.id,[]])),seen=new Map(people.map(member=>[member.id,new Set()])),add=(memberId,customer)=>{const id=String(memberId||'');if(!id||!customer||!received.has(id)||seen.get(id).has(customer.id))return;seen.get(id).add(customer.id);received.get(id).push(customer);};
+    const customerById=new Map((data.customers||[]).map(customer=>[String(customer.id),customer]));
+    const pendingIds=new Set((data.offers||[]).filter(offer=>offer?.status==='PENDING').map(offer=>String(offer.customerId)));
+    const finalRecipient=customer=>customer?.saleId||customer?.leaderId||customer?.managerId||customer?.ownerId||'';
+    (data.customers||[]).forEach(customer=>{const recipient=finalRecipient(customer);if(recipient&&!pendingIds.has(String(customer.id)))add(recipient,{...customer,_receivedAt:customer.saleAcceptedAt||customer.updatedAt||customer.createdAt});});
+    (data.offers||[]).filter(offer=>offer?.status==='ACCEPTED').forEach(offer=>{const customer=customerById.get(String(offer.customerId));if(customer)add(offer.saleId||offer.leaderId||offer.managerId,{...customer,_receivedAt:offer.acceptedAt||offer.resolvedAt||offer.offeredAt||customer.saleAcceptedAt||customer.createdAt});});
+    const roleLabel=member=>member.role==='MANAGER'?'Manager':member.role==='LEADER'?'Leader':'Sale',roleClass=member=>String(member.role||'').toLowerCase(),initials=member=>String(member.initials||member.name||'NV').split(/\s+/).map(part=>part[0]||'').join('').slice(0,2).toUpperCase(),totalReceived=people.reduce((sum,member)=>sum+received.get(member.id).length,0);
+    const customerRows=member=>received.get(member.id).slice().sort((a,b)=>String(b._receivedAt||b.createdAt||'').localeCompare(String(a._receivedAt||a.createdAt||''))).map(customer=>'<button type="button" class="auto-recipient-customer" data-auto-recipient-customer="'+esc(customer.id)+'"><span><b>'+esc(customer.name||'Chua dat ten')+'</b><small>'+esc(customer.phone||'')+'</small></span><small>'+esc(fmtDate(customer._receivedAt||customer.createdAt||''))+'</small></button>').join('')||'<div class="auto-recipient-empty">Nhan su nay chua co data da nhan.</div>';
+    const rows=people.slice().sort((a,b)=>{const order={MANAGER:0,LEADER:1,SALE:2};return (order[a.role]??9)-(order[b.role]??9)||String(a.name||'').localeCompare(String(b.name||''),'vi');}).map(member=>'<article class="auto-recipient-group"><button type="button" class="auto-recipient-toggle" data-auto-recipient-toggle="'+esc(member.id)+'" aria-expanded="false"><span class="auto-recipient-person"><span class="auto-recipient-avatar '+roleClass(member)+'">'+esc(initials(member))+'</span><span><b>'+esc(member.name||'Chua dat ten')+'</b><small>'+esc(roleLabel(member))+(member.teamId?' · '+esc(member.teamId):'')+'</small></span></span><span class="auto-recipient-total"><b>'+received.get(member.id).length+'</b><small>data da nhan</small><i>+</i></span></button><div class="auto-recipient-detail" data-auto-recipient-detail="'+esc(member.id)+'" hidden>'+customerRows(member)+'</div></article>').join('');
+    host.innerHTML='<div class="auto-recipient-head"><div><b>'+(role==='ADMIN'?'Data nhan theo nhan su':'Data ca nhan cua toi')+'</b><small>'+(role==='ADMIN'?'Admin xem tung data da duoc Manager, Leader hoac Sale nhan.':'Chi hien data tai khoan dang dang nhap da nhan.')+'</small></div><span class="auto-recipient-count">'+totalReceived+' data</span></div><div class="auto-recipient-list">'+(rows||'<div class="auto-recipient-empty">Chua co nhan su hoac data da nhan.</div>')+'</div>';
+    host.querySelectorAll('[data-auto-recipient-toggle]').forEach(button=>button.onclick=()=>{const detail=host.querySelector('[data-auto-recipient-detail="'+CSS.escape(button.dataset.autoRecipientToggle)+'"]');if(!detail)return;const open=detail.hidden;detail.hidden=!open;button.setAttribute('aria-expanded',String(open));const icon=button.querySelector('i');if(icon)icon.textContent=open?'−':'+';});
+    host.querySelectorAll('[data-auto-recipient-customer]').forEach(button=>button.onclick=()=>workflow('customer',button.dataset.autoRecipientCustomer));
+    if(!q('#autoRecipientStatsStyles')){const style=document.createElement('style');style.id='autoRecipientStatsStyles';style.textContent='#dataSubViewAuto #autoRecipientStats{margin-top:14px;border:1px solid #dbe3ec;border-radius:12px;background:#fff;overflow:hidden;box-shadow:0 5px 16px rgba(15,23,42,.05)}#dataSubViewAuto .auto-recipient-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid #e2e8f0;background:#f8fafc}.auto-recipient-head>div{display:grid;gap:4px;min-width:0}.auto-recipient-head b{color:#0f172a;font-size:13px}.auto-recipient-head small{color:#64748b;font-size:11px}.auto-recipient-count{padding:6px 9px;border:1px solid #bfdbfe;border-radius:7px;background:#eff6ff;color:#1d4ed8;font-size:11px;font-weight:800;white-space:nowrap}.auto-recipient-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:12px}.auto-recipient-group{border:1px solid #e2e8f0;border-radius:9px;background:#fff;overflow:hidden}.auto-recipient-toggle{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:10px 11px;border:0;background:#fff;color:#0f172a;text-align:left;cursor:pointer}.auto-recipient-toggle:hover{background:#f8fbff}.auto-recipient-person{display:flex;align-items:center;gap:9px;min-width:0}.auto-recipient-person>span:last-child{display:grid;gap:3px;min-width:0}.auto-recipient-person b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#0f172a;font-size:12px}.auto-recipient-person small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#64748b;font-size:10.5px}.auto-recipient-avatar{display:grid;place-items:center;width:34px;height:34px;border-radius:9px;background:#dbeafe;color:#1d4ed8;font:800 11px var(--font-mono,monospace)}.auto-recipient-avatar.manager{background:#fef3c7;color:#a16207}.auto-recipient-avatar.leader{background:#ede9fe;color:#6d28d9}.auto-recipient-avatar.sale{background:#dcfce7;color:#15803d}.auto-recipient-total{display:grid;justify-items:end;gap:2px;min-width:92px}.auto-recipient-total b{color:#2563eb;font:800 18px var(--font-mono,monospace);line-height:1}.auto-recipient-total small{color:#64748b;font-size:9.5px;white-space:nowrap}.auto-recipient-total i{color:#2563eb;font-size:15px;font-style:normal;line-height:1}.auto-recipient-detail{display:grid;gap:5px;padding:8px 10px 10px;border-top:1px solid #e2e8f0;background:#f8fafc}.auto-recipient-customer{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;padding:7px 8px;border:1px solid #e2e8f0;border-radius:7px;background:#fff;color:#0f172a;text-align:left;cursor:pointer}.auto-recipient-customer:hover{border-color:#93c5fd;background:#eff6ff}.auto-recipient-customer span{display:grid;gap:3px;min-width:0}.auto-recipient-customer b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}.auto-recipient-customer small{color:#64748b;font-size:10px;white-space:nowrap}.auto-recipient-empty{grid-column:1/-1;padding:18px;text-align:center;color:#64748b;font-size:11px}@media(max-width:700px){#dataSubViewAuto .auto-recipient-list{grid-template-columns:1fr}#dataSubViewAuto .auto-recipient-head{align-items:flex-start;flex-direction:column}}';document.head.appendChild(style);}
   }
   function readReferenceImage(file){
     return new Promise((resolve,reject)=>{

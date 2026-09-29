@@ -217,7 +217,7 @@ test('Dashboard điều hành lấy KPI, doanh thu và cảnh báo thuê từ d�
 function authFixture(rows=[],duplicate=false,schemaReady=Promise.resolve(true)){
  const calls=[],signals=[];
  const query=async(sql,args)=>{calls.push({sql,args});if(sql.startsWith('SELECT'))return rows;if(duplicate&&sql.startsWith('INSERT INTO users'))throw Object.assign(new Error('duplicate'),{code:'ER_DUP_ENTRY'});return [];};
- const c={dbConfigured:true,systemSchemaReady:schemaReady,systemAccountsReady:Promise.resolve(true),crypto:require('node:crypto'),bcrypt:{hash:async p=>'hashed:'+p,compare:async(p,h)=>h==='hashed:'+p},crmData:{userRow:r=>({id:r.id,role:r.role})},dbQuery:query,authQuery:query,readBody:async r=>Buffer.from(JSON.stringify(r.body||{})),sendJson:(response,status,payload)=>{response.status=status;response.payload=payload;},notifyInboxListeners:e=>signals.push(e),stamp:()=> '2026-09-14 10:00',Buffer,console};
+ const c={setTimeout,clearTimeout,dbConfigured:true,systemSchemaReady:schemaReady,systemAccountsReady:Promise.resolve(true),crypto:require('node:crypto'),bcrypt:{hash:async p=>'hashed:'+p,compare:async(p,h)=>h==='hashed:'+p},crmData:{userRow:r=>({id:r.id,role:r.role})},dbQuery:query,authQuery:query,readBody:async r=>Buffer.from(JSON.stringify(r.body||{})),sendJson:(response,status,payload)=>{response.status=status;response.payload=payload;},notifyInboxListeners:e=>signals.push(e),stamp:()=> '2026-09-14 10:00',Buffer,console};
  const text=fs.readFileSync('webhook-server.cjs','utf8');vm.createContext(c);vm.runInContext(text.slice(text.indexOf('function dbJson('),text.indexOf('\n/**',text.indexOf('function dbJson('))),c);
  return {calls,signals,context:c,async request(path,body){const response={};await c.handleDbApi({method:'POST',headers:{},body},response,path);return response;}};
 }
@@ -1246,7 +1246,7 @@ test('Login still authenticates before issuing a session',async()=>{
 test('Login uses the dedicated auth pool and one indexed identifier column',()=>{
  const db=fs.readFileSync('db.js','utf8'),server=fs.readFileSync('webhook-server.cjs','utf8');
  assert.match(db,/const authPool = createManagedPool/);assert.match(db,/DB_AUTH_CONNECTION_LIMIT/);assert.match(db,/async function authQuery/);
- assert.match(server,/const rows=await authQuery\(`/);assert.match(server,/phone\?'phone=\?':'email=\?'/);assert.match(server,/await authQuery\('INSERT INTO crm_sessions/);
+ assert.match(server,/const rows=await loginStep.*authQuery\(`/);assert.match(server,/phone\?'phone=\?':'email=\?'/);assert.match(server,/await loginStep\(\(\) => authQuery\('INSERT INTO crm_sessions/);
 });
 
 test('Direct owner filter includes international phones and manager recipients without mixing team customers',()=>{
@@ -1420,4 +1420,16 @@ test('Login body timeout restores submit button without starting a session',asyn
  assert.equal(bodyCovered,true);assert.equal(cleared,true);
  assert.equal(c.document.querySelector('#loginForm button[type="submit"]').disabled,false);
  assert.match(c.document.querySelector('#loginError').textContent,/Máy chủ phản hồi quá lâu/);
+});
+
+test('Login deadline returns JSON 503 and a late lookup cannot create a session',async()=>{
+ const f=authFixture();let expire,resolveLookup;
+ f.context.setTimeout=fn=>{expire=fn;return 1;};f.context.clearTimeout=()=>{};
+ f.context.authQuery=()=>new Promise(resolve=>{resolveLookup=resolve;});
+ const request=f.request('/api/auth/login',{identifier:'admin@example.test',password:'correct-password'});
+ await new Promise(setImmediate);expire();
+ const result=await request;assert.equal(result.status,503);assert.equal(result.payload.code,'DB_LOGIN_TIMEOUT');
+ let sessionWrites=0;f.context.authQuery=async()=>{sessionWrites++;return [];};
+ resolveLookup([{id:'admin',role:'ADMIN',password_hash:'correct-password'}]);
+ await new Promise(setImmediate);assert.equal(sessionWrites,0);
 });

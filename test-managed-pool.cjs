@@ -50,3 +50,24 @@ test('Database defaults and overrides use supported driver options and managed a
 test('Pool limits are capped against stale hosting environment values',()=>{
  const db=require('node:fs').readFileSync(__dirname+'/db.js','utf8');assert.ok(db.includes("setting('DB_CONNECTION_LIMIT', 60)"));assert.ok(db.includes("setting('DB_AUTH_CONNECTION_LIMIT', 25)"));
 });
+
+test('All 25 stalled authentication acquisitions time out and the next wave recovers',async()=>{
+ const late=[];let stalled=true,destroyed=0;
+ const raw={getConnection(){if(stalled)return new Promise(resolve=>late.push(resolve));return Promise.resolve({query:async()=>[[1]],release(){},destroy(){}});}};
+ const pool=managedPool(raw,{limit:25,acquireTimeout:20});
+ const first=await Promise.allSettled(Array.from({length:25},()=>pool.getConnection()));
+ assert.ok(first.every(r=>r.status==='rejected'&&r.reason.code==='DB_ACQUIRE_TIMEOUT'));
+ assert.equal(pool.stats().active,0);stalled=false;
+ const held=await pool.getConnection();
+ late.forEach(resolve=>resolve({destroy(){destroyed++;},release(){throw Error('late lease released');}}));
+ await new Promise(setImmediate);
+ assert.equal(destroyed,25);assert.equal(pool.stats().active,1);
+ held.release();await Promise.all(Array.from({length:50},()=>pool.query('SELECT 1')));
+ assert.equal(pool.stats().active,0);assert.equal(pool.stats().queued,0);
+});
+test('Throwing destroy on a late connection cannot strand the next lease',async()=>{
+ let resolve;const pool=managedPool({getConnection:()=>new Promise(r=>{resolve=r;})},{limit:1,acquireTimeout:10});
+ await assert.rejects(pool.getConnection(),{code:'DB_ACQUIRE_TIMEOUT'});
+ resolve({destroy(){throw Error('already closed');}});await new Promise(setImmediate);
+ assert.equal(pool.stats().active,0);
+});
