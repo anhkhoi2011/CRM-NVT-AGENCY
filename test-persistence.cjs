@@ -217,7 +217,7 @@ test('Dashboard điều hành lấy KPI, doanh thu và cảnh báo thuê từ d�
 function authFixture(rows=[],duplicate=false,schemaReady=Promise.resolve(true)){
  const calls=[],signals=[];
  const query=async(sql,args)=>{calls.push({sql,args});if(sql.startsWith('SELECT'))return rows;if(duplicate&&sql.startsWith('INSERT INTO users'))throw Object.assign(new Error('duplicate'),{code:'ER_DUP_ENTRY'});return [];};
- const c={setTimeout,clearTimeout,dbConfigured:true,systemSchemaReady:schemaReady,systemAccountsReady:Promise.resolve(true),crypto:require('node:crypto'),bcrypt:{hash:async p=>'hashed:'+p,compare:async(p,h)=>h==='hashed:'+p},crmData:{userRow:r=>({id:r.id,role:r.role})},dbQuery:query,authQuery:query,readBody:async r=>Buffer.from(JSON.stringify(r.body||{})),sendJson:(response,status,payload)=>{response.status=status;response.payload=payload;},notifyInboxListeners:e=>signals.push(e),stamp:()=> '2026-09-14 10:00',Buffer,console};
+ const c={setTimeout,clearTimeout,dbConfigured:true,systemSchemaReady:schemaReady,systemAccountsReady:Promise.resolve(true),crypto:require('node:crypto'),bcrypt:{hash:async p=>'hashed:'+p,compare:async(p,h)=>h==='hashed:'+p},passwordService:{hash:async p=>'hashed:'+p,compare:async(p,h)=>h==='hashed:'+p},crmData:{userRow:r=>({id:r.id,role:r.role})},dbQuery:query,authQuery:query,readBody:async r=>Buffer.from(JSON.stringify(r.body||{})),sendJson:(response,status,payload)=>{response.status=status;response.payload=payload;},notifyInboxListeners:e=>signals.push(e),stamp:()=> '2026-09-14 10:00',Buffer,console};
  const text=fs.readFileSync('webhook-server.cjs','utf8');vm.createContext(c);vm.runInContext(text.slice(text.indexOf('function dbJson('),text.indexOf('\n/**',text.indexOf('function dbJson('))),c);
  return {calls,signals,context:c,async request(path,body){const response={};await c.handleDbApi({method:'POST',headers:{},body},response,path);return response;}};
 }
@@ -343,8 +343,31 @@ test('Catalog seed preserves existing ID/SKU and does not resurrect after marker
 test('Catalog seed rolls back and leaves no marker after failure',async()=>{
  const f=productSeedFixture([], 'IND-BF-R3M');await assert.rejects(f.run(),/Catalog failure/);assert.equal(f.products.length,0);assert.equal(f.marker,false);assert.ok(f.events.includes('rollback'));
 });
-test('Frontend has no business-data localStorage writes',()=>{
- const html=fs.readFileSync('index.html','utf8'),js=fs.readFileSync('crm.js','utf8');assert.doesNotMatch(html,/localStorage\.setItem|nvt-payment-sidecar|const CATALOG/);const writes=[...js.matchAll(/localStorage\.setItem\(([^,]+)/g)].map(match=>match[1].trim());assert.deepEqual(writes,['THEME_KEY']);
+test('Frontend only permits theme and the account-scoped snapshot cache in localStorage',()=>{
+ const html=fs.readFileSync('index.html','utf8'),runtime=fs.readFileSync('crm.js','utf8'),reference=fs.readFileSync('reference-crm.js','utf8');assert.doesNotMatch(html,/localStorage\.setItem|nvt-payment-sidecar|const CATALOG/);const runtimeWrites=[...runtime.matchAll(/localStorage\.setItem\(([^,]+)/g)].map(match=>match[1].trim());const referenceWrites=[...reference.matchAll(/localStorage\.setItem\(([^,]+)/g)].map(match=>match[1].trim());assert.deepEqual(runtimeWrites,['THEME_KEY']);assert.deepEqual(referenceWrites,['CACHED_SNAPSHOT_KEY']);assert.match(reference,/accountId!==session\.accountId/);assert.match(reference,/role!==session\.role/);
+});
+function referenceCacheFixture(){
+ const source=fs.readFileSync('reference-crm.js','utf8'),start=source.indexOf('  const snapshotRole='),end=source.indexOf('    const esc=',start),values=new Map();
+ const storage={getItem:key=>values.has(key)?values.get(key):null,setItem:(key,value)=>values.set(key,String(value)),removeItem:key=>values.delete(key)};
+ const context={sessionStorage:storage,localStorage:storage,console,Date};vm.createContext(context);vm.runInContext("const SESSION_KEY='nvt-crm-session-v1';const CACHED_SNAPSHOT_KEY='nvt_crm_cached_snapshot_v1';\n"+source.slice(start,end),context);return {context,storage,values};
+}
+test('Snapshot cache hydrates only for the matching account and role',()=>{
+ const f=referenceCacheFixture(),snapshot={user:{id:'admin',role:'ADMIN'},navigation:['dashboard'],customers:[]};
+ f.storage.setItem('nvt-crm-session-v1',JSON.stringify({token:'token',accountId:'admin',role:'ADMIN'}));
+ f.storage.setItem('nvt_crm_cached_snapshot_v1',JSON.stringify({version:1,savedAt:Date.now(),accountId:'admin',role:'ADMIN',snapshot}));
+ assert.equal(vm.runInContext('readCachedSnapshot().user.id',f.context),'admin');
+ f.storage.setItem('nvt-crm-session-v1',JSON.stringify({token:'token',accountId:'sale',role:'SALE'}));
+ assert.equal(vm.runInContext('readCachedSnapshot()',f.context),null);assert.equal(f.storage.getItem('nvt_crm_cached_snapshot_v1'),null);
+});
+test('Snapshot cache is cleared without a token and overwritten after revalidation',()=>{
+ const f=referenceCacheFixture(),snapshot={user:{id:'sale',role:'SALE'},navigation:['dashboard'],customers:[]};
+ f.storage.setItem('nvt_crm_cached_snapshot_v1',JSON.stringify({version:1,accountId:'sale',role:'SALE',snapshot}));
+ assert.equal(vm.runInContext('readCachedSnapshot()',f.context),null);assert.equal(f.storage.getItem('nvt_crm_cached_snapshot_v1'),null);
+ f.storage.setItem('nvt-crm-session-v1',JSON.stringify({token:'token',accountId:'sale',role:'SALE'}));f.context.snapshot=snapshot;vm.runInContext('saveCachedSnapshot(snapshot)',f.context);
+ const saved=JSON.parse(f.storage.getItem('nvt_crm_cached_snapshot_v1'));assert.equal(saved.accountId,'sale');assert.equal(saved.role,'SALE');assert.ok(saved.savedAt>0);
+});
+test('Runtime session metadata and authentication exits clear the CRM snapshot cache',()=>{
+ const source=fs.readFileSync('crm.js','utf8');assert.match(source,/accountId: currentAccount\.id, role: currentAccount\.actualRole \|\| currentAccount\.role/);assert.ok((source.match(/localStorage\.removeItem\(CACHED_SNAPSHOT_KEY\)/g)||[]).length>=2);
 });
 test('Rental expiry warning persists exactly once',async()=>{
  const f=fixture(),ends=new Date(Date.now()+2*86400000).toISOString();await f.api.write(admin,'rental',[change('customers',customer),change('orders',{...order,status:'PAID',amountPaid:order.total,balanceDue:0,paidAt:'2026-09-14 10:00',rentalEndsAt:ends})]);
@@ -741,6 +764,19 @@ test('Reference fields preserve option keys, record edits, protect Level and car
  await api.removeCare(care.id);await api.removeField(field.id);
  assert.equal(vm.runInContext('state.customers.length',c),1);
  assert.equal(vm.runInContext('state.customerFieldHistory.length',c),history);
+});
+test('Customer NOTE fields save the current value and change history through the SQL persistence path',async()=>{
+ const c=referenceBridge(),api=c.window.crmApi;
+ vm.runInContext(`state.customers=[{id:'note-customer',name:'Customer',phone:'0900000012',customFields:{},status:'NEW'}];let noteFlushes=0;flushServerPersistence=async()=>{noteFlushes++;return true;};`,c);
+ const field=await api.saveField(null,{label:'Ghi chú',type:'NOTE',options:[]});
+ const result=await api.updateField('note-customer',field.id,'Khách cần gọi lại\nSau 14:00');
+ assert.equal(result.updated,true);
+ assert.equal(vm.runInContext(`state.customers[0].customFields[${JSON.stringify(field.id)}]`,c),'Khách cần gọi lại\nSau 14:00');
+ assert.equal(vm.runInContext(`state.customerFieldHistory.some(item=>item.customerId==='note-customer'&&item.fieldId===${JSON.stringify(field.id)}&&item.to==='Khách cần gọi lại\\nSau 14:00')`,c),true);
+ assert.ok(vm.runInContext('noteFlushes',c)>=2);
+ const runtime=fs.readFileSync('crm.js','utf8'),store=fs.readFileSync('crm-data.cjs','utf8');
+ assert.match(runtime,/SERVER_LISTS = \[[^\]]*'customers'[^\]]*'customerFieldHistory'/s);
+ assert.match(store,/LISTS = \[[^\]]*'customers'[^\]]*'customerFieldHistory'/s);
 });
 test('Reference website CRUD keeps webhook identity and rejects deletion of a customer source',async()=>{
  const c=referenceBridge(),api=c.window.crmApi;
@@ -1270,7 +1306,7 @@ test('Column filters combine across the full dataset and discover new custom fie
  const view=fs.readFileSync('reference-view.js','utf8'),bridge=fs.readFileSync('reference-crm.js','utf8');
  const c=vm.createContext({window:{}});
  vm.runInContext(view.slice(0,view.indexOf('function ensureCustomerPaginationStyles')),c);
- c.data={user:{role:'ADMIN'},members:[],websites:[],fields:[{id:'tags',label:'Tags',type:'MULTI_SELECT',showInTable:true,options:[{value:'hot',label:'Hot'}]}],customers:Array.from({length:35},(_,index)=>({id:'c'+index,name:'Customer '+index,status:index%2?'NEW':'PAID',customFields:{tags:index<25?['hot','vip']:[],checkbox:false}}))};
+ c.data={user:{role:'ADMIN'},members:[],websites:[],fields:[{id:'tags',label:'Tags',type:'MULTI_SELECT',showInTable:true,options:[{value:'hot',label:'Hot'}]},{id:'customerNote',label:'Ghi chú',type:'TEXT',showInTable:true,options:[]}],customers:Array.from({length:35},(_,index)=>({id:'c'+index,name:'Customer '+index,status:index%2?'NEW':'PAID',customFields:{tags:index<25?['hot','vip']:[],checkbox:false,customerNote:index<9?'Nội dung '+index:'  '}}))};
  vm.runInContext("const baseFields=['customerLevel','customerClass','callStatus','documentStatus','result'];appState.customers=data.customers",c);
  const start=bridge.indexOf('  function prepareCustomerColumnFilters()'),end=bridge.indexOf('  function installCustomerColumnFilters',start);
  vm.runInContext(bridge.slice(start,end),c);c.prepareCustomerColumnFilters();
@@ -1283,6 +1319,14 @@ test('Column filters combine across the full dataset and discover new custom fie
  c.data.fields.push({id:'checkbox',label:'New column',type:'CHECKBOX',showInTable:true});c.prepareCustomerColumnFilters();
  vm.runInContext("customerFilterState.columns={'field:checkbox':'false'}",c);
  assert.equal(c.data.customers.filter(c.matchesCustomerColumnFilters).length,35);
+ const noteColumn=vm.runInContext("customerColumnDefinitions.find(column=>column.key==='field:customerNote')",c);
+ assert.equal(noteColumn.presenceFilter,true);
+ assert.deepEqual([...new Set(c.data.customers.map(noteColumn.value))],['HAS_CONTENT','EMPTY']);
+ assert.equal(noteColumn.labelFor('HAS_CONTENT'),'Có ghi chú');assert.equal(noteColumn.labelFor('EMPTY'),'Không ghi chú');
+ vm.runInContext("customerFilterState.columns={'field:customerNote':'HAS_CONTENT'}",c);
+ assert.equal(c.data.customers.filter(c.matchesCustomerColumnFilters).length,9);
+ vm.runInContext("customerFilterState.columns={'field:customerNote':'EMPTY'}",c);
+ assert.equal(c.data.customers.filter(c.matchesCustomerColumnFilters).length,26);
  c.data.fields=[];c.prepareCustomerColumnFilters();
  assert.equal(vm.runInContext('Object.keys(customerFilterState.columns).length',c),0);
  c.data.user.role='SALE';c.prepareCustomerColumnFilters();
@@ -1292,10 +1336,35 @@ test('Column filters combine across the full dataset and discover new custom fie
 test('Non-default data headers including new columns receive filters with valid arrow labels',()=>{
  const source=fs.readFileSync('reference-crm.js','utf8'),start=source.indexOf('  function installCustomerColumnFilters('),end=source.indexOf('  function openCustomerColumnMenu(',start);
  const cells=Array.from({length:17},()=>({dataset:{},children:[],appendChild(button){this.children.push(button);}}));
- const expected=new Map([[3,'source'],[4,'leader'],[5,'sale'],[6,'field:customerLevel'],[7,'field:customerClass'],[8,'field:callStatus'],[9,'field:documentStatus'],[10,'field:result'],[13,'status'],[14,'note'],[15,'referenceAmount']]);
+ const expected=new Map([[3,'source'],[4,'leader'],[5,'sale'],[6,'field:customerLevel'],[7,'field:customerClass'],[8,'field:callStatus'],[9,'field:documentStatus'],[10,'field:result'],[13,'status'],[15,'referenceAmount']]);
  const c=vm.createContext({document:{createElement:()=>({dataset:{},setAttribute(){}})},customerFilterState:{columns:{}},customerColumnDefinitions:Array.from(expected.values()).map(key=>({key,label:key})),baseFields:['customerLevel','customerClass','callStatus','documentStatus','result'],data:{fields:[{id:'newField',active:true,showInTable:true}]},head:{cells,querySelectorAll:()=>[]},openCustomerColumnMenu:()=>{}});
  vm.runInContext(source.slice(start,end)+';installCustomerColumnFilters(head)',c);
  cells.forEach((cell,index)=>{const key=expected.get(index);assert.equal(cell.children[0]?.dataset.columnFilter,key);if(key)assert.equal(cell.children[0].textContent,'\u25be');});
+});
+
+test('Legacy latest-note column is hidden and NOTE cells autosave compact wrapped drafts',()=>{
+ const html=fs.readFileSync('index.html','utf8'),source=fs.readFileSync('reference-crm.js','utf8');
+ assert.match(html,/<th hidden aria-hidden="true">GHI CHÚ MỚI NHẤT<\/th>/);
+ assert.doesNotMatch(source,/\{key:'note',label:/);
+ assert.match(source,/className='customer-note-editor'/);
+ assert.match(source,/white-space:pre-wrap;overflow-wrap:anywhere;overflow-x:hidden/);
+ assert.match(source,/Math\.min\(140,Math\.max\(58,control\.scrollHeight\)\)/);
+ assert.match(source,/setTimeout\(flush,600\)/);
+ assert.match(source,/control\.onblur=\(\)=>stageCustomerNoteSelection\(customer\.id,field\.id,control\.value,true\)/);
+ assert.match(source,/nvt-crm-customer-note-drafts-v1:/);
+ assert.match(source,/column\.presenceFilter\?\['HAS_CONTENT','EMPTY'\]/);
+});
+
+test('Accounting payment and VAT forms stay hidden until opened as accessible dialogs',()=>{
+ const accounting=fs.readFileSync('commission_tree_demo.html','utf8'),shell=fs.readFileSync('index.html','utf8'),bridge=fs.readFileSync('reference-crm.js','utf8');
+ assert.match(accounting,/\.modal-overlay\s*\{[^}]*display:\s*none/s);
+ assert.match(accounting,/\.modal-overlay\.active\s*\{\s*display:\s*flex/s);
+ assert.match(accounting,/function setAccountingModalOpen\(modalId, open\)/);
+ assert.match(accounting,/body\.classList\.add\('accounting-modal-open'\)/);
+ assert.match(accounting,/event\.key === 'Escape'/);
+ assert.equal((accounting.match(/class="modal-overlay" role="dialog" aria-modal="true"/g)||[]).length,3);
+  assert.match(shell,/commission_tree_demo\.html\?embedded=1&tab=tab-mindmap&v=20260930-accounting-sync-v10/);
+  assert.match(bridge,/commission_tree_demo\.html\?embedded=1&tab=\$\{encodeURIComponent\(targetTab\)\}&v=20260930-accounting-sync-v10/);
 });
 
 test('Sale phụ trách uses the generic column filter value from the actual assignment',()=>{
@@ -1339,7 +1408,7 @@ test('Field retry persists the latest selection after an earlier save failed',as
 
 test('Restoring shell never exposes cached customer controls before runtime is ready',()=>{
  const source=fs.readFileSync('reference-crm.js','utf8');
- const start=source.indexOf('  function refresh(force=false) {'),end=source.indexOf('    const first=!data;',start);
+ const start=source.indexOf('  function refresh(force=false,suppliedSnapshot=null) {'),end=source.indexOf('    if(!next){',start);
  const context={customerSaveQueue:{pending:0},normalizeAccountingMenu(){},document:{hidden:false,activeElement:{}},working:false,workflowBusy:false,q:()=>null,frame:{contentWindow:{crmApi:{snapshot:()=>null},crmRuntimeAuthState:'restoring',crmRuntimeBooted:false}},api:null,data:null,rendered:false};
  vm.createContext(context);vm.runInContext(source.slice(start,end)+' rendered=true; } refresh(true);',context);
  assert.equal(context.rendered,false);assert.equal(context.data,null);
@@ -1371,6 +1440,7 @@ test('Saved session restores user and data with one authenticated state request'
 test('Failed session restoration keeps token and exits the loading screen',async()=>{
  const c=frontend();c.sessionStorage.setItem('nvt-crm-session-v1',JSON.stringify({token:'saved-token'}));
  vm.runInContext('refreshSessionContext=()=>{};',c);
+ c.setTimeout=(fn,ms)=>{if(ms<1000)queueMicrotask(fn);return 1;};
  c.fetch=async()=>{throw new Error('offline');};
  await c.initialize();
  assert.equal(c.window.crmRuntimeBooted,true);assert.equal(c.window.crmRuntimeAuthState,'unauthenticated');
@@ -1398,12 +1468,12 @@ test('Failed replay retains SQL draft and does not silently overwrite it',async(
  assert.ok(c.sessionStorage.getItem('nvt-crm-pending-write-v1:admin'));
 });
 
-test('Twenty concurrent logins complete when the business query path is stalled',async()=>{
+test('Thirty concurrent logins complete when the business query path is stalled',async()=>{
  const f=authFixture([{id:'sale-test',role:'SALE',password_hash:'correct-password'}]);
  f.context.dbQuery=()=>new Promise(()=>{});
- const results=await Promise.all(Array.from({length:20},()=>f.request('/api/auth/login',{identifier:'0912345678',password:'correct-password'})));
+ const results=await Promise.all(Array.from({length:30},()=>f.request('/api/auth/login',{identifier:'0912345678',password:'correct-password'})));
  assert.ok(results.every(result=>result.status===200&&result.payload.token));
- assert.equal(new Set(results.map(result=>result.payload.token)).size,20);
+ assert.equal(new Set(results.map(result=>result.payload.token)).size,30);
 });
 test('Login returns structured 503 on acquisition timeout, without creating a session',async()=>{
  const f=authFixture();f.context.authQuery=async()=>{throw Object.assign(Error('queue timed out'),{code:'DB_ACQUIRE_TIMEOUT'});};
@@ -1412,12 +1482,12 @@ test('Login returns structured 503 on acquisition timeout, without creating a se
 });
 
 test('Login body timeout restores submit button without starting a session',async()=>{
- const c=frontend();await c.initialize();let cleared=false,bodyCovered=false;
- c.setTimeout=()=>123;c.clearTimeout=id=>{if(id===123)cleared=true;};c.AbortController=AbortController;
- c.fetch=async()=>({ok:true,status:200,json:async()=>{bodyCovered=!cleared;throw Object.assign(Error('body stalled'),{name:'AbortError'});}});
+ const c=frontend();await c.initialize();let timers=0,cleared=0,bodies=0;
+ c.setTimeout=()=>++timers;c.clearTimeout=id=>{if(id)cleared++;};c.AbortController=AbortController;
+ c.fetch=async()=>({ok:true,status:200,json:async()=>{bodies++;throw Object.assign(Error('body stalled'),{name:'AbortError'});}});
  vm.runInContext('startSession=async()=>{throw Error("Must not start session");};document.querySelector("#loginPhone").value="0900000001";document.querySelector("#loginPassword").value="dummy";',c);
  await vm.runInContext('document.querySelector("#loginForm").onsubmit({preventDefault(){}})',c);
- assert.equal(bodyCovered,true);assert.equal(cleared,true);
+ assert.equal(bodies,2);assert.equal(timers,2);assert.equal(cleared,2);
  assert.equal(c.document.querySelector('#loginForm button[type="submit"]').disabled,false);
  assert.match(c.document.querySelector('#loginError').textContent,/Máy chủ phản hồi quá lâu/);
 });

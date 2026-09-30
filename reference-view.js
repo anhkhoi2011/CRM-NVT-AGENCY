@@ -801,6 +801,15 @@ window.setCarePage = setCarePage;
     if (target) target.classList.add('active');
 
     document.querySelectorAll('.nav-link').forEach(l => {
+      if (l.classList.contains('accounting-nav-link')) {
+        const isActive = (tabId === 'tab-accounting') && (l.dataset.accountingView === (window.accountingSubView || 'mindmap'));
+        l.classList.toggle('active', isActive);
+        if (isActive) {
+          const text = l.querySelector('span')?.innerText;
+          if (text) document.getElementById('topBreadcrumbTitle').innerText = text;
+        }
+        return;
+      }
       if (l.getAttribute('data-tab') === tabId) {
         l.classList.add('active');
         const text = l.querySelector('span')?.innerText;

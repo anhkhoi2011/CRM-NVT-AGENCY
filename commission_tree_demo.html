@@ -43,7 +43,30 @@
  line-height: 1.5;
  }
 
- /* Layout Shell */
+ /* Embedded Mode for CRM Integration */
+	html.is-embedded,
+	body.is-embedded {
+		overflow-x: hidden !important;
+		background-color: var(--bg-page) !important;
+	}
+	html.is-embedded .sidebar,
+	body.is-embedded .sidebar {
+		display: none !important;
+	}
+	html.is-embedded .app-shell,
+	body.is-embedded .app-shell {
+		display: block !important;
+		width: 100% !important;
+		min-height: 100vh !important;
+	}
+	html.is-embedded .main-viewport,
+	body.is-embedded .main-viewport {
+		width: 100% !important;
+		min-width: 100% !important;
+		min-height: 100vh !important;
+	}
+
+	/* Layout Shell */
  .app-shell {
  display: flex;
  min-height: 100vh;
@@ -300,33 +323,33 @@
  color: var(--text-faint);
  }
 
- /* Role Badges Lv1 - Lv2 - Lv3 */
+ /* Role Badges Lv1 - Lv2 - Lv3 - Minimalist Luxury */
  .role-badge {
  display: inline-flex;
  align-items: center;
  gap: 4px;
- padding: 3px 8px;
- border-radius: 6px;
- font-size: 11px;
- font-weight: 800;
- letter-spacing: 0.4px;
+ padding: 2px 7px;
+ border-radius: 4px;
+ font-size: 10px;
+ font-weight: 700;
+ letter-spacing: 0.3px;
  text-transform: uppercase;
  font-family: 'JetBrains Mono', monospace;
  }
  .role-lv1 {
- background: #eff6ff;
- color: #1d4ed8;
- border: 1px solid #93c5fd;
+ background: #f1f5f9;
+ color: #1e293b;
+ border: 1px solid #cbd5e1;
  }
  .role-lv2 {
- background: #fff7ed;
- color: #c2410c;
- border: 1px solid #fed7aa;
+ background: #f8fafc;
+ color: #334155;
+ border: 1px solid #e2e8f0;
  }
  .role-lv3 {
- background: #f0fdf4;
- color: #15803d;
- border: 1px solid #bbf7d0;
+ background: #ffffff;
+ color: #64748b;
+ border: 1px solid #e2e8f0;
  }
 
  /* Page Content Area */
@@ -658,16 +681,16 @@
  }
 
  .btn-edit-lot {
- background: #f8fafc;
- border: 1px solid #cbd5e1;
- color: #0f172a;
- padding: 4px 10px;
- border-radius: 6px;
- font-size: 11px;
- font-weight: 700;
- cursor: pointer;
- transition: all 0.15s;
- }
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
  .btn-edit-lot:hover {
  background: #0f172a;
  color: #ffffff;
@@ -701,51 +724,42 @@
  font-size: 14px;
  }
   .btn-downline-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 3px 8px;
-    border-radius: 6px;
-    font-size: 11px;
-    font-weight: 800;
-    font-family: 'JetBrains Mono', monospace;
-    cursor: pointer;
-    border: 1px solid transparent;
-    transition: all 0.15s ease;
-  }
+  background: #f8fafc;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
   .btn-downline-chip:hover {
     transform: translateY(-1px);
     box-shadow: 0 2px 6px rgba(0,0,0,0.12);
   }
-  .btn-dl-lv1 {
-    background: #eff6ff;
-    color: #1d4ed8;
-    border-color: #bfdbfe;
-  }
+  .btn-dl-lv1 { background: #f1f5f9; color: #0f172a; border-color: #cbd5e1; }
   .btn-dl-lv1:hover {
     background: #dbeafe;
     border-color: #93c5fd;
   }
-  .btn-dl-lv2 {
-    background: #fff7ed;
-    color: #c2410c;
-    border-color: #fed7aa;
-  }
+  .btn-dl-lv2 { background: #f8fafc; color: #334155; border-color: #e2e8f0; }
   .btn-dl-lv2:hover {
     background: #ffedd5;
     border-color: #fdba74;
   }
   .btn-downline-money {
-    background: transparent;
-    border: none;
-    font-family: 'JetBrains Mono', monospace;
-    font-weight: 800;
-    cursor: pointer;
-    color: #7c3aed;
-    padding: 2px 6px;
-    border-radius: 4px;
-    transition: all 0.15s ease;
-  }
+  background: transparent;
+  color: #0f172a;
+  border: none;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
   .btn-downline-money:hover {
     background: #f3e8ff;
     text-decoration: underline;
@@ -985,7 +999,279 @@
     border-radius: 4px;
   }
 
+
+  /* Luxury Month Navigator Component (Gọn - Đẹp - Sang) */
+  .luxury-month-nav {
+    display: inline-flex;
+    align-items: center;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 3px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    user-select: none;
+  }
+  .luxury-month-nav:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 3px 8px rgba(15, 23, 42, 0.08);
+  }
+  .luxury-nav-arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    padding: 0;
+  }
+  .luxury-nav-arrow:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+  }
+  .luxury-nav-arrow:active {
+    transform: scale(0.92);
+    background: #e2e8f0;
+  }
+  .luxury-nav-select-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    margin: 0 2px;
+    border-left: 1px solid #f1f5f9;
+    border-right: 1px solid #f1f5f9;
+    padding: 0 6px 0 8px;
+  }
+  .luxury-nav-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    border: none;
+    background: transparent;
+    font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: #0f172a;
+    padding: 4px 18px 4px 4px;
+    cursor: pointer;
+    outline: none;
+    letter-spacing: -0.2px;
+  }
+  .luxury-nav-select option {
+    font-size: 13px;
+    font-weight: 600;
+    color: #0f172a;
+    padding: 6px;
+  }
+  .luxury-nav-chevron {
+    position: absolute;
+    right: 4px;
+    pointer-events: none;
+    color: #64748b;
+    transition: color 0.15s ease;
+  }
+  .luxury-nav-select-wrap:hover .luxury-nav-chevron {
+    color: #0f172a;
+  }
+
+
+/* ====================================================================
+   LUXURY TOAST NOTIFICATION & CUSTOM MODAL FORMS (NO BROWSER ALERTS)
+   ==================================================================== */
+#luxuryToastContainer {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 999999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+.luxury-toast {
+  pointer-events: all;
+  min-width: 320px;
+  max-width: 440px;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 14px 18px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.15), 0 2px 6px rgba(15, 23, 42, 0.08);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  border: 1px solid #e2e8f0;
+  animation: toastSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transition: all 0.25s ease;
+}
+.luxury-toast.toast-success {
+  border-left: 4px solid #10b981;
+}
+.luxury-toast.toast-error {
+  border-left: 4px solid #ef4444;
+}
+.luxury-toast.toast-info {
+  border-left: 4px solid #3b82f6;
+}
+.luxury-toast.toast-warning {
+  border-left: 4px solid #f59e0b;
+}
+.luxury-toast-icon {
+  font-size: 18px;
+  line-height: 1;
+  margin-top: 2px;
+}
+.luxury-toast-content {
+  flex: 1;
+}
+.luxury-toast-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 2px;
+}
+.luxury-toast-msg {
+  font-size: 12px;
+  color: #475569;
+  line-height: 1.45;
+  white-space: pre-line;
+}
+.luxury-toast-close {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0;
+  margin-left: 4px;
+  transition: color 0.15s;
+}
+.luxury-toast-close:hover {
+  color: #0f172a;
+}
+@keyframes toastSlideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+@keyframes toastFadeOut {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+/* Custom Confirm Dialog Modal */
+.custom-confirm-card {
+  background: #ffffff;
+  border-radius: 16px;
+  max-width: 460px;
+  width: 90%;
+  padding: 24px;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.25);
+  border: 1px solid #e2e8f0;
+  animation: modalScaleUp 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.custom-confirm-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.custom-confirm-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+}
+.custom-confirm-icon.danger {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+.custom-confirm-icon.info {
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
+}
+.custom-confirm-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: #0f172a;
+}
+.custom-confirm-body {
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.5;
+  margin-bottom: 22px;
+  white-space: pre-line;
+}
+.custom-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+
+/* ====================================================================
+   CURRENCY INPUT WITH THOUSAND SEPARATORS (.) AND 'đ' SUB-LABEL
+   ==================================================================== */
+.crm-currency-cell {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.crm-currency-input {
+  width: 98px;
+  text-align: right;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: #0f172a;
+  padding: 3px 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: #ffffff;
+  outline: none;
+  transition: all 0.15s ease;
+}
+.crm-currency-input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+.crm-currency-sub {
+  font-size: 9.5px;
+  color: #64748b;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  margin-top: 2px;
+  text-align: center;
+  white-space: nowrap;
+}
+
 </style>
+<script>
+  if (window.self !== window.top || (window.location.search && window.location.search.includes('embedded=1'))) {
+    document.documentElement.classList.add('is-embedded');
+  }
+</script>
 </head>
 <body>
 
@@ -1029,7 +1315,7 @@
  <ul class="nav-list">
  <li><button class="nav-btn active" id="btnSideMindmap" onclick="switchView('tab-mindmap')">Cây Mindmap (Lv1-Lv3)</button></li>
  <li><button class="nav-btn" id="btnSideReport" onclick="switchView('tab-report')">Báo cáo Doanh thu (23)</button></li>
- <li><button class="nav-btn" id="btnSideVatOrders" onclick="switchView('tab-vat-orders')">🧾 Kiểm Tra Đơn & Xuất VAT</button></li>
+ <li><button class="nav-btn" id="btnSideVatOrders" onclick="switchView('tab-vat-orders')">Kiểm Tra Đơn & Xuất VAT</button></li>
  <li><button class="nav-btn" id="btnSideAccounting" onclick="switchView('tab-accounting')">Kế toán & Chi phí Admin</button></li>
  </ul>
  </div>
@@ -1253,24 +1539,29 @@
  <h3 style="margin:0; font-size:15px; font-weight:800; color:#0f172a;">
  BÁO CÁO DOANH THU & HOA HỒNG NHÂN VIÊN (23 NHÂN SỰ)
  </h3>
- <div style="display:inline-flex; align-items:center; background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; padding:3px 6px; box-shadow:0 1px 3px rgba(0,0,0,0.05); gap:4px;">
-              <button type="button" class="btn-micro" onclick="navigateGlobalMonth(-1)" style="font-size:12px; font-weight:800; padding:5px 9px; border-radius:6px; background:#ffffff; border:1px solid #cbd5e1; cursor:pointer;" title="Lùi về tháng trước">
-                ◀ Tháng trước
+ <div class="luxury-month-nav">
+              <button type="button" class="luxury-nav-arrow" onclick="navigateGlobalMonth(-1)" title="Tháng trước">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
               </button>
-              
-              <div style="display:flex; align-items:center; gap:4px; padding:0 4px;">
-                <select id="reportMonthSelect" onchange="onGlobalMonthSelectChange(this.value)" style="border:none; background:transparent; font-size:12.5px; font-weight:900; color:#1e293b; padding:4px 6px; cursor:pointer; font-family:'JetBrains Mono'; outline:none;">
-                  <option value="2026-10">Tháng 10/2026 (Kế hoạch)</option>
-                  <option value="2026-09" selected>Tháng 09/2026 (Hiện tại)</option>
-                  <option value="2026-08">Tháng 08/2026 (Tháng trước)</option>
+              <div class="luxury-nav-select-wrap">
+                <select id="reportMonthSelect" class="luxury-nav-select" onchange="onGlobalMonthSelectChange(this.value)">
+                  <option value="2026-10">Tháng 10/2026</option>
+                  <option value="2026-09" selected>Tháng 09/2026</option>
+                  <option value="2026-08">Tháng 08/2026</option>
                   <option value="2026-07">Tháng 07/2026</option>
                   <option value="2026-06">Tháng 06/2026</option>
-                  <option value="ALL">Tất Cả Các Tháng (Lũy kế)</option>
+                  <option value="ALL">Tất Cả Các Tháng</option>
                 </select>
+                <svg class="luxury-nav-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
               </div>
-
-              <button type="button" class="btn-micro" onclick="navigateGlobalMonth(1)" style="font-size:12px; font-weight:800; padding:5px 9px; border-radius:6px; background:#ffffff; border:1px solid #cbd5e1; cursor:pointer;" title="Tiến đến tháng sau">
-                Tháng sau ▶
+              <button type="button" class="luxury-nav-arrow" onclick="navigateGlobalMonth(1)" title="Tháng sau">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
               </button>
             </div>
  </div>
@@ -1309,26 +1600,26 @@
  <table class="crm-table" id="reportTable">
  <thead>
             <tr>
-              <th>STT</th>
+              <th style="width:40px; text-align:center;">STT</th>
               <th>Nhân Sự</th>
-              <th>Vị Trí Cấp Bậc</th>
+              <th style="width:90px; text-align:center;">Vị Trí</th>
               <th>Quản Lý Trực Thuộc</th>
-              <th title="Lot tiêu chuẩn cơ bản (hệ số 1.0)">Lot Chuẩn</th>
-              <th title="Quy đổi x 0.35">Lot Micro</th>
-              <th title="Quy đổi x 0.8">Lot MINI</th>
-              <th style="background:#e2e8f0; color:#0f172a;" title="Chuẩn + (Mini*0.8) + (Micro*0.35)">Tổng Lot Cá Nhân</th>
-              <th style="background:#fff7ed; color:#ea580c;" title="Định mức VNĐ nhận cho mỗi 1 lot cá nhân">Định Mức / Lot</th>
-              <th style="color:#2563eb;">HH Lot Cá Nhân</th>
-              <th style="background:#f5f3ff; color:#7c3aed;" title="Tổng lot phát sinh từ toàn bộ tuyến dưới">Lot Tuyến Dưới</th>
-              <th style="background:#f5f3ff; color:#6d28d9; font-weight:800;" title="Hoa hồng chênh lệch từ tuyến dưới">HH Tuyến Dưới</th>
-              <th>DS Chỉ Báo</th>
-              <th>DS Khóa Học</th>
-              <th>DS Nhóm VIP</th>
-              <th style="background:#f0f9ff; color:#0284c7;" title="Hoa hồng nhận được khi Sale trực tiếp bán Khóa học, Chỉ báo, Nhóm VIP (mặc định 15%)">HH Bán SP (15%)</th>
-              <th style="background:#faf5ff; color:#7c3aed;" title="Hoa hồng Đào Tạo (15% doanh số khóa do mình dạy) & Hoa hồng Quản lý của Leader (5% doanh số Sale tuyến dưới)">HH Đào Tạo & Leader</th>
-              <th style="background:#faf5ff; color:#7e22ce;" title="Thưởng nóng / KPI do Admin nhập">Thưởng KPI</th>
-              <th style="background:#ecfdf5; color:#059669; font-size:12px; font-weight:900;">Thực Nhận</th>
-              <th style="text-align:center;">Thao Tác</th>
+              <th style="text-align:right;" title="Lot tiêu chuẩn cơ bản (hệ số 1.0)">Lot Chuẩn</th>
+              <th style="text-align:right;" title="Quy đổi x 0.35">Lot Micro</th>
+              <th style="text-align:right;" title="Quy đổi x 0.8">Lot Mini</th>
+              <th style="text-align:right; font-weight:800;" title="Chuẩn + (Mini*0.8) + (Micro*0.35)">Tổng Lot Cá Nhân</th>
+              <th style="text-align:center;" title="Định mức VNĐ nhận cho mỗi 1 lot cá nhân">Định Mức / Lot</th>
+              <th style="text-align:right; font-weight:800;">HH Lot Cá Nhân</th>
+              <th style="text-align:center;" title="Tổng lot phát sinh từ toàn bộ tuyến dưới">Lot Tuyến Dưới</th>
+              <th style="text-align:right; font-weight:800;" title="Hoa hồng chênh lệch từ tuyến dưới">HH Tuyến Dưới</th>
+              <th style="text-align:center;">DS Chỉ Báo</th>
+              <th style="text-align:center;">DS Khóa Học</th>
+              <th style="text-align:center;">DS Nhóm VIP</th>
+              <th style="text-align:center;" title="Hoa hồng khi trực tiếp bán Khóa học, Chỉ báo, Nhóm VIP">HH Bán SP</th>
+              <th style="text-align:left;" title="Hoa hồng Đào Tạo & Quản lý Leader">HH Đào Tạo & Leader</th>
+              <th style="text-align:center;" title="Thưởng nóng / KPI">Thưởng KPI</th>
+              <th style="text-align:right; font-weight:900; background:#f1f5f9; color:#0f172a;">Thực Nhận</th>
+              <th style="text-align:center; width:80px;">Thao Tác</th>
             </tr>
           </thead>
  <tbody id="reportTableBody">
@@ -1336,23 +1627,23 @@
  </tbody>
  <tfoot>
             <tr>
-              <td colspan="4" style="text-align:right;">TỔNG CỘNG 23 NHÂN SỰ:</td>
-              <td id="footBasicLot">0.0</td>
-              <td id="footMicroLot">0.0</td>
-              <td id="footMiniLot">0.0</td>
-              <td id="footStdLot" style="color:#0f172a; font-size:13px;">0.0</td>
-              <td id="footAvgRate" style="color:#ea580c; font-size:11px; font-weight:800;">-</td>
-              <td id="footHhLot" style="color:#2563eb;">0 đ</td>
-              <td id="footDownlineLot" style="color:#7c3aed;">-</td>
-              <td id="footHhDownline" style="color:#6d28d9;">0 đ</td>
-              <td id="footIndRev">0 đ</td>
-              <td id="footCouRev">0 đ</td>
-              <td id="footVipRev" style="color:#d97706; font-weight:700;">0 đ</td>
-              <td id="footHhProd" style="color:#0284c7; font-weight:800;">0 đ</td>
-              <td id="footHhTrainer" style="color:#7c3aed; font-weight:800;">0 đ</td>
-              <td id="footBonus" style="color:#7e22ce; font-weight:800;">0 đ</td>
-              <td id="footNetIncome" style="color:#059669; font-size:14px; font-weight:900;">0 đ</td>
-              <td style="text-align:center;">-</td>
+              <td colspan="4" style="text-align:right; font-weight:700; color:#475569;">TỔNG CỘNG 23 NHÂN SỰ:</td>
+              <td id="footBasicLot" style="text-align:right; color:#334155;">0.0</td>
+              <td id="footMicroLot" style="text-align:right; color:#334155;">0.0</td>
+              <td id="footMiniLot" style="text-align:right; color:#334155;">0.0</td>
+              <td id="footStdLot" style="text-align:right; color:#0f172a; font-size:12.5px; font-weight:800;">0.0</td>
+              <td id="footAvgRate" style="text-align:center; color:#475569; font-size:11px; font-weight:700;">-</td>
+              <td id="footHhLot" style="text-align:right; color:#0f172a; font-weight:700;">0 đ</td>
+              <td id="footDownlineLot" style="text-align:center; color:#475569;">-</td>
+              <td id="footHhDownline" style="text-align:right; color:#0f172a; font-weight:700;">0 đ</td>
+              <td id="footIndRev" style="text-align:right; color:#475569;">0 đ</td>
+              <td id="footCouRev" style="text-align:right; color:#475569;">0 đ</td>
+              <td id="footVipRev" style="text-align:right; color:#475569;">0 đ</td>
+              <td id="footHhProd" style="text-align:right; color:#0f172a; font-weight:700;">0 đ</td>
+              <td id="footHhTrainer" style="text-align:left; color:#0f172a; font-weight:700;">0 đ</td>
+              <td id="footBonus" style="text-align:center; color:#0f172a; font-weight:700;">0 đ</td>
+              <td id="footNetIncome" style="text-align:right; color:#047857; font-size:13.5px; font-weight:900; background:#f1f5f9;">0 đ</td>
+              <td style="text-align:center; color:#94a3b8;">-</td>
             </tr>
           </tfoot>
  </table>
@@ -1369,34 +1660,37 @@
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px; border-bottom:1px solid #f1f5f9; padding-bottom:12px;">
           <div>
             <div style="font-size:16px; font-weight:900; color:#0f172a; display:flex; align-items:center; gap:8px;">
-              <span>🧾</span>
+              
               <span id="orderReportMonthTitle">KẾ TOÁN ĐỐI SOÁT ĐƠN HÀNG & XUẤT HÓA ĐƠN VAT (THÁNG 09/2026)</span>
               <span style="font-size:11px; background:#eff6ff; color:#2563eb; padding:2px 8px; border-radius:12px; font-weight:800;">NVT INVOICING & VAT</span>
             </div>
-            <div style="font-size:12px; color:#64748b; margin-top:3px;">
-              Khi Sale tạo đơn, Kế toán kiểm tra ảnh bill chuyển khoản khách do Sale tải lên. Nếu thanh toán đủ -> Xuất VAT. Nếu khách cọc -> Hiển thị số tiền còn lại và thu nốt.
-            </div>
+            
           </div>
           <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
             <!-- Cụm chọn & điều hướng tháng -->
-            <div style="display:inline-flex; align-items:center; background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; padding:3px 6px; box-shadow:0 1px 3px rgba(0,0,0,0.05); gap:4px;">
-              <button type="button" class="btn-micro" onclick="navigateOrderMonth(-1)" style="font-size:12px; font-weight:800; padding:5px 9px; border-radius:6px; background:#ffffff; border:1px solid #cbd5e1; cursor:pointer;" title="Lùi về tháng trước">
-                ◀ Tháng trước
+            <div class="luxury-month-nav">
+              <button type="button" class="luxury-nav-arrow" onclick="navigateOrderMonth(-1)" title="Tháng trước">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
               </button>
-              
-              <div style="display:flex; align-items:center; gap:4px; padding:0 4px;">
-                <select id="orderMonthSelect" onchange="onOrderMonthSelectChange(this.value)" style="border:none; background:transparent; font-size:12.5px; font-weight:900; color:#1e293b; padding:4px 6px; cursor:pointer; font-family:'JetBrains Mono'; outline:none;">
-                  <option value="2026-10">Tháng 10/2026 (Kế hoạch)</option>
-                  <option value="2026-09" selected>Tháng 09/2026 (Hiện tại)</option>
-                  <option value="2026-08">Tháng 08/2026 (Tháng trước)</option>
+              <div class="luxury-nav-select-wrap">
+                <select id="orderMonthSelect" class="luxury-nav-select" onchange="onOrderMonthSelectChange(this.value)">
+                  <option value="2026-10">Tháng 10/2026</option>
+                  <option value="2026-09" selected>Tháng 09/2026</option>
+                  <option value="2026-08">Tháng 08/2026</option>
                   <option value="2026-07">Tháng 07/2026</option>
                   <option value="2026-06">Tháng 06/2026</option>
-                  <option value="ALL">Tất Cả Các Tháng (Lũy kế)</option>
+                  <option value="ALL">Tất Cả Các Tháng</option>
                 </select>
+                <svg class="luxury-nav-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
               </div>
-
-              <button type="button" class="btn-micro" onclick="navigateOrderMonth(1)" style="font-size:12px; font-weight:800; padding:5px 9px; border-radius:6px; background:#ffffff; border:1px solid #cbd5e1; cursor:pointer;" title="Tiến đến tháng sau">
-                Tháng sau ▶
+              <button type="button" class="luxury-nav-arrow" onclick="navigateOrderMonth(1)" title="Tháng sau">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
               </button>
             </div>
 
@@ -1414,25 +1708,25 @@
           <div class="kpi-card blue">
             <div class="kpi-label">1. Tổng Đơn Hàng Đã Tạo</div>
             <div class="kpi-val" id="kpiOrderTotalCount" style="color:#2563eb;">12 đơn</div>
-            <div class="kpi-sub" id="kpiOrderTotalValue">Tổng giá trị: 148.500.000 đ</div>
+            <div class="kpi-sub" id="kpiOrderTotalValue">148.500.000 đ</div>
           </div>
 
           <div class="kpi-card emerald" style="border:1.5px solid #10b981; background:#f0fdf4;">
             <div class="kpi-label" style="color:#047857; font-weight:800;">2. Đã Thanh Toán Đủ 100%</div>
             <div class="kpi-val" id="kpiOrderPaidCount" style="color:#059669;">8 đơn</div>
-            <div class="kpi-sub" id="kpiOrderPaidSub" style="color:#065f46; font-weight:700;">Thu đủ: 121.000.000 đ • Sẵn sàng xuất VAT</div>
+            <div class="kpi-sub" id="kpiOrderPaidSub" style="color:#065f46; font-weight:700;">121.000.000 đ</div>
           </div>
 
           <div class="kpi-card orange" style="border:1.5px solid #f97316; background:#fff7ed;">
             <div class="kpi-label" style="color:#c2410c; font-weight:800;">3. Khách Đang Cọc (Chưa Đủ)</div>
             <div class="kpi-val" id="kpiOrderDepositCount" style="color:#ea580c;">4 đơn</div>
-            <div class="kpi-sub" id="kpiOrderDepositSub" style="color:#9a3412; font-weight:700;">Đã thu cọc: 21.0tr • <span style="color:#dc2626;">Còn nợ: 27.500.000 đ</span></div>
+            <div class="kpi-sub" id="kpiOrderDepositSub" style="color:#9a3412; font-weight:700;"><span style="color:#dc2626; font-weight:800;">Còn lại: 27.500.000 đ</span></div>
           </div>
 
           <div class="kpi-card purple">
             <div class="kpi-label">4. Đã Xuất Hóa Đơn VAT</div>
             <div class="kpi-val" id="kpiOrderVatIssuedCount" style="color:#7c3aed;">5 đơn</div>
-            <div class="kpi-sub" id="kpiOrderVatIssuedSub">Tổng tiền thuế VAT: 12.100.000 đ (10%)</div>
+            <div class="kpi-sub" id="kpiOrderVatIssuedSub">12.100.000 đ</div>
           </div>
         </div>
       </div>
@@ -1444,13 +1738,11 @@
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
           <div>
             <div style="font-size:14px; font-weight:800; color:#0f172a; text-transform:uppercase; display:flex; align-items:center; gap:6px;">
-              <span>📋</span>
+              
               <span>DANH SÁCH ĐƠN HÀNG CẦN KIỂM TRA & XUẤT HÓA ĐƠN VAT</span>
               <span id="badgeOrderTableCount" style="font-size:11px; background:#eff6ff; color:#1d4ed8; padding:1px 7px; border-radius:10px; font-weight:800;">12 đơn</span>
             </div>
-            <div style="font-size:11.5px; color:#64748b; margin-top:2px;">
-              Nhấp <b style="color:#2563eb;">Chi tiết</b> để xem ảnh hóa đơn/bill do Sale tải lên. Nhấp <b style="color:#7c3aed;">🧾 Xuất VAT</b> khi khách đã thanh toán đủ 100%.
-            </div>
+            
           </div>
 
           <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
@@ -1479,6 +1771,7 @@
             <thead>
               <tr>
                 <th style="width:110px;">MÃ ĐƠN</th>
+                <th style="width:115px; text-align:center;">NGÀY GIỜ</th>
                 <th style="width:105px;">PHÂN LOẠI</th>
                 <th style="width:130px;">KHÁCH HÀNG</th>
                 <th style="width:110px;">SĐT KH</th>
@@ -1498,7 +1791,7 @@
             </tbody>
             <tfoot>
               <tr style="background:#f8fafc; font-weight:900;">
-                <td colspan="7" style="text-align:right;">TỔNG CỘNG ĐỐI SOÁT:</td>
+                <td colspan="8" style="text-align:right;">TỔNG CỘNG ĐỐI SOÁT:</td>
                 <td id="footOrderTotalRev" style="text-align:right; font-family:'JetBrains Mono'; color:#0f172a;">148.500.000 đ</td>
                 <td id="footOrderTotalVat" style="text-align:right; font-family:'JetBrains Mono'; color:#64748b;">12.100.000 đ</td>
                 <td id="footOrderTotalCollected" style="text-align:right; font-family:'JetBrains Mono'; color:#059669;">121.000.000 đ</td>
@@ -1521,40 +1814,39 @@
               <span id="accReportTitle">BÁO CÁO TÀI CHÍNH & KẾ TOÁN CÔNG TY (THÁNG 09/2026)</span>
               <span id="accMonthStatusBadge" style="font-size:11px; background:#ecfdf5; color:#059669; padding:2px 8px; border-radius:12px; font-weight:800;">ĐÃ ĐỐI SOÁT</span>
             </div>
-            <div style="font-size:12px; color:#64748b; margin-top:3px;">
-              Kế toán nhập & xem chi phí theo từng tháng. Chuyển đổi linh hoạt giữa các tháng trước và sau để đối soát P&L.
-            </div>
+            
           </div>
 
           <!-- CỤM ĐIỀU HƯỚNG & CHỌN THÁNG KẾ TOÁN (TRƯỚC / SAU) -->
           <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-            <div style="display:inline-flex; align-items:center; background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; padding:3px 6px; box-shadow:0 1px 3px rgba(0,0,0,0.05); gap:4px;">
-              <button type="button" class="btn-micro" onclick="navigateAccountingMonth(-1)" style="font-size:12px; font-weight:800; padding:5px 9px; border-radius:6px; background:#ffffff; border:1px solid #cbd5e1; cursor:pointer;" title="Lùi về tháng trước">
-                ◀ Tháng trước
+            <div class="luxury-month-nav">
+              <button type="button" class="luxury-nav-arrow" onclick="navigateAccountingMonth(-1)" title="Tháng trước">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
               </button>
-              
-              <div style="display:flex; align-items:center; gap:4px; padding:0 4px;">
-                <span style="font-size:13px;">📅</span>
-                <select id="accountingMonthSelect" onchange="onAccountingMonthSelectChange(this.value)" style="border:none; background:transparent; font-size:12.5px; font-weight:900; color:#1e293b; padding:4px 6px; cursor:pointer; font-family:'JetBrains Mono'; outline:none;">
-                  <option value="2026-10">Tháng 10/2026 (Kế hoạch)</option>
-                  <option value="2026-09" selected>Tháng 09/2026 (Hiện tại)</option>
-                  <option value="2026-08">Tháng 08/2026 (Tháng trước)</option>
+              <div class="luxury-nav-select-wrap">
+                <select id="accountingMonthSelect" class="luxury-nav-select" onchange="onAccountingMonthSelectChange(this.value)">
+                  <option value="2026-10">Tháng 10/2026</option>
+                  <option value="2026-09" selected>Tháng 09/2026</option>
+                  <option value="2026-08">Tháng 08/2026</option>
                   <option value="2026-07">Tháng 07/2026</option>
                   <option value="2026-06">Tháng 06/2026</option>
-                  <option value="ALL">Tất Cả Các Tháng (Lũy kế)</option>
+                  <option value="ALL">Tất Cả Các Tháng</option>
                 </select>
+                <svg class="luxury-nav-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
               </div>
-
-              <button type="button" class="btn-micro" onclick="navigateAccountingMonth(1)" style="font-size:12px; font-weight:800; padding:5px 9px; border-radius:6px; background:#ffffff; border:1px solid #cbd5e1; cursor:pointer;" title="Tiến đến tháng sau">
-                Tháng sau ▶
+              <button type="button" class="luxury-nav-arrow" onclick="navigateAccountingMonth(1)" title="Tháng sau">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
               </button>
             </div>
 
             <button class="tool-btn" onclick="exportAccountingToCSV()" style="font-size:12px; font-weight:700;">
               Xuất Báo Cáo Chi Phí
-            </button>
-            <button class="tool-btn primary" onclick="openExpenseModal()" style="font-size:12px; font-weight:800; background:linear-gradient(135deg, #0284c7, #2563eb);">
-              Thêm Chi Phí Mới
             </button>
           </div>
         </div>
@@ -1790,15 +2082,24 @@
         <div class="form-grid-3" style="margin-top:10px;">
           <div class="form-group">
             <label style="font-size:11.5px; font-weight:700;">DS Chỉ Báo (VNĐ)</label>
-            <input type="number" id="inputIndicatorRev" step="500000" oninput="updateModalPreview()" style="padding:6px 8px; border:1px solid #cbd5e1; border-radius:6px; width:100%;">
+            <div style="display:flex; align-items:center; position:relative;">
+    <input type="text" id="inputIndicatorRev" oninput="formatCurrencyInput(this); updateModalPreview();" style="padding:6px 26px 6px 8px; border:1px solid #cbd5e1; border-radius:6px; width:100%; font-family:'JetBrains Mono'; font-weight:700;">
+    <span style="position:absolute; right:8px; font-size:11px; color:#64748b; font-family:'JetBrains Mono';">đ</span>
+  </div>
           </div>
           <div class="form-group">
             <label style="font-size:11.5px; font-weight:700;">DS Khóa Học (VNĐ)</label>
-            <input type="number" id="inputCourseRev" step="1000000" oninput="updateModalPreview()" style="padding:6px 8px; border:1px solid #cbd5e1; border-radius:6px; width:100%;">
+            <div style="display:flex; align-items:center; position:relative;">
+    <input type="text" id="inputCourseRev" oninput="formatCurrencyInput(this); updateModalPreview();" style="padding:6px 26px 6px 8px; border:1px solid #cbd5e1; border-radius:6px; width:100%; font-family:'JetBrains Mono'; font-weight:700;">
+    <span style="position:absolute; right:8px; font-size:11px; color:#64748b; font-family:'JetBrains Mono';">đ</span>
+  </div>
           </div>
           <div class="form-group">
             <label style="font-size:11.5px; font-weight:700;">Thưởng Nóng KPI</label>
-            <input type="number" id="inputBonus" step="100000" oninput="updateModalPreview()" style="padding:6px 8px; border:1px solid #cbd5e1; border-radius:6px; width:100%;">
+            <div style="display:flex; align-items:center; position:relative;">
+    <input type="text" id="inputBonus" oninput="formatCurrencyInput(this); updateModalPreview();" style="padding:6px 26px 6px 8px; border:1px solid #cbd5e1; border-radius:6px; width:100%; font-family:'JetBrains Mono'; font-weight:700;">
+    <span style="position:absolute; right:8px; font-size:11px; color:#64748b; font-family:'JetBrains Mono';">đ</span>
+  </div>
           </div>
         </div>
 
@@ -2041,57 +2342,11 @@
         <span style="font-size:12px; color:#64748b;">Quản lý Người Đào Tạo, Leader phụ trách và tỷ lệ phân bổ</span>
       </div>
       <div style="display:flex; align-items:center; gap:8px;">
-        <button type="button" class="tool-btn" onclick="toggleAddNewBatchForm()" style="font-size:12px; padding:6px 12px; background:#f0fdf4; color:#15803d; border-color:#bbf7d0; font-weight:600;">
-          Mở Lớp Mới
-        </button>
         <button class="modal-close" onclick="closeTrainingConfigModal()">✕</button>
       </div>
     </div>
 
     <div class="modal-body" style="padding:16px;">
-      
-
-      <!-- Add New Batch Form (Expandable) -->
-      <div id="addNewBatchContainer" style="display:none; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:12px 14px; margin-bottom:12px;">
-        <div style="font-size:12px; font-weight:800; color:#166534; margin-bottom:8px; text-transform:uppercase;">
-          Mở Thêm Lớp Mới (Khóa K04, K05, Lớp Học Mới):
-        </div>
-        <div class="form-grid-3" style="gap:10px;">
-          <div class="form-group">
-            <label style="font-size:11px;">Khóa Học / Chuyên Đề</label>
-            <select id="newBatchCourseGroup" style="width:100%; padding:4px; font-size:11.5px; border-radius:5px; border:1px solid #cbd5e1;">
-              <option value="Khóa Học SMC Thực Chiến">Khóa Học SMC Thực Chiến</option>
-              <option value="Khóa Học Price Action Chuyên Sâu">Khóa Học Price Action Chuyên Sâu</option>
-              <option value="Khóa Học Scalping Vàng M1-M5 & Order Flow">Khóa Học Scalping Vàng M1-M5 & Order Flow</option>
-              <option value="Khóa Học Giao Dịch Phái Sinh Crypto Pro">Khóa Học Giao Dịch Phái Sinh Crypto Pro</option>
-              <option value="Chỉ Báo Giao Dịch">Chỉ Báo Giao Dịch</option>
-              <option value="Hội Viên Nhóm VIP">Hội Viên Nhóm VIP</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label style="font-size:11px;">Mã & Tên Lớp (Ví dụ: K04, Lớp Tối T2-T6)</label>
-            <input type="text" id="newBatchName" placeholder="Ví dụ: Lớp K04" style="width:100%; padding:4px; font-size:11.5px; border-radius:5px; border:1px solid #cbd5e1;">
-          </div>
-          <div class="form-group">
-            <label style="font-size:11px;">Người Đào Tạo (Trainer)</label>
-            <select id="newBatchTrainerId" style="width:100%; padding:4px; font-size:11.5px; border-radius:5px; border:1px solid #cbd5e1;"></select>
-          </div>
-          <div class="form-group">
-            <label style="font-size:11px;">Doanh Thu Lớp Dự Kiến (VNĐ)</label>
-            <input type="number" id="newBatchRevenue" step="1000000" value="25000000" style="width:100%; padding:4px; font-size:11.5px; border-radius:5px; border:1px solid #cbd5e1;">
-          </div>
-          <div class="form-group">
-            <label style="font-size:11px;">Leader Phụ Trách</label>
-            <select id="newBatchLeaderId" style="width:100%; padding:4px; font-size:11.5px; border-radius:5px; border:1px solid #cbd5e1;"></select>
-          </div>
-          <div class="form-group" style="display:flex; align-items:flex-end;">
-            <button type="button" class="tool-btn primary" onclick="submitCreateNewBatch()" style="background:#15803d; border-color:#15803d; width:100%; padding:6px; font-size:12px;">
-              Tạo Lớp & Lưu Hệ Thống
-            </button>
-          </div>
-        </div>
-      </div>
-
       <!-- Filter/Category Tabs -->
       <div style="display:flex; gap:8px; margin-bottom:12px;">
         <button type="button" class="filter-btn active" id="tabCourseFilterALL" onclick="filterTrainingModalCategory('ALL')">Tất Cả Sản Phẩm (8)</button>
@@ -2412,8 +2667,10 @@
     const s3 = document.getElementById('orderMonthSelect');
     if (s3) s3.value = m;
 
-    // Render lại 3 tab
+    // Render lại toàn bộ các view đồng bộ
+    if (typeof renderMindmapTree === 'function') renderMindmapTree();
     if (typeof renderReportTable === 'function') renderReportTable();
+    if (typeof renderReportStats === 'function') renderReportStats();
     if (typeof renderAccountingView === 'function') renderAccountingView();
     if (typeof renderVatOrdersView === 'function') renderVatOrdersView();
   }
@@ -3082,147 +3339,279 @@
  // ====================================================================
  // 4. RENDER CÂY MINDMAP SVG (ẨN 2 ADMIN, BẮT ĐẦU TỪ ROOT -> LV1 -> LV2 -> LV3)
  // ====================================================================
- function renderMindmapTree() {
- const branchesGroup = document.getElementById('svgBranchesGroup');
- const nodesGroup = document.getElementById('svgNodesGroup');
- branchesGroup.innerHTML = '';
- nodesGroup.innerHTML = '';
+ function computeMindmapLayout(members) {
+  const colX = {
+    0: 40,   // Root
+    1: 360,  // Lv1 & Root-level Lv2
+    2: 740,  // Lv2 & Direct Lv3
+    3: 1120  // Lv3
+  };
 
- const colX = {
- 0: 40, // Root
- 1: 360, // Nhánh chính (Lv1 & Lv2 cấp 1)
- 2: 740, // Cấp 2
- 3: 1120 // Cấp 3
- };
+  const defaultHandcraftedPositions = {
+    "ROOT": { x: colX[0], y: 430, isRoot: true },
+    "08049866": { x: colX[1], y: 160 },
+    "08077592": { x: colX[2], y: 120 },
+    "08022207": { x: colX[3], y: 120 },
+    "08020609": { x: colX[2], y: 180 },
+    "08066488": { x: colX[3], y: 180 },
+    "08028892": { x: colX[2], y: 240 },
+    "08014278": { x: colX[1], y: 470 },
+    "08035000": { x: colX[2], y: 470 },
+    "08062863": { x: colX[3], y: 300 },
+    "08029908": { x: colX[3], y: 350 },
+    "08083609": { x: colX[3], y: 400 },
+    "08028282": { x: colX[3], y: 450 },
+    "08058577": { x: colX[3], y: 500 },
+    "08029280": { x: colX[3], y: 550 },
+    "08049721": { x: colX[3], y: 600 },
+    "08010668": { x: colX[3], y: 650 },
+    "08095532": { x: colX[1], y: 730 },
+    "08061116": { x: colX[2], y: 700 },
+    "08088879": { x: colX[2], y: 745 },
+    "08042190": { x: colX[2], y: 790 },
+    "08080804": { x: colX[1], y: 860 },
+    "08007997": { x: colX[2], y: 840 },
+    "08009687": { x: colX[2], y: 885 }
+  };
 
- const nodePositions = {
- "ROOT": { x: colX[0], y: 430, isRoot: true },
+  const defaultEdges = [
+    ["ROOT", "08049866"],
+    ["ROOT", "08014278"],
+    ["ROOT", "08095532"],
+    ["ROOT", "08080804"],
+    ["08049866", "08077592"],
+    ["08077592", "08022207"],
+    ["08049866", "08020609"],
+    ["08020609", "08066488"],
+    ["08049866", "08028892"],
+    ["08014278", "08035000"],
+    ["08035000", "08062863"],
+    ["08035000", "08029908"],
+    ["08035000", "08083609"],
+    ["08035000", "08028282"],
+    ["08035000", "08058577"],
+    ["08035000", "08029280"],
+    ["08035000", "08049721"],
+    ["08035000", "08010668"],
+    ["08095532", "08061116"],
+    ["08095532", "08088879"],
+    ["08095532", "08042190"],
+    ["08080804", "08007997"],
+    ["08080804", "08009687"]
+  ];
 
- // Nhánh 1: Phương Anh (Vị trí Lv1 - 80k/lot)
- "08049866": { x: colX[1], y: 160 }, // Phương Anh [Lv1]
- "08077592": { x: colX[2], y: 120 }, // Trần Thị Tuyết [Lv2 - 60k]
- "08022207": { x: colX[3], y: 120 }, // Trần Thị Mai [Lv3 - 50k]
- "08020609": { x: colX[2], y: 180 }, // Đỗ Việt Cường [Lv2 - 60k]
- "08066488": { x: colX[3], y: 180 }, // Cáp Trọng Sơn Tùng [Lv3 - 50k]
- "08028892": { x: colX[2], y: 240 }, // Đặng Hương Thuỷ [Lv3 - 50k]
+  const isDefaultSet = members.length === 23 && members.every(m => defaultHandcraftedPositions[m.id]);
+  if (isDefaultSet) {
+    return { nodePositions: defaultHandcraftedPositions, edges: defaultEdges };
+  }
 
- // Nhánh 2: Nguyễn Hoàng Khánh (Vị trí Lv1 - 80k/lot)
- "08014278": { x: colX[1], y: 470 }, // Nguyễn Hoàng Khánh [Lv1]
- "08035000": { x: colX[2], y: 470 }, // Đặng Tấn Tử [Lv2 - 60k]
- "08062863": { x: colX[3], y: 300 }, // Lê Ngân [Lv3]
- "08029908": { x: colX[3], y: 350 }, // Lê Trung Kiên [Lv3]
- "08083609": { x: colX[3], y: 400 }, // Lê Thanh Ngân [Lv3]
- "08028282": { x: colX[3], y: 450 }, // Nguyễn Minh Thế [Lv3]
- "08058577": { x: colX[3], y: 500 }, // Phạm Hoài Ngọc Đức [Lv3]
- "08029280": { x: colX[3], y: 550 }, // Đinh Hoàng Tuấn Trí [Lv3]
- "08049721": { x: colX[3], y: 600 }, // Hồ Tấn Anh Tài [Lv3]
- "08010668": { x: colX[3], y: 650 }, // Hoàng Tấn Nguyên [Lv3]
+  // DYNAMIC LAYOUT FOR CRM-SYNCED OR CUSTOM MEMBERS
+  const nodePositions = {};
+  const edges = [];
 
- // Nhánh 3: Vũ Thị Quỳnh (Vị trí Lv2 - 60k/lot)
- "08095532": { x: colX[1], y: 730 }, // Vũ Thị Quỳnh [Lv2]
- "08061116": { x: colX[2], y: 700 }, // Võ Thị Diễm Tiên [Lv3]
- "08088879": { x: colX[2], y: 745 }, // Đức Thị Ngọc [Lv3]
- "08042190": { x: colX[2], y: 790 }, // Nguyễn Thị Vân Huyền [Lv3]
+  const managers = members.filter(m => m.roleLevel === 'LV1' || m.role === 'MANAGER');
+  const leaders = members.filter(m => m.roleLevel === 'LV2' || m.role === 'LEADER');
+  const sales = members.filter(m => m.roleLevel === 'LV3' || m.role === 'SALE' || (!m.roleLevel && !m.role));
 
- // Nhánh 4: Đỗ Mạnh Hùng (Vị trí Lv2 - 60k/lot)
- "08080804": { x: colX[1], y: 860 }, // Đỗ Mạnh Hùng [Lv2]
- "08007997": { x: colX[2], y: 840 }, // Đỗ Mạnh Dũng [Lv3]
- "08009687": { x: colX[2], y: 885 } // Nguyễn Văn Sung [Lv3]
- };
+  const rootBranches = [];
+  managers.forEach(m => rootBranches.push({ node: m, type: 'LV1' }));
+  leaders.forEach(l => {
+    const parentId = l.parentId || l.managerId;
+    const hasParentManager = managers.some(m => String(m.id) === String(parentId));
+    if (!hasParentManager) {
+      rootBranches.push({ node: l, type: 'LV2_ROOT' });
+    }
+  });
 
- const edges = [
- ["ROOT", "08049866"], // Root -> Phương Anh (Lv1)
- ["ROOT", "08014278"], // Root -> Hoàng Khánh (Lv1)
- ["ROOT", "08095532"], // Root -> Vũ Thị Quỳnh (Lv2)
- ["ROOT", "08080804"], // Root -> Đỗ Mạnh Hùng (Lv2)
+  if (rootBranches.length === 0 && sales.length > 0) {
+    rootBranches.push(...sales.map(s => ({ node: s, type: 'SALE_ROOT' })));
+  }
 
- // Nhánh Phương Anh
- ["08049866", "08077592"],
- ["08077592", "08022207"],
- ["08049866", "08020609"],
- ["08020609", "08066488"],
- ["08049866", "08028892"],
+  let currentY = 80;
+  const rootYList = [];
 
- // Nhánh Nguyễn Hoàng Khánh
- ["08014278", "08035000"],
- ["08035000", "08062863"],
- ["08035000", "08029908"],
- ["08035000", "08083609"],
- ["08035000", "08028282"],
- ["08035000", "08058577"],
- ["08035000", "08029280"],
- ["08035000", "08049721"],
- ["08035000", "08010668"],
+  rootBranches.forEach(branch => {
+    const branchId = String(branch.node.id);
 
- // Nhánh Vũ Thị Quỳnh
- ["08095532", "08061116"],
- ["08095532", "08088879"],
- ["08095532", "08042190"],
+    if (branch.type === 'LV1') {
+      const childLeaders = leaders.filter(l => String(l.parentId || l.managerId) === branchId);
+      const directSales = sales.filter(s => String(s.managerId || s.parentId) === branchId && !leaders.some(l => String(l.id) === String(s.leaderId)));
 
- // Nhánh Đỗ Mạnh Hùng
- ["08080804", "08007997"],
- ["08080804", "08009687"]
- ];
+      const l2List = [];
+      childLeaders.forEach(l => l2List.push({ node: l, isLeader: true }));
+      directSales.forEach(s => l2List.push({ node: s, isLeader: false }));
 
- // Vẽ đường cong kết nối (Bezier Curves)
- edges.forEach(([fromId, toId]) => {
- const fromPos = nodePositions[fromId];
- const toPos = nodePositions[toId];
- if (!fromPos || !toPos) return;
+      if (l2List.length === 0) {
+        nodePositions[branchId] = { x: colX[1], y: currentY };
+        rootYList.push(currentY);
+        currentY += 75;
+      } else {
+        const l2YList = [];
+        l2List.forEach(item => {
+          const l2Id = String(item.node.id);
 
- const startX = fromPos.isRoot ? fromPos.x + 230 : fromPos.x + 240;
- const startY = fromPos.y + (fromPos.isRoot ? 35 : 22);
- const endX = toPos.x;
- const endY = toPos.y + 22;
- const midX = (startX + endX) / 2;
+          if (item.isLeader) {
+            const childSales = sales.filter(s => String(s.leaderId || s.parentId) === l2Id);
+            if (childSales.length === 0) {
+              nodePositions[l2Id] = { x: colX[2], y: currentY };
+              l2YList.push(currentY);
+              currentY += 60;
+            } else {
+              const sYList = [];
+              childSales.forEach(cs => {
+                const csId = String(cs.id);
+                nodePositions[csId] = { x: colX[3], y: currentY };
+                edges.push([l2Id, csId]);
+                sYList.push(currentY);
+                currentY += 55;
+              });
+              const avgY = Math.round((sYList[0] + sYList[sYList.length - 1]) / 2);
+              nodePositions[l2Id] = { x: colX[2], y: avgY };
+              l2YList.push(avgY);
+            }
+          } else {
+            nodePositions[l2Id] = { x: colX[2], y: currentY };
+            l2YList.push(currentY);
+            currentY += 60;
+          }
+          edges.push([branchId, l2Id]);
+        });
+        const branchAvgY = Math.round((l2YList[0] + l2YList[l2YList.length - 1]) / 2);
+        nodePositions[branchId] = { x: colX[1], y: branchAvgY };
+        rootYList.push(branchAvgY);
+      }
+      edges.push(["ROOT", branchId]);
+      currentY += 35;
+    } else if (branch.type === 'LV2_ROOT') {
+      const lId = branchId;
+      const childSales = sales.filter(s => String(s.leaderId || s.parentId) === lId);
+      if (childSales.length === 0) {
+        nodePositions[lId] = { x: colX[1], y: currentY };
+        rootYList.push(currentY);
+        currentY += 70;
+      } else {
+        const sYList = [];
+        childSales.forEach(cs => {
+          const csId = String(cs.id);
+          nodePositions[csId] = { x: colX[2], y: currentY };
+          edges.push([lId, csId]);
+          sYList.push(currentY);
+          currentY += 55;
+        });
+        const avgY = Math.round((sYList[0] + sYList[sYList.length - 1]) / 2);
+        nodePositions[lId] = { x: colX[1], y: avgY };
+        rootYList.push(avgY);
+      }
+      edges.push(["ROOT", lId]);
+      currentY += 35;
+    } else {
+      nodePositions[branchId] = { x: colX[1], y: currentY };
+      edges.push(["ROOT", branchId]);
+      rootYList.push(currentY);
+      currentY += 60;
+    }
+  });
 
- let strokeColor = "#334155";
- let strokeWidth = 1.8;
- if (fromId === "ROOT") {
- strokeWidth = 2.4;
- strokeColor = toId === "08049866" || toId === "08014278" ? "#3b82f6" : "#ea580c";
- }
+  const rootY = rootYList.length > 0 
+    ? Math.round((rootYList[0] + rootYList[rootYList.length - 1]) / 2)
+    : 430;
+  nodePositions["ROOT"] = { x: colX[0], y: rootY, isRoot: true };
 
- const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
- path.setAttribute('d', `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${endX} ${endY}`);
- path.setAttribute('fill', 'none');
- path.setAttribute('stroke', strokeColor);
- path.setAttribute('stroke-width', strokeWidth);
- path.setAttribute('stroke-linecap', 'round');
- branchesGroup.appendChild(path);
- });
+  members.forEach(m => {
+    const id = String(m.id);
+    if (!nodePositions[id]) {
+      nodePositions[id] = { x: colX[2], y: currentY };
+      edges.push(["ROOT", id]);
+      currentY += 60;
+    }
+  });
 
- // Vẽ Root Node
- const rootPos = nodePositions["ROOT"];
- const rootG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
- rootG.setAttribute('class', 'mindmap-node-interactive');
- rootG.setAttribute('transform', `translate(${rootPos.x}, ${rootPos.y})`);
- rootG.dataset.nodeId = 'ROOT';
- rootG.dataset.nodeType = 'ROOT';
- rootG.style.cursor = 'pointer';
- const apexRateK = (LOT_CONFIG.rateApex ? (LOT_CONFIG.rateApex / 1000) : 280) + 'k/lot';
+  return { nodePositions, edges };
+}
+
+function renderMindmapTree() {
+  const branchesGroup = document.getElementById('svgBranchesGroup');
+  const nodesGroup = document.getElementById('svgNodesGroup');
+  if (!branchesGroup || !nodesGroup) return;
+
+  branchesGroup.innerHTML = '';
+  nodesGroup.innerHTML = '';
+
+  const { nodePositions, edges } = computeMindmapLayout(APEX_DATA);
+
+  // Cập nhật kích thước canvas SVG thích ứng với số lượng node
+  const treeSvg = document.getElementById('treeSvg');
+  if (treeSvg) {
+    const allY = Object.values(nodePositions).map(p => p.y);
+    const allX = Object.values(nodePositions).map(p => p.x);
+    const maxY = Math.max(...allY, 800);
+    const maxX = Math.max(...allX, 1400);
+    treeSvg.style.minHeight = (maxY + 160) + 'px';
+    treeSvg.style.minWidth = (maxX + 360) + 'px';
+  }
+
+  // Vẽ đường cong kết nối (Bezier Curves)
+  edges.forEach(([fromId, toId]) => {
+    const fromPos = nodePositions[fromId];
+    const toPos = nodePositions[toId];
+    if (!fromPos || !toPos) return;
+
+    const startX = fromPos.isRoot ? fromPos.x + 230 : fromPos.x + 240;
+    const startY = fromPos.y + (fromPos.isRoot ? 35 : 22);
+    const endX = toPos.x;
+    const endY = toPos.y + 22;
+    const midX = (startX + endX) / 2;
+
+    let strokeColor = "#334155";
+    let strokeWidth = 1.8;
+    if (fromId === "ROOT") {
+      strokeWidth = 2.4;
+      const targetNode = APEX_DATA.find(p => String(p.id) === String(toId));
+      strokeColor = (targetNode && targetNode.roleLevel === 'LV1') ? "#3b82f6" : "#ea580c";
+    }
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${endX} ${endY}`);
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke', strokeColor);
+    path.setAttribute('stroke-width', strokeWidth);
+    path.setAttribute('stroke-linecap', 'round');
+    branchesGroup.appendChild(path);
+  });
+
+  // Vẽ Root Node
+  const rootPos = nodePositions["ROOT"] || { x: 40, y: 430, isRoot: true };
+  const rootG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+  rootG.setAttribute('class', 'mindmap-node-interactive');
+  rootG.setAttribute('transform', `translate(${rootPos.x}, ${rootPos.y})`);
+  rootG.dataset.nodeId = 'ROOT';
+  rootG.dataset.nodeType = 'ROOT';
+  rootG.style.cursor = 'pointer';
+  const apexRateK = (typeof LOT_CONFIG !== 'undefined' && LOT_CONFIG.rateApex ? (LOT_CONFIG.rateApex / 1000) : 280) + 'k/lot';
   rootG.innerHTML = `
-  <rect width="250" height="74" rx="14" fill="url(#gradOrange)" stroke="#ff7a45" stroke-width="1.8"/>
-  <circle cx="34" cy="37" r="16" fill="rgba(255,255,255,0.2)"/>
-  <text x="34" y="40" fill="#ffffff" font-size="10" font-weight="900" text-anchor="middle">APEX</text>
-  <text x="60" y="28" fill="#ffffff" font-size="14" font-weight="900" font-family="'Plus Jakarta Sans', sans-serif">HỆ THỐNG APEX</text>
-  <text x="60" y="46" fill="#fef08a" font-size="11" font-weight="800" font-family="'JetBrains Mono', monospace">NHẬN SÀN: ${apexRateK}</text>
-  <text x="60" y="63" fill="#ffedd5" font-size="10" font-weight="700" font-family="'JetBrains Mono', monospace">23 NHÂN SỰ • TOÀN HỆ THỐNG</text>
+    <rect width="250" height="74" rx="14" fill="url(#gradOrange)" stroke="#ff7a45" stroke-width="1.8"/>
+    <circle cx="34" cy="37" r="16" fill="rgba(255,255,255,0.2)"/>
+    <text x="34" y="40" fill="#ffffff" font-size="10" font-weight="900" text-anchor="middle">APEX</text>
+    <text x="60" y="28" fill="#ffffff" font-size="14" font-weight="900" font-family="'Plus Jakarta Sans', sans-serif">HỆ THỐNG APEX</text>
+    <text x="60" y="46" fill="#fef08a" font-size="11" font-weight="800" font-family="'JetBrains Mono', monospace">NHẬN SÀN: ${apexRateK}</text>
+    <text x="60" y="63" fill="#ffedd5" font-size="10" font-weight="700" font-family="'JetBrains Mono', monospace">${APEX_DATA.length} NHÂN SỰ • TOÀN HỆ THỐNG</text>
   `;
- rootG.onclick = (e) => {
-      e.stopPropagation();
-      openConfigModal();
-    };
-    rootG.style.pointerEvents = 'all';
-    rootG.style.cursor = 'pointer';
-    nodesGroup.appendChild(rootG);
+  rootG.onclick = (e) => {
+    e.stopPropagation();
+    if (typeof openConfigModal === 'function') openConfigModal();
+  };
+  rootG.style.pointerEvents = 'all';
+  rootG.style.cursor = 'pointer';
+  nodesGroup.appendChild(rootG);
 
-   // Vẽ các Node nhân sự
+  // Vẽ các Node nhân sự
   APEX_DATA.forEach(person => {
     const pos = nodePositions[person.id];
     if (!pos) return;
 
-    const fin = calculatePersonnelFinance(person);
+    const fin = (typeof calculatePersonnelFinance === 'function') 
+      ? calculatePersonnelFinance(person) 
+      : { ratePerLot: person.ratePerLot || 50000 };
     const lotRateText = `${(fin.ratePerLot / 1000)}k/lot`;
 
     const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -3235,10 +3624,9 @@
     g.dataset.nodeType = 'PERSON';
     g.style.cursor = 'pointer';
 
-    // Bắt sự kiện click trực tiếp trên Node
     g.onclick = function(e) {
       e.stopPropagation();
-      openEditPersonnelModal(person.id);
+      if (typeof openEditPersonnelModal === 'function') openEditPersonnelModal(person.id);
     };
     g.style.pointerEvents = 'all';
 
@@ -3258,7 +3646,6 @@
 
     const roleBadgeText = person.roleLevel === 'LV1' ? 'MANAGER' : (person.roleLevel === 'LV2' ? 'LEADER' : 'SALE');
 
-    // NỘI DUNG NODE: ĐỂ GIÁ LOT KẾ BÊN ID RÕ RÀNG, ĐẸP MẮT
     g.innerHTML = `
       <rect width="${cardW}" height="${cardH}" rx="8" fill="#172033" stroke="${strokeColor}" stroke-width="1.4" data-node-id="${person.id}" data-node-type="PERSON" style="cursor:pointer;"/>
       <text x="12" y="19" fill="#f8fafc" font-size="12" font-weight="700" font-family="'Plus Jakarta Sans', sans-serif" pointer-events="none">
@@ -3276,7 +3663,7 @@
 
     nodesGroup.appendChild(g);
   });
- }
+}
 
  // ====================================================================
  // 5. RENDER BẢNG BÁO CÁO DOANH THU (LV1 - LV2 - LV3)
@@ -3339,74 +3726,91 @@
 
     const tr = document.createElement('tr');
       const trainerBadge = fin.hhTrainer > 0 
-        ? `<div style="color:#6d28d9; font-weight:800; font-size:11px;">+ ${formatMoney(fin.hhTrainer)} <span class="badge-trainer-chip">🎓 ${fin.trainerCoursesCount} khóa</span></div>`
+        ? `<div style="color:#0f172a; font-weight:700; font-size:11px;">+ ${formatMoney(fin.hhTrainer)} <span style="font-size:10px; color:#64748b; background:#f1f5f9; padding:1px 4px; border-radius:3px;">${fin.trainerCoursesCount} khóa</span></div>`
         : '';
       const leaderBadge = fin.hhLeaderCourse > 0
-        ? `<div style="color:#c2410c; font-weight:700; font-size:10.5px;">+ ${formatMoney(fin.hhLeaderCourse)} (Leader 5%)</div>`
+        ? `<div style="color:#334155; font-weight:600; font-size:10.5px;">+ ${formatMoney(fin.hhLeaderCourse)} <span style="font-size:9.5px; color:#64748b;">(Leader 5%)</span></div>`
         : '';
       const trainingLeaderCell = (fin.hhTrainer === 0 && fin.hhLeaderCourse === 0)
         ? '<span class="downline-none">—</span>'
         : `<div>${trainerBadge}${leaderBadge}</div>`;
 
       tr.innerHTML = `
-        <td style="color:var(--text-muted); font-weight:700;">${index + 1}</td>
+        <td style="color:#64748b; text-align:center; font-weight:600;">${index + 1}</td>
         <td>
-          <b style="color:var(--text-main); font-size:12.5px; cursor:pointer;" onclick="openEditPersonnelModal('${item.id}')" title="Bấm để mở bảng điều chỉnh cơ chế của ${item.name}">${item.name}</b>
-          <div style="font-size:10px; color:var(--text-muted); font-family:'JetBrains Mono';">ID: ${item.id} • ${item.phone}</div>
+          <b style="color:#0f172a; font-size:12.5px; cursor:pointer;" onclick="openEditPersonnelModal('${item.id}')" title="Bấm để mở bảng điều chỉnh cơ chế của ${item.name}">${item.name}</b>
+          <div style="font-size:10px; color:#64748b; font-family:'JetBrains Mono';">ID: ${item.id} • ${item.phone}</div>
         </td>
-        <td>${getRoleBadgeHtml(item.roleLevel)}</td>
+        <td style="text-align:center;">${getRoleBadgeHtml(item.roleLevel)}</td>
         <td>
           <span style="font-size:11px; color:#475569;">${item.directManager}</span>
         </td>
-        <td style="font-family:'JetBrains Mono'; font-weight:600;">${item.basicLot.toFixed(1)}</td>
-        <td style="font-family:'JetBrains Mono'; font-weight:600; color:#2563eb;">${item.microLot.toFixed(1)}</td>
-        <td style="font-family:'JetBrains Mono'; font-weight:600; color:#ea580c;">${item.miniLot.toFixed(1)}</td>
-        <td style="font-family:'JetBrains Mono'; font-weight:800; font-size:13px; color:#0f172a; background:#f8fafc;">${fin.stdLot.toFixed(2)}</td>
-        <td>
-          <span style="background:#fff7ed; color:#ea580c; border:1px solid #fed7aa; padding:2px 6px; border-radius:5px; font-family:'JetBrains Mono'; font-weight:800; font-size:11px;">
+        <td style="font-family:'JetBrains Mono'; font-weight:500; text-align:right; color:#334155;">${item.basicLot.toFixed(1)}</td>
+        <td style="font-family:'JetBrains Mono'; font-weight:500; text-align:right; color:#334155;">${item.microLot.toFixed(1)}</td>
+        <td style="font-family:'JetBrains Mono'; font-weight:500; text-align:right; color:#334155;">${item.miniLot.toFixed(1)}</td>
+        <td style="font-family:'JetBrains Mono'; font-weight:700; font-size:12.5px; text-align:right; color:#0f172a; background:#f8fafc;">${fin.stdLot.toFixed(2)}</td>
+        <td style="text-align:center;">
+          <span style="background:#f1f5f9; color:#1e293b; border:1px solid #cbd5e1; padding:2px 6px; border-radius:4px; font-family:'JetBrains Mono'; font-weight:700; font-size:11px;">
             ${(fin.ratePerLot / 1000)}k/lot
           </span>
         </td>
-        <td style="font-family:'JetBrains Mono'; font-weight:700; color:#2563eb;">${formatMoney(fin.hhLot)}</td>
-        <td style="text-align:center; background:#faf5ff;">${dlLotsStr}</td>
-        <td style="background:#faf5ff;">${dlMoneyStr}</td>
+        <td style="font-family:'JetBrains Mono'; font-weight:700; text-align:right; color:#0f172a;">${formatMoney(fin.hhLot)}</td>
+        <td style="text-align:center;">${dlLotsStr}</td>
+        <td style="text-align:right;">${dlMoneyStr}</td>
         <td style="text-align:center;">
-          <input type="number" step="500000" min="0" value="${item.indicatorRev || 0}"
-                 onchange="updatePersonnelIndicatorRev('${item.id}', this.value)"
-                 title="Chỉnh doanh số chỉ báo của ${item.name} và bấm Enter để tính lại toàn hệ thống"
-                 style="width:84px; text-align:right; font-family:'JetBrains Mono'; font-size:11px; padding:3px 4px; border:1px solid #cbd5e1; border-radius:5px; background:#ffffff;">
+          <div class="crm-currency-cell">
+            <input type="text" class="crm-currency-input"
+                   id="inp_ind_${item.id}"
+                   value="${(item.indicatorRev || 0).toLocaleString('vi-VN')}"
+                   oninput="handleCurrencyInput(this, 'indicator', '${item.id}')"
+                   onchange="commitPersonnelCurrencyInput(this, 'indicator', '${item.id}')"
+                   title="Doanh số chỉ báo của ${item.name} - Tự động định dạng dấu chấm (.) tiền tệ">
+            <span class="crm-currency-sub" id="sub_ind_${item.id}">${(item.indicatorRev || 0).toLocaleString('vi-VN')} đ</span>
+          </div>
         </td>
-        <td style="text-align:center; background:#faf5ff;">
-          <div style="display:inline-flex; flex-direction:column; align-items:flex-end;">
-            <input type="number" step="1000000" min="0" value="${item.courseRev || 0}"
-                   onchange="updatePersonnelCourseRev('${item.id}', this.value)"
-                   title="Tùy chỉnh doanh số khóa học của ${item.name}: Ví dụ bán 4 học viên (20tr), bán 2 (10tr), không bán được (0đ)"
-                   style="width:96px; text-align:right; font-family:'JetBrains Mono'; font-weight:800; font-size:11.5px; color:#6d28d9; padding:3px 4px; border:1px solid #ddd6fe; border-radius:5px; background:#ffffff;">
-            <span style="font-size:9.5px; color:#7c3aed; font-weight:700; margin-top:2px;">
-              ${item.courseRev > 0 ? `(${Math.round(item.courseRev / 5000000)} HV/Khóa)` : '<span style="color:#94a3b8;">(0 HV)</span>'}
+        <td style="text-align:center;">
+          <div class="crm-currency-cell">
+            <input type="text" class="crm-currency-input" style="width:104px;"
+                   id="inp_crs_${item.id}"
+                   value="${(item.courseRev || 0).toLocaleString('vi-VN')}"
+                   oninput="handleCurrencyInput(this, 'course', '${item.id}')"
+                   onchange="commitPersonnelCurrencyInput(this, 'course', '${item.id}')"
+                   title="Doanh số khóa học của ${item.name} - Tự động định dạng dấu chấm (.) tiền tệ">
+            <span class="crm-currency-sub" id="sub_crs_${item.id}">
+              ${item.courseRev > 0 ? `(${Math.round(item.courseRev / 5000000)} HV) • ${(item.courseRev || 0).toLocaleString('vi-VN')} đ` : '0 đ'}
             </span>
           </div>
         </td>
         <td style="text-align:center;">
-          <input type="number" step="500000" min="0" value="${item.vipRev || 0}"
-                 onchange="updatePersonnelVipRev('${item.id}', this.value)"
-                 title="Chỉnh doanh số nhóm VIP của ${item.name}"
-                 style="width:84px; text-align:right; font-family:'JetBrains Mono'; font-size:11px; color:#d97706; font-weight:700; padding:3px 4px; border:1px solid #fed7aa; border-radius:5px; background:#ffffff;">
+          <div class="crm-currency-cell">
+            <input type="text" class="crm-currency-input"
+                   id="inp_vip_${item.id}"
+                   value="${(item.vipRev || 0).toLocaleString('vi-VN')}"
+                   oninput="handleCurrencyInput(this, 'vip', '${item.id}')"
+                   onchange="commitPersonnelCurrencyInput(this, 'vip', '${item.id}')"
+                   title="Doanh số nhóm VIP của ${item.name} - Tự động định dạng dấu chấm (.) tiền tệ">
+            <span class="crm-currency-sub" id="sub_vip_${item.id}">${(item.vipRev || 0).toLocaleString('vi-VN')} đ</span>
+          </div>
         </td>
-        <td style="text-align:center; background:#f0f9ff;">
-          <div style="font-family:'JetBrains Mono'; font-weight:800; color:#0284c7;">${formatMoney(fin.hhSaleProducts)}</div>
-          <small style="color:#0284c7; font-size:10px;">(Sale ${fin.productRate}%)</small>
+        <td style="text-align:right;">
+          <div style="font-family:'JetBrains Mono'; font-weight:700; color:#0f172a;">${formatMoney(fin.hhSaleProducts)}</div>
+          <small style="color:#64748b; font-size:10px;">(Sale ${fin.productRate}%)</small>
         </td>
-        <td style="background:#faf5ff;">
+        <td>
           ${trainingLeaderCell}
         </td>
-        <td style="text-align:center; background:#faf5ff;">
-          <input type="number" step="100000" min="0" value="${item.bonus || 0}"
-                 onchange="updatePersonnelBonus('${item.id}', this.value)"
-                 title="Nhập thưởng KPI cho ${item.name} và bấm Enter để tính lại toàn hệ thống"
-                 style="width:88px; text-align:right; padding:3px 4px; font-family:'JetBrains Mono'; font-weight:700; font-size:11px; color:#7e22ce; border:1px solid #e9d5ff; border-radius:5px; background:#ffffff;">
+        <td style="text-align:center;">
+          <div class="crm-currency-cell">
+            <input type="text" class="crm-currency-input" style="width:92px;"
+                   id="inp_bon_${item.id}"
+                   value="${(item.bonus || 0).toLocaleString('vi-VN')}"
+                   oninput="handleCurrencyInput(this, 'bonus', '${item.id}')"
+                   onchange="commitPersonnelCurrencyInput(this, 'bonus', '${item.id}')"
+                   title="Thưởng nóng KPI của ${item.name} - Tự động định dạng dấu chấm (.) tiền tệ">
+            <span class="crm-currency-sub" id="sub_bon_${item.id}">${(item.bonus || 0).toLocaleString('vi-VN')} đ</span>
+          </div>
         </td>
-        <td style="font-family:'JetBrains Mono'; font-weight:900; font-size:13.5px; color:#059669; background:#f0fdf4;">${formatMoney(fin.netIncome)}</td>
+        <td style="font-family:'JetBrains Mono'; font-weight:800; font-size:13px; text-align:right; color:#047857; background:#f8fafc;">${formatMoney(fin.netIncome)}</td>
         <td style="text-align:center;">
           <button class="btn-edit-lot" onclick="openEditPersonnelModal('${item.id}')">Sửa Cơ Chế</button>
         </td>
@@ -3726,6 +4130,22 @@
     const bon = document.getElementById('inputBonus');
     if (bon) person.bonus = Number(bon.value) || 0;
 
+    if (person.roleLevel === 'LV3') {
+      postAccountingMessage('ACCOUNTING_BROKERAGE_SAVE', { payload: {
+        memberId: person.id,
+        leaderId: person.leaderId || person.managerId || '',
+        teamId: person.teamId || person.team || '',
+        period: currentAccountingMonth || new Date().toISOString().slice(0, 7),
+        basicLots: person.basicLot,
+        microLots: person.miniLot,
+        nanoLots: person.microLot,
+        lotCommissionRate: person.ratePerLot,
+        indicatorCommissionRate: Number(person.indicatorCommissionRate || 0),
+        courseCommissionRate: Number(person.courseCommissionRate || 0),
+        bonus: person.bonus,
+        vatRate: Number(person.vatRate || 0)
+      }});
+    }
     closeEditModal();
     renderAllViews();
     alert(`Đã lưu thành công cơ chế riêng (${(person.ratePerLot/1000)}k/lot) và tính toán lại hệ thống cho: ${person.name}!`);
@@ -5809,42 +6229,46 @@
   let currentAccountingMonth = '2026-09'; // Mặc định tháng 09/2026
 
   // Dữ liệu doanh thu & hoa hồng chuẩn theo từng tháng để tính P&L chuẩn xác
-  const MONTHLY_REVENUE_COMMISSION = {
-    '2026-09': { revenue: 448500000, commission: 191307000, label: 'Tháng 09/2026 (Hiện tại)' },
-    '2026-08': { revenue: 410000000, commission: 175500000, label: 'Tháng 08/2026 (Tháng trước)' },
-    '2026-07': { revenue: 375000000, commission: 158000000, label: 'Tháng 07/2026' },
+    const MONTHLY_REVENUE_COMMISSION = {
     '2026-06': { revenue: 340000000, commission: 142000000, label: 'Tháng 06/2026' },
-    '2026-10': { revenue: 480000000, commission: 205000000, label: 'Tháng 10/2026 (Kế hoạch)' }
+    '2026-07': { revenue: 375000000, commission: 158000000, label: 'Tháng 07/2026' },
+    '2026-08': { revenue: 410000000, commission: 175500000, label: 'Tháng 08/2026' },
+    '2026-09': { revenue: 448500000, commission: 191307000, label: 'Tháng 09/2026' },
+    '2026-10': { revenue: 480000000, commission: 205000000, label: 'Tháng 10/2026' }
   };
 
   // Danh sách chi phí do Admin nhập theo từng tháng
-  let ADMIN_EXPENSES_DATA = [
-    // ── THÁNG 09/2026 (Hiện tại - 6 khoản, 58.000.000 đ) ──
-    { id: "EXP_09_01", month: "2026-09", date: "2026-09-02", title: "Tiền thuê văn phòng & điện nước tháng 09", category: "Mặt bằng", amount: 22000000, payer: "Admin Hoàng Phúc", note: "Thanh toán cho tòa nhà Landmark" },
-    { id: "EXP_09_02", month: "2026-09", date: "2026-09-05", title: "Chi phí chạy Ads Facebook & TikTok thu lead", category: "Marketing", amount: 18500000, payer: "Admin Hoàng Phúc", note: "Chiến dịch tuyển sinh khóa K02 SMC" },
-    { id: "EXP_09_03", month: "2026-09", date: "2026-09-10", title: "Thuê máy chủ Cloud VPS & Bot Signal tín hiệu", category: "Hạ tầng / Server", amount: 4500000, payer: "Admin Hoàng Phúc", note: "Gia hạn máy chủ Singapore 3 tháng" },
-    { id: "EXP_09_04", month: "2026-09", date: "2026-09-15", title: "Tiếp khách đối tác sàn giao dịch & VIP", category: "Tiếp khách", amount: 6000000, payer: "Admin Hoàng Phúc", note: "Bữa tối thảo luận cơ chế rebate sàn" },
-    { id: "EXP_09_05", month: "2026-09-20", title: "Văn phòng phẩm & teabreak phòng đào tạo", category: "Vận hành", amount: 3000000, payer: "Admin Hoàng Phúc", note: "Hoa quả, cafe, nước suối các lớp K01, K02" },
-    { id: "EXP_09_06", month: "2026-09-22", title: "Chi phí phần mềm Zoom Pro & CRM bản quyền", category: "Công cụ", amount: 4000000, payer: "Admin Hoàng Phúc", note: "Gói Zoom 500 người phục vụ dạy học" },
-
-    // ── THÁNG 08/2026 (Tháng trước - 6 khoản, 52.500.000 đ) ──
-    { id: "EXP_08_01", month: "2026-08", date: "2026-08-02", title: "Tiền thuê mặt bằng văn phòng Landmark tháng 08", category: "Mặt bằng", amount: 22000000, payer: "Admin Hoàng Phúc", note: "Hóa đơn tiền thuê mặt bằng tháng 8" },
-    { id: "EXP_08_02", month: "2026-08-06", title: "Chi phí quảng cáo Google Ads & Facebook khóa hè", category: "Marketing", amount: 16000000, payer: "Admin Hoàng Phúc", note: "Chiến dịch khóa hè SMC 2026" },
-    { id: "EXP_08_03", month: "2026-08-12", title: "Cloud VPS & bảo trì hệ thống bot trading", category: "Hạ tầng / Server", amount: 4500000, payer: "Admin Hoàng Phúc", note: "Chi phí máy chủ tháng 8" },
-    { id: "EXP_08_04", month: "2026-08-18", title: "Tiếp đón đại diện quỹ đầu tư & chiêu đãi nhân sự", category: "Tiếp khách", amount: 5000000, payer: "Admin Hoàng Phúc", note: "Gặp gỡ đối tác quỹ giao dịch" },
-    { id: "EXP_08_05", month: "2026-08-22", title: "Bản quyền phần mềm Zoom & CRM tháng 08", category: "Công cụ", amount: 3500000, payer: "Admin Hoàng Phúc", note: "Gia hạn phần mềm nội bộ" },
-    { id: "EXP_08_06", month: "2026-08-26", title: "In ấn giáo trình & teabreak lớp SMC-K01", category: "Vận hành", amount: 1500000, payer: "Admin Hoàng Phúc", note: "Sách bài tập & nước uống học viên" },
-
-    // ── THÁNG 07/2026 (Tháng trước nữa - 5 khoản, 47.000.000 đ) ──
-    { id: "EXP_07_01", month: "2026-07", date: "2026-07-02", title: "Tiền thuê văn phòng Landmark tháng 07", category: "Mặt bằng", amount: 22000000, payer: "Admin Hoàng Phúc", note: "Hóa đơn tiền nhà tháng 7" },
-    { id: "EXP_07_02", month: "2026-07-08", title: "Chạy chiến dịch quảng cáo TikTok & Facebook", category: "Marketing", amount: 13500000, payer: "Admin Hoàng Phúc", note: "Thu lead khóa Price Action" },
-    { id: "EXP_07_03", month: "2026-07-15", title: "Cloud VPS & nâng cấp băng thông máy chủ", category: "Hạ tầng / Server", amount: 4500000, payer: "Admin Hoàng Phúc", note: "Gia hạn hạ tầng tháng 7" },
-    { id: "EXP_07_04", month: "2026-07-20", title: "Tiếp đối tác công nghệ chỉ báo Algo", category: "Tiếp khách", amount: 4000000, payer: "Admin Hoàng Phúc", note: "Họp chuyển giao công nghệ bot" },
-    { id: "EXP_07_05", month: "2026-07-25", title: "Phần mềm Zoom Webinar & công cụ đồ thị", category: "Công cụ", amount: 3000000, payer: "Admin Hoàng Phúc", note: "Gói Zoom 300 chỗ" },
-
-    // ── THÁNG 10/2026 (Kế hoạch / Tháng tới - 2 khoản, 26.500.000 đ) ──
-    { id: "EXP_10_01", month: "2026-10", date: "2026-10-02", title: "Tiền cọc giữ văn phòng & điện nước tháng 10", category: "Mặt bằng", amount: 22000000, payer: "Admin Hoàng Phúc", note: "Dự kiến thanh toán ngày 02/10" },
-    { id: "EXP_10_02", month: "2026-10-05", title: "Ngân sách Marketing chiến dịch Quý 4", category: "Marketing", amount: 4500000, payer: "Admin Hoàng Phúc", note: "Khởi động chiến dịch cuối năm" }
+    let ADMIN_EXPENSES_DATA = [
+    {"id":"EXP_06_01","month":"2026-06","date":"2026-06-02","title":"Tiền thuê văn phòng Landmark tháng 06","category":"Mặt bằng","amount":22000000,"payer":"Admin Hoàng Phúc","note":"Hóa đơn tiền thuê văn phòng kỳ tháng 6"},
+    {"id":"EXP_06_02","month":"2026-06","date":"2026-06-06","title":"Chi phí Marketing mở lớp Trading Hè 2026","category":"Marketing","amount":11000000,"payer":"Admin Hoàng Phúc","note":"Chạy chiến dịch Facebook Ads khóa cơ bản"},
+    {"id":"EXP_06_03","month":"2026-06","date":"2026-06-12","title":"Gia hạn máy chủ Cloud VPS tín hiệu Bot","category":"Hạ tầng / Server","amount":3500000,"payer":"Admin Hoàng Phúc","note":"Máy chủ đặt tại FPT Data Center"},
+    {"id":"EXP_06_04","month":"2026-06","date":"2026-06-18","title":"Tiếp khách đại lý sàn giao dịch hàng hóa","category":"Tiếp khách","amount":2500000,"payer":"Admin Hoàng Phúc","note":"Ăn trưa trao đổi hợp đồng đại lý"},
+    {"id":"EXP_06_05","month":"2026-06","date":"2026-06-24","title":"Bản quyền phần mềm phân tích kỹ thuật","category":"Công cụ","amount":2000000,"payer":"Admin Hoàng Phúc","note":"Gói TradingView Premium cho bộ phận PTKT"},
+    {"id":"EXP_06_06","month":"2026-06","date":"2026-06-28","title":"Văn phòng phẩm & nước uống tháng 06","category":"Vận hành","amount":1000000,"payer":"Admin Hoàng Phúc","note":"Chi phí vận hành định kỳ tháng 6"},
+    {"id":"EXP_07_01","month":"2026-07","date":"2026-07-02","title":"Tiền thuê văn phòng Landmark tháng 07","category":"Mặt bằng","amount":22000000,"payer":"Admin Hoàng Phúc","note":"Hóa đơn tiền nhà tháng 7"},
+    {"id":"EXP_07_02","month":"2026-07","date":"2026-07-08","title":"Chạy chiến dịch quảng cáo TikTok & Facebook","category":"Marketing","amount":13500000,"payer":"Admin Hoàng Phúc","note":"Thu lead khóa Price Action"},
+    {"id":"EXP_07_03","month":"2026-07","date":"2026-07-15","title":"Cloud VPS & nâng cấp băng thông máy chủ","category":"Hạ tầng / Server","amount":4500000,"payer":"Admin Hoàng Phúc","note":"Gia hạn hạ tầng tháng 7"},
+    {"id":"EXP_07_04","month":"2026-07","date":"2026-07-20","title":"Tiếp đối tác công nghệ chỉ báo Algo","category":"Tiếp khách","amount":4000000,"payer":"Admin Hoàng Phúc","note":"Họp chuyển giao công nghệ bot"},
+    {"id":"EXP_07_05","month":"2026-07","date":"2026-07-25","title":"Phần mềm Zoom Webinar & công cụ đồ thị","category":"Công cụ","amount":2000000,"payer":"Admin Hoàng Phúc","note":"Gói Zoom 300 chỗ"},
+    {"id":"EXP_07_06","month":"2026-07","date":"2026-07-29","title":"In ấn giáo trình & teabreak phòng đào tạo","category":"Vận hành","amount":1000000,"payer":"Admin Hoàng Phúc","note":"Tài liệu học viên khóa tháng 7"},
+    {"id":"EXP_08_01","month":"2026-08","date":"2026-08-02","title":"Tiền thuê mặt bằng văn phòng Landmark tháng 08","category":"Mặt bằng","amount":22000000,"payer":"Admin Hoàng Phúc","note":"Hóa đơn tiền thuê mặt bằng tháng 8"},
+    {"id":"EXP_08_02","month":"2026-08","date":"2026-08-06","title":"Chi phí quảng cáo Google Ads & Facebook khóa hè","category":"Marketing","amount":16000000,"payer":"Admin Hoàng Phúc","note":"Chiến dịch khóa hè SMC 2026"},
+    {"id":"EXP_08_03","month":"2026-08","date":"2026-08-12","title":"Cloud VPS & bảo trì hệ thống bot trading","category":"Hạ tầng / Server","amount":4500000,"payer":"Admin Hoàng Phúc","note":"Chi phí máy chủ tháng 8"},
+    {"id":"EXP_08_04","month":"2026-08","date":"2026-08-18","title":"Tiếp đón đại diện quỹ đầu tư & chiêu đãi nhân sự","category":"Tiếp khách","amount":5000000,"payer":"Admin Hoàng Phúc","note":"Gặp gỡ đối tác quỹ giao dịch"},
+    {"id":"EXP_08_05","month":"2026-08","date":"2026-08-22","title":"Bản quyền phần mềm Zoom & CRM tháng 08","category":"Công cụ","amount":3500000,"payer":"Admin Hoàng Phúc","note":"Gia hạn phần mềm nội bộ"},
+    {"id":"EXP_08_06","month":"2026-08","date":"2026-08-26","title":"In ấn giáo trình & teabreak lớp SMC-K01","category":"Vận hành","amount":1500000,"payer":"Admin Hoàng Phúc","note":"Sách bài tập & nước uống học viên"},
+    {"id":"EXP_09_01","month":"2026-09","date":"2026-09-02","title":"Tiền thuê văn phòng & điện nước tháng 09","category":"Mặt bằng","amount":22000000,"payer":"Admin Hoàng Phúc","note":"Thanh toán cho tòa nhà Landmark"},
+    {"id":"EXP_09_02","month":"2026-09","date":"2026-09-05","title":"Chi phí chạy Ads Facebook & TikTok thu lead","category":"Marketing","amount":18500000,"payer":"Admin Hoàng Phúc","note":"Chiến dịch tuyển sinh khóa K02 SMC"},
+    {"id":"EXP_09_03","month":"2026-09","date":"2026-09-10","title":"Thuê máy chủ Cloud VPS & Bot Signal tín hiệu","category":"Hạ tầng / Server","amount":4500000,"payer":"Admin Hoàng Phúc","note":"Gia hạn máy chủ Singapore 3 tháng"},
+    {"id":"EXP_09_04","month":"2026-09","date":"2026-09-15","title":"Tiếp khách đối tác sàn giao dịch & VIP","category":"Tiếp khách","amount":6000000,"payer":"Admin Hoàng Phúc","note":"Bữa tối thảo luận cơ chế rebate sàn"},
+    {"id":"EXP_09_05","month":"2026-09","date":"2026-09-20","title":"Văn phòng phẩm & teabreak phòng đào tạo","category":"Vận hành","amount":3000000,"payer":"Admin Hoàng Phúc","note":"Hoa quả, cafe, nước suối các lớp K01, K02"},
+    {"id":"EXP_09_06","month":"2026-09","date":"2026-09-22","title":"Chi phí phần mềm Zoom Pro & CRM bản quyền","category":"Công cụ","amount":4000000,"payer":"Admin Hoàng Phúc","note":"Gói Zoom 500 người phục vụ dạy học"},
+    {"id":"EXP_10_01","month":"2026-10","date":"2026-10-02","title":"Tiền thuê văn phòng Landmark tháng 10","category":"Mặt bằng","amount":22000000,"payer":"Admin Hoàng Phúc","note":"Thanh toán cho tòa nhà Landmark kỳ tháng 10"},
+    {"id":"EXP_10_02","month":"2026-10","date":"2026-10-06","title":"Ngân sách Marketing chiến dịch Quý 4","category":"Marketing","amount":20000000,"payer":"Admin Hoàng Phúc","note":"Khởi động chiến dịch cuối năm toàn diện"},
+    {"id":"EXP_10_03","month":"2026-10","date":"2026-10-12","title":"Thuê máy chủ AI Trading Bot Cluster","category":"Hạ tầng / Server","amount":6000000,"payer":"Admin Hoàng Phúc","note":"Cụm máy chủ GPU phục vụ bot tín hiệu"},
+    {"id":"EXP_10_04","month":"2026-10","date":"2026-10-18","title":"Hội nghị đối tác & tri ân Leader sàn Q4","category":"Tiếp khách","amount":7500000,"payer":"Admin Hoàng Phúc","note":"Tiệc giao lưu kết nối đối tác"},
+    {"id":"EXP_10_05","month":"2026-10","date":"2026-10-22","title":"Bản quyền gói doanh nghiệp CRM & Zoom Enterprise","category":"Công cụ","amount":4000000,"payer":"Admin Hoàng Phúc","note":"Nâng cấp hệ sinh thái phần mềm"},
+    {"id":"EXP_10_06","month":"2026-10","date":"2026-10-27","title":"Chi phí teabreak & trang thiết bị phòng lab","category":"Vận hành","amount":2000000,"payer":"Admin Hoàng Phúc","note":"Bảo trì máy chiếu, nước uống học viên"}
   ];
 
   let currentExpenseCategoryFilter = 'ALL';
@@ -5914,7 +6338,7 @@ function _old_navigateAccountingMonth(direction) {
     let expensesForMonth = ADMIN_EXPENSES_DATA;
     if (currentAccountingMonth !== 'ALL') {
       expensesForMonth = ADMIN_EXPENSES_DATA.filter(item => {
-        const itemMonth = item.month || (item.date ? item.date.substring(0, 7) : '');
+        const itemMonth = (item.month || item.date || '').substring(0, 7);
         return itemMonth === currentAccountingMonth;
       });
     }
@@ -6006,7 +6430,7 @@ function _old_navigateAccountingMonth(direction) {
     let filtered = ADMIN_EXPENSES_DATA.filter(item => {
       // 1. Lọc theo tháng
       if (currentAccountingMonth !== 'ALL') {
-        const itemMonth = item.month || (item.date ? item.date.substring(0, 7) : '');
+        const itemMonth = (item.month || item.date || '').substring(0, 7);
         if (itemMonth !== currentAccountingMonth) return false;
       }
 
@@ -6092,7 +6516,7 @@ function _old_navigateAccountingMonth(direction) {
       if (idInput) idInput.value = exp.id;
       if (titleInput) titleInput.value = exp.title;
       if (catInput) catInput.value = exp.category;
-      if (amtInput) amtInput.value = exp.amount;
+      if (amtInput) amtInput.value = exp.amount ? Number(exp.amount).toLocaleString("vi-VN") : "";
       if (monthInput) monthInput.value = exp.month || (exp.date ? exp.date.substring(0, 7) : '2026-09');
       if (dateInput) dateInput.value = exp.date;
       if (payerInput) payerInput.value = exp.payer;
@@ -6123,7 +6547,7 @@ function _old_navigateAccountingMonth(direction) {
     const idInput = document.getElementById('editingExpenseId');
     const title = document.getElementById('inputExpTitle')?.value.trim();
     const category = document.getElementById('inputExpCategory')?.value;
-    const amount = Number(document.getElementById('inputExpAmount')?.value) || 0;
+    const amount = Number((document.getElementById('inputExpAmount')?.value || '').replace(/\D/g, '')) || 0;
     const month = document.getElementById('inputExpMonth')?.value || (currentAccountingMonth !== 'ALL' ? currentAccountingMonth : '2026-09');
     const date = document.getElementById('inputExpDate')?.value || (month + '-05');
     const payer = document.getElementById('inputExpPayer')?.value.trim() || 'Admin Hoàng Phúc';
@@ -6139,6 +6563,7 @@ function _old_navigateAccountingMonth(direction) {
     }
 
     const editId = idInput ? idInput.value : '';
+    let savedExpenseId = editId;
     if (editId) {
       // Cập nhật
       const index = ADMIN_EXPENSES_DATA.findIndex(e => e.id === editId);
@@ -6151,6 +6576,7 @@ function _old_navigateAccountingMonth(direction) {
     } else {
       // Thêm mới
       const newId = 'EXP_' + month.replace('-', '') + '_' + Date.now().toString().slice(-4);
+      savedExpenseId = newId;
       ADMIN_EXPENSES_DATA.unshift({
         id: newId,
         month, title, category, amount, date, payer, note
@@ -6166,6 +6592,7 @@ function _old_navigateAccountingMonth(direction) {
 
     closeExpenseModal();
     renderAccountingView();
+    postAccountingMessage('ACCOUNTING_EXPENSE_SAVE', { payload: { id: savedExpenseId, date, title, category, amount, month, payer, note } });
     alert(`✓ Đã lưu thành công khoản chi vào ${formatMonthDisplay(month)}! Hệ thống đã tự động tính lại lợi nhuận ròng P&L.`);
   }
 
@@ -6351,318 +6778,360 @@ function generateBankBillSvg(bankName, bankColor, amountStr, transCode, senderNa
 // ĐÃ BỔ SUNG: Số CCCD, Địa chỉ (Sale up thủ công), Option xuất VAT, và Báo đơn thanh toán thành công
 let VAT_ORDERS_DATA = [
   {
-    id: 'NVT-268cbb67', // Chính xác mã đơn trong Hình 3 của người dùng
-    type: 'SALE',
-    typeLabel: 'BÊN BÁN',
-    customerName: 'test',
-    customerPhone: '0901231231',
-    customerCccd: '001201019882', // Số CCCD do Sale up thủ công
-    customerAddress: 'Số 12 Duy Tân, Cầu Giấy, Hà Nội', // Địa chỉ do Sale up thủ công
-    customerEmail: 'khachhang.test@gmail.com',
-    productName: 'Khóa học đầu tư hàng hóa nâng cao - HHDN 01',
-    productSku: 'CRS-HHDN-01',
+    id: 'NVT-0601a11',
+    month: '2026-06',
+    type: 'COURSE',
+    typeLabel: 'KHÓA HỌC',
+    customerName: 'Trịnh Quốc Bảo',
+    customerPhone: '0908123456',
+    customerCccd: '001201004561',
+    customerAddress: 'Số 45 Lê Duẩn, Quận 1, TP. HCM',
+    customerEmail: 'quocbao.trinh@gmail.com',
+    productName: 'Khóa học SMC Cơ bản đến Nâng cao - K01',
+    productSku: 'CRS-SMC-K01',
     term: 'Vĩnh viễn',
-    saleId: '08018228',
+    saleId: '08058577',
     saleName: 'Phạm Hoài Ngọc Đức',
     subtotal: 5000000,
     vatAmount: 500000,
-    total: 5500000, // Doanh thu 5tr + VAT 500k = 5.5tr
-    collected: 2500000, // Cọc 2.5tr
-    remaining: 3000000, // Còn lại = 5.5tr - 2.5tr = 3.000.000 đ (tính cả VAT)
-    paymentStatus: 'DEPOSIT_50',
-    isSuccessNotified: false,
-    requireVat: true, // Khách có option yêu cầu xuất VAT
-    vatStatus: 'NOT_ISSUED',
-    vatInvoiceNo: '',
-    vatIssuedDate: '',
-    taxCode: '0109988776',
-    companyName: 'Công ty TNHH Đầu Tư Thương Mại Test',
-    address: 'Số 12 Duy Tân, Cầu Giấy, Hà Nội',
-    invoiceEmail: 'ketoan.test@gmail.com',
-    billImage: generateBankBillSvg('VIETCOMBANK', '#005a3c', '2.500.000', 'FT268CBB67', 'NGUYEN VAN TEST', 'TEST COC 50 PHAN TRAM KHOA HOC HHDN', '24/09/2026 14:20'),
-    billDate: '2026-09-24 14:20',
-    saleNote: 'Khách cọc 50% giữ chỗ lớp HHDN 01. Đã đối chiếu CCCD và địa chỉ. Hẹn 28/09 đóng nốt 50% còn lại trước ngày khai giảng.'
-  },
-  {
-    id: 'NVT-918ba01c',
-    type: 'COURSE',
-    typeLabel: 'KHÓA HỌC',
-    customerName: 'Nguyễn Văn Hải',
-    customerPhone: '0918882345',
-    customerCccd: '038096001245',
-    customerAddress: 'Tòa nhà Landmark 81, Phường 22, Bình Thạnh, TP. HCM',
-    customerEmail: 'vanhai.invest@gmail.com',
-    productName: 'Khóa Học SMC Nâng Cao - Lớp SMC-K01',
-    productSku: 'CRS-SMC-K01',
-    term: 'Vĩnh viễn',
-    saleId: '08095532',
-    saleName: 'Vũ Thị Quỳnh',
-    subtotal: 5000000,
-    vatAmount: 500000,
     total: 5500000,
-    collected: 5500000, // Đã thanh toán 100% gồm VAT
+    collected: 5500000,
     remaining: 0,
     paymentStatus: 'PAID',
-    isSuccessNotified: true, // ĐÃ BÁO VỀ KẾ TOÁN
+    isSuccessNotified: true,
     requireVat: true,
     vatStatus: 'ISSUED',
-    vatInvoiceNo: 'HD-2026/0042',
-    vatIssuedDate: '2026-09-24 16:30',
-    taxCode: '0316789123',
-    companyName: 'Công ty Cổ phần Công nghệ Alpha Việt Nam',
-    address: 'Tầng 8, Tòa nhà Landmark 81, TP. HCM',
-    invoiceEmail: 'ketoan@alpha-tech.vn',
-    billImage: generateBankBillSvg('TECHCOMBANK', '#e11b22', '5.500.000', 'FT918BA01C', 'NGUYEN VAN HAI', 'THANH TOAN 100 PHAN TRAM KHOA SMC K01', '24/09/2026 15:45'),
-    billDate: '2026-09-24 15:45',
-    saleNote: 'Khách chuyển khoản full 100%, sale đã up ảnh bill và số CCCD. Kế toán đã xuất hóa đơn VAT điện tử.'
+    vatInvoiceNo: 'HD-2026/0601',
+    vatIssuedDate: '2026-06-03 16:00',
+    taxCode: '0314567890',
+    companyName: 'Công ty Cổ phần Thương mại Alpha Tech',
+    address: 'Số 45 Lê Duẩn, Quận 1, TP. HCM',
+    invoiceEmail: 'ketoan@alphatech.vn',
+    billImage: generateBankBillSvg('VIETCOMBANK', '#005a3c', '5.500.000', 'FT26060301', 'TRINH QUOC BAO', 'TRINH QUOC BAO CK FULL KHOA HOC SMC K01', '03/06/2026 14:15'),
+    billDate: '2026-06-03 14:15',
+    saleNote: 'Khách thanh toán 100% qua chuyển khoản, đã gửi link lớp học và xuất hóa đơn VAT điện tử.'
   },
   {
-    id: 'NVT-f4901ba2',
-    type: 'RENTAL',
-    typeLabel: 'CHO THUÊ CHỈ BÁO',
-    customerName: 'Trần Đình Toàn',
-    customerPhone: '0987112233',
-    customerCccd: '079089004455',
-    customerAddress: '45 Lê Duẩn, Bến Nghé, Quận 1, TP. Hồ Chí Minh',
-    customerEmail: 'toantrader@gmail.com',
-    productName: 'NVT Apex Indicator Pro 2026',
-    productSku: 'IND-APEX-1Y',
-    term: '12 tháng',
-    saleId: '08035000',
-    saleName: 'Đặng Tấn Tử',
-    subtotal: 9000000,
-    vatAmount: 900000,
-    total: 9900000,
-    collected: 9900000, // Đã thanh toán 100% gồm VAT
+    id: 'NVT-0602b22',
+    month: '2026-06',
+    type: 'INDICATOR',
+    typeLabel: 'CHỈ BÁO',
+    customerName: 'Hoàng Minh Tuấn',
+    customerPhone: '0912348899',
+    customerCccd: '036098007788',
+    customerAddress: 'Tòa Keangnam, Mễ Trì, Nam Từ Liêm, Hà Nội',
+    customerEmail: 'minhtuan.trading@yahoo.com',
+    productName: 'Bộ Chỉ Báo Algo SMC & Order Flow 12 Tháng',
+    productSku: 'IND-ALGO-1Y',
+    term: '1 Năm',
+    saleId: '08062863',
+    saleName: 'Lê Ngân',
+    subtotal: 8000000,
+    vatAmount: 800000,
+    total: 8800000,
+    collected: 8800000,
     remaining: 0,
     paymentStatus: 'PAID',
-    isSuccessNotified: true, // ĐÃ BÁO VỀ KẾ TOÁN
+    isSuccessNotified: true,
     requireVat: true,
-    vatStatus: 'NOT_ISSUED', // Sẵn sàng xuất VAT
-    vatInvoiceNo: '',
-    vatIssuedDate: '',
-    taxCode: '8455619281',
-    companyName: 'Hộ kinh doanh Trần Đình Toàn Trading',
-    address: '45 Lê Duẩn, Quận 1, TP. Hồ Chí Minh',
-    invoiceEmail: 'toantrading@gmail.com',
-    billImage: generateBankBillSvg('MB BANK', '#002878', '9.900.000', 'FTF4901BA2', 'TRAN DINH TOAN', 'THUE CHI BAO APEX PRO 12 THANG', '24/09/2026 11:15'),
-    billDate: '2026-09-24 11:15',
-    saleNote: 'Khách chuyển đủ 9 triệu thuê chỉ báo 1 năm. Sale đã up bill MB Bank & CCCD.'
+    vatStatus: 'ISSUED',
+    vatInvoiceNo: 'HD-2026/0602',
+    vatIssuedDate: '2026-06-08 11:30',
+    taxCode: '0108991234',
+    companyName: 'Công ty TNHH Giải Pháp Tài Chính Tuấn Minh',
+    address: 'Tòa Keangnam, Mễ Trì, Nam Từ Liêm, Hà Nội',
+    invoiceEmail: 'tax@tuanminhfin.vn',
+    billImage: generateBankBillSvg('TECHCOMBANK', '#e11b22', '8.800.000', 'FT26060802', 'HOANG MINH TUAN', 'HOANG MINH TUAN DONG TIEN BO CHI BAO ALGO', '08/06/2026 10:20'),
+    billDate: '2026-06-08 10:20',
+    saleNote: 'Khách kích hoạt TradingView ID: tuantrader_pro, đã cấp quyền bot tín hiệu.'
   },
   {
-    id: 'NVT-55a73e91',
+    id: 'NVT-0603c33',
+    month: '2026-06',
     type: 'COURSE',
     typeLabel: 'KHÓA HỌC',
-    customerName: 'Lê Thị Bích',
-    customerPhone: '0933445566',
-    customerCccd: '031195007788',
-    customerAddress: '28 Trần Phú, Quận Ba Đình, Hà Nội',
-    customerEmail: 'bichle.trading@gmail.com',
-    productName: 'Khóa Học Price Action Chuyên Sâu - PA-K01',
-    productSku: 'CRS-PA-K01',
+    customerName: 'Bùi Thị Thanh Hằng',
+    customerPhone: '0978991122',
+    customerCccd: '025195003344',
+    customerAddress: '88 Trần Phú, Hà Đông, Hà Nội',
+    customerEmail: 'thanhhang.bui@gmail.com',
+    productName: 'Khóa học Price Action Chuyên Sâu 1-1',
+    productSku: 'CRS-PA-1ON1',
     term: 'Vĩnh viễn',
-    saleId: '08080804',
-    saleName: 'Đỗ Mạnh Hùng',
-    subtotal: 5000000,
-    vatAmount: 500000,
-    total: 5000000,
-    collected: 1500000, // Cọc 30%
-    remaining: 3500000, // Còn nợ 3.5tr
-    paymentStatus: 'DEPOSIT_30',
-    isSuccessNotified: false,
-    requireVat: false,
-    vatStatus: 'NOT_ISSUED',
-    vatInvoiceNo: '',
-    vatIssuedDate: '',
-    taxCode: '',
-    companyName: '',
-    address: '28 Trần Phú, Quận Ba Đình, Hà Nội',
-    invoiceEmail: '',
-    billImage: generateBankBillSvg('VIETCOMBANK', '#005a3c', '1.500.000', 'FT55A73E91', 'LE THI BICH', 'COC KHOA HOC PRICE ACTION PA K01', '23/09/2026 17:30'),
-    billDate: '2026-09-23 17:30',
-    saleNote: 'Khách cọc giữ chỗ 1.5 triệu, còn thiếu 3.5 triệu hẹn thanh toán trước buổi học số 2.'
-  },
-  {
-    id: 'NVT-8c01df44',
-    type: 'SALE',
-    typeLabel: 'BÊN BÁN',
-    customerName: 'Phạm Hoàng Nam',
-    customerPhone: '0977889900',
-    customerCccd: '001092003344',
-    customerAddress: 'Tòa Keangnam Hanoi Landmark Tower, Nam Từ Liêm, Hà Nội',
-    customerEmail: 'hoangnam@namphat.vn',
-    productName: 'Nhóm Tín Hiệu VIP Trading 1 Năm',
-    productSku: 'VIP-SIGNAL-1Y',
-    term: '12 tháng',
     saleId: '08077592',
     saleName: 'Trần Thị Tuyết',
-    subtotal: 10000000,
-    vatAmount: 1000000,
-    total: 11000000,
-    collected: 11000000, // Đã thanh toán 100% gồm VAT
-    remaining: 0,
-    paymentStatus: 'PAID',
-    isSuccessNotified: true,
-    requireVat: true,
-    vatStatus: 'ISSUED',
-    vatInvoiceNo: 'HD-2026/0038',
-    vatIssuedDate: '2026-09-23 09:15',
-    taxCode: '0107654321',
-    companyName: 'Công ty TNHH Tư Vấn Đầu Tư Nam Phát',
-    address: 'Tầng 5, Tòa Keangnam Hanoi Landmark Tower, Nam Từ Liêm',
-    invoiceEmail: 'ketoan@namphat.vn',
-    billImage: generateBankBillSvg('ACB', '#004f9e', '11.000.000', 'FT8C01DF44', 'PHAM HOANG NAM', 'DANG KY GOI TIN HIEU VIP TRADING 1 NAM', '23/09/2026 08:50'),
-    billDate: '2026-09-23 08:50',
-    saleNote: 'Khách VIP thanh toán chuyển khoản doanh nghiệp, hóa đơn VAT điện tử đã xuất thành công.'
-  },
-  {
-    id: 'NVT-33b018cf',
-    type: 'COURSE',
-    typeLabel: 'KHÓA HỌC',
-    customerName: 'Đoàn Thanh Sơn',
-    customerPhone: '0966554433',
-    customerCccd: '025091008899',
-    customerAddress: '88 Nguyễn Thái Học, TP. Vinh, Nghệ An',
-    customerEmail: 'thanhson.gold@gmail.com',
-    productName: 'Khóa Học Giao Dịch Vàng Thực Chiến - GOLD-K01',
-    productSku: 'CRS-GOLD-K01',
-    term: 'Vĩnh viễn',
-    saleId: '08014278',
-    saleName: 'Nguyễn Hoàng Khánh',
-    subtotal: 6000000,
-    vatAmount: 600000,
-    total: 6000000,
-    collected: 3000000, // Cọc 50%
-    remaining: 3000000,
+    subtotal: 12000000,
+    vatAmount: 1200000,
+    total: 13200000,
+    collected: 6600000,
+    remaining: 6600000,
     paymentStatus: 'DEPOSIT_50',
     isSuccessNotified: false,
-    requireVat: false,
+    requireVat: true,
     vatStatus: 'NOT_ISSUED',
     vatInvoiceNo: '',
     vatIssuedDate: '',
-    taxCode: '',
-    companyName: '',
-    address: '88 Nguyễn Thái Học, TP. Vinh, Nghệ An',
-    invoiceEmail: '',
-    billImage: generateBankBillSvg('TECHCOMBANK', '#e11b22', '3.000.000', 'FT33B018CF', 'DOAN THANH SON', 'COC 50 PHAN TRAM KHOA GOLD K01', '22/09/2026 14:10'),
-    billDate: '2026-09-22 14:10',
-    saleNote: 'Khách cọc 3 triệu, còn lại 3 triệu sẽ thanh toán vào thứ 6 tuần này khi nhận tài liệu.'
+    taxCode: '0109988112',
+    companyName: 'Hộ Kinh Doanh Thanh Hằng Fashion',
+    address: '88 Trần Phú, Hà Đông, Hà Nội',
+    invoiceEmail: 'hangbui.tax@gmail.com',
+    billImage: generateBankBillSvg('MBBANK', '#002878', '6.600.000', 'FT26061203', 'BUI THI THANH HANG', 'BUI THI THANH HANG COC 50 PT KHOA PRICE ACTION', '12/06/2026 15:40'),
+    billDate: '2026-06-12 15:40',
+    saleNote: 'Khách cọc 50% giữ lịch coaching 1-1 với Trainer, hẹn hoàn tất 50% còn lại trước ngày 20/06.'
   },
   {
-    id: 'NVT-77c88102',
-    type: 'RENTAL',
-    typeLabel: 'CHO THUÊ CHỈ BÁO',
-    customerName: 'Lương Hoàng Anh',
-    customerPhone: '0944112233',
-    customerCccd: '001094002233',
-    customerAddress: '88 Láng Hạ, Đống Đa, Hà Nội',
-    customerEmail: 'hoanganh.luong@gmail.com',
-    productName: 'NVT Apex Indicator Pro 2026',
-    productSku: 'IND-APEX-6M',
-    term: '6 tháng',
-    saleId: '08049866',
-    saleName: 'Phương Anh',
-    subtotal: 5500000,
-    vatAmount: 550000,
-    total: 6050000,
-    collected: 6050000, // Đã thanh toán 100% gồm VAT
+    id: 'NVT-0604d44',
+    month: '2026-06',
+    type: 'VIP_COMMUNITY',
+    typeLabel: 'NHÓM VIP',
+    customerName: 'Nguyễn Văn Đạt',
+    customerPhone: '0934112233',
+    customerCccd: '031089004455',
+    customerAddress: '15 Lê Lợi, TP. Hải Phòng',
+    customerEmail: 'dat.nguyenvan@gmail.com',
+    productName: 'Gói Hội Viên VIP Trading Club 6 Tháng',
+    productSku: 'VIP-CLUB-6M',
+    term: '6 Tháng',
+    saleId: '08020609',
+    saleName: 'Đỗ Việt Cường',
+    subtotal: 6000000,
+    vatAmount: 600000,
+    total: 6600000,
+    collected: 6600000,
     remaining: 0,
     paymentStatus: 'PAID',
     isSuccessNotified: true,
     requireVat: true,
     vatStatus: 'ISSUED',
-    vatInvoiceNo: 'HD-2026/0035',
-    vatIssuedDate: '2026-09-22 10:20',
-    taxCode: '0106654329',
-    companyName: 'Công ty Cổ phần Giải pháp Tài chính Hoàng Anh',
-    address: '88 Láng Hạ, Đống Đa, Hà Nội',
-    invoiceEmail: 'ketoan@hoanganhfin.vn',
-    billImage: generateBankBillSvg('MB BANK', '#002878', '6.050.000', 'FT77C88102', 'LUONG HOANG ANH', 'THUE CHI BAO 6 THANG NVT APEX', '22/09/2026 09:40'),
-    billDate: '2026-09-22 09:40',
-    saleNote: 'Khách thanh toán đủ 100%, yêu cầu xuất VAT điện tử ngày 22/09.'
+    vatInvoiceNo: 'HD-2026/0604',
+    vatIssuedDate: '2026-06-17 10:00',
+    taxCode: '0201122334',
+    companyName: 'Công ty Cổ phần Vận Tải Biển Hải Long',
+    address: '15 Lê Lợi, TP. Hải Phòng',
+    invoiceEmail: 'ketoan@hailongshipping.vn',
+    billImage: generateBankBillSvg('ACB', '#004b8d', '6.600.000', 'FT26061704', 'NGUYEN VAN DAT', 'NGUYEN VAN DAT THANH TOAN VIP TRADING CLUB 6T', '17/06/2026 09:15'),
+    billDate: '2026-06-17 09:15',
+    saleNote: 'Khách vào nhóm Telegram VIP, nhận tín hiệu hàng ngày từ ngày 17/06/2026.'
   },
   {
-    id: 'NVT-44d99211',
+    id: 'NVT-0605e55',
+    month: '2026-06',
     type: 'COURSE',
     typeLabel: 'KHÓA HỌC',
-    customerName: 'Vũ Minh Tuấn',
-    customerPhone: '0922334455',
-    customerCccd: '079093006677',
-    customerAddress: 'Số 10 Nguyễn Huệ, Quận 1, TP. HCM',
-    customerEmail: 'tuanvu.crypto@gmail.com',
-    productName: 'Khóa Học Crypto & Web3 Trading - CRYPTO-K01',
-    productSku: 'CRS-CRYPTO-K01',
+    customerName: 'Vũ Đình Trọng',
+    customerPhone: '0988776655',
+    customerCccd: '001092008899',
+    customerAddress: 'Số 10 Tràng Thi, Hoàn Kiếm, Hà Nội',
+    customerEmail: 'trong.vudinh@fpt.com.vn',
+    productName: 'Khóa học SMC Cơ bản đến Nâng cao - K01',
+    productSku: 'CRS-SMC-K01',
     term: 'Vĩnh viễn',
-    saleId: '08020609',
-    saleName: 'Đỗ Việt Cường',
+    saleId: '08035000',
+    saleName: 'Đặng Tấn Tử',
     subtotal: 5000000,
     vatAmount: 500000,
     total: 5500000,
-    collected: 5500000, // Đã thanh toán 100% gồm VAT
+    collected: 5500000,
     remaining: 0,
     paymentStatus: 'PAID',
     isSuccessNotified: true,
     requireVat: true,
-    vatStatus: 'NOT_ISSUED', // Thanh toán đủ nhưng chưa xuất VAT
-    vatInvoiceNo: '',
-    vatIssuedDate: '',
-    taxCode: '0315443322',
-    companyName: 'Công ty TNHH Công nghệ Tuấn Vũ',
-    address: 'Số 10 Nguyễn Huệ, Quận 1, TP. HCM',
-    invoiceEmail: 'contact@tuanvu.tech',
-    billImage: generateBankBillSvg('VIETCOMBANK', '#005a3c', '5.500.000', 'FT44D99211', 'VU MINH TUAN', 'THANH TOAN FULL KHOA CRYPTO K01', '21/09/2026 16:00'),
-    billDate: '2026-09-21 16:00',
-    saleNote: 'Khách thanh toán đủ 100%, sẵn sàng xuất VAT khi kế toán duyệt.'
+    vatStatus: 'ISSUED',
+    vatInvoiceNo: 'HD-2026/0605',
+    vatIssuedDate: '2026-06-21 17:30',
+    taxCode: '0100109106',
+    companyName: 'Công ty Cổ phần Phần mềm FPT',
+    address: 'Số 10 Tràng Thi, Hoàn Kiếm, Hà Nội',
+    invoiceEmail: 'einvoice@fpt.com',
+    billImage: generateBankBillSvg('VIETCOMBANK', '#005a3c', '5.500.000', 'FT26062105', 'VU DINH TRONG', 'VU DINH TRONG CK TIEN KHOA HOC SMC K01', '21/06/2026 16:45'),
+    billDate: '2026-06-21 16:45',
+    saleNote: 'Khách kỹ sư phần mềm học chuyển tiếp đầu tư tài chính.'
   },
   {
-    id: 'NVT-66e11899',
+    id: 'NVT-0606f66',
+    month: '2026-06',
     type: 'COURSE',
     typeLabel: 'KHÓA HỌC',
-    month: '2026-08',
-    customerName: 'Đinh Thị Thu Hà',
-    customerPhone: '0977119922',
-    customerCccd: '001198005544',
-    customerAddress: '15 Lê Lợi, TP. Hải Phòng',
-    customerEmail: 'thuha.invest@gmail.com',
-    productName: 'Khóa Học SMC Nâng Cao - Lớp SMC-K02',
-    productSku: 'CRS-SMC-K02',
+    customerName: 'Lê Thuỳ Dung',
+    customerPhone: '0945667788',
+    customerCccd: '079198006677',
+    customerAddress: '234 Điện Biên Phủ, Bình Thạnh, TP. HCM',
+    customerEmail: 'thuydung.le@gmail.com',
+    productName: 'Khóa học đầu tư hàng hóa nâng cao - HHDN 01',
+    productSku: 'CRS-HHDN-01',
     term: 'Vĩnh viễn',
-    saleId: '08022207',
-    saleName: 'Trần Thị Mai',
+    saleId: '08061116',
+    saleName: 'Võ Thị Diễm Tiên',
     subtotal: 5000000,
     vatAmount: 500000,
-    total: 5000000,
-    collected: 1000000,
-    remaining: 4000000,
-    paymentStatus: 'DEPOSIT_20',
+    total: 5500000,
+    collected: 5500000,
+    remaining: 0,
+    paymentStatus: 'PAID',
+    isSuccessNotified: true,
+    requireVat: true,
+    vatStatus: 'ISSUED',
+    vatInvoiceNo: 'HD-2026/0606',
+    vatIssuedDate: '2026-06-25 14:00',
+    taxCode: '0312987654',
+    companyName: 'Công ty TNHH Logistics An Phát',
+    address: '234 Điện Biên Phủ, Bình Thạnh, TP. HCM',
+    invoiceEmail: 'dung.le@anphatlogistics.com',
+    billImage: generateBankBillSvg('BIDV', '#0066b2', '5.500.000', 'FT26062506', 'LE THUY DUNG', 'LE THUY DUNG TT KHOA HOC HHDN 01', '25/06/2026 11:20'),
+    billDate: '2026-06-25 11:20',
+    saleNote: 'Đã hoàn tất thủ tục xuất hóa đơn VAT gửi email công ty.'
+  },
+  {
+    id: 'NVT-0607g77',
+    month: '2026-06',
+    type: 'COURSE',
+    typeLabel: 'KHÓA HỌC',
+    customerName: 'Trần Đình Quang',
+    customerPhone: '0966554433',
+    customerCccd: '040087002211',
+    customerAddress: '78 Bạch Đằng, Hải Châu, Đà Nẵng',
+    customerEmail: 'dinhquang78@danang.gov.vn',
+    productName: 'Khóa học SMC Cơ bản đến Nâng cao - K01',
+    productSku: 'CRS-SMC-K01',
+    term: 'Vĩnh viễn',
+    saleId: '08007997',
+    saleName: 'Đỗ Mạnh Dũng',
+    subtotal: 5000000,
+    vatAmount: 500000,
+    total: 5500000,
+    collected: 2750000,
+    remaining: 2750000,
+    paymentStatus: 'DEPOSIT_50',
     isSuccessNotified: false,
-    requireVat: false,
+    requireVat: true,
     vatStatus: 'NOT_ISSUED',
     vatInvoiceNo: '',
     vatIssuedDate: '',
-    taxCode: '',
-    companyName: '',
-    address: '15 Lê Lợi, TP. Hải Phòng',
-    invoiceEmail: '',
-    billImage: generateBankBillSvg('TECHCOMBANK', '#e11b22', '1.000.000', 'FT66E11899', 'DINH THI THU HA', 'COC 1 TRIEU KHOA SMC K02', '20/08/2026 13:45'),
-    billDate: '2026-08-20 13:45',
-    saleNote: 'Khách cọc sớm 1 triệu giữ ưu đãi giảm giá, hẹn 27/09 đóng nốt 4 triệu.'
+    taxCode: '0401122889',
+    companyName: 'Công ty TNHH Bất Động Sản Miền Trung Xanh',
+    address: '78 Bạch Đằng, Hải Châu, Đà Nẵng',
+    invoiceEmail: 'quangtran.mientrung@gmail.com',
+    billImage: generateBankBillSvg('TECHCOMBANK', '#e11b22', '2.750.000', 'FT26062907', 'TRAN DINH QUANG', 'TRAN DINH QUANG COC 50 PT KHOA SMC K01', '29/06/2026 16:30'),
+    billDate: '2026-06-29 16:30',
+    saleNote: 'Khách cọc trước 50%, thỏa thuận chuyển 50% còn lại vào ngày 05/07.'
   },
   {
-    id: 'NVT-12a34567',
-    type: 'SALE',
-    typeLabel: 'BÊN BÁN',
-    month: '2026-08',
-    customerName: 'Bùi Quang Huy',
-    customerPhone: '0988776655',
-    customerCccd: '001095006688',
-    customerAddress: '15 Tố Hữu, Nam Từ Liêm, Hà Nội',
-    customerEmail: 'huybui.vip@gmail.com',
-    productName: 'Nhóm Tín Hiệu VIP Trading 1 Năm',
-    productSku: 'VIP-SIGNAL-1Y',
-    term: '12 tháng',
-    saleId: '08020610',
-    saleName: 'Cáp Trọng Sơn Tùng',
+    id: 'NVT-0701a11',
+    month: '2026-07',
+    type: 'COURSE',
+    typeLabel: 'KHÓA HỌC',
+    customerName: 'Ngô Thế Hùng',
+    customerPhone: '0919223344',
+    customerCccd: '038091005566',
+    customerAddress: '12 Quang Trung, TP. Vinh, Nghệ An',
+    customerEmail: 'thehung.ngo@gmail.com',
+    productName: 'Khóa học SMC Cơ bản đến Nâng cao - K01',
+    productSku: 'CRS-SMC-K01',
+    term: 'Vĩnh viễn',
+    saleId: '08029908',
+    saleName: 'Lê Trung Kiên',
+    subtotal: 5000000,
+    vatAmount: 500000,
+    total: 5500000,
+    collected: 5500000,
+    remaining: 0,
+    paymentStatus: 'PAID',
+    isSuccessNotified: true,
+    requireVat: true,
+    vatStatus: 'ISSUED',
+    vatInvoiceNo: 'HD-2026/0701',
+    vatIssuedDate: '2026-07-04 15:00',
+    taxCode: '2901889900',
+    companyName: 'Công ty Cổ phần Thương mại Vinh Thành',
+    address: '12 Quang Trung, TP. Vinh, Nghệ An',
+    invoiceEmail: 'ketoan@vinhthanhcorp.vn',
+    billImage: generateBankBillSvg('VIETCOMBANK', '#005a3c', '5.500.000', 'FT26070401', 'NGO THE HUNG', 'NGO THE HUNG THANH TOAN KHOA SMC K01', '04/07/2026 14:20'),
+    billDate: '2026-07-04 14:20',
+    saleNote: 'Học viên thanh toán đủ, đã add vào room thảo luận K01.'
+  },
+  {
+    id: 'NVT-0702b22',
+    month: '2026-07',
+    type: 'INDICATOR',
+    typeLabel: 'CHỈ BÁO',
+    customerName: 'Đặng Ngọc Lan',
+    customerPhone: '0977665544',
+    customerCccd: '001194002233',
+    customerAddress: 'Tòa Sky City, 88 Láng Hạ, Đống Đa, Hà Nội',
+    customerEmail: 'ngoclan.invest@gmail.com',
+    productName: 'Bộ Chỉ Báo Algo SMC & Order Flow 12 Tháng',
+    productSku: 'IND-ALGO-1Y',
+    term: '1 Năm',
+    saleId: '08083609',
+    saleName: 'Lê Thanh Ngân',
+    subtotal: 8000000,
+    vatAmount: 800000,
+    total: 8800000,
+    collected: 8800000,
+    remaining: 0,
+    paymentStatus: 'PAID',
+    isSuccessNotified: true,
+    requireVat: true,
+    vatStatus: 'ISSUED',
+    vatInvoiceNo: 'HD-2026/0702',
+    vatIssuedDate: '2026-07-09 11:15',
+    taxCode: '0107766554',
+    companyName: 'Công ty TNHH Quản Lý Quỹ Lan Đặng',
+    address: 'Tòa Sky City, 88 Láng Hạ, Đống Đa, Hà Nội',
+    invoiceEmail: 'lan.invest@landangfund.com',
+    billImage: generateBankBillSvg('TECHCOMBANK', '#e11b22', '8.800.000', 'FT26070902', 'DANG NGOC LAN', 'DANG NGOC LAN MUA BO CHI BAO ALGO SMC 1Y', '09/07/2026 10:05'),
+    billDate: '2026-07-09 10:05',
+    saleNote: 'Khách thanh toán trọn gói 1 năm, đã bàn giao key bản quyền.'
+  },
+  {
+    id: 'NVT-0703c33',
+    month: '2026-07',
+    type: 'VIP_COMMUNITY',
+    typeLabel: 'NHÓM VIP',
+    customerName: 'Dương Văn Toàn',
+    customerPhone: '0903887766',
+    customerCccd: '079085009988',
+    customerAddress: '56 Nguyễn Thị Minh Khai, Quận 3, TP. HCM',
+    customerEmail: 'toanduong.real@gmail.com',
+    productName: 'Gói Hội Viên VIP Trading Club 6 Tháng',
+    productSku: 'VIP-CLUB-6M',
+    term: '6 Tháng',
+    saleId: '08028282',
+    saleName: 'Nguyễn Minh Thế',
+    subtotal: 6000000,
+    vatAmount: 600000,
+    total: 6600000,
+    collected: 6600000,
+    remaining: 0,
+    paymentStatus: 'PAID',
+    isSuccessNotified: true,
+    requireVat: true,
+    vatStatus: 'ISSUED',
+    vatInvoiceNo: 'HD-2026/0703',
+    vatIssuedDate: '2026-07-14 16:45',
+    taxCode: '0315544332',
+    companyName: 'Công ty TNHH Đầu Tư Toàn Phát Thịnh',
+    address: '56 Nguyễn Thị Minh Khai, Quận 3, TP. HCM',
+    invoiceEmail: 'toanphatthinh@gmail.com',
+    billImage: generateBankBillSvg('MBBANK', '#002878', '6.600.000', 'FT26071403', 'DUONG VAN TOAN', 'DUONG VAN TOAN THANH TOAN VIP 6T', '14/07/2026 15:30'),
+    billDate: '2026-07-14 15:30',
+    saleNote: 'Đã xuất hóa đơn VAT theo MST doanh nghiệp.'
+  },
+  {
+    id: 'NVT-98f76543',
+    month: '2026-07',
+    type: 'VIP_COMMUNITY',
+    typeLabel: 'NHÓM VIP',
+    customerName: 'Hoàng Thị Thanh Tâm',
+    customerPhone: '0979888999',
+    customerCccd: '038195007788',
+    customerAddress: 'Số 99 Hùng Vương, TP. Nha Trang, Khánh Hòa',
+    customerEmail: 'thanhtam.nhatrang@gmail.com',
+    productName: 'Gói Hội Viên VIP Trading Club 12 Tháng',
+    productSku: 'VIP-COMM-12M',
+    term: '1 Năm',
+    saleId: '08028892',
+    saleName: 'Đặng Hương Thuỷ',
     subtotal: 10000000,
     vatAmount: 1000000,
     total: 11000000,
@@ -6672,64 +7141,744 @@ let VAT_ORDERS_DATA = [
     isSuccessNotified: true,
     requireVat: true,
     vatStatus: 'ISSUED',
-    vatInvoiceNo: 'HD-2026/0029',
-    vatIssuedDate: '2026-08-19 14:10',
-    taxCode: '0105544332',
-    companyName: 'Công ty Cổ phần Thương mại & Dịch vụ Quang Huy',
-    address: '15 Tố Hữu, Nam Từ Liêm, Hà Nội',
-    invoiceEmail: 'huy.bui@quanghuytrade.vn',
-    billImage: generateBankBillSvg('ACB', '#004f9e', '11.000.000', 'FT12A34567', 'BUI QUANG HUY', 'VIP TRADING 1 NAM NVT AGENCY', '19/08/2026 13:50'),
-    billDate: '2026-08-19 13:50',
-    saleNote: 'Đã xuất hóa đơn VAT điện tử, khách đã nhận qua email công ty.'
+    vatInvoiceNo: 'HD-2026/0718',
+    vatIssuedDate: '2026-07-18 10:45',
+    taxCode: '4201889911',
+    companyName: 'Công ty TNHH Du Lịch Biển Ngọc',
+    address: 'Số 99 Hùng Vương, TP. Nha Trang, Khánh Hòa',
+    invoiceEmail: 'ketoan@bienngoc.vn',
+    billImage: generateBankBillSvg('VIETCOMBANK', '#005a3c', '11.000.000', 'FT98F76543', 'HOANG THI THANH TAM', 'HOANG THI THANH TAM THANH TOAN VIP 12 THANG', '18/07/2026 10:15'),
+    billDate: '2026-07-18 10:15',
+    saleNote: 'Khách hàng VIP đăng ký gói 1 năm, đã cấp quyền VIP Discord và Telegram.'
   },
   {
-    id: 'NVT-98f76543',
-    type: 'RENTAL',
-    typeLabel: 'CHO THUÊ CHỈ BÁO',
+    id: 'NVT-0705e55',
     month: '2026-07',
-    customerName: 'Hoàng Kim Dung',
-    customerPhone: '0912445566',
-    customerCccd: '079090001122',
-    customerAddress: '22 Hai Bà Trưng, Quận 1, TP. HCM',
-    customerEmail: 'kimdung.gold@gmail.com',
-    productName: 'NVT Apex Indicator Pro 2026',
-    productSku: 'IND-APEX-1Y',
-    term: '12 tháng',
-    saleId: '08035001',
-    saleName: 'Hà Thị Bích Ngọc',
-    subtotal: 9000000,
-    vatAmount: 900000,
-    total: 9900000,
-    collected: 9900000,
+    type: 'COURSE',
+    typeLabel: 'KHÓA HỌC',
+    customerName: 'Phan Minh Tuấn',
+    customerPhone: '0909554433',
+    customerCccd: '079088001122',
+    customerAddress: '180 Cao Thắng, Phường 12, Quận 10, TP. HCM',
+    customerEmail: 'tuanphan.pm@gmail.com',
+    productName: 'Khóa học SMC Cơ bản đến Nâng cao - K01',
+    productSku: 'CRS-SMC-K01',
+    term: 'Vĩnh viễn',
+    saleId: '08029280',
+    saleName: 'Đinh Hoàng Tuấn Trí',
+    subtotal: 5000000,
+    vatAmount: 500000,
+    total: 5500000,
+    collected: 5500000,
     remaining: 0,
     paymentStatus: 'PAID',
     isSuccessNotified: true,
     requireVat: true,
+    vatStatus: 'ISSUED',
+    vatInvoiceNo: 'HD-2026/0722',
+    vatIssuedDate: '2026-07-22 14:15',
+    taxCode: '0316655441',
+    companyName: 'Công ty TNHH Dịch Vụ Công Nghệ Sài Gòn Mới',
+    address: '180 Cao Thắng, Phường 12, Quận 10, TP. HCM',
+    invoiceEmail: 'finance@sgmoi.vn',
+    billImage: generateBankBillSvg('ACB', '#004b8d', '5.500.000', 'FT26072205', 'PHAN MINH TUAN', 'PHAN MINH TUAN THANH TOAN KHOA SMC K01', '22/07/2026 13:40'),
+    billDate: '2026-07-22 13:40',
+    saleNote: 'Khách thanh toán đầy đủ, đã nhận tài liệu học tập PDF.'
+  },
+  {
+    id: 'NVT-0706f66',
+    month: '2026-07',
+    type: 'COURSE',
+    typeLabel: 'KHÓA HỌC',
+    customerName: 'Võ Thanh Trúc',
+    customerPhone: '0938114477',
+    customerCccd: '083196005544',
+    customerAddress: '45 Võ Thị Sáu, TP. Biên Hòa, Đồng Nai',
+    customerEmail: 'trucvo.real@gmail.com',
+    productName: 'Khóa học đầu tư hàng hóa nâng cao - HHDN 01',
+    productSku: 'CRS-HHDN-01',
+    term: 'Vĩnh viễn',
+    saleId: '08049721',
+    saleName: 'Hồ Tấn Anh Tài',
+    subtotal: 5000000,
+    vatAmount: 500000,
+    total: 5500000,
+    collected: 2750000,
+    remaining: 2750000,
+    paymentStatus: 'DEPOSIT_50',
+    isSuccessNotified: false,
+    requireVat: true,
     vatStatus: 'NOT_ISSUED',
     vatInvoiceNo: '',
     vatIssuedDate: '',
-    taxCode: '0314455667',
-    companyName: 'Công ty TNHH Trang sức & Vàng Bạc Hoàng Kim',
-    address: '22 Hai Bà Trưng, Quận 1, TP. HCM',
-    invoiceEmail: 'kimdung@hoangkimjewelry.vn',
-    billImage: generateBankBillSvg('MB BANK', '#002878', '9.900.000', 'FT98F76543', 'HOANG KIM DUNG', 'THUE CHI BAO APEX 1 NAM', '18/07/2026 10:15'),
-    billDate: '2026-07-18 10:15',
-    saleNote: 'Khách thanh toán đủ 9 triệu, chờ kế toán ký duyệt xuất hóa đơn VAT.'
+    taxCode: '3603344556',
+    companyName: 'Công ty TNHH Nông Sản Đồng Nai Xanh',
+    address: '45 Võ Thị Sáu, TP. Biên Hòa, Đồng Nai',
+    invoiceEmail: 'ketoan@dongnaixanh.vn',
+    billImage: generateBankBillSvg('TECHCOMBANK', '#e11b22', '2.750.000', 'FT26072606', 'VO THANH TRUC', 'VO THANH TRUC COC 50 PT KHOA HHDN 01', '26/07/2026 15:10'),
+    billDate: '2026-07-26 15:10',
+    saleNote: 'Khách cọc 50%, hẹn thanh toán 50% còn lại vào ngày 02/08.'
+  },
+  {
+    id: 'NVT-0707g77',
+    month: '2026-07',
+    type: 'COURSE',
+    typeLabel: 'KHÓA HỌC',
+    customerName: 'Lý Gia Hân',
+    customerPhone: '0912889900',
+    customerCccd: '079199008877',
+    customerAddress: 'Số 12 Mai Chí Thọ, TP. Thủ Đức, TP. HCM',
+    customerEmail: 'giahan.ly@gmail.com',
+    productName: 'Khóa học SMC Cơ bản đến Nâng cao - K01',
+    productSku: 'CRS-SMC-K01',
+    term: 'Vĩnh viễn',
+    saleId: '08010668',
+    saleName: 'Hoàng Tấn Nguyên',
+    subtotal: 5000000,
+    vatAmount: 500000,
+    total: 5500000,
+    collected: 5500000,
+    remaining: 0,
+    paymentStatus: 'PAID',
+    isSuccessNotified: true,
+    requireVat: true,
+    vatStatus: 'ISSUED',
+    vatInvoiceNo: 'HD-2026/0729',
+    vatIssuedDate: '2026-07-29 17:00',
+    taxCode: '0317788990',
+    companyName: 'Công ty Cổ phần Truyền Thông New Vision',
+    address: 'Số 12 Mai Chí Thọ, TP. Thủ Đức, TP. HCM',
+    invoiceEmail: 'accounting@newvision.vn',
+    billImage: generateBankBillSvg('VIETCOMBANK', '#005a3c', '5.500.000', 'FT26072907', 'LY GIA HAN', 'LY GIA HAN DONG TIEN KHOA HOC SMC K01', '29/07/2026 16:20'),
+    billDate: '2026-07-29 16:20',
+    saleNote: 'Học viên thanh toán trọn gói, đã kích hoạt tài khoản học online.'
+  },
+  {
+    id: 'NVT-0708h88',
+    month: '2026-07',
+    type: 'INDICATOR',
+    typeLabel: 'CHỈ BÁO',
+    customerName: 'Trịnh Quốc Khang',
+    customerPhone: '0903332211',
+    customerCccd: '001090001234',
+    customerAddress: 'Số 20 Núi Trúc, Ba Đình, Hà Nội',
+    customerEmail: 'khang.trinh@gmail.com',
+    productName: 'Bộ Chỉ Báo Algo SMC & Order Flow 12 Tháng',
+    productSku: 'IND-ALGO-1Y',
+    term: '1 Năm',
+    saleId: '08058577',
+    saleName: 'Phạm Hoài Ngọc Đức',
+    subtotal: 8000000,
+    vatAmount: 800000,
+    total: 8800000,
+    collected: 8800000,
+    remaining: 0,
+    paymentStatus: 'PAID',
+    isSuccessNotified: true,
+    requireVat: true,
+    vatStatus: 'ISSUED',
+    vatInvoiceNo: 'HD-2026/0731',
+    vatIssuedDate: '2026-07-31 16:30',
+    taxCode: '0108899776',
+    companyName: 'Công ty Cổ phần Tư Vấn Đầu Tư Hoàng Khang',
+    address: 'Số 20 Núi Trúc, Ba Đình, Hà Nội',
+    invoiceEmail: 'tax@hoangkhang.vn',
+    billImage: generateBankBillSvg('BIDV', '#0066b2', '8.800.000', 'FT26073108', 'TRINH QUOC KHANG', 'TRINH QUOC KHANG MUA CHI BAO ALGO TRADING', '31/07/2026 15:45'),
+    billDate: '2026-07-31 15:45',
+    saleNote: 'Đơn hàng cuối tháng 7, hoàn tất thủ tục xuất hóa đơn VAT.'
+  },
+  {
+    id: 'NVT-0801a11',
+    month: '2026-08',
+    type: 'COURSE',
+    typeLabel: 'KHÓA HỌC',
+    customerName: 'Nguyễn Tấn Đạt',
+    customerPhone: '0918776655',
+    customerCccd: '079089004433',
+    customerAddress: 'Số 150 Nguyễn Trãi, Quận 1, TP. HCM',
+    customerEmail: 'tandat.invest@gmail.com',
+    productName: 'Khóa học SMC Cơ bản đến Nâng cao - K02',
+    productSku: 'CRS-SMC-K02',
+    term: 'Vĩnh viễn',
+    saleId: '08058577',
+    saleName: 'Phạm Hoài Ngọc Đức',
+    subtotal: 5000000,
+    vatAmount: 500000,
+    total: 5500000,
+    collected: 5500000,
+    remaining: 0,
+    paymentStatus: 'PAID',
+    isSuccessNotified: true,
+    requireVat: true,
+    vatStatus: 'ISSUED',
+    vatInvoiceNo: 'HD-2026/0801',
+    vatIssuedDate: '2026-08-03 14:30',
+    taxCode: '0316677889',
+    companyName: 'Công ty TNHH Đầu Tư Thương Mại Nam Sài Gòn',
+    address: 'Số 150 Nguyễn Trãi, Quận 1, TP. HCM',
+    invoiceEmail: 'ketoan@namsaigon.vn',
+    billImage: generateBankBillSvg('VIETCOMBANK', '#005a3c', '5.500.000', 'FT26080301', 'NGUYEN TAN DAT', 'NGUYEN TAN DAT DONG TIEN KHOA SMC K02', '03/08/2026 11:20'),
+    billDate: '2026-08-03 11:20',
+    saleNote: 'Học viên đăng ký sớm khóa K02 khai giảng tháng 9.'
+  },
+  {
+    id: 'NVT-0802b22',
+    month: '2026-08',
+    type: 'INDICATOR',
+    typeLabel: 'CHỈ BÁO',
+    customerName: 'Trần Văn Long',
+    customerPhone: '0988112244',
+    customerCccd: '001094005566',
+    customerAddress: 'Tòa Landmark 72, Phạm Hùng, Cầu Giấy, Hà Nội',
+    customerEmail: 'vanlong.trading@gmail.com',
+    productName: 'Bộ Chỉ Báo Algo SMC & Order Flow 12 Tháng',
+    productSku: 'IND-ALGO-1Y',
+    term: '1 Năm',
+    saleId: '08062863',
+    saleName: 'Lê Ngân',
+    subtotal: 8000000,
+    vatAmount: 800000,
+    total: 8800000,
+    collected: 8800000,
+    remaining: 0,
+    paymentStatus: 'PAID',
+    isSuccessNotified: true,
+    requireVat: true,
+    vatStatus: 'ISSUED',
+    vatInvoiceNo: 'HD-2026/0802',
+    vatIssuedDate: '2026-08-07 16:00',
+    taxCode: '0109988334',
+    companyName: 'Công ty Cổ phần Công Nghệ Tài Chính Hà Nội Capital',
+    address: 'Tòa Landmark 72, Phạm Hùng, Cầu Giấy, Hà Nội',
+    invoiceEmail: 'finance@hncapital.vn',
+    billImage: generateBankBillSvg('TECHCOMBANK', '#e11b22', '8.800.000', 'FT26080702', 'TRAN VAN LONG', 'TRAN VAN LONG DONG TIEN CHI BAO ALGO 1Y', '07/08/2026 15:10'),
+    billDate: '2026-08-07 15:10',
+    saleNote: 'Khách hàng tổ chức, đã cấu hình bot tín hiệu trực tiếp vào MT5.'
+  },
+  {
+    id: 'NVT-0803c33',
+    month: '2026-08',
+    type: 'VIP_COMMUNITY',
+    typeLabel: 'NHÓM VIP',
+    customerName: 'Đào Thu Thảo',
+    customerPhone: '0933221199',
+    customerCccd: '031196002233',
+    customerAddress: 'Số 42 Lạch Tray, Ngô Quyền, Hải Phòng',
+    customerEmail: 'thuthao.dao@gmail.com',
+    productName: 'Gói Hội Viên VIP Trading Club 6 Tháng',
+    productSku: 'VIP-CLUB-6M',
+    term: '6 Tháng',
+    saleId: '08077592',
+    saleName: 'Trần Thị Tuyết',
+    subtotal: 6000000,
+    vatAmount: 600000,
+    total: 6600000,
+    collected: 6600000,
+    remaining: 0,
+    paymentStatus: 'PAID',
+    isSuccessNotified: true,
+    requireVat: true,
+    vatStatus: 'ISSUED',
+    vatInvoiceNo: 'HD-2026/0803',
+    vatIssuedDate: '2026-08-12 11:30',
+    taxCode: '0201889901',
+    companyName: 'Công ty TNHH Vận Tải Quốc Tế Á Châu',
+    address: 'Số 42 Lạch Tray, Ngô Quyền, Hải Phòng',
+    invoiceEmail: 'ketoan@achautransport.vn',
+    billImage: generateBankBillSvg('MBBANK', '#002878', '6.600.000', 'FT26081203', 'DAO THU THAO', 'DAO THU THAO CK VIP CLUB 6T', '12/08/2026 10:15'),
+    billDate: '2026-08-12 10:15',
+    saleNote: 'Đã hoàn tất thanh toán và gửi hóa đơn VAT.'
+  },
+  {
+    id: 'NVT-0804d44',
+    month: '2026-08',
+    type: 'COURSE',
+    typeLabel: 'KHÓA HỌC',
+    customerName: 'Vũ Đức Thịnh',
+    customerPhone: '0977889900',
+    customerCccd: '036093006677',
+    customerAddress: '25 Lý Bôn, TP. Thái Bình',
+    customerEmail: 'ducthinh.vu@gmail.com',
+    productName: 'Khóa học SMC Cơ bản đến Nâng cao - K02',
+    productSku: 'CRS-SMC-K02',
+    term: 'Vĩnh viễn',
+    saleId: '08020609',
+    saleName: 'Đỗ Việt Cường',
+    subtotal: 5000000,
+    vatAmount: 500000,
+    total: 5500000,
+    collected: 2750000,
+    remaining: 2750000,
+    paymentStatus: 'DEPOSIT_50',
+    isSuccessNotified: false,
+    requireVat: true,
+    vatStatus: 'NOT_ISSUED',
+    vatInvoiceNo: '',
+    vatIssuedDate: '',
+    taxCode: '1001122334',
+    companyName: 'Hộ Kinh Doanh Đức Thịnh Mobile',
+    address: '25 Lý Bôn, TP. Thái Bình',
+    invoiceEmail: 'thinhvu.tax@gmail.com',
+    billImage: generateBankBillSvg('ACB', '#004b8d', '2.750.000', 'FT26081604', 'VU DUC THINH', 'VU DUC THINH COC 50 PT KHOA SMC K02', '16/08/2026 14:40'),
+    billDate: '2026-08-16 14:40',
+    saleNote: 'Khách cọc 50%, hẹn thanh toán nốt trước ngày 28/08.'
+  },
+  {
+    id: 'NVT-12a34567',
+    month: '2026-08',
+    type: 'COURSE',
+    typeLabel: 'KHÓA HỌC',
+    customerName: 'Trịnh Quốc Thắng',
+    customerPhone: '0912777888',
+    customerCccd: '001090003456',
+    customerAddress: 'Số 80 Trần Hưng Đạo, Hoàn Kiếm, Hà Nội',
+    customerEmail: 'quocthang.trinh@gmail.com',
+    productName: 'Khóa học Price Action Chuyên Sâu 1-1',
+    productSku: 'CRS-PA-1ON1',
+    term: 'Vĩnh viễn',
+    saleId: '08035000',
+    saleName: 'Đặng Tấn Tử',
+    subtotal: 12000000,
+    vatAmount: 1200000,
+    total: 13200000,
+    collected: 13200000,
+    remaining: 0,
+    paymentStatus: 'PAID',
+    isSuccessNotified: true,
+    requireVat: true,
+    vatStatus: 'ISSUED',
+    vatInvoiceNo: 'HD-2026/0819',
+    vatIssuedDate: '2026-08-19 14:15',
+    taxCode: '0106655443',
+    companyName: 'Công ty Cổ phần Đầu Tư Tài Chính Quốc Thắng',
+    address: 'Số 80 Trần Hưng Đạo, Hoàn Kiếm, Hà Nội',
+    invoiceEmail: 'quocthang@gmail.com',
+    billImage: generateBankBillSvg('VIETCOMBANK', '#005a3c', '13.200.000', 'FT12A34567', 'TRINH QUOC THANG', 'TRINH QUOC THANG THANH TOAN KHOA PRICE ACTION 1-1', '19/08/2026 13:50'),
+    billDate: '2026-08-19 13:50',
+    saleNote: 'Khách hàng VIP đăng ký gói kèm 1-1, đã chốt lịch học 10 buổi cùng Giảng viên Hoàng Khánh.'
+  },
+  {
+    id: 'NVT-66e11899',
+    month: '2026-08',
+    type: 'INDICATOR',
+    typeLabel: 'CHỈ BÁO',
+    customerName: 'Lê Hoàng Long',
+    customerPhone: '0903445566',
+    customerCccd: '079088004567',
+    customerAddress: 'Số 15 Lê Duẩn, Bến Nghé, Quận 1, TP. HCM',
+    customerEmail: 'hoanglong.le@gmail.com',
+    productName: 'Bộ Chỉ Báo Algo SMC & Order Flow 12 Tháng',
+    productSku: 'IND-ALGO-1Y',
+    term: '1 Năm',
+    saleId: '08061116',
+    saleName: 'Võ Thị Diễm Tiên',
+    subtotal: 8000000,
+    vatAmount: 800000,
+    total: 8800000,
+    collected: 8800000,
+    remaining: 0,
+    paymentStatus: 'PAID',
+    isSuccessNotified: true,
+    requireVat: true,
+    vatStatus: 'ISSUED',
+    vatInvoiceNo: 'HD-2026/0820',
+    vatIssuedDate: '2026-08-20 14:20',
+    taxCode: '0315544332',
+    companyName: 'Công ty TNHH Đầu Tư Công Nghệ Long Phát',
+    address: 'Số 15 Lê Duẩn, Bến Nghé, Quận 1, TP. HCM',
+    invoiceEmail: 'ketoan@longphat.com',
+    billImage: generateBankBillSvg('BIDV', '#0066b2', '8.800.000', 'FT66E11899', 'LE HOANG LONG', 'LE HOANG LONG THANH TOAN BO CHI BAO ALGO SMC 1Y', '20/08/2026 13:45'),
+    billDate: '2026-08-20 13:45',
+    saleNote: 'Khách hàng gia hạn gói 1 năm bản quyền bot chỉ báo, đã kích hoạt tài khoản TradingView.'
+  },
+  {
+    id: 'NVT-0807g77',
+    month: '2026-08',
+    type: 'COURSE',
+    typeLabel: 'KHÓA HỌC',
+    customerName: 'Hoàng Hải Nam',
+    customerPhone: '0944778899',
+    customerCccd: '038092003322',
+    customerAddress: 'Số 12 Nguyễn Văn Cừ, TP. Hạ Long, Quảng Ninh',
+    customerEmail: 'hainam.invest@gmail.com',
+    productName: 'Khóa học đầu tư hàng hóa nâng cao - HHDN 01',
+    productSku: 'CRS-HHDN-01',
+    term: 'Vĩnh viễn',
+    saleId: '08088879',
+    saleName: 'Đức Thị Ngọc',
+    subtotal: 5000000,
+    vatAmount: 500000,
+    total: 5500000,
+    collected: 5500000,
+    remaining: 0,
+    paymentStatus: 'PAID',
+    isSuccessNotified: true,
+    requireVat: true,
+    vatStatus: 'ISSUED',
+    vatInvoiceNo: 'HD-2026/0823',
+    vatIssuedDate: '2026-08-23 16:10',
+    taxCode: '5701889922',
+    companyName: 'Công ty Cổ phần Thủy Sản Hạ Long Xanh',
+    address: 'Số 12 Nguyễn Văn Cừ, TP. Hạ Long, Quảng Ninh',
+    invoiceEmail: 'nam.hoang@halongxanh.vn',
+    billImage: generateBankBillSvg('TECHCOMBANK', '#e11b22', '5.500.000', 'FT26082307', 'HOANG HAI NAM', 'HOANG HAI NAM TT KHOA HHDN 01', '23/08/2026 15:20'),
+    billDate: '2026-08-23 15:20',
+    saleNote: 'Học viên thanh toán 100%, xuất hóa đơn doanh nghiệp.'
+  },
+  {
+    id: 'NVT-0808h88',
+    month: '2026-08',
+    type: 'COURSE',
+    typeLabel: 'KHÓA HỌC',
+    customerName: 'Phạm Thị Bích',
+    customerPhone: '0966442211',
+    customerCccd: '079195007766',
+    customerAddress: '35 Thảo Điền, TP. Thủ Đức, TP. HCM',
+    customerEmail: 'bichpham.sg@gmail.com',
+    productName: 'Khóa học SMC Cơ bản đến Nâng cao - K02',
+    productSku: 'CRS-SMC-K02',
+    term: 'Vĩnh viễn',
+    saleId: '08007997',
+    saleName: 'Đỗ Mạnh Dũng',
+    subtotal: 5000000,
+    vatAmount: 500000,
+    total: 5500000,
+    collected: 5500000,
+    remaining: 0,
+    paymentStatus: 'PAID',
+    isSuccessNotified: true,
+    requireVat: true,
+    vatStatus: 'ISSUED',
+    vatInvoiceNo: 'HD-2026/0827',
+    vatIssuedDate: '2026-08-27 15:00',
+    taxCode: '0318899112',
+    companyName: 'Công ty TNHH Thời Trang Bích Phạm',
+    address: '35 Thảo Điền, TP. Thủ Đức, TP. HCM',
+    invoiceEmail: 'ketoan@bichpham.vn',
+    billImage: generateBankBillSvg('VIETCOMBANK', '#005a3c', '5.500.000', 'FT26082708', 'PHAM THI BICH', 'PHAM THI BICH THANH TOAN KHOA SMC K02', '27/08/2026 14:15'),
+    billDate: '2026-08-27 14:15',
+    saleNote: 'Học viên nữ đam mê tài chính, vào nhóm hỗ trợ VIP.'
+  },
+  {
+    id: 'NVT-0901a11',
+    month: '2026-09',
+    type: 'COURSE',
+    typeLabel: 'KHÓA HỌC',
+    customerName: 'Nguyễn Đình Trọng',
+    customerPhone: '0908889911',
+    customerCccd: '001093004455',
+    customerAddress: 'Số 50 Nguyễn Chí Thanh, Đống Đa, Hà Nội',
+    customerEmail: 'trong.invest@gmail.com',
+    productName: 'Khóa học SMC Cơ bản đến Nâng cao - K02',
+    productSku: 'CRS-SMC-K02',
+    term: 'Vĩnh viễn',
+    saleId: '08058577',
+    saleName: 'Phạm Hoài Ngọc Đức',
+    subtotal: 5000000,
+    vatAmount: 500000,
+    total: 5500000,
+    collected: 5500000,
+    remaining: 0,
+    paymentStatus: 'PAID',
+    isSuccessNotified: true,
+    requireVat: true,
+    vatStatus: 'ISSUED',
+    vatInvoiceNo: 'HD-2026/0905',
+    vatIssuedDate: '2026-09-05 15:30',
+    taxCode: '0107788991',
+    companyName: 'Công ty Cổ phần Tư Vấn Trọng Nguyễn',
+    address: 'Số 50 Nguyễn Chí Thanh, Đống Đa, Hà Nội',
+    invoiceEmail: 'trongnguyen@gmail.com',
+    billImage: generateBankBillSvg('VIETCOMBANK', '#005a3c', '5.500.000', 'FT26090501', 'NGUYEN DINH TRONG', 'NGUYEN DINH TRONG CK FULL KHOA SMC K02', '05/09/2026 14:10'),
+    billDate: '2026-09-05 14:10',
+    saleNote: 'Học viên đã vào lớp K02, bắt đầu học tuần đầu tháng 9.'
+  },
+  {
+    id: 'NVT-44d99211',
+    month: '2026-09',
+    type: 'VIP_COMMUNITY',
+    typeLabel: 'NHÓM VIP',
+    customerName: 'Đặng Quốc Huy',
+    customerPhone: '0933221100',
+    customerCccd: '031089009876',
+    customerAddress: 'Số 18 Hoàng Hoa Thám, Ba Đình, Hà Nội',
+    customerEmail: 'quochuy.invest@gmail.com',
+    productName: 'Gói Hội Viên VIP Trading Club 6 Tháng',
+    productSku: 'VIP-COMM-6M',
+    term: '6 Tháng',
+    saleId: '08062863',
+    saleName: 'Lê Ngân',
+    subtotal: 6000000,
+    vatAmount: 600000,
+    total: 6600000,
+    collected: 6600000,
+    remaining: 0,
+    paymentStatus: 'PAID',
+    isSuccessNotified: true,
+    requireVat: true,
+    vatStatus: 'ISSUED',
+    vatInvoiceNo: 'HD-2026/0018',
+    vatIssuedDate: '2026-09-21 16:30',
+    taxCode: '0109988776',
+    companyName: 'Công ty TNHH Đầu Tư Thương Mại Test',
+    address: 'Số 12 Duy Tân, Cầu Giấy, Hà Nội',
+    invoiceEmail: 'ketoan.test@gmail.com',
+    billImage: generateBankBillSvg('TECHCOMBANK', '#e11b22', '6.600.000', 'FT44D99211', 'DANG QUOC HUY', 'DANG QUOC HUY THANH TOAN GOI VIP 6 THANG', '21/09/2026 16:00'),
+    billDate: '2026-09-21 16:00',
+    saleNote: 'Khách hàng thanh toán trọn gói 6 tháng hội viên VIP, đã add nhóm tín hiệu Telegram.'
+  },
+  {
+    id: 'NVT-77c88102',
+    month: '2026-09',
+    type: 'INDICATOR',
+    typeLabel: 'CHỈ BÁO',
+    customerName: 'Trần Văn Mạnh',
+    customerPhone: '0988665544',
+    customerCccd: '001094002345',
+    customerAddress: 'Tòa nhà Landmark 81, Bình Thạnh, TP. HCM',
+    customerEmail: 'tranmanh.trade@gmail.com',
+    productName: 'Bộ Chỉ Báo Algo SMC & Order Flow 12 Tháng',
+    productSku: 'IND-ALGO-1Y',
+    term: '1 Năm',
+    saleId: '08035000',
+    saleName: 'Đặng Tấn Tử',
+    subtotal: 8000000,
+    vatAmount: 800000,
+    total: 8800000,
+    collected: 8800000,
+    remaining: 0,
+    paymentStatus: 'PAID',
+    isSuccessNotified: true,
+    requireVat: true,
+    vatStatus: 'ISSUED',
+    vatInvoiceNo: 'HD-2026/0017',
+    vatIssuedDate: '2026-09-22 10:15',
+    taxCode: '0318899001',
+    companyName: 'Công ty Cổ phần Công Nghệ Tài Chính Mạnh Trần',
+    address: 'Tòa Landmark 81, Bình Thạnh, TP. HCM',
+    invoiceEmail: 'ketoan@manhtran.vn',
+    billImage: generateBankBillSvg('MBBANK', '#002878', '8.800.000', 'FT77C88102', 'TRAN VAN MANH', 'TRAN VAN MANH THANH TOAN CHI BAO ALGO 1 NAM', '22/09/2026 09:40'),
+    billDate: '2026-09-22 09:40',
+    saleNote: 'Khách mua chỉ báo gói 1 năm, đã bàn giao key kích hoạt TradingView.'
+  },
+  {
+    id: 'NVT-33b018cf',
+    month: '2026-09',
+    type: 'COURSE',
+    typeLabel: 'KHÓA HỌC',
+    customerName: 'Hoàng Thị Yến',
+    customerPhone: '0977112233',
+    customerCccd: '036197008899',
+    customerAddress: 'Số 45 Lê Duẩn, Quận 1, TP. HCM',
+    customerEmail: 'hoangyen.real@gmail.com',
+    productName: 'Khóa học SMC Cơ bản đến Nâng cao - K02',
+    productSku: 'CRS-SMC-K02',
+    term: 'Vĩnh viễn',
+    saleId: '08077592',
+    saleName: 'Trần Thị Tuyết',
+    subtotal: 5000000,
+    vatAmount: 500000,
+    total: 5500000,
+    collected: 5500000,
+    remaining: 0,
+    paymentStatus: 'PAID',
+    isSuccessNotified: true,
+    requireVat: true,
+    vatStatus: 'ISSUED',
+    vatInvoiceNo: 'HD-2026/0016',
+    vatIssuedDate: '2026-09-22 15:00',
+    taxCode: '0316655443',
+    companyName: 'Công ty TNHH Thời Trang Hoàng Yến',
+    address: 'Số 45 Lê Duẩn, Quận 1, TP. HCM',
+    invoiceEmail: 'ketoan@hoangyen.vn',
+    billImage: generateBankBillSvg('VIETCOMBANK', '#005a3c', '5.500.000', 'FT33B018CF', 'HOANG THI YEN', 'HOANG THI YEN DONG HOC PHI SMC K02', '22/09/2026 14:10'),
+    billDate: '2026-09-22 14:10',
+    saleNote: 'Đã hoàn tất thanh toán 100%, gửi email xác nhận tài khoản học.'
+  },
+  {
+    id: 'NVT-8c01df44',
+    month: '2026-09',
+    type: 'COURSE',
+    typeLabel: 'KHÓA HỌC',
+    customerName: 'Vũ Minh Đức',
+    customerPhone: '0912998877',
+    customerCccd: '025091001122',
+    customerAddress: 'Số 28 Trần Hưng Đạo, Hải Phòng',
+    customerEmail: 'duc.vuminh@gmail.com',
+    productName: 'Khóa học Price Action Chuyên Sâu 1-1',
+    productSku: 'CRS-PA-1ON1',
+    term: 'Vĩnh viễn',
+    saleId: '08020609',
+    saleName: 'Đỗ Việt Cường',
+    subtotal: 12000000,
+    vatAmount: 1200000,
+    total: 13200000,
+    collected: 13200000,
+    remaining: 0,
+    paymentStatus: 'PAID',
+    isSuccessNotified: true,
+    requireVat: true,
+    vatStatus: 'ISSUED',
+    vatInvoiceNo: 'HD-2026/0015',
+    vatIssuedDate: '2026-09-23 09:30',
+    taxCode: '0201998877',
+    companyName: 'Công ty Cổ phần Vận Tải Biển Minh Đức',
+    address: 'Số 28 Trần Hưng Đạo, Hải Phòng',
+    invoiceEmail: 'ketoan@minhducshipping.vn',
+    billImage: generateBankBillSvg('ACB', '#004b8d', '13.200.000', 'FT8C01DF44', 'VU MINH DUC', 'VU MINH DUC THANH TOAN KHOA PRICE ACTION 1-1', '23/09/2026 08:50'),
+    billDate: '2026-09-23 08:50',
+    saleNote: 'Học viên kèm riêng 1-1, đã chốt lịch học buổi đầu vào ngày 27/09.'
+  },
+  {
+    id: 'NVT-55a73e91',
+    month: '2026-09',
+    type: 'COURSE',
+    typeLabel: 'KHÓA HỌC',
+    customerName: 'Bùi Lan Anh',
+    customerPhone: '0966334455',
+    customerCccd: '001198006655',
+    customerAddress: 'Số 88 Cầu Giấy, Hà Nội',
+    customerEmail: 'lananh.bui@gmail.com',
+    productName: 'Khóa học SMC Cơ bản đến Nâng cao - K02',
+    productSku: 'CRS-SMC-K02',
+    term: 'Vĩnh viễn',
+    saleId: '08028892',
+    saleName: 'Đặng Hương Thuỷ',
+    subtotal: 5000000,
+    vatAmount: 500000,
+    total: 5500000,
+    collected: 2750000,
+    remaining: 2750000,
+    paymentStatus: 'DEPOSIT_50',
+    isSuccessNotified: false,
+    requireVat: true,
+    vatStatus: 'NOT_ISSUED',
+    vatInvoiceNo: '',
+    vatIssuedDate: '',
+    taxCode: '0108899221',
+    companyName: 'Công ty TNHH Tư Vấn Giáo Dục Lan Anh',
+    address: 'Số 88 Cầu Giấy, Hà Nội',
+    invoiceEmail: 'ketoan@lananh.edu.vn',
+    billImage: generateBankBillSvg('TECHCOMBANK', '#e11b22', '2.750.000', 'FT55A73E91', 'BUI LAN ANH', 'BUI LAN ANH COC 50 PT KHOA HOC SMC K02', '23/09/2026 17:30'),
+    billDate: '2026-09-23 17:30',
+    saleNote: 'Khách cọc 50%, hẹn thanh toán 50% còn lại trước ngày 28/09.'
+  },
+  {
+    id: 'NVT-f4901ba2',
+    month: '2026-09',
+    type: 'VIP_COMMUNITY',
+    typeLabel: 'NHÓM VIP',
+    customerName: 'Lê Hoàng Phong',
+    customerPhone: '0945889900',
+    customerCccd: '079090001234',
+    customerAddress: 'Số 10 Mai Chí Thọ, TP. Thủ Đức, TP. HCM',
+    customerEmail: 'phong.lehoang@gmail.com',
+    productName: 'Gói Hội Viên VIP Trading Club 12 Tháng',
+    productSku: 'VIP-COMM-12M',
+    term: '1 Năm',
+    saleId: '08029908',
+    saleName: 'Lê Trung Kiên',
+    subtotal: 10000000,
+    vatAmount: 1000000,
+    total: 11000000,
+    collected: 11000000,
+    remaining: 0,
+    paymentStatus: 'PAID',
+    isSuccessNotified: true,
+    requireVat: true,
+    vatStatus: 'ISSUED',
+    vatInvoiceNo: 'HD-2026/0014',
+    vatIssuedDate: '2026-09-24 11:45',
+    taxCode: '0317766554',
+    companyName: 'Công ty Cổ phần Công Nghệ Phong Lê',
+    address: 'Số 10 Mai Chí Thọ, TP. Thủ Đức, TP. HCM',
+    invoiceEmail: 'ketoan@phongle.vn',
+    billImage: generateBankBillSvg('BIDV', '#0066b2', '11.000.000', 'FTF4901BA2', 'LE HOANG PHONG', 'LE HOANG PHONG THANH TOAN VIP 12 THANG', '24/09/2026 11:15'),
+    billDate: '2026-09-24 11:15',
+    saleNote: 'Khách VIP đăng ký gói 1 năm, đã cấp tài khoản Telegram & Discord Bot.'
+  },
+  {
+    id: 'NVT-918ba01c',
+    month: '2026-09',
+    type: 'COURSE',
+    typeLabel: 'KHÓA HỌC',
+    customerName: 'Nguyễn Văn Hải',
+    customerPhone: '0918882345',
+    customerCccd: '038096001245',
+    customerAddress: 'Số 25 Võ Thị Sáu, Phường 2, TP. Vũng Tàu',
+    customerEmail: 'vanhai.vungtau@gmail.com',
+    productName: 'Khóa học SMC Cơ bản đến Nâng cao - K02',
+    productSku: 'CRS-SMC-K02',
+    term: 'Vĩnh viễn',
+    saleId: '08058577',
+    saleName: 'Phạm Hoài Ngọc Đức',
+    subtotal: 5000000,
+    vatAmount: 500000,
+    total: 5500000,
+    collected: 5500000,
+    remaining: 0,
+    paymentStatus: 'PAID',
+    isSuccessNotified: true,
+    requireVat: true,
+    vatStatus: 'ISSUED',
+    vatInvoiceNo: 'HD-2026/0013',
+    vatIssuedDate: '2026-09-24 16:10',
+    taxCode: '3502441988',
+    companyName: 'Công ty Cổ phần Dầu Khí Vũng Tàu',
+    address: 'Số 25 Võ Thị Sáu, Phường 2, TP. Vũng Tàu',
+    invoiceEmail: 'vanhai@vungtauoil.vn',
+    billImage: generateBankBillSvg('MBBANK', '#002878', '5.500.000', 'FT918BA01C', 'NGUYEN VAN HAI', 'NGUYEN VAN HAI DONG TIEN KHOA HOC SMC K02', '24/09/2026 15:45'),
+    billDate: '2026-09-24 15:45',
+    saleNote: 'Khách hàng chuyển khoản đủ 100%, yêu cầu xuất hóa đơn điện tử công ty.'
+  },
+  {
+    id: 'NVT-268cbb67',
+    month: '2026-09',
+    type: 'SALE',
+    typeLabel: 'BÊN BÁN',
+    customerName: 'test',
+    customerPhone: '0901231231',
+    customerCccd: '001201019882',
+    customerAddress: 'Số 12 Duy Tân, Cầu Giấy, Hà Nội',
+    customerEmail: 'khachhang.test@gmail.com',
+    productName: 'Khóa học đầu tư hàng hóa nâng cao - HHDN 01',
+    productSku: 'CRS-HHDN-01',
+    term: 'Vĩnh viễn',
+    saleId: '08058577',
+    saleName: 'Phạm Hoài Ngọc Đức',
+    subtotal: 5000000,
+    vatAmount: 500000,
+    total: 5500000,
+    collected: 2750000,
+    remaining: 2750000,
+    paymentStatus: 'DEPOSIT_50',
+    isSuccessNotified: false,
+    requireVat: true,
+    vatStatus: 'NOT_ISSUED',
+    vatInvoiceNo: '',
+    vatIssuedDate: '',
+    taxCode: '0109988776',
+    companyName: 'Công ty TNHH Đầu Tư Thương Mại Test',
+    address: 'Số 12 Duy Tân, Cầu Giấy, Hà Nội',
+    invoiceEmail: 'ketoan.test@gmail.com',
+    billImage: generateBankBillSvg('VIETCOMBANK', '#005a3c', '2.750.000', 'FT268CBB67', 'NGUYEN VAN TEST', 'TEST COC 50 PHAN TRAM KHOA HOC HHDN', '24/09/2026 14:20'),
+    billDate: '2026-09-24 14:20',
+    saleNote: 'Khách cọc 50% giữ chỗ lớp HHDN 01. Đã đối chiếu CCCD và địa chỉ. Hẹn 28/09 đóng nốt 50% còn lại trước ngày khai giảng.'
   },
   {
     id: 'NVT-88e99001',
+    month: '2026-10',
     type: 'COURSE',
     typeLabel: 'KHÓA HỌC',
-    month: '2026-10',
     customerName: 'Phan Minh Khang',
-    customerPhone: '0909988776',
-    customerCccd: '079088009988',
+    customerPhone: '0909112233',
+    customerCccd: '079089007788',
     customerAddress: '102 Nguyễn Đình Chiểu, Quận 3, TP. HCM',
-    customerEmail: 'khangphan@gmail.com',
-    productName: 'Khóa Học SMC Nâng Cao - Lớp SMC-K03',
+    customerEmail: 'minhkhang.phan@gmail.com',
+    productName: 'Khóa học SMC Cơ bản đến Nâng cao - K03',
     productSku: 'CRS-SMC-K03',
     term: 'Vĩnh viễn',
-    saleId: '08018228',
+    saleId: '08058577',
     saleName: 'Phạm Hoài Ngọc Đức',
     subtotal: 5000000,
     vatAmount: 500000,
@@ -6749,6 +7898,210 @@ let VAT_ORDERS_DATA = [
     billImage: generateBankBillSvg('VIETCOMBANK', '#005a3c', '5.500.000', 'FT88E99001', 'PHAN MINH KHANG', 'DONG DU TIEN KHOA HOC SMC K03', '02/10/2026 15:10'),
     billDate: '2026-10-02 15:10',
     saleNote: 'Đã hoàn tất thanh toán và xuất hóa đơn VAT.'
+  },
+  {
+    id: 'NVT-1002b22',
+    month: '2026-10',
+    type: 'INDICATOR',
+    typeLabel: 'CHỈ BÁO',
+    customerName: 'Trịnh Hoàng Bách',
+    customerPhone: '0912445566',
+    customerCccd: '001095007788',
+    customerAddress: 'Tòa Lotte Center, 54 Liễu Giai, Ba Đình, Hà Nội',
+    customerEmail: 'hoangbach.trinh@gmail.com',
+    productName: 'Bộ Chỉ Báo Algo SMC & Order Flow 12 Tháng',
+    productSku: 'IND-ALGO-1Y',
+    term: '1 Năm',
+    saleId: '08062863',
+    saleName: 'Lê Ngân',
+    subtotal: 8000000,
+    vatAmount: 800000,
+    total: 8800000,
+    collected: 8800000,
+    remaining: 0,
+    paymentStatus: 'PAID',
+    isSuccessNotified: true,
+    requireVat: true,
+    vatStatus: 'ISSUED',
+    vatInvoiceNo: 'HD-2026/1002',
+    vatIssuedDate: '2026-10-06 14:15',
+    taxCode: '0106655998',
+    companyName: 'Công ty Cổ phần Công Nghệ Bách Khoa Đầu Tư',
+    address: 'Tòa Lotte Center, 54 Liễu Giai, Ba Đình, Hà Nội',
+    invoiceEmail: 'bach.trinh@bkcapital.vn',
+    billImage: generateBankBillSvg('TECHCOMBANK', '#e11b22', '8.800.000', 'FT26100602', 'TRINH HOANG BACH', 'TRINH HOANG BACH MUA CHI BAO ALGO 1Y', '06/10/2026 11:20'),
+    billDate: '2026-10-06 11:20',
+    saleNote: 'Đã setup bot tự động báo lệnh vào kênh riêng của khách.'
+  },
+  {
+    id: 'NVT-1003c33',
+    month: '2026-10',
+    type: 'VIP_COMMUNITY',
+    typeLabel: 'NHÓM VIP',
+    customerName: 'Vũ Thị Minh Hà',
+    customerPhone: '0979882233',
+    customerCccd: '038198004455',
+    customerAddress: '88 Lê Hồng Phong, TP. Nam Định',
+    customerEmail: 'minhha.vu@gmail.com',
+    productName: 'Gói Hội Viên VIP Trading Club 6 Tháng',
+    productSku: 'VIP-COMM-6M',
+    term: '6 Tháng',
+    saleId: '08077592',
+    saleName: 'Trần Thị Tuyết',
+    subtotal: 6000000,
+    vatAmount: 600000,
+    total: 6600000,
+    collected: 6600000,
+    remaining: 0,
+    paymentStatus: 'PAID',
+    isSuccessNotified: true,
+    requireVat: true,
+    vatStatus: 'ISSUED',
+    vatInvoiceNo: 'HD-2026/1003',
+    vatIssuedDate: '2026-10-11 16:30',
+    taxCode: '0601122889',
+    companyName: 'Công ty TNHH Dệt May Minh Hà',
+    address: '88 Lê Hồng Phong, TP. Nam Định',
+    invoiceEmail: 'ketoan@minhha.vn',
+    billImage: generateBankBillSvg('MBBANK', '#002878', '6.600.000', 'FT26101103', 'VU THI MINH HA', 'VU THI MINH HA THANH TOAN VIP 6T', '11/10/2026 15:40'),
+    billDate: '2026-10-11 15:40',
+    saleNote: 'Khách VIP, thanh toán 100% qua MB Bank.'
+  },
+  {
+    id: 'NVT-1004d44',
+    month: '2026-10',
+    type: 'COURSE',
+    typeLabel: 'KHÓA HỌC',
+    customerName: 'Đỗ Tuấn Kiệt',
+    customerPhone: '0933119988',
+    customerCccd: '079093006677',
+    customerAddress: '45 Lê Văn Sỹ, Phường 13, Quận 3, TP. HCM',
+    customerEmail: 'tuankiet.do@gmail.com',
+    productName: 'Khóa học SMC Cơ bản đến Nâng cao - K03',
+    productSku: 'CRS-SMC-K03',
+    term: 'Vĩnh viễn',
+    saleId: '08020609',
+    saleName: 'Đỗ Việt Cường',
+    subtotal: 5000000,
+    vatAmount: 500000,
+    total: 5500000,
+    collected: 2750000,
+    remaining: 2750000,
+    paymentStatus: 'DEPOSIT_50',
+    isSuccessNotified: false,
+    requireVat: true,
+    vatStatus: 'NOT_ISSUED',
+    vatInvoiceNo: '',
+    vatIssuedDate: '',
+    taxCode: '0317766112',
+    companyName: 'Công ty Cổ phần Xây Dựng Kiệt Phát',
+    address: '45 Lê Văn Sỹ, Phường 13, Quận 3, TP. HCM',
+    invoiceEmail: 'kietphat.build@gmail.com',
+    billImage: generateBankBillSvg('ACB', '#004b8d', '2.750.000', 'FT26101604', 'DO TUAN KIET', 'DO TUAN KIET COC 50 PT KHOA SMC K03', '16/10/2026 10:25'),
+    billDate: '2026-10-16 10:25',
+    saleNote: 'Khách cọc 50%, hẹn thanh toán 50% còn lại trước ngày 25/10.'
+  },
+  {
+    id: 'NVT-1005e55',
+    month: '2026-10',
+    type: 'COURSE',
+    typeLabel: 'KHÓA HỌC',
+    customerName: 'Nguyễn Hải Đăng',
+    customerPhone: '0908776655',
+    customerCccd: '001091004567',
+    customerAddress: 'Số 15 Tây Sơn, Đống Đa, Hà Nội',
+    customerEmail: 'haidang.trade@gmail.com',
+    productName: 'Khóa học Price Action Chuyên Sâu 1-1',
+    productSku: 'CRS-PA-1ON1',
+    term: 'Vĩnh viễn',
+    saleId: '08035000',
+    saleName: 'Đặng Tấn Tử',
+    subtotal: 12000000,
+    vatAmount: 1200000,
+    total: 13200000,
+    collected: 13200000,
+    remaining: 0,
+    paymentStatus: 'PAID',
+    isSuccessNotified: true,
+    requireVat: true,
+    vatStatus: 'ISSUED',
+    vatInvoiceNo: 'HD-2026/1020',
+    vatIssuedDate: '2026-10-20 17:15',
+    taxCode: '0108899334',
+    companyName: 'Công ty TNHH Tư Vấn Quản Lý Tài Chính Hải Đăng',
+    address: 'Số 15 Tây Sơn, Đống Đa, Hà Nội',
+    invoiceEmail: 'ketoan@haidangfin.vn',
+    billImage: generateBankBillSvg('VIETCOMBANK', '#005a3c', '13.200.000', 'FT26102005', 'NGUYEN HAI DANG', 'NGUYEN HAI DANG THANH TOAN KHOA PRICE ACTION 1-1', '20/10/2026 16:30'),
+    billDate: '2026-10-20 16:30',
+    saleNote: 'Khách học 1-1 trực tiếp, đã lên giáo án phù hợp với công việc kinh doanh.'
+  },
+  {
+    id: 'NVT-1006f66',
+    month: '2026-10',
+    type: 'COURSE',
+    typeLabel: 'KHÓA HỌC',
+    customerName: 'Mai Phương Thuý',
+    customerPhone: '0919554433',
+    customerCccd: '079192008899',
+    customerAddress: 'Số 72 Lê Thánh Tôn, Bến Nghé, Quận 1, TP. HCM',
+    customerEmail: 'phuongthuy.mai@gmail.com',
+    productName: 'Khóa học đầu tư hàng hóa nâng cao - HHDN 01',
+    productSku: 'CRS-HHDN-01',
+    term: 'Vĩnh viễn',
+    saleId: '08061116',
+    saleName: 'Võ Thị Diễm Tiên',
+    subtotal: 5000000,
+    vatAmount: 500000,
+    total: 5500000,
+    collected: 5500000,
+    remaining: 0,
+    paymentStatus: 'PAID',
+    isSuccessNotified: true,
+    requireVat: true,
+    vatStatus: 'ISSUED',
+    vatInvoiceNo: 'HD-2026/1025',
+    vatIssuedDate: '2026-10-25 15:45',
+    taxCode: '0316655889',
+    companyName: 'Công ty Cổ phần Thương Mại Quốc Tế Phương Thúy',
+    address: 'Số 72 Lê Thánh Tôn, Bến Nghé, Quận 1, TP. HCM',
+    invoiceEmail: 'tax@phuongthuygroup.vn',
+    billImage: generateBankBillSvg('BIDV', '#0066b2', '5.500.000', 'FT26102506', 'MAI PHUONG THUY', 'MAI PHUONG THUY TT KHOA HHDN 01', '25/10/2026 14:50'),
+    billDate: '2026-10-25 14:50',
+    saleNote: 'Đã hoàn tất thủ tục xuất hóa đơn VAT điện tử.'
+  },
+  {
+    id: 'NVT-1007g77',
+    month: '2026-10',
+    type: 'VIP_COMMUNITY',
+    typeLabel: 'NHÓM VIP',
+    customerName: 'Lê Minh Tuấn',
+    customerPhone: '0988223311',
+    customerCccd: '038090005544',
+    customerAddress: '90 Trần Phú, Lộc Thọ, TP. Nha Trang',
+    customerEmail: 'minhtuan.nt@gmail.com',
+    productName: 'Gói Hội Viên VIP Trading Club 12 Tháng',
+    productSku: 'VIP-COMM-12M',
+    term: '1 Năm',
+    saleId: '08028892',
+    saleName: 'Đặng Hương Thuỷ',
+    subtotal: 10000000,
+    vatAmount: 1000000,
+    total: 11000000,
+    collected: 11000000,
+    remaining: 0,
+    paymentStatus: 'PAID',
+    isSuccessNotified: true,
+    requireVat: true,
+    vatStatus: 'ISSUED',
+    vatInvoiceNo: 'HD-2026/1029',
+    vatIssuedDate: '2026-10-29 16:20',
+    taxCode: '4201998877',
+    companyName: 'Công ty TNHH Đầu Tư Bất Động Sản Nha Trang Bay',
+    address: '90 Trần Phú, Lộc Thọ, TP. Nha Trang',
+    invoiceEmail: 'tuanketoan@nhatrangbay.vn',
+    billImage: generateBankBillSvg('VIETCOMBANK', '#005a3c', '11.000.000', 'FT26102907', 'LE MINH TUAN', 'LE MINH TUAN THANH TOAN GOI VIP 12 THANG', '29/10/2026 15:30'),
+    billDate: '2026-10-29 15:30',
+    saleNote: 'Gia hạn gói VIP 1 năm cuối tháng 10, gửi hóa đơn VAT hợp lệ.'
   }
 ];
 
@@ -6842,26 +8195,26 @@ function renderVatOrdersView() {
   const vatIssuedOrders = listByMonth.filter(o => o.vatStatus === 'ISSUED');
   const totalVat = vatIssuedOrders.reduce((sum, o) => sum + (Number(o.vatAmount) || 0), 0);
 
-  // Cập nhật 4 KPI
+  // Cập nhật 4 KPI sạch sẽ, bỏ phụ đề chú thích rườm rà
   const kpiCount = document.getElementById('kpiOrderTotalCount');
   if (kpiCount) kpiCount.textContent = `${totalOrders} đơn`;
   const kpiVal = document.getElementById('kpiOrderTotalValue');
-  if (kpiVal) kpiVal.textContent = `Tổng giá trị: ${formatCurrency(totalRev)}`;
+  if (kpiVal) kpiVal.textContent = formatCurrency(totalRev + totalOrders * 0); // Hiển thị số tiền rõ ràng
 
   const kpiPaidCount = document.getElementById('kpiOrderPaidCount');
   if (kpiPaidCount) kpiPaidCount.textContent = `${paidOrders.length} đơn`;
   const kpiPaidSub = document.getElementById('kpiOrderPaidSub');
-  if (kpiPaidSub) kpiPaidSub.textContent = `Thu đủ: ${(paidVal/1000000).toFixed(1)}tr • Sẵn sàng xuất VAT`;
+  if (kpiPaidSub) kpiPaidSub.textContent = formatCurrency(paidVal);
 
   const kpiDepCount = document.getElementById('kpiOrderDepositCount');
   if (kpiDepCount) kpiDepCount.textContent = `${depositOrders.length} đơn`;
   const kpiDepSub = document.getElementById('kpiOrderDepositSub');
-  if (kpiDepSub) kpiDepSub.innerHTML = `Đã thu: ${(depositCollected/1000000).toFixed(1)}tr • <span style="color:#dc2626; font-weight:800;">Còn nợ: ${formatCurrency(depositRemaining)}</span>`;
+  if (kpiDepSub) kpiDepSub.innerHTML = `<span style="color:#dc2626; font-weight:800;">Còn lại: ${formatCurrency(depositRemaining)}</span>`;
 
   const kpiVatCount = document.getElementById('kpiOrderVatIssuedCount');
   if (kpiVatCount) kpiVatCount.textContent = `${vatIssuedOrders.length} đơn`;
   const kpiVatSub = document.getElementById('kpiOrderVatIssuedSub');
-  if (kpiVatSub) kpiVatSub.textContent = `Tổng tiền thuế VAT: ${formatCurrency(totalVat)} (10%)`;
+  if (kpiVatSub) kpiVatSub.textContent = formatCurrency(totalVat);
 
   // RENDER THANH THÔNG BÁO: CÓ ĐƠN THANH TOÁN THÀNH CÔNG BÁO VỀ KẾ TOÁN
   renderPaymentNotificationBanner();
@@ -6936,7 +8289,7 @@ function renderVatOrdersTable() {
   if (badgeCount) badgeCount.textContent = `${filtered.length} đơn`;
 
   if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="13" style="text-align:center; padding:30px; color:#94a3b8; font-weight:700;">Không tìm thấy đơn hàng nào phù hợp với bộ lọc</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="14" style="text-align:center; padding:30px; color:#94a3b8; font-weight:700;">Không tìm thấy đơn hàng nào phù hợp với bộ lọc</td></tr>`;
     return;
   }
 
@@ -6979,14 +8332,14 @@ function renderVatOrdersTable() {
       `;
     }
 
-    // Badge VAT & Option xuất VAT
+    // Cột VAT: Mặc định sản phẩm nào cũng có thuế VAT 10%
     const isVatIssued = order.vatStatus === 'ISSUED';
     let vatCellHtml = `
       <div style="text-align:right;">
-        <span style="font-family:'JetBrains Mono'; font-weight:700;">${formatCurrency(order.vatAmount)}</span>
+        <span style="font-family:'JetBrains Mono'; font-weight:800; color:#0f172a;">${formatCurrency(order.vatAmount)}</span>
         <div>
-          <small style="font-size:9px; color:${isVatIssued ? '#059669' : (order.requireVat ? '#7c3aed' : '#94a3b8')}; font-weight:800;">
-            ${isVatIssued ? '✓ Đã xuất HĐ' : (order.requireVat ? '★ Có Option VAT' : 'Không VAT')}
+          <small style="font-size:9.5px; color:${isVatIssued ? '#059669' : '#7c3aed'}; font-weight:800;">
+            ${isVatIssued ? '✓ Đã xuất HĐ' : 'Thuế 10% (Chờ xuất)'}
           </small>
         </div>
       </div>
@@ -7004,7 +8357,7 @@ function renderVatOrdersTable() {
       vatBtnHtml = `<button type="button" class="btn-action btn-primary" onclick="event.stopPropagation(); issueVatInvoice('${order.id}')" style="background:#7c3aed; color:#fff; font-size:11px; padding:3px 8px; font-weight:700; border:none; border-radius:4px; cursor:pointer; white-space:nowrap; box-shadow:0 1px 3px rgba(124,58,237,0.3);" title="Đã thanh toán đủ 100%, sẵn sàng xuất hóa đơn VAT">Xuất VAT</button>`;
     } else {
       confirmBtnHtml = `<button type="button" class="btn-action" onclick="event.stopPropagation(); confirmFullPayment('${order.id}')" style="background:#059669; color:#fff; font-size:11px; padding:3px 7px; font-weight:700; border:none; border-radius:4px; cursor:pointer; white-space:nowrap; box-shadow:0 1px 3px rgba(5,150,105,0.25);" title="Bấm xác nhận khách đã nộp nốt ${formatCurrency(order.remaining)} để mở khóa nút Xuất VAT">Xác nhận đủ</button>`;
-      vatBtnHtml = `<button type="button" class="btn-action btn-secondary" disabled onclick="event.stopPropagation(); alert('Đơn hàng chưa thanh toán đủ 100%. Vui lòng bấm [Xác nhận đủ] trước khi xuất hóa đơn VAT!');" style="opacity:0.4; font-size:11px; padding:3px 7px; cursor:not-allowed; background:#f1f5f9; color:#94a3b8; border:1px solid #cbd5e1; border-radius:4px; white-space:nowrap;" title="Cần bấm [Xác nhận đủ] trước khi xuất VAT">Xuất VAT</button>`;
+      vatBtnHtml = `<button type="button" class="btn-action btn-secondary" disabled onclick="event.stopPropagation(); showToast('Đơn hàng chưa thanh toán đủ 100%. Vui lòng bấm [Xác nhận đủ] trước khi xuất hóa đơn VAT!', 'warning', 'Chưa Đủ Điều Kiện');" style="opacity:0.4; font-size:11px; padding:3px 7px; cursor:not-allowed; background:#f1f5f9; color:#94a3b8; border:1px solid #cbd5e1; border-radius:4px; white-space:nowrap;" title="Cần bấm [Xác nhận đủ] trước khi xuất VAT">Xuất VAT</button>`;
     }
 
     // Hiển thị thông tin CCCD và Địa chỉ trực tiếp dưới tên khách
@@ -7012,9 +8365,20 @@ function renderVatOrdersTable() {
     const addrLine = order.customerAddress ? `<div style="font-size:10px; color:#475569; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${order.customerAddress}">📍 ${order.customerAddress}</div>` : '';
 
     // Thumbnail bill nhỏ clickable
-    const billThumbHtml = order.billImage ? `
-      <img src="${order.billImage}" onclick="event.stopPropagation(); openBillLightbox('${order.billImage}')" title="Xem ảnh bill do Sale tải lên" style="width:28px; height:28px; border-radius:4px; border:1px solid #cbd5e1; object-fit:cover; margin-right:6px; vertical-align:middle; cursor:zoom-in;">
-    ` : '';
+    const billThumbHtml = ''; // Bỏ icon ảnh vỡ trước mã đơn theo yêu cầu
+
+    // Xử lý ngày giờ chuẩn format DD/MM/YYYY HH:mm
+    let dateDisplay = '—';
+    let timeDisplay = '';
+    if (order.billDate) {
+      const parts = order.billDate.split(' ');
+      if (parts[0]) {
+        const dParts = parts[0].split('-');
+        if (dParts.length === 3) dateDisplay = `${dParts[2]}/${dParts[1]}/${dParts[0]}`;
+        else dateDisplay = parts[0];
+      }
+      if (parts[1]) timeDisplay = parts[1];
+    }
 
     tr.innerHTML = `
       <td>
@@ -7025,6 +8389,10 @@ function renderVatOrdersTable() {
             ${isPaid ? '<span style="display:block; font-size:9px; color:#059669; font-weight:800;">✓ Thành công</span>' : ''}
           </div>
         </div>
+      </td>
+      <td style="text-align:center; font-family:'JetBrains Mono'; font-size:11px; white-space:nowrap;">
+        <div style="font-weight:700; color:#1e293b;">${dateDisplay}</div>
+        <small style="color:#64748b; font-size:10px;">${timeDisplay}</small>
       </td>
       <td><span class="chip ${typeChipClass}">${order.typeLabel}</span></td>
       <td>
@@ -7328,6 +8696,13 @@ function saveAllOrderDetailChanges() {
   order.invoiceEmail = document.getElementById('modalVatEmail')?.value.trim() || order.customerEmail;
 
   renderVatOrdersView();
+  postAccountingMessage('ACCOUNTING_ORDER_ACTION', { orderId: order.crmOrderId || order.id, payload: {
+    action: 'UPDATE', customerName: order.customerName, customerPhone: order.customerPhone,
+    customerCccd: order.customerCccd, customerAddress: order.customerAddress, customerEmail: order.customerEmail,
+    subtotal: order.subtotal, collected: order.collected, requireVat: order.requireVat,
+    taxCode: order.taxCode, companyName: order.companyName, saleNote: order.saleNote,
+    vatRate: order.requireVat ? 0.1 : 0
+  }});
   openOrderDetailModal(order.id); // Refresh lại giao diện modal
   alert(`Đã lưu thay đổi đơn hàng ${order.id} thành công!`);
 }
@@ -7638,6 +9013,7 @@ function submitCreateNewOrder() {
 
     const newOrder = {
       id: newOrderId,
+      productId: prodSel ? prodSel.value : '',
       type: prodType,
       typeLabel: prodTypeLabel,
       customerName: custName,
@@ -7671,6 +9047,14 @@ function submitCreateNewOrder() {
     };
 
     VAT_ORDERS_DATA.unshift(newOrder);
+    postAccountingMessage('CREATE_ACCOUNTING_ORDER', { payload: {
+      customerName: custName, phone: custPhone, email: newOrder.customerEmail,
+      cccd: custCccd, address: custAddress, productId: prodSel ? prodSel.value : '',
+      saleId, subtotal, vatRate: reqVat ? 0.1 : 0, amountPaid: collected,
+      paymentMethod: 'BANK_TRANSFER', taxCode, companyName: compName,
+      saleNote: newOrder.saleNote, billImage: billImg,
+      billing: { name: custName, phone: custPhone, email: newOrder.customerEmail, cccd: custCccd, address: custAddress, taxId: taxCode }
+    }});
     closeCreateOrderModal();
     renderVatOrdersView();
     alert('Tạo đơn hàng ' + newOrderId + ' thành công!\nKhách hàng: ' + custName + '\nSố tiền: ' + formattedCollected + '\n' + (isPaid ? 'ĐÃ PHÁT THÔNG BÁO VỀ KẾ TOÁN (Thanh toán 100%)' : 'Trạng thái: Đã cọc'));
@@ -7773,8 +9157,591 @@ window.onNewOrderBillPresetChange = onNewOrderBillPresetChange;
 window.handleNewOrderCustomBill = handleNewOrderCustomBill;
 window.printOrderInvoice = printOrderInvoice;
 
+
+
+
+  // ====================================================================
+  // HỆ THỐNG LUXURY TOAST NOTIFICATION & CUSTOM MODAL FORMS
+  // (Thay thế 100% alert() và confirm() mặc định của trình duyệt)
+  // ====================================================================
+
+  function showToast(message, type = 'success', title = '') {
+    const container = document.getElementById('luxuryToastContainer');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = 'luxury-toast toast-' + type;
+
+    let icon = '✓';
+    let defaultTitle = 'Thành Công';
+    if (type === 'error') {
+      icon = '✕';
+      defaultTitle = 'Thông Báo Lỗi';
+    } else if (type === 'warning') {
+      icon = '⚠️';
+      defaultTitle = 'Cảnh Báo';
+    } else if (type === 'info') {
+      icon = 'ℹ️';
+      defaultTitle = 'Thông Báo Hệ Thống';
+    }
+
+    toast.innerHTML = `
+      <div class="luxury-toast-icon">${icon}</div>
+      <div class="luxury-toast-content">
+        <div class="luxury-toast-title">${title || defaultTitle}</div>
+        <div class="luxury-toast-msg">${message}</div>
+      </div>
+      <button class="luxury-toast-close" onclick="this.parentElement.remove()">✕</button>
+    `;
+
+    container.appendChild(toast);
+
+    setTimeout(() => {
+      toast.style.animation = 'toastFadeOut 0.25s forwards';
+      setTimeout(() => {
+        if (toast.parentElement) toast.remove();
+      }, 250);
+    }, 3500);
+  }
+
+  // Ghi đè window.alert để không bao giờ hiện popup khó chịu của trình duyệt
+  window.alert = function(msg) {
+    showToast(msg, 'info', 'Hệ Thống CRM');
+  };
+
+  // Custom Confirm Dialog
+  let customConfirmCallback = null;
+  function showConfirmDialog({ title, message, confirmText = 'Xác Nhận', isDanger = true, onConfirm }) {
+    const modal = document.getElementById('customConfirmModal');
+    if (!modal) {
+      if (onConfirm) onConfirm();
+      return;
+    }
+
+    document.getElementById('ccmTitle').textContent = title || 'Xác Nhận Hành Động';
+    document.getElementById('ccmMessage').textContent = message || 'Bạn có chắc chắn muốn tiếp tục?';
+    
+    const iconEl = document.getElementById('ccmIcon');
+    const confirmBtn = document.getElementById('ccmBtnConfirm');
+    
+    if (isDanger) {
+      iconEl.className = 'custom-confirm-icon danger';
+      iconEl.textContent = '🗑️';
+      confirmBtn.style.background = '#dc2626';
+      confirmBtn.style.color = '#ffffff';
+    } else {
+      iconEl.className = 'custom-confirm-icon info';
+      iconEl.textContent = 'ℹ️';
+      confirmBtn.style.background = '#2563eb';
+      confirmBtn.style.color = '#ffffff';
+    }
+
+    confirmBtn.textContent = confirmText;
+    customConfirmCallback = onConfirm;
+
+    confirmBtn.onclick = function() {
+      closeCustomConfirmModal();
+      if (customConfirmCallback) customConfirmCallback();
+    };
+
+    modal.classList.add('active');
+  }
+
+  function closeCustomConfirmModal() {
+    const modal = document.getElementById('customConfirmModal');
+    if (modal) modal.classList.remove('active');
+    customConfirmCallback = null;
+  }
+
+  // ====================================================================
+  // MODAL 1: FORM XÁC NHẬN THU TIỀN ĐƠN HÀNG (Thay thế confirm popup)
+  // ====================================================================
+  let currentCollectingOrderId = null;
+
+  function formatCurrencyInput(input) {
+    let val = input.value.replace(/\D/g, '');
+    if (!val) {
+      input.value = '0';
+      return;
+    }
+    input.value = Number(val).toLocaleString('vi-VN');
+  }
+
+  function openCollectPaymentModal(orderId) {
+    const order = VAT_ORDERS_DATA.find(o => o.id === orderId);
+    if (!order) return;
+
+    currentCollectingOrderId = orderId;
+    order.vatAmount = order.requireVat ? Math.round(order.subtotal * 0.1) : 0;
+    order.total = order.subtotal + order.vatAmount;
+    const remaining = Math.max(0, order.total - (Number(order.collected) || 0));
+
+    document.getElementById('cpmOrderCode').textContent = order.id;
+    document.getElementById('cpmCustomerName').textContent = order.customerName;
+    document.getElementById('cpmCustomerPhone').textContent = order.customerPhone || '—';
+    document.getElementById('cpmProductName').textContent = order.productName;
+    document.getElementById('cpmTotalAmount').textContent = formatCurrency(order.total);
+    document.getElementById('cpmCollectedAmount').textContent = formatCurrency(order.collected);
+    document.getElementById('cpmRemainingAmount').textContent = formatCurrency(remaining);
+
+    // Mặc định thu nốt toàn bộ số còn thiếu
+    document.getElementById('cpmInputAmount').value = remaining > 0 ? remaining.toLocaleString('vi-VN') : '0';
+    
+    // Ngày giờ hiện tại chuẩn YYYY-MM-DDTHH:mm
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const nowIso = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    document.getElementById('cpmDateTime').value = nowIso;
+
+    // Sinh mã FT ngẫu nhiên
+    const ftRand = 'FT2609' + Math.floor(1000 + Math.random() * 9000);
+    document.getElementById('cpmTransCode').value = ftRand;
+    document.getElementById('cpmNote').value = `Khách ${order.customerName} thanh toán nốt tiền còn lại`;
+
+    document.getElementById('collectPaymentModal').classList.add('active');
+  }
+
+  function closeCollectPaymentModal() {
+    const m = document.getElementById('collectPaymentModal');
+    if (m) m.classList.remove('active');
+    currentCollectingOrderId = null;
+  }
+
+  function submitCollectPayment() {
+    if (!currentCollectingOrderId) return;
+    const order = VAT_ORDERS_DATA.find(o => o.id === currentCollectingOrderId);
+    if (!order) return;
+
+    const rawStr = document.getElementById('cpmInputAmount').value.replace(/\D/g, '');
+    const addAmt = Number(rawStr) || 0;
+    if (addAmt <= 0) {
+      showToast('Vui lòng nhập số tiền thu lớn hơn 0 VNĐ!', 'warning', 'Số Tiền Không Hợp Lệ');
+      return;
+    }
+
+    const transCode = document.getElementById('cpmTransCode').value.trim() || 'FT2609999';
+    const bank = document.getElementById('cpmBankSelect').value;
+    const note = document.getElementById('cpmNote').value.trim();
+
+    order.collected = (Number(order.collected) || 0) + addAmt;
+    order.remaining = Math.max(0, order.total - order.collected);
+
+    if (order.remaining === 0) {
+      order.paymentStatus = 'PAID';
+      order.isSuccessNotified = true;
+    }
+
+    order.saleNote = (order.saleNote ? order.saleNote + ' ' : '') + `[Thu thêm ${formatCurrency(addAmt)} qua ${bank} (${transCode}) - ${note}].`;
+
+    closeCollectPaymentModal();
+    renderVatOrdersView();
+    postAccountingMessage('ACCOUNTING_ORDER_ACTION', { orderId: order.crmOrderId || order.id, payload: {
+      action: 'COLLECT', amount: addAmt, bankReference: bank + ' · ' + transCode + (note ? ' · ' + note : '')
+    }});
+
+    if (currentViewingOrderId === order.id) {
+      openOrderDetailModal(order.id);
+    }
+
+    showToast(`Đã xác nhận thu thành công ${formatCurrency(addAmt)} cho đơn hàng ${order.id}! ${order.paymentStatus === 'PAID' ? 'Nút [Xuất VAT] hiện đã được mở khóa.' : ''}`, 'success', 'Thu Tiền Thành Công');
+  }
+
+  // ====================================================================
+  // MODAL 2: FORM XUẤT HÓA ĐƠN VAT TRỰC TIẾP
+  // ====================================================================
+  let currentVatOrderId = null;
+
+  function openIssueVatDirectModal(orderId) {
+    const order = VAT_ORDERS_DATA.find(o => o.id === orderId);
+    if (!order) return;
+
+    if (order.paymentStatus !== 'PAID') {
+      showToast(`Đơn hàng ${order.id} còn thiếu ${formatCurrency(order.remaining)}. Khách cần thanh toán đủ 100% trước khi xuất hóa đơn VAT!`, 'warning', 'Chưa Đủ Điều Kiện Xuất VAT');
+      return;
+    }
+
+    currentVatOrderId = orderId;
+    order.vatAmount = order.vatAmount || Math.round(order.subtotal * 0.1);
+    order.total = order.subtotal + order.vatAmount;
+
+    document.getElementById('ivmOrderCode').textContent = order.id;
+    document.getElementById('ivmProductName').textContent = order.productName;
+    document.getElementById('ivmSubtotal').textContent = formatCurrency(order.subtotal);
+    document.getElementById('ivmVatAmount').textContent = formatCurrency(order.vatAmount);
+    document.getElementById('ivmTotal').textContent = formatCurrency(order.total);
+
+    const randNum = Math.floor(10 + Math.random() * 90);
+    document.getElementById('ivmInvoiceNo').value = order.vatInvoiceNo || `HD-2026/00${randNum}`;
+    document.getElementById('ivmTaxCode').value = order.taxCode || '0108892112';
+    document.getElementById('ivmCompanyName').value = order.companyName || (`Công ty TNHH Đầu Tư ${order.customerName}`);
+    document.getElementById('ivmAddress').value = order.address || order.customerAddress || 'Số 12 Duy Tân, Cầu Giấy, Hà Nội';
+    document.getElementById('ivmEmail').value = order.invoiceEmail || order.customerEmail || 'ketoan.khachhang@gmail.com';
+    document.getElementById('ivmIssuedDate').value = new Date().toLocaleString('vi-VN');
+
+    document.getElementById('issueVatDirectModal').classList.add('active');
+  }
+
+  function closeIssueVatDirectModal() {
+    const m = document.getElementById('issueVatDirectModal');
+    if (m) m.classList.remove('active');
+    currentVatOrderId = null;
+  }
+
+  function submitIssueVatDirect() {
+    if (!currentVatOrderId) return;
+    const order = VAT_ORDERS_DATA.find(o => o.id === currentVatOrderId);
+    if (!order) return;
+
+    const invNo = document.getElementById('ivmInvoiceNo').value.trim();
+    const mst = document.getElementById('ivmTaxCode').value.trim();
+    const compName = document.getElementById('ivmCompanyName').value.trim();
+    const addr = document.getElementById('ivmAddress').value.trim();
+    const email = document.getElementById('ivmEmail').value.trim();
+
+    if (!invNo || !mst || !compName) {
+      showToast('Vui lòng điền đầy đủ Số Hóa Đơn, Mã Số Thuế và Tên Doanh Nghiệp!', 'warning', 'Thiếu Thông Tin');
+      return;
+    }
+
+    order.vatInvoiceNo = invNo;
+    order.taxCode = mst;
+    order.companyName = compName;
+    order.address = addr;
+    order.invoiceEmail = email;
+    order.requireVat = true;
+    order.vatStatus = 'ISSUED';
+    order.vatIssuedDate = new Date().toLocaleString('vi-VN');
+
+    closeIssueVatDirectModal();
+    renderVatOrdersView();
+    postAccountingMessage('ACCOUNTING_ORDER_ACTION', { orderId: order.crmOrderId || order.id, payload: {
+      action: 'ISSUE_VAT', invoiceNumber: invNo, taxCode: mst, companyName: compName, address: addr, email
+    }});
+
+    if (currentViewingOrderId === order.id) {
+      openOrderDetailModal(order.id);
+    }
+
+    showToast(`Đã ký số và phát hành thành công Hóa đơn VAT điện tử ${order.vatInvoiceNo} cho ${compName}!`, 'success', 'Phát Hành Hóa Đơn VAT Thành Công');
+  }
+
+  // ====================================================================
+  // ĐÈ CÁC HÀM CŨ ĐỂ GỌI SANG MODAL FORM MỚI
+  // ====================================================================
+  function confirmFullPayment(orderId) {
+    openCollectPaymentModal(orderId);
+  }
+
+  function quickCollectRemaining(orderId) {
+    openCollectPaymentModal(orderId);
+  }
+
+  function issueVatInvoice(orderId) {
+    openIssueVatDirectModal(orderId);
+  }
+
+  function deleteOrder(orderId) {
+    const order = VAT_ORDERS_DATA.find(o => o.id === orderId);
+    const name = order ? order.customerName : '';
+    showConfirmDialog({
+      title: 'Xóa Đơn Hàng',
+      message: `Bạn có chắc chắn muốn xóa đơn hàng ${orderId} của khách hàng "${name}" khỏi hệ thống không?\nHành động này không thể hoàn tác!`,
+      confirmText: 'Xác Nhận Xóa Đơn',
+      isDanger: true,
+      onConfirm: () => {
+        VAT_ORDERS_DATA = VAT_ORDERS_DATA.filter(o => o.id !== orderId);
+        renderVatOrdersView();
+        postAccountingMessage('ACCOUNTING_ORDER_ACTION', { orderId: order?.crmOrderId || orderId, payload: { action: 'DELETE' } });
+        showToast(`Đã xóa thành công đơn hàng ${orderId}!`, 'success', 'Đã Xóa Đơn');
+      }
+    });
+  }
+
+  function deleteExpense(id) {
+    const exp = ADMIN_EXPENSES_DATA.find(e => e.id === id);
+    if (!exp) return;
+    showConfirmDialog({
+      title: 'Xóa Khoản Chi Phí',
+      message: `Bạn có chắc chắn muốn xóa khoản chi "${exp.title}" (${formatMoney(exp.amount)}) khỏi hệ thống không?\nHành động này không thể hoàn tác!`,
+      confirmText: 'Xác Nhận Xóa Chi Phí',
+      isDanger: true,
+      onConfirm: () => {
+        ADMIN_EXPENSES_DATA = ADMIN_EXPENSES_DATA.filter(e => e.id !== id);
+        renderAccountingView();
+        postAccountingMessage('ACCOUNTING_EXPENSE_DELETE', { id });
+        showToast(`Đã xóa thành công khoản chi "${exp.title}"!`, 'success', 'Đã Xóa Chi Phí');
+      }
+    });
+  }
+
+
+
+
+  // ====================================================================
+  // XỬ LÝ NHẬP TIỀN TỰ ĐỘNG CÓ DẤU CHẤM (.) VÀ CHỮ 'đ' BÊN DƯỚI
+  // ====================================================================
+  function handleCurrencyInput(input, type, personId) {
+    const raw = input.value.replace(/\D/g, '');
+    const num = Number(raw) || 0;
+    
+    // Tự động thêm dấu chấm (.) ngăn cách hàng nghìn
+    input.value = num > 0 ? num.toLocaleString('vi-VN') : '0';
+
+    // Cập nhật nhãn phụ có chữ 'đ' ngay bên dưới
+    const formatted = num.toLocaleString('vi-VN') + ' đ';
+    if (type === 'indicator') {
+      const sub = document.getElementById('sub_ind_' + personId);
+      if (sub) sub.textContent = formatted;
+    } else if (type === 'course') {
+      const sub = document.getElementById('sub_crs_' + personId);
+      if (sub) {
+        const hv = Math.round(num / 5000000);
+        sub.textContent = num > 0 ? `(${hv} HV) • ${formatted}` : '0 đ';
+      }
+    } else if (type === 'vip') {
+      const sub = document.getElementById('sub_vip_' + personId);
+      if (sub) sub.textContent = formatted;
+    } else if (type === 'bonus') {
+      const sub = document.getElementById('sub_bon_' + personId);
+      if (sub) sub.textContent = formatted;
+    }
+
+    // Cập nhật giá trị vào APEX_DATA
+    const person = APEX_DATA.find(p => p.id === personId);
+    if (!person) return;
+    if (type === 'indicator') person.indicatorRev = num;
+    else if (type === 'course') person.courseRev = num;
+    else if (type === 'vip') person.vipRev = num;
+    else if (type === 'bonus') person.bonus = num;
+  }
+
+  function commitPersonnelCurrencyInput(input, type, personId) {
+    handleCurrencyInput(input, type, personId);
+    renderAllViews();
+  }
+
 </script>
 
+
+<!-- ====================================================================
+     MODAL 1: FORM XÁC NHẬN THU TIỀN / THU NỐT ĐƠN HÀNG (THAY THẾ CONFIRM POPUP)
+     ==================================================================== -->
+<div id="collectPaymentModal" class="modal-overlay">
+  <div class="custom-confirm-card" style="max-width:540px;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px; border-bottom:1px solid #f1f5f9; padding-bottom:12px;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div style="width:38px; height:38px; border-radius:10px; background:#ecfdf5; border:1px solid #a7f3d0; display:flex; align-items:center; justify-content:center; color:#059669; font-size:18px;">
+          💰
+        </div>
+        <div>
+          <div style="font-size:16px; font-weight:900; color:#0f172a;">XÁC NHẬN THU TIỀN ĐƠN HÀNG</div>
+          <div style="font-size:11.5px; color:#64748b;">Mã đơn: <b id="cpmOrderCode" style="color:#2563eb; font-family:'JetBrains Mono';">NVT-00000</b></div>
+        </div>
+      </div>
+      <button type="button" onclick="closeCollectPaymentModal()" style="background:none; border:none; font-size:18px; color:#94a3b8; cursor:pointer; padding:4px;">✕</button>
+    </div>
+
+    <!-- Thông tin khách hàng & sản phẩm -->
+    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px 14px; margin-bottom:16px; font-size:12px;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+        <span style="color:#64748b;">Khách hàng:</span>
+        <span style="font-weight:700; color:#0f172a;"><span id="cpmCustomerName">—</span> (<span id="cpmCustomerPhone" style="font-family:'JetBrains Mono';">—</span>)</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+        <span style="color:#64748b;">Sản phẩm:</span>
+        <b style="color:#0f172a;" id="cpmProductName">—</b>
+      </div>
+      <div style="display:flex; justify-content:space-between; margin-bottom:6px; border-top:1px dashed #cbd5e1; padding-top:6px;">
+        <span style="color:#64748b;">Tổng đơn (gồm VAT 10%):</span>
+        <b style="font-family:'JetBrains Mono'; color:#0f172a;" id="cpmTotalAmount">0 đ</b>
+      </div>
+      <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+        <span style="color:#64748b;">Đã thu trước đó:</span>
+        <span style="font-family:'JetBrains Mono'; color:#059669; font-weight:700;" id="cpmCollectedAmount">0 đ</span>
+      </div>
+      <div style="display:flex; justify-content:space-between;">
+        <span style="color:#dc2626; font-weight:700;">Còn lại cần thu nốt:</span>
+        <b style="font-family:'JetBrains Mono'; color:#dc2626; font-size:13.5px;" id="cpmRemainingAmount">0 đ</b>
+      </div>
+    </div>
+
+    <!-- Form nhập thông tin thu tiền -->
+    <form id="collectPaymentForm" onsubmit="event.preventDefault(); submitCollectPayment();">
+      <div style="margin-bottom:14px;">
+        <label style="display:block; font-size:12px; font-weight:700; color:#1e293b; margin-bottom:5px;">
+          Số tiền thu lần này (VNĐ) <span style="color:#dc2626;">*</span>
+        </label>
+        <input type="text" id="cpmInputAmount" required
+               oninput="formatCurrencyInput(this)"
+               style="width:100%; padding:9px 12px; font-size:14px; font-weight:800; font-family:'JetBrains Mono'; border:1.5px solid #059669; border-radius:8px; outline:none; color:#059669; background:#ffffff;">
+      </div>
+
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:14px;">
+        <div>
+          <label style="display:block; font-size:11.5px; font-weight:700; color:#475569; margin-bottom:4px;">Hình thức thanh toán</label>
+          <select id="cpmPaymentMethod" style="width:100%; padding:8px 10px; font-size:12px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
+            <option value="BANK_TRANSFER">Chuyển khoản (Ủy nhiệm chi)</option>
+            <option value="CASH">Tiền mặt tại quầy</option>
+            <option value="CARD_POS">Thẻ tín dụng / POS</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block; font-size:11.5px; font-weight:700; color:#475569; margin-bottom:4px;">Ngân hàng nhận</label>
+          <select id="cpmBankSelect" style="width:100%; padding:8px 10px; font-size:12px; border:1px solid #cbd5e1; border-radius:6px; background:#fff;">
+            <option value="VIETCOMBANK">Vietcombank</option>
+            <option value="TECHCOMBANK">Techcombank</option>
+            <option value="MBBANK">MB Bank</option>
+            <option value="ACB">ACB</option>
+            <option value="BIDV">BIDV</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:14px;">
+        <div>
+          <label style="display:block; font-size:11.5px; font-weight:700; color:#475569; margin-bottom:4px;">Mã bút toán / FT Ngân hàng</label>
+          <input type="text" id="cpmTransCode" placeholder="Ví dụ: FT260924..." style="width:100%; padding:8px 10px; font-size:12px; font-family:'JetBrains Mono'; border:1px solid #cbd5e1; border-radius:6px;">
+        </div>
+        <div>
+          <label style="display:block; font-size:11.5px; font-weight:700; color:#475569; margin-bottom:4px;">Ngày giờ thu tiền</label>
+          <input type="datetime-local" id="cpmDateTime" style="width:100%; padding:8px 10px; font-size:12px; font-family:'JetBrains Mono'; border:1px solid #cbd5e1; border-radius:6px;">
+        </div>
+      </div>
+
+      <div style="margin-bottom:18px;">
+        <label style="display:block; font-size:11.5px; font-weight:700; color:#475569; margin-bottom:4px;">Ghi chú đối soát</label>
+        <input type="text" id="cpmNote" placeholder="Ví dụ: Khách CK nốt 50% trước khai giảng..." style="width:100%; padding:8px 10px; font-size:12px; border:1px solid #cbd5e1; border-radius:6px;">
+      </div>
+
+      <div class="custom-confirm-actions">
+        <button type="button" class="tool-btn" onclick="closeCollectPaymentModal()" style="padding:8px 16px;">Hủy Bỏ</button>
+        <button type="submit" class="tool-btn primary" style="background:#059669; padding:8px 18px; font-weight:800; border:none;">
+          ✓ Xác Nhận Đã Thu Tiền & Mở Khóa Xuất VAT
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ====================================================================
+     MODAL 2: FORM XUẤT HÓA ĐƠN VAT TRỰC TIẾP
+     ==================================================================== -->
+<div id="issueVatDirectModal" class="modal-overlay">
+  <div class="custom-confirm-card" style="max-width:540px;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px; border-bottom:1px solid #f1f5f9; padding-bottom:12px;">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div style="width:38px; height:38px; border-radius:10px; background:#f5f3ff; border:1px solid #ddd6fe; display:flex; align-items:center; justify-content:center; color:#7c3aed; font-size:18px;">
+          🧾
+        </div>
+        <div>
+          <div style="font-size:16px; font-weight:900; color:#0f172a;">XUẤT HÓA ĐƠN ĐIỆN TỬ VAT (10%)</div>
+          <div style="font-size:11.5px; color:#64748b;">Mã đơn: <b id="ivmOrderCode" style="color:#2563eb; font-family:'JetBrains Mono';">NVT-00000</b></div>
+        </div>
+      </div>
+      <button type="button" onclick="closeIssueVatDirectModal()" style="background:none; border:none; font-size:18px; color:#94a3b8; cursor:pointer; padding:4px;">✕</button>
+    </div>
+
+    <!-- Thông tin giá trị trước & sau thuế -->
+    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:12px 14px; margin-bottom:16px; font-size:12px;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+        <span style="color:#64748b;">Sản phẩm / Dịch vụ:</span>
+        <b style="color:#0f172a;" id="ivmProductName">—</b>
+      </div>
+      <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+        <span style="color:#64748b;">Giá trị trước thuế:</span>
+        <span style="font-family:'JetBrains Mono'; font-weight:700; color:#0f172a;" id="ivmSubtotal">0 đ</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+        <span style="color:#64748b;">Tiền thuế VAT (10%):</span>
+        <b style="font-family:'JetBrains Mono'; color:#7c3aed;" id="ivmVatAmount">0 đ</b>
+      </div>
+      <div style="display:flex; justify-content:space-between; border-top:1px dashed #cbd5e1; padding-top:6px;">
+        <span style="color:#059669; font-weight:700;">Tổng thanh toán (gồm thuế):</span>
+        <b style="font-family:'JetBrains Mono'; color:#059669; font-size:13.5px;" id="ivmTotal">0 đ</b>
+      </div>
+    </div>
+
+    <!-- Form điền thông tin xuất VAT -->
+    <form id="issueVatDirectForm" onsubmit="event.preventDefault(); submitIssueVatDirect();">
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:12px;">
+        <div>
+          <label style="display:block; font-size:11.5px; font-weight:700; color:#1e293b; margin-bottom:4px;">
+            Số Hóa Đơn VAT <span style="color:#dc2626;">*</span>
+          </label>
+          <input type="text" id="ivmInvoiceNo" required placeholder="HD-2026/00..." style="width:100%; padding:8px 10px; font-size:12px; font-family:'JetBrains Mono'; font-weight:800; color:#2563eb; border:1px solid #cbd5e1; border-radius:6px;">
+        </div>
+        <div>
+          <label style="display:block; font-size:11.5px; font-weight:700; color:#1e293b; margin-bottom:4px;">
+            Mã Số Thuế (MST) <span style="color:#dc2626;">*</span>
+          </label>
+          <input type="text" id="ivmTaxCode" required placeholder="Ví dụ: 0108892112..." style="width:100%; padding:8px 10px; font-size:12px; font-family:'JetBrains Mono'; font-weight:700; border:1px solid #cbd5e1; border-radius:6px;">
+        </div>
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <label style="display:block; font-size:11.5px; font-weight:700; color:#1e293b; margin-bottom:4px;">
+          Tên Đơn Vị / Công Ty Nhận Hóa Đơn <span style="color:#dc2626;">*</span>
+        </label>
+        <input type="text" id="ivmCompanyName" required placeholder="Công ty TNHH..." style="width:100%; padding:8px 10px; font-size:12px; font-weight:700; border:1px solid #cbd5e1; border-radius:6px;">
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <label style="display:block; font-size:11.5px; font-weight:700; color:#1e293b; margin-bottom:4px;">
+          Địa Chỉ Doanh Nghiệp Theo GPKD
+        </label>
+        <input type="text" id="ivmAddress" placeholder="Số ..., Đường ..., Quận ..." style="width:100%; padding:8px 10px; font-size:12px; border:1px solid #cbd5e1; border-radius:6px;">
+      </div>
+
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:18px;">
+        <div>
+          <label style="display:block; font-size:11.5px; font-weight:700; color:#1e293b; margin-bottom:4px;">
+            Email Nhận Hóa Đơn Điện Tử
+          </label>
+          <input type="email" id="ivmEmail" placeholder="ketoan@company.com" style="width:100%; padding:8px 10px; font-size:12px; border:1px solid #cbd5e1; border-radius:6px;">
+        </div>
+        <div>
+          <label style="display:block; font-size:11.5px; font-weight:700; color:#1e293b; margin-bottom:4px;">
+            Ngày Ký Số Hóa Đơn
+          </label>
+          <input type="text" id="ivmIssuedDate" readonly style="width:100%; padding:8px 10px; font-size:12px; font-family:'JetBrains Mono'; background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; color:#64748b;">
+        </div>
+      </div>
+
+      <div class="custom-confirm-actions">
+        <button type="button" class="tool-btn" onclick="closeIssueVatDirectModal()" style="padding:8px 16px;">Hủy Bỏ</button>
+        <button type="submit" class="tool-btn primary" style="background:#7c3aed; padding:8px 18px; font-weight:800; border:none;">
+          🧾 Ký Số & Phát Hành Hóa Đơn VAT
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ====================================================================
+     MODAL 3: CUSTOM CONFIRM DIALOG (THAY THẾ CONFIRM POPUP KHI XÓA)
+     ==================================================================== -->
+<div id="customConfirmModal" class="modal-overlay">
+  <div class="custom-confirm-card">
+    <div class="custom-confirm-header">
+      <div class="custom-confirm-icon danger" id="ccmIcon">⚠️</div>
+      <div>
+        <div class="custom-confirm-title" id="ccmTitle">Xác Nhận Hành Động</div>
+      </div>
+    </div>
+    <div class="custom-confirm-body" id="ccmMessage">
+      Bạn có chắc chắn muốn thực hiện hành động này không?
+    </div>
+    <div class="custom-confirm-actions">
+      <button type="button" class="tool-btn" id="ccmBtnCancel" onclick="closeCustomConfirmModal()" style="padding:8px 16px;">Hủy Bỏ</button>
+      <button type="button" class="tool-btn" id="ccmBtnConfirm" style="background:#dc2626; color:#fff; border:none; padding:8px 18px; font-weight:800;">
+        Xác Nhận Xóa
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Container chứa các thông báo Toast sang trọng -->
+<div id="luxuryToastContainer"></div>
 
 <!-- ====================================================================
      MODAL 7: CHI TIẾT & CHỈNH SỬA TOÀN DIỆN ĐƠN HÀNG (TẤT CẢ ĐỀU CHỈNH SỬA ĐƯỢC)
@@ -8149,5 +10116,272 @@ window.printOrderInvoice = printOrderInvoice;
   </div>
 </div>
 
+<script>
+  // ====================================================================
+  // ĐỒNG BỘ HAI CHIỀU GIỮA CRM NVT AGENCY & KẾ TOÁN APEX
+  // ====================================================================
+  function postAccountingMessage(type, payload = {}) {
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ type, ...payload }, '*');
+      return true;
+    }
+    return false;
+  }
+
+  let ACCOUNTING_CRM_STATE = {
+    members: [],
+    products: [],
+    orders: [],
+    expenses: []
+  };
+
+  function syncTeamMembersFromCRM(membersList, period) {
+    if (!Array.isArray(membersList)) return;
+    
+    // Bỏ qua ADMIN, chỉ lấy MANAGER, LEADER, SALE
+    const activeMembers = membersList.filter(m => m && m.active !== false && m.role !== 'ADMIN');
+    if (activeMembers.length === 0) { APEX_DATA = []; if (typeof renderAllViews === "function") renderAllViews(); return; }
+
+    const mapped = activeMembers.map(m => {
+      const existing = (typeof APEX_DATA !== 'undefined' ? APEX_DATA : []).find(p => String(p.id) === String(m.id) || p.name === m.name) || {};
+      
+      let roleLevel = m.roleLevel || 'LV3';
+      let roleTitle = m.roleTitle || 'Sale';
+      let parentId = m.parentId || m.leaderId || m.managerId || null;
+      
+      if (m.role === 'MANAGER' || roleLevel === 'LV1') {
+        roleLevel = 'LV1';
+        roleTitle = 'Manager';
+        parentId = null;
+      } else if (m.role === 'LEADER' || roleLevel === 'LV2') {
+        roleLevel = 'LV2';
+        roleTitle = 'Leader';
+        parentId = m.parentId || m.managerId || null;
+      } else if (m.role === 'SALE' || roleLevel === 'LV3') {
+        roleLevel = 'LV3';
+        roleTitle = 'Sale';
+        parentId = m.parentId || m.leaderId || m.managerId || null;
+      }
+
+      // Preserve existing or provide sensible defaults if metrics are 0
+      const basicLot = m.basicLot !== undefined && m.basicLot !== null ? Number(m.basicLot) : (existing.basicLot !== undefined ? existing.basicLot : 0);
+      const miniLot = m.miniLot !== undefined && m.miniLot !== null ? Number(m.miniLot) : (existing.miniLot !== undefined ? existing.miniLot : 0);
+      const microLot = m.microLot !== undefined && m.microLot !== null ? Number(m.microLot) : (existing.microLot !== undefined ? existing.microLot : 0);
+      const indicatorRev = m.indicatorRev !== undefined && m.indicatorRev !== null ? Number(m.indicatorRev) : (existing.indicatorRev !== undefined ? existing.indicatorRev : 0);
+      const courseRev = m.courseRev !== undefined && m.courseRev !== null ? Number(m.courseRev) : (existing.courseRev !== undefined ? existing.courseRev : 0);
+      const bonus = m.bonus !== undefined && m.bonus !== null ? Number(m.bonus) : (existing.bonus !== undefined ? existing.bonus : 0);
+
+      const ratePerLot = Number(m.ratePerLot) || existing.ratePerLot || (roleLevel === 'LV1' ? 90000 : (roleLevel === 'LV2' ? 70000 : 50000));
+      const customDiffRate = Number(m.customDiffRate) || existing.customDiffRate || 20000;
+
+      return {
+        id: String(m.id || existing.id || Date.now()),
+        name: m.name || existing.name || 'Nhân sự',
+        phone: m.phone || existing.phone || '—',
+        roleLevel: roleLevel,
+        roleTitle: roleTitle,
+        team: m.team ? (String(m.team).startsWith('Nhóm') ? m.team : ('Nhóm ' + m.team)) : (existing.team || 'Đội ngũ'),
+        directManager: m.directManager || existing.directManager || '—',
+        parentId: parentId ? String(parentId) : null,
+        managerId: m.managerId || null,
+        leaderId: m.leaderId || null,
+        ratePerLot: ratePerLot,
+        customDiffRate: customDiffRate,
+        basicLot: basicLot,
+        miniLot: miniLot,
+        microLot: microLot,
+        indicatorRev: indicatorRev,
+        courseRev: courseRev,
+        productRate: m.productRate !== undefined ? Number(m.productRate) : (existing.productRate || 10),
+        bonus: bonus
+      };
+    });
+
+    APEX_DATA = mapped;
+    if (typeof renderAllViews === 'function') {
+      renderAllViews();
+    }
+  }
+
+  function syncAccountingSelects(members, products) {
+    if (Array.isArray(members) && members.length > 0) {
+      const activeSales = members.filter(m => m && m.active !== false && (m.role === 'SALE' || m.roleLevel === 'LV3'));
+      if (activeSales.length > 0) {
+        const saleOptions = activeSales.map(m => `<option value="${m.id}">${m.name || m.accountId || m.id}</option>`).join('');
+        const saleSelect = document.getElementById('newOrderSaleSelect');
+        if (saleSelect) {
+          const prev = saleSelect.value;
+          saleSelect.innerHTML = saleOptions;
+          if (prev && activeSales.some(m => String(m.id) === String(prev))) saleSelect.value = prev;
+        }
+      }
+    }
+    if (Array.isArray(products) && products.length > 0) {
+      const activeProducts = products.filter(p => p && p.active !== false);
+      if (activeProducts.length > 0) {
+        const prodOptions = activeProducts.map(p => {
+          const price = Number(p.price || 0);
+          const type = p.type || 'COURSE';
+          const formattedPrice = (typeof formatCurrency === 'function') ? formatCurrency(price) : (price.toLocaleString('vi-VN') + ' đ');
+          return `<option value="${p.id}" data-price="${price}" data-type="${type}">${p.name || p.sku || p.id} (${formattedPrice})</option>`;
+        }).join('');
+        const prodSelect = document.getElementById('newOrderProductSelect');
+        if (prodSelect) {
+          const prev = prodSelect.value;
+          prodSelect.innerHTML = prodOptions;
+          if (prev && activeProducts.some(p => String(p.id) === String(prev))) prodSelect.value = prev;
+        }
+      }
+    }
+  }
+
+  function syncAccountingExpensesFromCRM(message) {
+    if (!message || !Array.isArray(message.expenses)) return;
+    ACCOUNTING_CRM_STATE.expenses = message.expenses.map(item => ({
+      ...item,
+      id: String(item.id),
+      month: String(item.month || item.date || '').slice(0, 7)
+    }));
+    ADMIN_EXPENSES_DATA = ACCOUNTING_CRM_STATE.expenses;
+    if (typeof renderAccountingView === 'function') renderAccountingView();
+  }
+
+  function syncAccountingDataFromCRM(message) {
+    const members = Array.isArray(message.members) ? message.members : [];
+    const customers = Array.isArray(message.customers) ? message.customers : [];
+    const products = Array.isArray(message.products) ? message.products : [];
+
+    syncAccountingSelects(members, products);
+
+    if (!Array.isArray(message.orders)) return;
+
+    const customerById = new Map(customers.map(c => [String(c.id), c]));
+    const memberById = new Map(members.map(m => [String(m.id), m]));
+    const productById = new Map(products.map(p => [String(p.id), p]));
+
+    const mapped = message.orders.map(order => {
+      const customer = customerById.get(String(order.customerId)) || {};
+      const sale = memberById.get(String(order.saleId)) || {};
+      const product = productById.get(String(order.productId)) || {};
+      const subtotal = Number(order.subtotal || 0);
+      const vatRate = Number(order.vatRate || 0);
+      const vatAmount = Number(order.vatAmount ?? Math.round(subtotal * vatRate));
+      const total = Number(order.total ?? subtotal + vatAmount);
+      const collected = Number(order.amountPaid ?? order.depositAmount ?? 0);
+      const remaining = Number(order.balanceDue ?? Math.max(0, total - collected));
+      const paid = order.status === 'PAID' || remaining <= 0;
+      const createdAt = order.createdAt || order.paidAt || new Date().toISOString();
+      const billing = order.billing || {};
+      const label = String(product.category || product.name || order.productName || '').toLowerCase();
+      const type = product.type === 'RENTAL' || label.includes('indicator') || label.includes('chỉ báo')
+        ? 'INDICATOR' : (label.includes('khóa') || label.includes('khoa hoc') || label.includes('course') ? 'COURSE' : 'SALE');
+
+      return {
+        id: order.code || order.id,
+        crmOrderId: order.id,
+        month: String(createdAt).slice(0, 7),
+        type,
+        typeLabel: type === 'COURSE' ? 'KHÓA HỌC' : type === 'INDICATOR' ? 'CHỈ BÁO' : 'SẢN PHẨM',
+        customerName: order.customerName || customer.name || 'Khách hàng',
+        customerPhone: order.customerPhone || customer.phone || billing.phone || '',
+        customerCccd: billing.cccd || customer.cccd || '',
+        customerAddress: billing.address || customer.address || '',
+        customerEmail: billing.email || customer.email || '',
+        productName: order.productName || product.name || 'Sản phẩm APEX',
+        productSku: order.sku || product.sku || '',
+        term: order.rentalMonths ? `${order.rentalMonths} tháng` : 'Vĩnh viễn',
+        saleId: order.saleId || '',
+        saleName: sale.name || sale.accountId || order.saleName || 'Chưa gán Sale',
+        subtotal, vatAmount, total, collected, remaining,
+        paymentStatus: paid ? 'PAID' : (collected >= total * 0.5 ? 'DEPOSIT_50' : 'DEPOSIT_30'),
+        isSuccessNotified: paid,
+        requireVat: order.requireVat === true || vatRate > 0,
+        vatStatus: order.vatIssued ? 'ISSUED' : 'NOT_ISSUED',
+        vatInvoiceNo: order.vatInvoiceNumber || '',
+        vatIssuedDate: order.vatIssuedAt || '',
+        taxCode: order.taxCode || billing.taxId || '',
+        companyName: order.companyName || '',
+        address: billing.address || customer.address || '',
+        invoiceEmail: billing.email || customer.email || '',
+        billImage: order.billImage || '',
+        billDate: order.paidAt || order.depositAt || createdAt,
+        saleNote: order.saleNote || ''
+      };
+    });
+
+    VAT_ORDERS_DATA = mapped;
+    if (message.period) currentOrderMonth = String(message.period).slice(0, 7);
+    if (typeof renderAllViews === 'function') renderAllViews();
+  }
+
+  // Lắng nghe lệnh từ parent CRM
+  window.addEventListener('message', function(event) {
+    if (!event.data) return;
+    const msg = event.data;
+
+    if (msg.type === 'SWITCH_APEX_VIEW') {
+      if (typeof switchView === 'function') {
+        switchView(msg.view);
+      }
+    } else if (msg.type === 'SYNC_MEMBERS_DATA' || msg.type === 'SYNC_TEAM_MEMBERS') {
+      syncTeamMembersFromCRM(msg.members, msg.period);
+      syncAccountingSelects(msg.members, window.__CRM_PRODUCTS || []);
+    } else if (msg.type === 'SYNC_ORDERS_DATA') {
+      window.__CRM_PRODUCTS = msg.products || [];
+      ACCOUNTING_CRM_STATE.orders = Array.isArray(msg.orders) ? msg.orders : [];
+      ACCOUNTING_CRM_STATE.members = msg.members || [];
+      ACCOUNTING_CRM_STATE.products = msg.products || [];
+      ACCOUNTING_CRM_STATE.expenses = Array.isArray(msg.expenses) ? msg.expenses : [];
+      syncAccountingDataFromCRM(msg);
+      syncAccountingExpensesFromCRM(msg);
+    } else if (msg.type === 'ACCOUNTING_ORDER_RESULT') {
+      if (msg.ok) {
+        if (typeof showToast === 'function') showToast('Đơn hàng đã được đồng bộ vào CRM thành công!', 'success', 'Thành Công');
+      } else {
+        if (typeof showToast === 'function') showToast(msg.error || 'Không thể tạo đơn hàng.', 'warning', 'Lỗi Tạo Đơn');
+      }
+    } else if (msg.type === 'ACCOUNTING_EXPENSE_RESULT') {
+      if (msg.ok) {
+        if (typeof showToast === 'function') showToast(msg.action === 'delete' ? 'Đã xóa khoản chi khỏi CRM.' : 'Đã lưu khoản chi vào CRM.', 'success', 'Thành Công');
+      } else {
+        if (typeof showToast === 'function') showToast(msg.error || 'Không thể lưu khoản chi.', 'warning', 'Lỗi Lưu Khoản Chi');
+      }
+    } else if (msg.type === 'ACCOUNTING_ACTION_RESULT') {
+      if (!msg.ok && typeof showToast === 'function') showToast(msg.error || 'Không thể lưu thao tác kế toán.', 'warning', 'Lỗi Kế Toán');
+      else if (msg.ok && typeof showToast === 'function') showToast('Thao tác kế toán đã được lưu vào CRM.', 'success', 'Đã Lưu SQL');
+    } else if (msg.type === 'ACCOUNTING_BROKERAGE_RESULT') {
+      if (!msg.ok && typeof showToast === 'function') showToast(msg.error || 'Không thể lưu cấu hình hoa hồng.', 'warning', 'Lỗi Hoa Hồng');
+      else if (msg.ok && typeof showToast === 'function') showToast('Cấu hình hoa hồng đã được lưu vào CRM.', 'success', 'Đã Lưu SQL');
+    }
+  });
+
+  // Bọc switchView để gửi thông báo ngược lại cho parent CRM khi bấm tab trên header
+  if (typeof switchView === 'function') {
+    const _origSwitchView = switchView;
+    switchView = function(tabId) {
+      _origSwitchView(tabId);
+      try {
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage({ type: 'APEX_VIEW_CHANGED', view: tabId }, '*');
+        }
+      } catch (e) {}
+    };
+  }
+
+  // Khởi động đúng tab theo param nếu có
+  (function() {
+    try {
+      const _urlParams = new URLSearchParams(window.location.search);
+      const _initialTab = _urlParams.get('tab');
+      if (_initialTab) {
+        window.addEventListener('DOMContentLoaded', function() {
+          setTimeout(function() {
+            if (typeof switchView === 'function') switchView(_initialTab);
+          }, 80);
+        });
+      }
+    } catch (e) {}
+  })();
+</script>
 </body>
 </html>

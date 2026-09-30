@@ -1608,6 +1608,51 @@ tbody tr:hover td {
   .customer-assignment-section .panel-actions{flex-direction:column}
 }
 
+/* Customer profile: compact business layout with clear reading order. */
+.customer-profile-modal{width:min(960px,calc(100vw - 24px))!important;height:min(92dvh,900px)!important;background:#f8fafc!important}
+.customer-profile-modal>.modal-header{min-height:62px!important;padding:14px 22px!important;background:#fff!important}
+.customer-profile-modal>.modal-header h3{font-size:18px!important}
+.customer-profile-modal>.modal-body{background:#f8fafc!important}
+.customer-profile-modal [data-workflow-body]{padding:16px 20px 24px!important}
+.customer-profile-modal .customer-drawer-layout{display:grid!important;gap:14px!important;padding:0!important}
+.customer-profile-modal .customer-drawer-section{margin:0!important;padding:16px!important;border:1px solid #dbe4ee!important;border-radius:12px!important;background:#fff!important;box-shadow:0 2px 8px rgba(15,23,42,.035)!important}
+.customer-profile-modal .customer-section-heading{align-items:center!important;margin-bottom:12px!important}
+.customer-profile-modal .customer-section-heading h3{font-size:14px!important;line-height:1.3!important}
+.customer-profile-modal .customer-section-heading p{font-size:11px!important}
+.customer-profile-modal .customer-section-kicker{padding:5px 8px!important;border-radius:6px!important;background:#eff6ff!important;border-color:#bfdbfe!important;color:#2563eb!important;font-size:9px!important}
+.customer-profile-modal .customer-overview-section .detail-grid{display:grid!important;grid-template-columns:130px minmax(0,1fr)!important;gap:0 18px!important;margin:0!important;padding:4px 14px!important;border:1px solid #e2e8f0!important;border-radius:9px!important;background:#f8fafc!important;box-shadow:none!important}
+.customer-profile-modal .customer-overview-section .detail-grid dt,.customer-profile-modal .customer-overview-section .detail-grid dd{padding:8px 0!important;border-bottom:1px solid #e8edf3!important;font-size:11.5px!important;line-height:1.35!important}
+.customer-profile-modal .customer-overview-section .detail-grid dt{color:#64748b!important;font-weight:700!important}
+.customer-profile-modal .customer-overview-section .detail-grid dd{color:#0f172a!important;font-weight:700!important}
+.customer-profile-modal .customer-edit-section{background:#eff6ff!important;border-color:#bfdbfe!important}
+.customer-profile-modal .customer-edit-section form,.customer-profile-modal .customer-business-section form{padding:0!important;border:0!important;background:transparent!important}
+.customer-profile-modal .customer-profile-modal .form-grid,.customer-profile-modal .form-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important;margin:0!important}
+.customer-profile-modal .form-field{display:grid!important;gap:6px!important;min-width:0!important;color:#475569!important;font-size:11px!important;font-weight:800!important}
+.customer-profile-modal .form-field input,.customer-profile-modal .form-field select,.customer-profile-modal .form-field textarea{min-height:38px!important;padding:8px 10px!important;border:1px solid #cbd5e1!important;border-radius:8px!important;background:#fff!important;color:#0f172a!important;font-size:12.5px!important}
+.customer-profile-modal .customer-business-section .custom-field-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important}
+.customer-profile-modal .customer-business-section .custom-field-multi{display:block!important;min-height:0!important;margin:0!important;padding:10px 11px!important;border:1px solid #dbeafe!important;border-radius:9px!important;background:#f8fbff!important}
+.customer-profile-modal .customer-business-section .custom-field-multi legend{padding:0 3px!important;color:#1e40af!important;font-size:11px!important;font-weight:800!important}
+.customer-profile-modal .customer-business-section .custom-field-multi>div{display:flex!important;flex-wrap:wrap!important;gap:6px!important;margin-top:4px!important}
+.customer-profile-modal .customer-business-section .custom-field-multi>div>label{display:inline-flex!important;align-items:center!important;gap:5px!important;padding:4px 6px!important;border:1px solid #dbe3ec!important;border-radius:6px!important;background:#fff!important;font-size:10.5px!important;font-weight:700!important}
+.customer-profile-modal .customer-business-section .custom-field-multi input{min-height:auto!important;width:auto!important;padding:0!important;accent-color:#2563eb!important}
+.customer-profile-modal .customer-business-section .form-field.full{grid-column:1/-1!important}
+.customer-profile-modal .customer-business-section .form-field.full textarea{min-height:76px!important}
+.customer-profile-modal .modal-actions{display:flex!important;justify-content:flex-end!important;gap:8px!important;margin-top:10px!important;padding:0!important}
+.customer-profile-modal .modal-actions .button{min-height:34px!important;padding:7px 12px!important;border-radius:7px!important;font-size:11.5px!important}
+.customer-profile-modal .customer-care-section{display:grid!important;gap:12px!important}
+.customer-profile-modal .customer-care-section>.customer-drawer-section{padding:12px!important;border:1px solid #e2e8f0!important;border-radius:9px!important;background:#f8fafc!important;box-shadow:none!important}
+.customer-profile-modal>.modal-footer{min-height:56px!important;padding:9px 20px!important;background:#fff!important}
+@media(max-width:680px){
+  .customer-profile-modal [data-workflow-body]{padding:12px!important}
+  .customer-profile-modal .customer-drawer-section{padding:13px!important}
+  .customer-profile-modal .customer-overview-section .detail-grid{grid-template-columns:1fr!important;gap:0!important;padding:4px 11px!important}
+  .customer-profile-modal .customer-overview-section .detail-grid dt{padding:7px 0 2px!important;border-bottom:0!important}
+  .customer-profile-modal .customer-overview-section .detail-grid dd{padding:2px 0 7px!important}
+  .customer-profile-modal .form-grid,.customer-profile-modal .customer-business-section .custom-field-grid{grid-template-columns:1fr!important}
+  .customer-profile-modal .customer-business-section .form-field.full{grid-column:auto!important}
+  .customer-profile-modal>.modal-footer{padding:9px 12px!important}
+}
+
 
 /* Profile avatar compact layout */
 .profile-hero{align-items:center;gap:12px}
@@ -1627,3 +1672,22 @@ tbody tr:hover td {
 #tab-dashboard .kpi-hero-num,#tab-dashboard .chart-metric-num{font-family:'Plus Jakarta Sans',Arial,sans-serif;letter-spacing:0;font-weight:800}
 #tab-dashboard .chart-metric-title{font-size:15px;font-weight:800;line-height:1.35}
 #tab-dashboard .chart-detail-link{font-weight:700}
+.accounting-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:14px 0}
+.accounting-kpis article,.accounting-profit>div{padding:14px 16px;border:1px solid var(--border);border-radius:8px;background:var(--bg-card)}
+.accounting-kpis small,.accounting-profit small{display:block;color:var(--text-muted);font-size:11px;font-weight:700;margin-bottom:5px}
+.accounting-kpis b,.accounting-profit b{font-size:18px;color:var(--text-main)}
+.accounting-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.accounting-tabs~section{border:1px solid var(--border);border-radius:8px;background:var(--bg-card);overflow:hidden}
+.accounting-profit{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:14px}
+.accounting-profit>div:last-child{border-color:#86efac;background:#f0fdf4}
+.accounting-profit>div:last-child b{color:#047857}
+section[data-accounting-panel="mindmap"]{padding:14px}
+@media(max-width:900px){.accounting-kpis,.accounting-profit{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.accounting-kpis,.accounting-profit{grid-template-columns:1fr}.accounting-tabs .btn-action{flex:1 1 calc(50% - 8px)}}
+
+/* Nh?m K? to?n & Hoa h?ng thu g?n; ch? m? danh s?ch khi ng??i d?ng b?m ti?u ??. */
+#accountingNavGroup .accounting-nav-toggle{display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;user-select:none}
+#accountingNavGroup .accounting-nav-toggle:focus-visible{outline:2px solid rgba(249,87,33,.85);outline-offset:2px;border-radius:6px}
+#accountingNavGroup .accounting-nav-chevron{font-size:13px;line-height:1;color:#91a5ba;transition:transform .16s ease}
+#accountingNavGroup .accounting-nav-toggle[aria-expanded=true] .accounting-nav-chevron{color:#fff}
+#accountingNavGroup #accountingNavList[hidden]{display:none}

@@ -24,15 +24,33 @@
   return {
     get pending(){return jobs.length;},
     enqueue(key,action,payload){
-      jobs.push({key,action,payload});
+      // Chỉ giữ bản mới nhất của cùng một ô khi bản trước chưa chạy.
+      // Nếu không gộp, thao tác A -> B -> C có thể gửi các base revision
+      // nối tiếp nhau và bản C bị coi là xung đột giả sau khi A đã lưu.
+      const start=running?1:0;
+      const index=jobs.findIndex((job,position)=>position>=start&&job.key===key);
+      if(index>=0){
+        const previous=jobs[index];
+        const mergedPayload=payload&&previous.payload&&typeof payload==='object'&&typeof previous.payload==='object'
+          ?{...payload,base:Object.hasOwn(previous.payload,'base')?previous.payload.base:payload.base}
+          :payload;
+        jobs[index]={key,action,payload:mergedPayload};
+      }else jobs.push({key,action,payload});
       try{checkpoint();}catch(cause){error=cause;}
       emit();void drain();
     },
     restore(records,makeAction){
       if(running||jobs.length)throw Error('Queue already contains edits');
       for(const {key,payload} of records)jobs.push({key,payload,action:makeAction(payload)});
-      if(jobs.length){emit();void drain();}
+      if(jobs.length){
+        // Ghi checkpoint trước khi gửi request. Nếu người dùng F5 tiếp
+        // trong lúc khôi phục, bản nháp vẫn còn để lần sau gửi lại.
+        checkpoint();
+        emit();void drain();
+      }
     },
-    retry(){error=null;emit();void drain();}
+    retry(){error=null;emit();void drain();},
+    cancel(){if(running)return false;jobs.length=0;error=null;emit();return true},
+    get running(){return running}
   };
 });

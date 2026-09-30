@@ -1437,7 +1437,7 @@
       color: var(--text-faint);
     }
   </style>
-  <link rel="stylesheet" href="crm-boot.css?v=20260918-manager-fix-2">
+  <link rel="stylesheet" href="crm-boot.css?v=20260930-no-static-flicker-v1">
   <link rel="stylesheet" href="./team-tree-hierarchy.css?v=20260918-nested-tree-1">
     <style id="dataDateFilterStyles">
       .data-date-filter-panel{padding:0!important;overflow:hidden;border:1px solid #e2e8f0!important;border-radius:16px!important;background:#fff!important;box-shadow:0 12px 30px rgba(15,23,42,.08)!important;transition:box-shadow .2s ease}
@@ -1627,9 +1627,9 @@
       </div>
 
       <!-- KẾ TOÁN -->
-      <div>
-        <div class="nav-group-title">KẾ TOÁN</div>
-        <ul class="nav-list">
+      <div id="accountingNavGroup" style="display:none">
+        <div class="nav-group-title">KẾ TOÁN &amp; HOA HỒNG</div>
+        <ul class="nav-list" id="accountingNavList">
           <li>
             <button class="nav-link" data-tab="tab-accounting">
               <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M7 8h10M7 12h2m3 0h5m-10 4h2m3 0h5"></path></svg>
@@ -4690,7 +4690,7 @@
 
 <script src="reference-view.js?v=20260928-attendance-all-14"></script>
 <script src="customer-save-queue.js?v=20260928-attendance-all-14"></script>
-<script src="reference-crm.js?v=20260928-attendance-all-14"></script>
+<script src="reference-crm.js?v=20260930-note-collapse-v1"></script>
 <script src="support-chat-widget.js?v=20260926-livechat-scroll-3"></script>
 <script>
   (() => {

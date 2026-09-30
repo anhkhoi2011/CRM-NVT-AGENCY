@@ -16,7 +16,7 @@
     requireRole(['ADMIN','MANAGER','LEADER','SALE','MARKETING','ACCOUNTING','UNASSIGNED']);
     if (pendingResult) {
       if(pendingResult.kind!==kind) throw Error("Hãy lưu lại thao tác trước đó trước khi chuyển sang thao tác khác.");
-      if (!await flushServerPersistence({skipAutomatic:kind.startsWith('add-extra-round-turn:')})) throw Error('Chưa lưu được dữ liệu. Giữ trang mở để thử lại.');
+      if (!await flushServerPersistence({skipAutomatic:kind.startsWith('add-extra-round-turn:')||kind.startsWith('accept-offer:')})) throw Error('Chưa lưu được dữ liệu. Giữ trang mở để thử lại.');
       const result=pendingResult.result;pendingResult=null;
       if (!kind.startsWith('customer-field:')) return result;
     }
@@ -107,6 +107,58 @@
         audit('SAVE_BROKERAGE_METRIC',id,member.name+' · '+period);return {ok:true};
       },'brokerage-metric');
     },
+    async saveExpense(input){
+      requireRole(['ADMIN']);
+      return persist(()=>{
+        const item={id:String(input.id||makeRecordId('EXP')),date:String(input.date||''),title:String(input.title||'').trim(),category:String(input.category||'Khác').trim(),amount:Number(input.amount),payer:String(input.payer||currentAccount.name).trim(),note:String(input.note||'').trim(),createdAt:stamp(),createdBy:currentAccount.id};
+        if(!item.date||!item.title||!Number.isFinite(item.amount)||item.amount<=0)throw Error('Nhập đầy đủ khoản chi và số tiền hợp lệ.');
+        const index=(state.expenses||[]).findIndex(row=>row.id===item.id);if(index>=0)state.expenses[index]={...state.expenses[index],...item};else{state.expenses||=[];state.expenses.unshift(item);}audit(index>=0?'UPDATE_EXPENSE':'CREATE_EXPENSE',item.id,item.title);return {id:item.id};
+      },'expense:'+String(input.id||'new'));
+    },
+    async removeExpense(id){requireRole(['ADMIN']);return persist(()=>{const item=(state.expenses||[]).find(row=>row.id===id);if(!item)throw Error('Khoản chi không còn tồn tại.');state.expenses=state.expenses.filter(row=>row.id!==id);audit('DELETE_EXPENSE',id,item.title);return {ok:true};},'remove-expense:'+id);},
+    async updateOrderAccounting(id,input){
+      requireRole(['ADMIN']);
+      return persist(()=>{
+        const order=state.orders.find(item=>item.id===id);if(!order)throw Error('Đơn hàng không còn tồn tại.');
+        const action=String(input?.action||'');
+        const text=(value,max=4000)=>String(value??'').trim().slice(0,max);
+        if(action==='ISSUE_VAT'){
+          order.vatIssued=true;order.vatIssuedAt=stamp();
+          order.vatInvoiceNumber=text(input.invoiceNumber,120);order.requireVat=true;
+          order.taxCode=text(input.taxCode,20)||text(order.taxCode,20);
+          order.companyName=text(input.companyName,200)||text(order.companyName,200);
+          order.billing={...(order.billing||{}),address:text(input.address,240)||text(order.billing?.address,240),email:text(input.email,254)||text(order.billing?.email,254),taxId:order.taxCode};
+          audit('ISSUE_VAT',id,order.vatInvoiceNumber||order.code);
+        }else if(action==='COLLECT'){
+          const amount=Number(input.amount),balance=Number(order.balanceDue??Math.max(0,Number(order.total||0)-Number(order.amountPaid||0)));
+          if(!Number.isFinite(amount)||amount<=0||amount>balance)throw Error('Số tiền thu nợ không hợp lệ.');
+          order.amountPaid=Number(order.amountPaid||0)+amount;order.depositAmount=order.amountPaid;
+          order.balanceDue=Math.max(0,Number(order.total||0)-order.amountPaid);
+          order.paymentReceipts=[...(order.paymentReceipts||[]),{id:makeRecordId('PAY'),amount,bankReference:text(input.bankReference,240),at:stamp(),createdBy:currentAccount.id}];
+          order.status=order.balanceDue===0?'PAID':'DEPOSIT';if(order.status==='PAID')order.paidAt=stamp();
+          audit('COLLECT_ORDER_DEBT',id,String(amount));
+        }else if(action==='UPDATE'){
+          const customer=state.customers.find(item=>String(item.id)===String(order.customerId));
+          const name=text(input.customerName,160),phone=text(input.customerPhone,30);
+          if(!name||phone.replace(/\D/g,'').length<9)throw Error('Tên và số điện thoại khách hàng không hợp lệ.');
+          order.customerName=name;order.customerPhone=phone;
+          order.saleNote=text(input.saleNote,1000);order.requireVat=input.requireVat===true;
+          order.billing={...(order.billing||{}),name,phone,email:text(input.customerEmail||input.email,254),cccd:text(input.customerCccd,20),address:text(input.customerAddress||input.address,240),taxId:text(input.taxCode,20)};
+          order.taxCode=text(input.taxCode,20);order.companyName=text(input.companyName,200);
+          const subtotal=Number(input.subtotal);if(!Number.isFinite(subtotal)||subtotal<=0)throw Error('Doanh thu đơn hàng không hợp lệ.');
+          const vatRate=order.requireVat?Math.max(0,Math.min(1,Number(input.vatRate??0.1))):0;
+          order.subtotal=subtotal;order.vatRate=vatRate;order.vatAmount=Math.round(subtotal*vatRate);order.total=subtotal+order.vatAmount;
+          const amountPaid=Math.max(0,Math.min(order.total,Number(input.amountPaid??input.collected??0)));
+          order.amountPaid=amountPaid;order.depositAmount=amountPaid;order.balanceDue=Math.max(0,order.total-amountPaid);order.status=order.balanceDue===0?'PAID':amountPaid>0?'DEPOSIT':'PENDING';
+          if(order.status==='PAID')order.paidAt=order.paidAt||stamp();
+          if(customer){customer.name=name;customer.phone=phone;customer.email=order.billing.email;customer.cccd=order.billing.cccd;customer.address=order.billing.address;}
+          audit('UPDATE_ACCOUNTING_ORDER',id,order.code||id);
+        }else if(action==='DELETE'){
+          state.orders=state.orders.filter(item=>item.id!==id);audit('DELETE_ACCOUNTING_ORDER',id,order.code||id);return {ok:true,deleted:true};
+        }else throw Error('Thao tác kế toán không hợp lệ.');
+        return {ok:true,order};
+      },'order-accounting:'+id+':'+String(input?.action||''));
+    },
 
     async closeWorkflow(force=false){
       if(!force&&workflowPending&&!await flushServerPersistence())throw Error("Dữ liệu chưa được lưu; giữ form để thử lại.");
@@ -150,7 +202,7 @@
         : scopedOrders();
       const visibleCustomerIds=new Set(customers.map(customer=>customer.id));
       const assignmentHistory=state.assignmentHistory.filter(item=>visibleCustomerIds.has(item.customerId));
-      return structuredClone({user:currentAccount,distributionRoundViews:distributionRoundViews(),distributionExtraTurnPeople:CrmDistributionRounds.recipients(state.members,state.leaderDistribution,state.saleDistributionByLeader).people,managerHierarchy,fonts:referenceFonts,assignedDataStats:currentAccount.role==='SALE'?assignedDataStatsForMe():null,pendingOffers:currentAccount.role==='SALE'?pendingOffersForMe().map(o=>({id:o.id,name:customerById(o.customerId)?.name||'',offeredAt:o.offeredAt,minutesLeft:offerMinutesLeft(o)})):[],customers,orders:visibleOrders,products:state.products,productCategories:state.productCategories,members:state.members,registeredAccounts:state.registeredAccounts,fields:state.customFieldDefinitions,careGroups:state.careGroups,imports:currentAccount.role==='ADMIN'?state.imports:[],resubmissions:state.resubmissions,assignmentHistory,websites:state.websites.map(w=>({...w,publicWebhookUrl:webhookUrlFor(w)})),webhookPending,webhookTransport:{...webhookTransport,label:(WEBHOOK_TRANSPORT_META[webhookTransport.mode]||WEBHOOK_TRANSPORT_META.idle)[0]},settings:state.settings,notifications:visibleNotifications(),audit:state.audit,attendance:state.attendance,brokerageMetrics:state.brokerageMetrics,feedbacks:state.feedbacks,processes:state.processes,tasks:scopedTasks(),leaderDistribution:state.leaderDistribution,saleDistributionByLeader:state.saleDistributionByLeader,offers:state.dataOffers,financialEvents:financialEvents(visibleOrders),navigation:allowedViews(),today:dayIso(0)});
+      return structuredClone({user:currentAccount,distributionRoundViews:distributionRoundViews(),distributionExtraTurnPeople:CrmDistributionRounds.recipients(state.members,state.leaderDistribution,state.saleDistributionByLeader).people,managerHierarchy,fonts:referenceFonts,assignedDataStats:currentAccount.role==='SALE'?assignedDataStatsForMe():null,pendingOffers:currentAccount.role==='SALE'?pendingOffersForMe().map(o=>({id:o.id,name:customerById(o.customerId)?.name||'',offeredAt:o.offeredAt,minutesLeft:offerMinutesLeft(o)})):[],customers,orders:visibleOrders,products:state.products,productCategories:state.productCategories,members:state.members,registeredAccounts:state.registeredAccounts,fields:state.customFieldDefinitions,careGroups:state.careGroups,imports:currentAccount.role==='ADMIN'?state.imports:[],resubmissions:state.resubmissions,assignmentHistory,websites:state.websites.map(w=>({...w,publicWebhookUrl:webhookUrlFor(w)})),webhookPending,webhookTransport:{...webhookTransport,label:(WEBHOOK_TRANSPORT_META[webhookTransport.mode]||WEBHOOK_TRANSPORT_META.idle)[0]},settings:state.settings,notifications:visibleNotifications(),audit:state.audit,attendance:state.attendance,brokerageMetrics:state.brokerageMetrics,feedbacks:state.feedbacks,processes:state.processes,expenses:currentAccount.role==='ADMIN'?state.expenses:[],tasks:scopedTasks(),leaderDistribution:state.leaderDistribution,saleDistributionByLeader:state.saleDistributionByLeader,offers:state.dataOffers,financialEvents:financialEvents(visibleOrders),navigation:allowedViews(),today:dayIso(0)});
     },
     async logout() { await endSession(); },
     async refresh() { return syncServerState(); },
@@ -247,6 +299,37 @@
       },'care');
     },
     async createOrder(input) {
+      requireRole(['ADMIN','MANAGER','LEADER','SALE']);
+      if (input?.source === 'accounting-iframe') {
+        return persist(() => {
+          const payload = input || {};
+          const text = (value, max = 4000) => String(value ?? '').trim().slice(0, max);
+          const phone = text(payload.phone, 20).replace(/[^0-9+]/g, '');
+          const name = text(payload.customerName, 160);
+          if (!name || phone.replace(/\D/g, '').length < 9) throw Error('\u0054\u00ean v\u00e0 s\u1ed1 \u0111i\u1ec7n tho\u1ea1i kh\u00e1ch h\u00e0ng kh\u00f4ng h\u1ee3p l\u1ec7.');
+          const sale = state.members.find(member => String(member.id) === String(payload.saleId) && member.active !== false && member.role === 'SALE');
+          if (!sale) throw Error('Sale ph\u1ee5 tr\u00e1ch kh\u00f4ng c\u00f2n ho\u1ea1t \u0111\u1ed9ng.');
+          const role = permissionRole();
+          const visibleSaleIds = role === 'ADMIN' ? new Set(state.members.filter(member => member.active !== false && ['MANAGER','LEADER','SALE'].includes(member.role)).map(member => String(member.id))) : new Set(scopedCustomers().map(customer => String(customer.saleId)).filter(Boolean));
+          if (!visibleSaleIds.has(String(sale.id)) && role !== 'ADMIN') throw Error('Sale ph\u1ee5 tr\u00e1ch n\u1eb1m ngo\u00e0i ph\u1ea1m vi c\u1ee7a b\u1ea1n.');
+          let customer = state.customers.find(item => { const a=String(item.phone||'').replace(/\D/g,''); const b=phone.replace(/\D/g,''); return a&&b&&(a===b||a.replace(/^84/,'0')===b.replace(/^84/,'0')); });
+          if (customer && customer.saleId && String(customer.saleId) !== String(sale.id)) throw Error(`S? ?i?n tho?i ?? thu?c kh?ch h?ng ${customer.name || ''} c?a Sale kh?c.`.trim());
+          const leader = sale.leaderId ? state.members.find(member => String(member.id) === String(sale.leaderId)) : null;
+          const manager = sale.managerId ? state.members.find(member => String(member.id) === String(sale.managerId)) : leader?.managerId ? state.members.find(member => String(member.id) === String(leader.managerId)) : null;
+          const product = state.products.find(item => String(item.id) === String(payload.productId) && item.active !== false);
+          if (!product) throw Error('S\u1ea3n ph\u1ea9m kh\u00f4ng c\u00f2n ho\u1ea1t \u0111\u1ed9ng trong danh m\u1ee5c CRM.');
+          if (!customer) {
+            customer={id:makeRecordId('CUS'),name,phone,email:text(payload.email,254),cccd:text(payload.cccd,20),address:text(payload.address,240),saleId:sale.id,leaderId:sale.leaderId||leader?.id||null,managerId:sale.managerId||manager?.id||null,teamId:sale.teamId||leader?.teamId||'',source:text(payload.sourceLabel,160)||'Nh\u1eadp \u0111\u01a1n h\u00e0ng',sourceUrl:text(payload.sourceUrl,500),websiteId:payload.websiteId||null,status:'NEW',active:true,createdAt:stamp(),saleAcceptedAt:stamp(),customFields:{}};
+            state.customers.unshift(customer);
+          } else {
+            customer.name=name||customer.name; customer.email=text(payload.email,254)||customer.email||''; customer.cccd=text(payload.cccd,20)||customer.cccd||''; customer.address=text(payload.address,240)||customer.address||''; customer.saleId=sale.id; customer.leaderId=sale.leaderId||leader?.id||customer.leaderId||null; customer.managerId=sale.managerId||manager?.id||customer.managerId||null; customer.teamId=sale.teamId||leader?.teamId||customer.teamId||'';
+          }
+          const qty=Math.max(1,Math.min(10,Math.floor(Number(payload.qty)||1))),subtotal=Number(payload.subtotal); if(!Number.isFinite(subtotal)||subtotal<=0)throw Error('Doanh thu \u0111\u01a1n h\u00e0ng kh\u00f4ng h\u1ee3p l\u1ec7.');
+          const vatRate=Math.max(0,Math.min(1,Number(payload.vatRate??0))),vatAmount=Math.round(subtotal*vatRate),total=subtotal+vatAmount,amountPaid=Math.max(0,Math.min(total,Number(payload.amountPaid??payload.collected??0))),status=amountPaid>=total?'PAID':amountPaid>0?'DEPOSIT':'PENDING',createdAt=stamp(),id=makeRecordId('ORD');
+          const order={id,code:`NVT-${id.slice(4)}`,customerId:customer.id,customerName:customer.name,customerPhone:customer.phone,saleId:sale.id,saleName:sale.name,leaderId:customer.leaderId,managerId:customer.managerId,teamId:customer.teamId,source:customer.source||'Nh\u1eadp \u0111\u01a1n h\u00e0ng',sourceUrl:customer.sourceUrl||'',websiteId:customer.websiteId||null,productId:product.id,productName:product.name,sku:product.sku||'',courseCode:text(payload.courseCode,160),qty,unitPrice:Number(product.price||0),subtotal,vatRate,vatAmount,discount:0,total,paymentMode:amountPaid>=total?'FULL':'DEPOSIT',depositAmount:amountPaid,amountPaid,balanceDue:Math.max(0,total-amountPaid),paymentMethod:text(payload.paymentMethod,40)||'BANK_TRANSFER',bankReference:text(payload.bankReference,160),billing:{name:text(payload.billing?.name)||name,phone:text(payload.billing?.phone)||phone,email:text(payload.billing?.email||payload.email,254),cccd:text(payload.billing?.cccd||payload.cccd,20),address:text(payload.billing?.address||payload.address,240),taxId:text(payload.billing?.taxId||payload.taxCode,20)},requireVat:payload.requireVat===true||vatRate>0,taxCode:text(payload.taxCode,20),companyName:text(payload.companyName,200),saleNote:text(payload.saleNote,1000),billImage:text(payload.billImage,2800000),rentalMonths:product.type==='RENTAL'?Number(product.rentalMonths)||null:null,rentalEndsAt:null,refund:0,status,createdAt,depositAt:amountPaid>0?createdAt:null,paidAt:status==='PAID'?createdAt:null,refundedAt:null,paymentReconciled:false,refundReconciled:null,vatIssued:false,vatIssuedAt:null,vatInvoiceNumber:''};
+          state.orders.unshift(order); audit('CREATE_ORDER',id,`${order.code} \u00b7 ${order.productName}`); return {id:order.id,code:order.code,order,customer};
+        },'accounting-order');
+      }
       requireRole(['ADMIN','LEADER','SALE']);
       // Gọi đúng form nghiệp vụ hiện có trong frame để giữ kiểm tra giá, VAT và phân quyền.
       if(pendingResult) return persist(()=>{},'order');
@@ -254,7 +337,7 @@
       const customer=customerById(input.customerId),product=productById(input.productId);
       if(!customer||!canViewCustomer(customer)||!customer.saleId||!product||product.active===false)throw Error('Chọn khách đã phân Sale và sản phẩm đang hoạt động.');
       newOrderModal(customer.id);
-      const values={newOrderCustomer:customer.id,newOrderProduct:product.id,newOrderQty:1,newOrderPaymentMode:input.paymentMode,newOrderPaymentMethod:input.paymentMethod,newOrderDeposit:Math.round(product.price*1.1/2),newOrderBillingName:customer.name,newOrderBillingPhone:customer.phone,newOrderBillingEmail:customer.email||''};
+      const values={newOrderCustomer:customer.id,newOrderProduct:product.id,newOrderQty:1,newOrderPaymentMode:input.paymentMode,newOrderPaymentMethod:input.paymentMethod,newOrderDeposit:input.depositAmount??Math.round(product.price*1.1/2),newOrderBillingName:input.billing?.name||customer.name,newOrderBillingPhone:input.billing?.phone||customer.phone,newOrderBillingEmail:input.billing?.email||customer.email||'',newOrderBillingCccd:input.billing?.cccd||'',newOrderBillingAddress:input.billing?.address||'',newOrderBillingTaxId:input.billing?.taxId||'',newOrderCourse:input.courseCode||'',newOrderBankReference:input.bankReference||''};
       Object.entries(values).forEach(([id,value])=>$('#'+id).value=value);
       const before=new Set(state.orders.map(o=>o.id)); lastNotice='';
       await $('#newOrderForm').onsubmit({preventDefault(){}});

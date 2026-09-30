@@ -6,6 +6,11 @@ async function provisionSystemAccounts(pool) {
   const c = await pool.getConnection();
   let locked = false;
   try {
+    // Ch? m?c ??ng nh?p ph?i ???c b?o ??m ? m?i l?n kh?i ??ng, k? c? khi seed t?i kho?n ?? ch?y tr??c ??.
+    const [userIndexes] = await c.query('SHOW INDEX FROM users');
+    const indexNames = new Set(userIndexes.map(index => String(index.Key_name)));
+    if (!indexNames.has('idx_users_email_active')) await c.query('CREATE INDEX idx_users_email_active ON users(email, active)');
+    if (!indexNames.has('idx_users_phone_active')) await c.query('CREATE INDEX idx_users_phone_active ON users(phone, active)');
     const [existingMarker] = await c.execute('SELECT setting_key FROM system_settings WHERE setting_key=?', [MIGRATION_KEY]);
     if (existingMarker.length) return { applied: false };
     const [lock] = await c.query("SELECT GET_LOCK(CONCAT(LEFT(DATABASE(),40), ':nvt-accounts-v1'),30) AS acquired");

@@ -149,14 +149,14 @@
     return {config:next,cursor:{...cursor,index:view.index,ids:[...view.ids,memberId],cycleId:view.cycleId||String(Date.now()),roundId:view.roundId,slotSignature:slotSignature(config.rounds?.[0]||config,people,mode)}};
   }
   return {slots,preview,skip,removeMember,addExtraTurn,take,recipients,cursorFrom};
-});
-/* END BUNDLED DISTRIBUTION ROUNDS */
+});/* END BUNDLED DISTRIBUTION ROUNDS */
 let orderTypeFilter = 'ALL';
 'use strict';
 
 const STORAGE_KEY = 'nvt-crm-production-v1';
 const SESSION_KEY = 'nvt-crm-session-v1';
 const THEME_KEY = 'nvt-crm-theme-v1';
+const CACHED_SNAPSHOT_KEY = 'nvt_crm_cached_snapshot_v1';
 
 const ACCOUNTS = [];
 const STAFF_SEED = [];
@@ -251,20 +251,16 @@ const NAVIGATION = {
   ]
 };
 
-// Đồng bộ vị trí và tên menu kế toán cho cả các màn hình dùng runtime cũ.
+// Đồng bộ menu kế toán và loại bỏ báo cáo kinh doanh độc lập khỏi mọi vai trò.
 (() => {
-  const groups = NAVIGATION.ADMIN || [];
-  const organization = groups.find(group => group[0] === 'Tổ chức');
-  const accounting = groups.find(group => group[0] === 'Kế toán');
-  if (organization && accounting) {
-    const report = organization[1].find(item => item[0] === 'businessReport');
-    if (report) organization[1] = organization[1].filter(item => item[0] !== 'businessReport');
-    accounting[1] = accounting[1].map(item => item[0] === 'accounting' ? [item[0], 'Hoa Hồng nhân viên', item[2]] : item);
-    if (report) accounting[1].push(report);
-  }
+  Object.values(NAVIGATION).forEach(groups => groups.forEach(group => {
+    group[1] = group[1].filter(item => item[0] !== 'businessReport');
+  }));
+  const accounting = NAVIGATION.ADMIN?.find(group => group[1]?.some(item => item[0] === 'accounting'));
+  if (accounting) accounting[1] = accounting[1].map(item => item[0] === 'accounting' ? [item[0], 'Hoa Hồng nhân viên', item[2]] : item);
 })();
 
-function dayIso(daysAgo) {
+ function dayIso(daysAgo) {
   const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date());
   const value = type => parts.find(part => part.type === type)?.value || '01';
   const today = `${value('year')}-${value('month')}-${value('day')}`;
@@ -308,6 +304,7 @@ function initialState() {
     notifications: [],
     feedbacks: [],
     processes: [],
+    expenses: [],
     audit: [],
     websites: [
       { id: 'WEB-NVT', name: 'NVT Agency', domain: 'hoangphucacademy.vn', sourceUrl: 'https://www.hoangphucacademy.vn/', status: 'ACTIVE', provider: 'LANDING_API', endpoint: '', externalAccountId: '', campaignId: '', formId: '', webhookSlug: 'ds-1789180581447-IIM6U3AAD1R', webhookUrlOverride: '', connectionStatus: 'PENDING_BACKEND', domainVerificationStatus: 'UNVERIFIED', credentialConfigured: false, credentialLast4: '', lastVerifiedAt: '', lastError: '', lastSync: 'Chưa đồng bộ' },
@@ -1465,7 +1462,7 @@ function orderSource(source) {
 }
 
 // Chỉ giữ dữ liệu làm việc trong RAM. Server là nguồn dữ liệu duy nhất.
-const SERVER_LISTS = ['customers','orders','products','members','registrations','customFieldDefinitions','customerFieldHistory','assignmentHistory','resubmissions','notes','imports','attendance','dataOffers','traffic','tasks','notifications','audit','websites','integrations','webhookPending','brokerageMetrics','feedbacks','processes'];
+const SERVER_LISTS = ['customers','orders','products','members','registrations','customFieldDefinitions','customerFieldHistory','assignmentHistory','resubmissions','notes','imports','attendance','dataOffers','traffic','tasks','notifications','audit','websites','integrations','webhookPending','brokerageMetrics','feedbacks','processes','expenses'];
 const SERVER_OBJECTS = ['settings','leaderDistribution','saleDistributionByLeader','productCategories','careGroups'];
 let serverSyncToken = '', serverSyncTimer = null, serverSaveTimer = null;
 let serverAutomationStatus = null;
@@ -1554,7 +1551,7 @@ function saveState() {
 }
 function pendingWriteStorageKey(accountId=currentAccount?.id){return 'nvt-crm-pending-write-v1:'+accountId;}
 function rememberPendingWrite(request){
-  sessionStorage.setItem(pendingWriteStorageKey(),JSON.stringify({actorId:currentAccount.id,requestId:request.requestId,changes:request.changes,skipAutomatic:request.skipAutomatic===true}));
+  sessionStorage.setItem(pendingWriteStorageKey(),JSON.stringify({actorId:currentAccount.id,requestId:request.requestId,changes:request.changes,skipAutomatic:request.skipAutomatic===true,fastNote:request.fastNote===true}));
 }
 async function recoverPendingWrite(account){
   const raw=sessionStorage.getItem(pendingWriteStorageKey(account.id));
@@ -1564,9 +1561,9 @@ async function recoverPendingWrite(account){
   const controller=typeof AbortController==='function'?new AbortController():null;
   const timer=controller?setTimeout(()=>controller.abort(),15000):null;
   try{
-    const response=await fetch(webhookApiBase()+'/api/state',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+serverSyncToken},body:JSON.stringify({requestId:request.requestId,changes:request.changes,skipAutomatic:request.skipAutomatic}),signal:controller?.signal});
+    const response=await fetch(webhookApiBase()+'/api/state',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+serverSyncToken},body:JSON.stringify({requestId:request.requestId,changes:request.changes,skipAutomatic:request.skipAutomatic,fastNote:request.fastNote===true}),signal:controller?.signal});
     const payload=await response.json();
-    if(!response.ok)throw Error(payload.error||'Chưa khôi phục được lần lưu trước. Bản nháp vẫn được giữ.');
+    if(!response.ok)throw Object.assign(Error(payload.error||'Chưa khôi phục được lần lưu trước. Bản nháp vẫn được giữ.'),{status:response.status});
     sessionStorage.removeItem(pendingWriteStorageKey(account.id));
     return payload;
   }finally{if(timer)clearTimeout(timer);}
@@ -1581,21 +1578,22 @@ async function flushServerPersistence(requestOptions = {}) {
       do {
         if(!serverPendingRequest) {
           const changes=pendingChanges();if(!changes.length){setSaveStatus('Đã lưu MySQL');return true;}
-          serverPendingRequest={requestId:makeRecordId('SAVE'),changes,snapshot:serverRecords(),skipAutomatic:Boolean(requestOptions.skipAutomatic)};
+          const backgroundOnly=changes.length>0&&changes.every(change=>['customers','notes','audit'].includes(change.key));
+          serverPendingRequest={requestId:makeRecordId('SAVE'),changes,snapshot:serverRecords(),skipAutomatic:Boolean(requestOptions.skipAutomatic||backgroundOnly),fastNote:backgroundOnly};
         }
         const request=serverPendingRequest,token=serverSyncToken;
         rememberPendingWrite(request);
         const controller=typeof AbortController==='function'?new AbortController():null;
         const timeout=setTimeout(()=>controller?.abort(),15000);
-        let response;
+        let response, payload;
         try {
-          const options={method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({requestId:request.requestId,changes:request.changes,skipAutomatic:request.skipAutomatic===true})};
+          const options={method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({requestId:request.requestId,changes:request.changes,skipAutomatic:request.skipAutomatic===true,fastNote:request.fastNote===true})};
           if(controller)options.signal=controller.signal;
           response=await fetch(`${webhookApiBase()}/api/state`,options);
+          payload=await response.json();
         } finally {
           clearTimeout(timeout);
         }
-        const payload=await response.json();
         if(token!==serverSyncToken)return false;
         if(!response.ok){
           if([400,403,409,413].includes(response.status)){serverConflict=true;serverPendingRequest=null;}
@@ -2614,7 +2612,7 @@ function setCustomerCustomFields(customerId, values, source = 'MANUAL') {
   return { updated: changes > 0, changes, error: '' };
 }
 
-function updateCustomerCustomFields(customerId) {
+async function updateCustomerCustomFields(customerId) {
   const values = {};
   activeCustomFields().forEach(field => {
     if (field.type === 'MULTI_SELECT') values[field.id] = $$(`[data-customer-field-multi="${field.id}"]:checked`).map(input => input.value);
@@ -2624,7 +2622,12 @@ function updateCustomerCustomFields(customerId) {
   const result = setCustomerCustomFields(customerId, values);
   if (result.error) { toast(result.error === 'FORBIDDEN' ? 'FORBIDDEN · không có quyền cập nhật dữ liệu nghiệp vụ' : result.error); return; }
   if (!result.updated) { toast('Dữ liệu nghiệp vụ chưa thay đổi'); return; }
-  saveState(); render(); openCustomerDrawer(customerId); toast(`Đã lưu ${result.changes} thay đổi; lịch sử Level được giữ nguyên`);
+  saveState();
+  const saved=await flushServerPersistence();
+  render(); openCustomerDrawer(customerId);
+  toast(saved
+    ? `Đã lưu ${result.changes} thay đổi vào MySQL; lịch sử Level được giữ nguyên`
+    : `Chưa xác nhận lưu ${result.changes} thay đổi. Bản nháp vẫn được giữ lại để tự thử lại.`);
 }
 
 function uniqueCustomerRows(customers) {
@@ -3894,8 +3897,8 @@ function openCustomerDrawer(id) {
   followUpDefault.setHours(9, 0, 0, 0);
   const followUpDefaultDueAt = `${followUpDefault.getFullYear()}-${String(followUpDefault.getMonth() + 1).padStart(2, '0')}-${String(followUpDefault.getDate()).padStart(2, '0')}T09:00`;
   const businessFields = activeCustomFields().filter(field => field.type === 'MULTI_SELECT' || field.type === 'NOTE');
-  const businessHtml = businessFields.length ? `<section class="customer-drawer-section customer-business-section"><div class="customer-section-heading"><div><h3>Dữ liệu nghiệp vụ</h3><p>Thông tin bổ sung được lưu riêng theo từng khách hàng</p></div></div>${canUpdate ? `<form id="customerCustomFieldsForm"><div class="form-grid custom-field-grid">${businessFields.map(field => customFieldInput(field, customer.customFields?.[field.id])).join('')}</div><div class="modal-actions"><button class="button button-primary" type="submit">Lưu dữ liệu nghiệp vụ</button></div></form>` : `<div class="custom-field-readonly">${businessFields.map(field => `<div><small>${escapeHtml(field.label)}</small>${customFieldCell(field, customer.customFields?.[field.id])}</div>`).join('')}</div>`}</section>` : '';
-  const updateHtml = `<section class="customer-drawer-section customer-edit-section"><div class="customer-section-heading"><div><h3>Cập nhật nhanh</h3><p>Đổi tên khách hàng hoặc cập nhật trạng thái</p></div></div>${canEditCustomerForm ? `<form id="customerUpdateForm"><div class="form-grid"><label class="form-field">Tên khách hàng<input id="customerName" type="text" maxlength="160" value="${escapeHtml(customer.name || '')}" ${canEditName ? '' : 'readonly'}></label><label class="form-field">Trạng thái<select id="customerStatus" ${canUpdate ? '' : 'disabled'}>${Object.entries(STATUS_META).map(([key, meta]) => `<option value="${key}" ${customer.status === key ? 'selected' : ''}>${escapeHtml(meta.label)}</option>`).join('')}</select></label></div><div class="modal-actions"><button class="button button-primary" type="submit">${canEditName && canUpdate ? 'Lưu thông tin khách hàng' : canEditName ? 'Lưu tên khách hàng' : 'Cập nhật trạng thái'}</button></div></form>` : `<div class="form-hint">Tài khoản hiện tại chỉ được xem thông tin khách hàng.</div>`}</section>`;
+  const businessHtml = businessFields.length ? `<section class="customer-drawer-section customer-business-section"><div class="customer-section-heading"><div><h3>Thông tin tư vấn</h3><p>Chọn nhu cầu và ghi chú của khách hàng</p></div><span class="customer-section-kicker">Nghiệp vụ</span></div>${canUpdate ? `<form id="customerCustomFieldsForm"><div class="form-grid custom-field-grid">${businessFields.map(field => customFieldInput(field, customer.customFields?.[field.id])).join('')}</div><div class="modal-actions"><button class="button button-primary" type="submit">Lưu thông tin tư vấn</button></div></form>` : `<div class="custom-field-readonly">${businessFields.map(field => `<div><small>${escapeHtml(field.label)}</small>${customFieldCell(field, customer.customFields?.[field.id])}</div>`).join('')}</div>`}</section>` : '';
+  const updateHtml = `<section class="customer-drawer-section customer-edit-section"><div class="customer-section-heading"><div><h3>Thông tin cần cập nhật</h3><p>Đổi tên khách hàng hoặc cập nhật trạng thái hiện tại</p></div></div>${canEditCustomerForm ? `<form id="customerUpdateForm"><div class="form-grid"><label class="form-field">Tên khách hàng<input id="customerName" type="text" maxlength="160" value="${escapeHtml(customer.name || '')}" ${canEditName ? '' : 'readonly'}></label><label class="form-field">Trạng thái<select id="customerStatus" ${canUpdate ? '' : 'disabled'}>${Object.entries(STATUS_META).map(([key, meta]) => `<option value="${key}" ${customer.status === key ? 'selected' : ''}>${escapeHtml(meta.label)}</option>`).join('')}</select></label></div><div class="modal-actions"><button class="button button-primary" type="submit">${canEditName && canUpdate ? 'Lưu thông tin khách hàng' : canEditName ? 'Lưu tên khách hàng' : 'Cập nhật trạng thái'}</button></div></form>` : `<div class="form-hint">Tài khoản hiện tại chỉ được xem thông tin khách hàng.</div>`}</section>`;
   const productHtml = orders.length || canUpdate ? `<section class="customer-drawer-section"><div class="customer-section-heading section-label-with-action"><div><h3>Sản phẩm & đơn hàng</h3><p>${orders.length ? `${orders.length} đơn hàng đã ghi nhận` : 'Chưa có đơn hàng nào'}</p></div>${canUpdate ? `<button class="button button-small" type="button" data-new-customer-product="${escapeHtml(customer.id)}">+ Thêm</button>` : ''}</div><div class="purchase-list">${orders.map(order => `<button class="purchase-row" type="button" data-customer-order="${escapeHtml(order.id)}"><span><b>${escapeHtml(order.productName)}</b><small>${escapeHtml(order.code)} · SL ${order.qty} · ${escapeHtml(order.createdAt)}</small></span><span class="right"><b>${money(order.total)}</b>${statusBadge(order.status, 'order')}</span></button>`).join('') || '<div class="empty compact"><b>Chưa có sản phẩm</b><span>Đơn hàng mới của khách sẽ hiển thị tại đây.</span></div>'}</div></section>` : '';
   const notesHtml = notes.length || canUpdate ? `<section class="customer-drawer-section"><div class="customer-section-heading"><div><h3>Ghi chú chăm sóc</h3><p>${notes.length ? `${notes.length} ghi chú gần nhất` : 'Lưu lại nhu cầu và nội dung trao đổi'}</p></div></div>${canUpdate ? `<form id="customerNoteForm"><label class="form-field">Ghi chú mới<textarea id="customerNote" rows="3" maxlength="2000" placeholder="Nhập nhu cầu, trao đổi hoặc thông tin cần theo dõi..."></textarea></label><div class="modal-actions"><button class="button button-primary" type="submit">Thêm ghi chú</button></div></form>` : ''}${notes.length ? `<div class="timeline note-timeline">${notes.map(note => `<div class="timeline-item"><b>${escapeHtml(note.author)} · ${escapeHtml(note.role)}</b><p>${escapeHtml(note.text)}</p><small>${escapeHtml(note.at)}</small><div class="note-actions"><button class="button button-small" type="button" data-edit-note="${escapeHtml(note.id)}">Sửa</button><button class="button button-small button-danger" type="button" data-delete-note="${escapeHtml(note.id)}">Xóa</button></div></div>`).join('')}</div>` : ''}</section>` : '';
    const followUpHtml = followUps.length || (canUpdate && customer.saleId) ? `<section class="customer-drawer-section"><div class="customer-section-heading"><div><h3>Lịch chăm sóc</h3><p>${followUps.length ? `${followUps.length} lịch đang theo dõi` : 'Tạo lịch gọi lại hoặc gửi báo giá'}</p></div></div>${canUpdate && customer.saleId ? `<form id="customerFollowUpForm"><div class="form-grid"><label class="form-field">Nội dung<input id="followUpType" maxlength="160" required placeholder="Gọi lại / gửi báo giá..."></label><label class="form-field">Hạn xử lý<input id="followUpDueAt" type="datetime-local" required value="${followUpDefaultDueAt}"></label><label class="form-field">Ưu tiên<select id="followUpPriority"><option value="NORMAL">Thường</option><option value="HIGH">Cao</option></select></label></div><div class="modal-actions"><button class="button" type="submit">+ Thêm lịch</button></div></form>` : ''}<div class="follow-up-list">${followUps.map(task => `<div class="follow-up-row"><span><b>${escapeHtml(task.type)}</b><small>${escapeHtml(task.dueAt)} · ${escapeHtml(staffName(task.ownerId))}</small></span><span>${statusBadge(task.status, 'task')}${task.status !== 'DONE' && canUpdate ? `<button class="button button-small" type="button" data-complete-task="${escapeHtml(task.id)}">Hoàn tất</button>` : ''}</span></div>`).join('') || '<div class="empty compact"><b>Chưa có lịch chăm sóc</b><span>Tạo lịch mới ngay trong hồ sơ khách.</span></div>'}</div></section>` : '';
@@ -3998,14 +4001,17 @@ function quickMultiSelectModal(customerId, fieldId) {
   };
 }
 
-function addCustomerNote(id) {
+async function addCustomerNote(id) {
   const customer = customerById(id), text = $('#customerNote')?.value.trim();
   if (!canViewCustomer(customer) || !canUpdateCustomer(customer) || !text) { toast('Vui lòng nhập ghi chú hợp lệ'); return; }
   state.notes.unshift({ id: `NOTE-${Date.now()}-${customer.id}`, customerId: customer.id, authorId: currentAccount.id, author: currentAccount.name, role: currentAccount.role, text: text.slice(0, 2000), at: stamp() });
   customer.note = text.slice(0, 2000);
   customer.updatedAt = stamp();
   audit('ADD_CUSTOMER_NOTE', customer.id, customer.note);
-  saveState(); render(); openCustomerDrawer(id); toast('Đã thêm ghi chú để cả Team cùng xem');
+  saveState();
+  const saved = await flushServerPersistence();
+  render(); openCustomerDrawer(id);
+  toast(saved ? 'Đã lưu ghi chú vào MySQL.' : 'Chưa lưu được ghi chú. Bản nháp đang được giữ lại để thử lưu lại.');
 }
 
 function editCustomerNote(noteId) {
@@ -4013,14 +4019,20 @@ function editCustomerNote(noteId) {
   if (!note || !customer || !canUpdateCustomer(customer)) { toast('Không có quyền sửa ghi chú'); return; }
   openModal('Sửa ghi chú', `<form id="editNoteForm"><label class="form-field">Nội dung<textarea id="editNoteText" rows="5" required>${escapeHtml(note.text)}</textarea></label><div class="modal-actions"><button class="button" type="button" data-close-modal>Huỷ</button><button class="button button-primary" type="submit">Lưu thay đổi</button></div></form>`);
   $('[data-close-modal]')?.addEventListener('click', closeModal);
-  $('#editNoteForm').onsubmit = event => { event.preventDefault(); const text = $('#editNoteText').value.trim(); if (!text) return; note.text = text.slice(0, 2000); note.editedAt = stamp(); customer.note = note.text; customer.updatedAt = stamp(); audit('EDIT_CUSTOMER_NOTE', customer.id, note.id); saveState(); closeModal(); render(); openCustomerDrawer(customer.id); };
+  $('#editNoteForm').onsubmit = event => { event.preventDefault(); const text = $('#editNoteText').value.trim(); if (!text) return; note.text = text.slice(0, 2000); note.editedAt = stamp(); customer.note = note.text; customer.updatedAt = stamp(); audit('EDIT_CUSTOMER_NOTE', customer.id, note.id);
+    saveState();
+    void flushServerPersistence().then(saved => { if (!saved) toast('Ghi chú đang được giữ lại, hệ thống sẽ thử lưu lại khi kết nối ổn định.'); });
+    closeModal(); render(); openCustomerDrawer(customer.id); };
 }
 
 function deleteCustomerNote(noteId) {
   const note = state.notes.find(item => item.id === noteId); const customer = note && customerById(note.customerId);
   if (!note || !customer || !canUpdateCustomer(customer)) { toast('Không có quyền xóa ghi chú'); return; }
   if (!window.confirm('Xóa ghi chú này?')) return;
-  state.notes = state.notes.filter(item => item.id !== noteId); customer.note = state.notes.find(item => item.customerId === customer.id)?.text || ''; customer.updatedAt = stamp(); audit('DELETE_CUSTOMER_NOTE', customer.id, noteId); saveState(); render(); openCustomerDrawer(customer.id);
+  state.notes = state.notes.filter(item => item.id !== noteId); customer.note = state.notes.find(item => item.customerId === customer.id)?.text || ''; customer.updatedAt = stamp(); audit('DELETE_CUSTOMER_NOTE', customer.id, noteId);
+  saveState();
+  void flushServerPersistence().then(saved => { if (!saved) toast('Thay đổi ghi chú đang được giữ lại để thử lưu lại.'); });
+  render(); openCustomerDrawer(customer.id);
 }
 
 function addCustomerFollowUp(id) {
@@ -4865,6 +4877,50 @@ function newOrderModal(customerId = '') {
     state.orders.unshift(order); audit('CREATE_ORDER', id, `${order.code} \u00b7 ${order.productName}`); saveState();
     if (!await flushServerPersistence()) { toast('Kh\u00f4ng th\u1ec3 l\u01b0u \u0111\u01a1n h\u00e0ng l\u00ean MySQL; b\u1ea3n nh\u00e1p v\u1eabn \u0111ang m\u1edf \u0111\u1ec3 th\u1eed l\u1ea1i'); return; }
     closeModal(); render(); toast('\u0110\u00e3 t\u1ea1o \u0111\u01a1n ch\u1edd Admin x\u00e1c nh\u1eadn thanh to\u00e1n');
+  };
+}
+
+// Form đơn hàng kế toán dùng chung cho mọi giao diện tham chiếu.
+// Định nghĩa lại tại đây để giữ một luồng nghiệp vụ duy nhất và bổ sung mã khóa học,
+// tham chiếu ngân hàng cùng số tiền thực thu đợt đầu.
+function newOrderModal(customerId = '') {
+  const customers = scopedCustomers().filter(customer => customer.saleId);
+  const products = state.products.filter(product => product.active !== false);
+  if (!customers.length) { toast('Chưa có khách đã phân Sale để tạo đơn hàng.'); return; }
+  if (!products.length) { toast('Chưa có sản phẩm đang bán.'); return; }
+  const courseValues = customer => {
+    const fields = state.customFieldDefinitions.filter(field => {
+      const key = normalize(`${field.id} ${field.label}`);
+      return key.includes('khoa') || key.includes('course');
+    });
+    return [...new Set(fields.flatMap(field => {
+      const value = customer?.customFields?.[field.id];
+      return Array.isArray(value) ? value : String(value || '').split(',');
+    }).map(value => String(value || '').trim()).filter(Boolean))];
+  };
+  const selectedCustomer = customerById(customerId) || customers[0];
+  const courses = [...new Set(customers.flatMap(courseValues))];
+  const options = values => values.map(value => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join('');
+  openModal('Tạo đơn hàng và đối soát kế toán', `<form id="newOrderForm"><div class="form-grid"><label class="form-field">Khách hàng<select id="newOrderCustomer">${customers.map(customer => `<option value="${escapeHtml(customer.id)}" ${customer.id === selectedCustomer.id ? 'selected' : ''}>${escapeHtml(customer.name)} · ${escapeHtml(customer.phone)}</option>`).join('')}</select></label><label class="form-field">Khóa học<select id="newOrderCourse"><option value="">— Chưa ghi nhận —</option>${options(courseValues(selectedCustomer).length ? courseValues(selectedCustomer) : courses)}</select><small class="form-hint">Lấy từ cột Khóa học trong hồ sơ khách.</small></label><label class="form-field">Sản phẩm / dịch vụ<select id="newOrderProduct">${products.map(product => `<option value="${escapeHtml(product.id)}">${escapeHtml(product.name)} · ${money(product.price)}</option>`).join('')}</select></label><label class="form-field">VAT (%)<select id="newOrderVatRate"><option value="0">Không VAT</option><option value="0.08">8%</option><option value="0.10" selected>10%</option><option value="0.12">12%</option></select></label><label class="form-field">Số lượng<input id="newOrderQty" type="number" min="1" max="10" value="1"></label><label class="form-field">Kênh thanh toán<select id="newOrderPaymentMethod"><option value="VietQR">VietQR</option><option value="BANK_TRANSFER">Chuyển khoản</option><option value="CASH">Tiền mặt</option></select></label><label class="form-field">Hình thức<select id="newOrderPaymentMode"><option value="FULL">Thanh toán đủ</option><option value="DEPOSIT">Đặt cọc / đợt 1</option></select></label><label class="form-field" id="newOrderDepositWrap" style="display:none">Thực thu đợt 1<input id="newOrderDeposit" type="number" min="0" step="10000" value="0"></label><label class="form-field">Mã UNC / tham chiếu ngân hàng<input id="newOrderBankReference" maxlength="160"></label></div><div class="section-label">Thông tin xuất hóa đơn</div><div class="form-grid"><label class="form-field">Họ tên *<input id="newOrderBillingName" maxlength="160" required value="${escapeHtml(selectedCustomer.name || '')}"></label><label class="form-field">CCCD<input id="newOrderBillingCccd" inputmode="numeric" maxlength="12"></label><label class="form-field">SĐT *<input id="newOrderBillingPhone" inputmode="numeric" maxlength="15" required value="${escapeHtml(selectedCustomer.phone || '')}"></label><label class="form-field">Email<input id="newOrderBillingEmail" type="email" maxlength="254" value="${escapeHtml(selectedCustomer.email || '')}"></label><label class="form-field">Địa chỉ<input id="newOrderBillingAddress" maxlength="240"></label><label class="form-field">MST doanh nghiệp<input id="newOrderBillingTaxId" inputmode="numeric" maxlength="13"></label></div><div class="form-hint" id="newOrderSummary"></div><div class="modal-actions"><button class="button" type="button" data-close-modal>Hủy</button><button class="button button-primary" type="submit">Tạo đơn chờ thanh toán</button></div></form>`);
+  $('#newOrderVatRate').value='0.10';
+  $('[data-close-modal]')?.addEventListener('click', closeModal);
+  const readAmounts = () => { const product = state.products.find(item=>item.id===$('#newOrderProduct').value); const qty = Math.floor(Number($('#newOrderQty').value) || 0); const subtotal = Number(product?.price || 0) * qty; const vatRate = Math.min(1, Math.max(0, Number($('#newOrderVatRate').value || 0))); const vatAmount = Math.round(subtotal * vatRate); const total = subtotal + vatAmount; const paymentMode = $('#newOrderPaymentMode').value === 'DEPOSIT' ? 'DEPOSIT' : 'FULL'; const depositAmount = paymentMode === 'DEPOSIT' ? Math.floor(Number($('#newOrderDeposit').value) || 0) : 0; return {product,qty,subtotal,vatRate,vatAmount,total,paymentMode,depositAmount}; };
+  const refreshSummary = () => { const a=readAmounts(); $('#newOrderDepositWrap').style.display=a.paymentMode==='DEPOSIT'?'':'none'; $('#newOrderSummary').innerHTML=`Trước VAT <b>${money(a.subtotal)}</b> · VAT ${Math.round(a.vatRate*100)}% <b>${money(a.vatAmount)}</b> · Tổng <b>${money(a.total)}</b>${a.paymentMode==='DEPOSIT'?` · Đợt 1 ${money(a.depositAmount)} · Còn lại ${money(Math.max(0,a.total-a.depositAmount))}`:''}`; };
+  const fillCustomer = () => { const customer=customerById($('#newOrderCustomer').value);if(!customer)return;$('#newOrderBillingName').value=customer.name||'';$('#newOrderBillingPhone').value=customer.phone||'';$('#newOrderBillingEmail').value=customer.email||'';const values=courseValues(customer);$('#newOrderCourse').innerHTML='<option value="">— Chưa ghi nhận —</option>'+options(values); };
+  ['newOrderProduct','newOrderVatRate','newOrderQty','newOrderPaymentMode','newOrderDeposit'].forEach(id=>{$('#'+id).addEventListener('input',refreshSummary);$('#'+id).addEventListener('change',refreshSummary);});
+  $('#newOrderCustomer').addEventListener('change',fillCustomer); refreshSummary();
+  $('#newOrderForm').onsubmit = async event => {
+    event.preventDefault(); const customer=customerById($('#newOrderCustomer').value),a=readAmounts();
+    const billing={name:$('#newOrderBillingName').value.trim(),cccd:$('#newOrderBillingCccd').value.replace(/\D/g,''),phone:$('#newOrderBillingPhone').value.replace(/\D/g,''),email:$('#newOrderBillingEmail').value.trim(),address:$('#newOrderBillingAddress').value.trim(),taxId:$('#newOrderBillingTaxId').value.replace(/\D/g,'')};
+    if(!customer||!a.product||!Number.isInteger(a.qty)||a.qty<1||a.qty>10||!customer.saleId){toast('Thông tin đơn hàng không hợp lệ.');return;}
+    if(!billing.name||billing.phone.length<9||billing.phone.length>13){toast('Họ tên hoặc số điện thoại không hợp lệ.');return;}
+    if(billing.cccd&&billing.cccd.length!==12){toast('CCCD phải đủ 12 chữ số hoặc để trống.');return;}
+    if(billing.email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(billing.email)){toast('Email xuất hóa đơn không hợp lệ.');return;}
+    if(billing.taxId&&!/^\d{10,13}$/.test(billing.taxId)){toast('MST phải có 10 đến 13 chữ số.');return;}
+    if(a.paymentMode==='DEPOSIT'&&(a.depositAmount<=0||a.depositAmount>=a.total)){toast('Tiền đợt 1 phải lớn hơn 0 và nhỏ hơn tổng đơn.');return;}
+    const id=makeRecordId('ORD'),createdAt=stamp(),rentalMonths=a.product.type==='RENTAL'?Number(a.product.rentalMonths)||null:null;
+    const order={id,code:`NVT-${id.slice(4)}`,customerId:customer.id,customerName:customer.name,saleId:customer.saleId,leaderId:customer.leaderId,teamId:customer.teamId,source:orderSource(customer.source),campaign:customer.campaign||'UNATTRIBUTED',websiteId:customer.websiteId||null,productId:a.product.id,productName:a.product.name,courseCode:$('#newOrderCourse').value.trim(),sku:a.product.sku,qty:a.qty,unitPrice:Number(a.product.price),subtotal:a.subtotal,vatRate:a.vatRate,vatAmount:a.vatAmount,discount:0,total:a.total,paymentMode:a.paymentMode,depositAmount:a.depositAmount,amountPaid:0,balanceDue:a.total,paymentMethod:$('#newOrderPaymentMethod').value,bankReference:$('#newOrderBankReference').value.trim(),billing,rentalMonths,rentalEndsAt:orderRentalEndsAt(createdAt,rentalMonths),refund:0,status:'PENDING',createdAt,depositAt:null,paidAt:null,refundedAt:null,paymentReconciled:false,refundReconciled:null};
+    state.orders.unshift(order);audit('CREATE_ORDER',id,`${order.code} · ${order.productName}`);saveState();if(!await flushServerPersistence()){toast('Chưa lưu được đơn hàng lên máy chủ.');return;}closeModal();render();toast('Đã tạo đơn và chuyển sang sổ kế toán.');
   };
 }
 
@@ -5890,7 +5946,7 @@ async function startSession(account, restored = false, token = serverSyncToken, 
   globalQuery = '';
   selectedPoolIds.clear();
   customerOwnerFilter = 'ALL';
-  try { sessionStorage.setItem(SESSION_KEY, JSON.stringify({ token: serverSyncToken })); } catch (error) {}
+  try { sessionStorage.setItem(SESSION_KEY, JSON.stringify({ token: serverSyncToken, accountId: currentAccount.id, role: currentAccount.actualRole || currentAccount.role })); } catch (error) {}
   try {
     const recovered=await recoverPendingWrite(account);
     if(recovered)initialSnapshot=recovered;
@@ -5935,6 +5991,7 @@ async function endSession(skipFlush=false) {
   selectedPoolIds.clear();
   customerOwnerFilter = 'ALL';
   try { sessionStorage.removeItem(SESSION_KEY); } catch (error) {}
+  try { localStorage.removeItem(CACHED_SNAPSHOT_KEY); } catch (error) {}
   try { if (window.parent && window.parent !== window) window.parent.dispatchEvent(new Event('crm:session-changed')); } catch (error) {}
   closeDrawer(); closeModal();
   $('#appShell').classList.add('is-hidden');
@@ -5999,13 +6056,26 @@ function bindGlobalActions() {
     if (submitButton) { submitButton.disabled = true; submitButton.setAttribute('aria-busy', 'true'); submitButton.innerHTML = '<span class="login-spinner" aria-hidden="true"></span>Đang đăng nhập...'; }
     if (base) {
       try {
-        const controller = typeof AbortController === 'function' ? new AbortController() : null;
-        const timer = controller ? setTimeout(() => controller.abort(), WEBHOOK_FETCH_TIMEOUT_MS) : null;
         let response, payload;
-        try {
-          response = await fetch(base + '/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ identifier: /^\d{9,15}$/.test(phone) ? phone : email, password }), signal: controller ? controller.signal : undefined });
-          payload = await response.json().catch(error => { if (error?.name === 'AbortError') throw error; return {}; });
-        } finally { if (timer) clearTimeout(timer); }
+        for (let attempt = 0; attempt < 2; attempt += 1) {
+          const controller = typeof AbortController === 'function' ? new AbortController() : null;
+          const timer = controller ? setTimeout(() => controller.abort(), WEBHOOK_FETCH_TIMEOUT_MS) : null;
+          try {
+            response = await fetch(base + '/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ identifier: /^\d{9,15}$/.test(phone) ? phone : email, password }), signal: controller ? controller.signal : undefined });
+            payload = await response.json().catch(error => { if (error?.name === 'AbortError') throw error; return {}; });
+          } catch (error) {
+            if (attempt === 0 && (error?.name === 'AbortError' || error instanceof TypeError)) {
+              setLoginError('Máy chủ vừa khởi động lại, đang kết nối lần nữa...');
+              continue;
+            }
+            throw error;
+          } finally { if (timer) clearTimeout(timer); }
+          if (response.status === 503 && attempt === 0) {
+            setLoginError('Máy chủ đang khởi tạo kết nối, đang thử lại...');
+            continue;
+          }
+          break;
+        }
         if (response.ok && payload.user) {
           await startSession(payload.user, false, payload.token);
           restoreSubmitButton();
@@ -6267,13 +6337,19 @@ async function initialize() {
     window.crmRuntimeAuthState = session?.token ? 'restoring' : 'unauthenticated';
     if (session?.token) serverSyncToken = session.token;
     // /api/state đã xác thực token và trả cả user; không gọi /auth/me lần nữa.
-    const controller = typeof AbortController === 'function' ? new AbortController() : null;
-    const timeout = controller ? setTimeout(() => controller.abort(), WEBHOOK_FETCH_TIMEOUT_MS) : null;
-    let response, initialSnapshot;
-    try {
-      response = session?.token ? await fetch(webhookApiBase()+'/api/state?passive=1', { headers: { Authorization: 'Bearer '+session.token }, cache: 'no-store', signal: controller?.signal }) : null;
-      initialSnapshot = response?.ok ? await response.json() : null;
-    } finally { if (timeout) clearTimeout(timeout); }
+    let response = null, initialSnapshot = null;
+    for (let attempt = 0; session?.token && attempt < 3; attempt += 1) {
+      const controller = typeof AbortController === 'function' ? new AbortController() : null;
+      const timeout = controller ? setTimeout(() => controller.abort(), WEBHOOK_FETCH_TIMEOUT_MS) : null;
+      try {
+        response = await fetch(webhookApiBase()+'/api/state?passive=1', { headers: { Authorization: 'Bearer '+session.token }, cache: 'no-store', signal: controller?.signal });
+        initialSnapshot = response.ok ? await response.json() : null;
+        if (response.ok || response.status === 401) break;
+      } catch (error) {
+        if (attempt === 2) throw error;
+      } finally { if (timeout) clearTimeout(timeout); }
+      await new Promise(resolve => setTimeout(resolve, 250 * (attempt + 1)));
+    }
     const account = initialSnapshot?.user || null;
     if (account) {
       // Một lần lỗi mạng không được biến thành logout. Cho MySQL tối đa 3 lần để hồi đáp.
@@ -6292,6 +6368,7 @@ async function initialize() {
       window.crmRuntimeAuthState = 'unauthenticated';
       serverSyncToken='';
       try { sessionStorage.removeItem(SESSION_KEY); } catch (error) {}
+      try { localStorage.removeItem(CACHED_SNAPSHOT_KEY); } catch (error) {}
     }
   } catch (error) {
     $('#loginError').textContent='Chưa tải được dữ liệu máy chủ. Vui lòng thử đăng nhập lại.';

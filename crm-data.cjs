@@ -3,9 +3,9 @@
 const crypto = require('node:crypto');
 const distributionRounds = require('./distribution-rounds.js');
 const { pool } = require('./db.js');
-const LISTS = ['customers','orders','products','members','registrations','customFieldDefinitions','customerFieldHistory','assignmentHistory','resubmissions','notes','imports','attendance','dataOffers','traffic','tasks','notifications','audit','websites','integrations','webhookPending','brokerageMetrics','feedbacks','processes'];
+const LISTS = ['customers','orders','products','members','registrations','customFieldDefinitions','customerFieldHistory','assignmentHistory','resubmissions','notes','imports','attendance','dataOffers','traffic','tasks','notifications','audit','websites','integrations','webhookPending','brokerageMetrics','feedbacks','processes','expenses'];
 const OBJECTS = ['settings','leaderDistribution','saleDistributionByLeader','productCategories','careGroups'];
-const ADMIN_ONLY = new Set(['products','members','registrations','customFieldDefinitions','imports','traffic','websites','integrations','webhookPending','productCategories','leaderDistribution','careGroups','processes']);
+const ADMIN_ONLY = new Set(['products','members','registrations','customFieldDefinitions','imports','traffic','websites','integrations','webhookPending','productCategories','leaderDistribution','careGroups','processes','expenses']);
 const SCHEMA = [
  `CREATE TABLE IF NOT EXISTS crm_documents (collection VARCHAR(64) NOT NULL, id VARCHAR(96) NOT NULL, body JSON NOT NULL, deleted TINYINT NOT NULL DEFAULT 0, PRIMARY KEY(collection,id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
  `CREATE TABLE IF NOT EXISTS crm_changes (id BIGINT AUTO_INCREMENT PRIMARY KEY, request_id VARCHAR(96) NOT NULL, actor_id VARCHAR(96) NOT NULL, changes_json JSON NOT NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE KEY(request_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
@@ -403,6 +403,14 @@ function authorize(user,key,old,next,data){
 }
 function validate(key,value,id){
  if(value===null)return;
+ if(key==='expenses'&&(Object.hasOwn(value,'date')||Object.hasOwn(value,'title')||Object.hasOwn(value,'amount'))){
+  if(typeof value.date!=='string'||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(value.date))error(400,'Invalid expense date');
+  if(typeof value.title!=='string'||!value.title.trim()||value.title.length>200)error(400,'Invalid expense title');
+  if(typeof value.category!=='string'||value.category.length>100)error(400,'Invalid expense category');
+  if(!Number.isFinite(Number(value.amount))||Number(value.amount)<=0||Number(value.amount)>1e15)error(400,'Invalid expense amount');
+  for(const field of ['payer','note'])if(typeof (value[field]??'')!=='string'||String(value[field]??'').length>1000)error(400,'Expense field is too long');
+ }
+ if(value===null)return;
  if(!value||typeof value!=='object'||(LISTS.includes(key)&&(Array.isArray(value)||value.id!==id)))error(400,'Bản ghi không hợp lệ');
  if(['members','customers','products'].includes(key)&&(typeof value.name!=='string'||!value.name.trim()||value.name.length>(key==='products'?200:160)))error(400,'Tên không hợp lệ');
  if(key==='members'&&!['ADMIN','LEADER','SALE','MARKETING','ACCOUNTING','UNASSIGNED','MANAGER'].includes(value.role))error(400,'Chức vụ không hợp lệ');
@@ -668,7 +676,81 @@ async function distributeAutomatic(c, data = null) {
 }
 
 async function read(user, options={}){await prepare();const c=await pool.getConnection();try{await c.beginTransaction();if(options.passive!==true)await c.query('SELECT id FROM crm_write_lock WHERE id=1 FOR UPDATE');const data=await allData(c,{mirrorAttendance:options.passive!==true});if(options.passive===true){const result=snapshot(user,data);await c.commit();return result;}await expireOffers(c,data);const assigned=await distributeAutomatic(c,data);await warnRentalExpiry(c,data);const result=snapshot(user,assigned?await allData(c):data);await c.commit();return result;}catch(e){await c.rollback().catch(()=>{});throw e;}finally{c.release();}}
+function noteOnlyCustomerChange(oldValue, nextValue) {
+ if (!oldValue || !nextValue || typeof oldValue !== 'object' || typeof nextValue !== 'object') return false;
+ const allowed = new Set(['note','updatedAt']);
+ const keys = new Set([...Object.keys(oldValue), ...Object.keys(nextValue)]);
+ for (const key of keys) { if (!allowed.has(key) && canonical(oldValue[key]) !== canonical(nextValue[key])) return false; }
+ return true;
+}
+function fastNoteScope(user, row, members) {
+ if (!row || user?.active === false) return false;
+ if (user.role === 'ADMIN') return true;
+ if (user.role === 'SALE') return String(row.sale_id || '') === String(user.id);
+ if (user.role === 'LEADER') return String(row.leader_id || '') === String(user.id) || String(row.team_id || '') === String(user.teamId || '');
+ if (user.role === 'MANAGER') {
+  if (String(row.manager_id || '') === String(user.id)) return true;
+  const leader = members.find(member => String(member.id) === String(row.leader_id || ''));
+  return Boolean(leader && String(leader.managerId || '') === String(user.id) && String(leader.teamId || '') === String(row.team_id || ''));
+ }
+ return false;
+}
+async function writeFastCustomerNotes(user, requestId, changes, enabled = false) {
+ if (!enabled || !Array.isArray(changes) || !changes.length) return null;
+ const customerChanges = changes.filter(change => change?.key === 'customers');
+ if (!customerChanges.length || changes.some(change => !['customers','notes','audit'].includes(change?.key))) return null;
+ await prepare();
+ const ids = [...new Set(customerChanges.map(change => String(change.id)))];
+ const c = await pool.getConnection();
+ try {
+  const [done] = await c.query('SELECT actor_id FROM crm_changes WHERE request_id=? LIMIT 1', [requestId]);
+  if (done.length) { if (String(done[0].actor_id) !== String(user.id)) error(409, 'M? y?u c?u ?? t?n t?i.'); await c.rollback().catch(() => {}); return {...await read(user,{passive:true}),ok:true,replayed:true}; }
+  const [rows] = await c.query('SELECT * FROM customers WHERE id IN (' + ids.map(() => '?').join(',') + ')', ids);
+  const byId = new Map(rows.map(row => [String(row.id), row]));
+  const [members] = await c.query('SELECT id,role,team_id,leader_id,active FROM users WHERE active=1');
+  const memberRows = members.map(row => ({id:String(row.id),role:row.role,teamId:row.team_id||'',leaderId:row.leader_id||null,managerId:null,active:!!row.active}));
+  const leaderIds = [...new Set(memberRows.filter(row => row.role === 'LEADER' && row.leaderId).map(row => row.leaderId))];
+  if (leaderIds.length) {
+   const [leaders] = await c.query('SELECT id,leader_id FROM users WHERE id IN (' + leaderIds.map(() => '?').join(',') + ')', leaderIds);
+   const managerByLeader = new Map(leaders.map(row => [String(row.id), String(row.leader_id || '')]));
+   for (const member of memberRows) member.managerId = managerByLeader.get(member.id) || null;
+  }
+  const history = [];
+  for (const change of customerChanges) {
+   const row = byId.get(String(change.id));
+   if (!row) error(409, 'Kh?ch h?ng kh?ng c?n t?n t?i.');
+   const old = coreRow('customers', row);
+   if (!noteOnlyCustomerChange(old, change.value)) { await c.rollback().catch(() => {}); return null; }
+   if (!fastNoteScope(user, row, memberRows)) error(403, 'B?n kh?ng c? quy?n s?a ghi ch? kh?ch n?y.');
+   if (change.base && revision(old) !== change.base) error(409, 'Ghi ch? ?? ???c c?p nh?t b?i ng??i kh?c. H?y t?i l?i r?i th? l?i.');
+   const next = change.value;
+   const note = String(next.note || '').slice(0, 2000);
+   const updatedAt = String(next.updatedAt || new Date().toLocaleString('sv-SE',{timeZone:'Asia/Ho_Chi_Minh'}).slice(0,19)).slice(0,19);
+   await c.execute('UPDATE customers SET note=?, updated_at=? WHERE id=?', [note, updatedAt, row.id]);
+   const [docRows] = await c.query("SELECT body FROM crm_documents WHERE collection='customers' AND id=? LIMIT 1", [row.id]);
+   let body = docRows[0]?.body;
+   if (typeof body === 'string') { try { body = JSON.parse(body); } catch { body = {}; } }
+   body = {...(body || {}), ...next, id:String(row.id), note, updatedAt};
+   await c.execute("INSERT INTO crm_documents(collection,id,body,deleted) VALUES ('customers',?,?,0) ON DUPLICATE KEY UPDATE body=VALUES(body),deleted=0", [row.id, JSON.stringify(body)]);
+   history.push({key:'customers',id:String(row.id),before:old,after:body});
+  }
+  for (const change of changes.filter(item => item.key === 'notes' || item.key === 'audit')) {
+   validate(change.key, change.value, change.id);
+   await c.execute('INSERT INTO crm_documents(collection,id,body,deleted) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE body=VALUES(body),deleted=VALUES(deleted)', [change.key, change.id, JSON.stringify(change.value || {}), change.value ? 0 : 1]);
+   history.push({key:change.key,id:change.id,before:null,after:change.value});
+  }
+  await c.execute('INSERT INTO crm_changes(request_id,actor_id,changes_json) VALUES (?,?,?)', [requestId, user.id, JSON.stringify(history)]);
+  await c.commit();
+  const result = await read(user, {passive:true});
+  return {...result, ok:true, fastPath:'customer-note'};
+ } catch (error) { await c.rollback().catch(() => {}); throw error; }
+ finally { c.release(); }
+}
+
 async function write(user,requestId,changes,options={}){
+ if(typeof requestId!=='string'||!/^[-\w]{1,96}$/.test(requestId)||!Array.isArray(changes)||changes.length>2000)error(400,'G?i l?u kh?ng h?p l?');
+ const fastResult = await writeFastCustomerNotes(user, requestId, changes, options.fastNote === true);
+ if (fastResult) return fastResult;
  if(typeof requestId!=='string'||!/^[-\w]{1,96}$/.test(requestId)||!Array.isArray(changes)||changes.length>2000)error(400,'Gói lưu không hợp lệ');
  await prepare();const c=await pool.getConnection();
  try{
@@ -720,4 +802,4 @@ async function write(user,requestId,changes,options={}){
   const updated=await allData(c);const assigned=options.skipAutomatic===true?0:await distributeAutomatic(c,updated);const result=snapshot(user,assigned?await allData(c):updated);await c.commit();return {...result,ok:true};
  }catch(e){await c.rollback().catch(()=>{});throw e;}finally{c.release();}
 }
-module.exports={queueTelegramNotice,snapshot,distributeAutomatic,prepare,seedProductCatalog,read,write,revision,canonical,coreRow,userRow,authorize,readable,validate,LISTS,OBJECTS,SCHEMA};
+module.exports={queueTelegramNotice,snapshot,distributeAutomatic,prepare,seedProductCatalog,read,write,writeFastCustomerNotes,revision,canonical,coreRow,userRow,authorize,readable,validate,LISTS,OBJECTS,SCHEMA};

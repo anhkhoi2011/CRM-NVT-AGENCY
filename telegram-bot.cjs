@@ -398,183 +398,41 @@ async function handleCallbackQuery(query) {
 }
 
 async function recordTelegramAttendance(user) {
-  const nowStamp = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' }).slice(0, 19);
-  const today = nowStamp.slice(0, 10);
-  const checkinId = `ATT-${today}-${user.id}`;
-  let deadline = '09:00';
+  const at = new Date().toLocaleString('sv-SE',{timeZone:'Asia/Ho_Chi_Minh'}).slice(0,19), day=at.slice(0,10);
+  const connection=await pool.getConnection();
   try {
-    const rows = await dbQuery("SELECT setting_value FROM system_settings WHERE setting_key='crm' LIMIT 1");
-    const settings = rows[0]?.setting_value;
-    const parsedSettings = typeof settings === 'string' ? JSON.parse(settings) : settings;
-    if (parsedSettings?.attendanceDeadline) deadline = String(parsedSettings.attendanceDeadline);
-  } catch {}
-  const toMinutes = value => { const [hour, minute] = String(value || '00:00').split(':').map(Number); return (hour || 0) * 60 + (minute || 0); };
-  const time = nowStamp.slice(11, 19);
-  const late = toMinutes(time) > toMinutes(deadline);
-  const record = {
-    id: checkinId,
-    accountId: user.id,
-    name: user.name,
-    teamId: user.team_id || '',
-    date: today,
-    at: nowStamp,
-    ip: 'Telegram',
-    ipValid: true,
-    late,
-    lateMinutes: late ? Math.max(0, toMinutes(time) - toMinutes(deadline)) : 0,
-    note: 'Điểm danh qua Telegram',
-    editedBy: ''
-  };
-  const [existingRows] = await pool.query('SELECT body FROM crm_documents WHERE collection = \'attendance\' AND id = ? AND deleted = 0 LIMIT 1', [checkinId]);
-  if (existingRows?.length) {
-    try { return typeof existingRows[0].body === 'string' ? JSON.parse(existingRows[0].body) : existingRows[0].body; } catch {}
-  }
-  await pool.execute(
-    `INSERT INTO crm_documents (collection, id, body, deleted) VALUES ('attendance', ?, ?, 0)
-     ON DUPLICATE KEY UPDATE body = VALUES(body), deleted = 0`,
-    [checkinId, JSON.stringify(record)]
-  );
-  // Keep the legacy table populated when it exists; CRM reads the canonical
-  // crm_documents record above, so this is compatibility only.
-  try {
-    await pool.execute(
-      `INSERT INTO staff_attendance (id, user_id, attendance_date, check_in_time, status)
-       VALUES (?, ?, ?, ?, 'CHECKED_IN')
-       ON DUPLICATE KEY UPDATE check_in_time = check_in_time`,
-      [checkinId, user.id, today, nowStamp]
-    );
-  } catch {}
-  return record;
+    await connection.beginTransaction();
+    // Use the same serialization boundary as Web check-in and other CRM writes.
+    await connection.query('SELECT id FROM crm_write_lock WHERE id=1 FOR UPDATE');
+    const [existing]=await connection.execute("SELECT body FROM crm_documents WHERE collection='attendance' AND deleted=0 AND JSON_UNQUOTE(JSON_EXTRACT(body,'$.accountId'))=? AND JSON_UNQUOTE(JSON_EXTRACT(body,'$.date'))=? LIMIT 1",[user.id,day]);
+    if(existing.length){await connection.commit();return typeof existing[0].body==='string'?JSON.parse(existing[0].body):existing[0].body;}
+    const [settingsRows]=await connection.execute("SELECT body FROM crm_documents WHERE collection='settings' AND id='$' AND deleted=0 LIMIT 1");
+    const raw=settingsRows[0]?.body, settings=typeof raw==='string'?JSON.parse(raw):raw;
+    const minutes=value=>{const [h,m]=String(value).split(':').map(Number);return (h||0)*60+(m||0);};
+    const lateMinutes=Math.max(0,minutes(at.slice(11,16))-minutes(settings?.attendanceDeadline||'09:00'));
+    const record={id:'ATT-'+day+'-'+user.id,accountId:user.id,name:user.name,teamId:user.team_id||'',date:day,at,ip:'Telegram',ipValid:true,late:lateMinutes>0,lateMinutes,note:'Điểm danh qua Telegram',editedBy:''};
+    await connection.execute("INSERT INTO crm_documents(collection,id,body,deleted) VALUES ('attendance',?,?,0) ON DUPLICATE KEY UPDATE body=VALUES(body),deleted=0",[record.id,JSON.stringify(record)]);
+    await connection.commit();
+    return record;
+  } catch(error){await connection.rollback().catch(()=>{});throw error;} finally {connection.release();}
 }
 
 async function handleCallbackQueryLegacy(query) {
-  const queryId = query.id;
-  const data = String(query.data || '');
-  const chatId = query.message?.chat?.id;
-  const messageId = query.message?.message_id;
-
-  if (!chatId || !messageId) {
-    await answerCallbackQuery(queryId);
-    return;
+  const chatId = query.message?.chat?.id, messageId = query.message?.message_id;
+  if (query.data !== 'checkin' || !chatId || !messageId) { await answerCallbackQuery(query.id); return; }
+  await answerCallbackQuery(query.id, 'Đang lưu điểm danh...');
+  try {
+    if (query.message.chat.type !== 'private' || String(query.from?.id) !== String(chatId)) throw Error('Hãy điểm danh trong cuộc trò chuyện riêng đã liên kết với CRM.');
+    const rows = await dbQuery('SELECT * FROM users WHERE telegram_chat_id = ? AND active = 1 LIMIT 1', [String(chatId)]);
+    if (!rows.length) throw Error('Bạn chưa liên kết tài khoản. Mở Hồ sơ cá nhân trên CRM để liên kết Telegram.');
+    const record = await recordTelegramAttendance(rows[0]);
+    const text = '✅ <b>Đã điểm danh lúc ' + escapeHtml(String(record.at).slice(11,19)) + '</b>\nĐã đồng bộ vào CRM cho <b>' + escapeHtml(rows[0].name) + '</b>.';
+    const edited = await editMessageText(chatId, messageId, text, {reply_markup:{inline_keyboard:[]}});
+    if (!edited?.ok && !String(edited?.description||'').includes('message is not modified')) await sendMessage(chatId,text);
+  } catch (error) {
+    console.warn('[Telegram check-in]', error.code || error.message);
+    await sendMessage(chatId, 'Chưa lưu được điểm danh. Vui lòng bấm lại sau vài giây.');
   }
-
-  // Tìm người dùng từ telegram_chat_id
-  const userRows = await dbQuery('SELECT * FROM users WHERE telegram_chat_id = ? AND active = 1 LIMIT 1', [String(chatId)]);
-  if (!userRows || userRows.length === 0) {
-    await answerCallbackQuery(queryId, 'Bạn chưa liên kết tài khoản CRM! Gõ /start để kết nối.', true);
-    return;
-  }
-  const user = userRows[0];
-
-  // 1. Thao tác: Bấm nhận Data [accept_data:<customerId>]
-  if (data.startsWith('accept_data:')) {
-    const customerId = data.slice('accept_data:'.length);
-    const customers = await dbQuery('SELECT * FROM customers WHERE id = ? LIMIT 1', [customerId]);
-    if (!customers || customers.length === 0) {
-      await answerCallbackQuery(queryId, 'Khách hàng không tồn tại hoặc đã bị xóa!', true);
-      return;
-    }
-    const customer = customers[0];
-
-    // Kiểm tra xem data đã có ai nhận chưa
-    if (customer.sale_id && customer.sale_id !== user.id) {
-      const currentSale = (await dbQuery('SELECT name FROM users WHERE id = ? LIMIT 1', [customer.sale_id]))[0];
-      await answerCallbackQuery(queryId, `Data này đã được nhận bởi ${currentSale?.name || 'Sale khác'}!`, true);
-      return;
-    }
-
-    // Gán quyền Sale nhận data
-    const nowStamp = new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' }).slice(0, 19);
-    await dbQuery(
-      `UPDATE customers SET sale_id = ?, leader_id = COALESCE(leader_id, ?), team_id = COALESCE(team_id, ?), updated_at = ? WHERE id = ?`,
-      [user.id, user.leader_id || user.id, user.team_id || '', nowStamp, customerId]
-    );
-    const legacyFields = typeof customer.custom_fields_json === 'string' ? JSON.parse(customer.custom_fields_json || '{}') : (customer.custom_fields_json || {});
-    legacyFields.__crmMeta = { ...(legacyFields.__crmMeta || {}), saleId: user.id, saleAcceptedAt: nowStamp, updatedAt: nowStamp };
-    await dbQuery('UPDATE customers SET custom_fields_json=? WHERE id=?', [JSON.stringify(legacyFields), customerId]);
-
-    // Cập nhật trạng thái offer nếu có trong crm_documents
-    try {
-      const [offerDocs] = await pool.query(`SELECT id, body FROM crm_documents WHERE collection = 'dataOffers' AND JSON_EXTRACT(body, '$.customerId') = ?`, [customerId]);
-      for (const d of offerDocs) {
-        const body = typeof d.body === 'string' ? JSON.parse(d.body) : d.body;
-        if (body.status === 'PENDING') {
-          body.status = 'ACCEPTED';
-          body.saleId = user.id;
-          body.resolvedAt = nowStamp;
-          await pool.execute(`UPDATE crm_documents SET body = ? WHERE collection = 'dataOffers' AND id = ?`, [JSON.stringify(body), d.id]);
-        }
-      }
-    } catch (e) {
-      console.warn('[Telegram Bot] Update dataOffers doc notice:', e.message);
-    }
-
-    // Cập nhật lại tin nhắn Telegram hiển thị SĐT để Sale gọi luôn
-    const updatedText = `✅ <b>ĐÃ TIẾP NHẬN DATA THÀNH CÔNG!</b>\n\n` +
-      `• <b>Khách hàng:</b> ${escapeHtml(customer.name)}\n` +
-      `• 📞 <b>Số điện thoại:</b> <code>${escapeHtml(customer.phone)}</code> (Bấm để gọi)\n` +
-      `• <b>Nguồn:</b> ${escapeHtml(customer.source || 'Landing Page')}\n` +
-      `• <b>Thời điểm tiếp nhận:</b> ${formatDateTimeVN(nowStamp)}\n` +
-      `• 👤 <b>Sale phụ trách:</b> ${escapeHtml(user.name)}\n\n` +
-      `👉 <i>Vui lòng chủ động gọi điện tư vấn khách hàng ngay!</i> 🚀`;
-
-    await editMessageText(chatId, messageId, updatedText, {
-      reply_markup: { inline_keyboard: [] } // Xóa nút bấm sau khi nhận
-    });
-
-    await answerCallbackQuery(queryId, 'Đã nhận data thành công! Hãy liên hệ khách hàng ngay.');
-    return;
-  }
-
-  // 2. Thao tác: Bấm điểm danh [checkin]
-  if (data === 'checkin') {
-    const record = await recordTelegramAttendance(user);
-    const telegramTime = String(record.at).slice(11, 19);
-    const telegramConfirmedText = `✅ <b>Bạn đã điểm danh thành công lúc ${telegramTime}!</b>\n` +
-      `Chấm công đã được đồng bộ vào CRM cho <b>${escapeHtml(user.name)}</b>.`;
-    await editMessageText(chatId, messageId, telegramConfirmedText, { reply_markup: { inline_keyboard: [] } });
-    await answerCallbackQuery(queryId, 'Điểm danh đã đồng bộ vào CRM!');
-    return;
-
-    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
-    const nowTime = new Date().toLocaleTimeString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour12: false });
-    const checkinId = `ATT-${today}-${user.id}`;
-
-    try {
-      // Lưu vào bảng staff_attendance nếu có
-      await pool.execute(
-        `INSERT INTO staff_attendance (id, user_id, attendance_date, check_in_time, status)
-         VALUES (?, ?, ?, NOW(), 'CHECKED_IN')
-         ON DUPLICATE KEY UPDATE check_in_time = check_in_time`,
-        [checkinId, user.id, today]
-      );
-    } catch {
-      // Fallback lưu vào crm_documents nếu bảng riêng chưa migrate
-      try {
-        const attDoc = { id: checkinId, accountId: user.id, accountName: user.name, date: today, time: nowTime, status: 'ON_TIME' };
-        await pool.execute(
-          `INSERT INTO crm_documents (collection, id, body, deleted) VALUES ('attendance', ?, ?, 0)
-           ON DUPLICATE KEY UPDATE body = VALUES(body), deleted = 0`,
-          [checkinId, JSON.stringify(attDoc)]
-        );
-      } catch (err) {
-        console.warn('[Telegram Bot] Attendance doc notice:', err.message);
-      }
-    }
-
-    // Cập nhật tin nhắn (KHÔNG hiển thị trễ hay đúng giờ phía Sale như yêu cầu nghiệp vụ)
-    const confirmedText = `✅ <b>Bạn đã điểm danh thành công lúc ${nowTime}!</b>\n` +
-      `Chúc ${escapeHtml(user.name)} ngày mới tràn đầy năng lượng và bão số chốt đơn! 🚀`;
-
-    await editMessageText(chatId, messageId, confirmedText, {
-      reply_markup: { inline_keyboard: [] }
-    });
-
-    await answerCallbackQuery(queryId, 'Điểm danh thành công!');
-    return;
-  }
-
-  await answerCallbackQuery(queryId);
 }
 
 // ==================== CÁC HÀM BẮN THÔNG BÁO TỰ ĐỘNG ====================
@@ -839,26 +697,27 @@ async function notifyStaleLeadWarning(customer, sale, leader) {
  * Tính năng 1: Gửi thông báo Điểm danh đầu ngày (09h00)
  */
 async function sendMorningCheckinAlert() {
+  let failed = 0;
   try {
-    const staff = await dbQuery(`SELECT telegram_chat_id, name, role FROM users WHERE role <> 'ADMIN' AND active = 1 AND telegram_chat_id IS NOT NULL`);
-    const inlineKeyboard = {
-      inline_keyboard: [
-        [{ text: '✅ BẤM ĐIỂM DANH NGAY', callback_data: 'checkin' }]
-      ]
-    };
-
-    let failed = 0;
+    const day = new Date().toLocaleDateString('en-CA', {timeZone:'Asia/Ho_Chi_Minh'});
+    const staff = await dbQuery("SELECT id, telegram_chat_id, name, role FROM users WHERE role <> 'ADMIN' AND active = 1 AND telegram_chat_id IS NOT NULL");
     for (const member of staff) {
-      const msg = `⏰ <b>THÔNG BÁO ĐIỂM DANH ĐẦU NGÀY (09:00 - 09:15)</b>\n\n` +
-        `Chào buổi sáng <b>${escapeHtml(member.name)}</b>! Chúc bạn ngày mới bùng nổ doanh số.\n` +
-        `Vui lòng bấm nút bên dưới để hoàn tất điểm danh ca làm việc hôm nay:`;
-      try { const result = await sendMessage(member.telegram_chat_id, msg, { reply_markup: inlineKeyboard }); if (result?.ok === false) failed += 1; } catch (error) { failed += 1; console.error('[Telegram Bot] check-in reminder failed:', member.telegram_chat_id, error.message); }
+      const key = 'checkin:' + day + ':' + require('node:crypto').createHash('sha256').update(String(member.telegram_chat_id)).digest('hex').slice(0,32);
+      // Reserve per recipient across Passenger workers and restarts, before sending.
+      // Do not hold a MySQL connection while waiting for Telegram's network response.
+      const [claim] = await pool.execute("INSERT IGNORE INTO crm_documents(collection,id,body,deleted) VALUES ('telegramDaily',?,?,0)", [key,JSON.stringify({day,userId:member.id,status:'ATTEMPTED'})]);
+      if (!claim.affectedRows) continue;
+      const text = '⏰ <b>NHẮC ĐIỂM DANH ĐẦU NGÀY</b>\nChào <b>' + escapeHtml(member.name) + '</b>! Bấm nút bên dưới để điểm danh hôm nay.';
+      const result = await sendMessage(member.telegram_chat_id,text,{reply_markup:{inline_keyboard:[[{text:'✅ ĐIỂM DANH',callback_data:'checkin'}]]}});
+      if (!result?.ok) {
+        failed++;
+        // Retry only explicit rejections. A network timeout may already have delivered
+        // the message, so keep its reservation to avoid repeatedly spamming the user.
+        if (result?.error_code && result.error_code !== 403) await pool.execute("DELETE FROM crm_documents WHERE collection='telegramDaily' AND id=?",[key]);
+      }
     }
-  } catch (err) {
-    console.error('[Telegram Bot] sendMorningCheckinAlert error:', err.message);
-    return { failed: 1 };
-  }
-  return { failed };
+  } catch(error) { failed++; console.warn('[Telegram attendance reminder]',error.code||error.message); }
+  return {failed};
 }
 
 /**
@@ -1057,8 +916,9 @@ async function runTelegramScheduler() {
 
     // 2. Điểm danh lúc 09:00 - 09:10 sáng hàng ngày
     if (hour === 9 && minute >= 0 && minute <= 10 && lastCheckinDate !== vnDateStr) {
-      const reminderResult = await sendMorningCheckinAlert();
-      if (reminderResult?.failed === 0) lastCheckinDate = vnDateStr;
+      // ??nh d?u tr??c khi g?i; l?i c?a m?t ng??i kh?ng g?i l?i c? danh s?ch.
+      lastCheckinDate = vnDateStr;
+      await sendMorningCheckinAlert();
     }
 
     // 3. Báo cáo tuần tối Chủ Nhật lúc 20:00 - 20:10

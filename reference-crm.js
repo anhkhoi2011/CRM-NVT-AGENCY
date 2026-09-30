@@ -3,10 +3,53 @@
 (() => {
   const q=s=>document.querySelector(s), qa=s=>Array.from(document.querySelectorAll(s));
   const ACTIVE_TAB_KEY='nvt-crm-active-tab-v1';
-  try { sessionStorage.removeItem('nvt-crm-snapshot-cache-v1'); } catch {}
+  const SESSION_KEY='nvt-crm-session-v1';
+  const CACHED_SNAPSHOT_KEY='nvt_crm_cached_snapshot_v1';
+  try{localStorage.removeItem('nvt-crm-snapshot-cache-v1');}catch{}
   const frame=q('#crmRuntimeFrame');
   const bootScreen=q('#crmBootScreen');
   let api=null, data=null, signature='', working=false, refreshTimer=null, bootFallbackTimer=null, selectedCustomer='', careKey='', dataQueuePage=1, dataQueuePageSize=20, dataQueueDateFrom='', dataQueueDateTo='', userActivitySnapshot=null, userActivityLoading=false, userActivityRequestedAt=0, lastReportedActivity='';
+  const snapshotRole=snapshot=>String(snapshot?.user?.actualRole||snapshot?.user?.role||'').trim().toUpperCase();
+  function storedSession(){
+    try{
+      const session=JSON.parse(sessionStorage.getItem(SESSION_KEY)||'null');
+      const token=String(session?.token||session?.accessToken||'').trim();
+      if(!token)return null;
+      return {token,accountId:String(session?.accountId||'').trim(),role:String(session?.role||'').trim().toUpperCase()};
+    }catch{return null;}
+  }
+  function validCachedSnapshot(snapshot){
+    return Boolean(snapshot&&typeof snapshot==='object'&&snapshot.user?.id&&snapshotRole(snapshot)&&Array.isArray(snapshot.navigation)&&Array.isArray(snapshot.customers));
+  }
+  function clearCachedSnapshot(){try{localStorage.removeItem(CACHED_SNAPSHOT_KEY);}catch{}}
+  function readCachedSnapshot(){
+    const session=storedSession();
+    if(!session){clearCachedSnapshot();return null;}
+    if(!session.accountId||!session.role)return null;
+    try{
+      const cached=JSON.parse(localStorage.getItem(CACHED_SNAPSHOT_KEY)||'null');
+      const snapshot=cached?.snapshot;
+      const accountId=String(cached?.accountId||'').trim();
+      const role=String(cached?.role||'').trim().toUpperCase();
+      const snapshotAccountId=String(snapshot?.user?.id||'').trim();
+      if(cached?.version!==1||!validCachedSnapshot(snapshot)||accountId!==session.accountId||snapshotAccountId!==accountId||role!==session.role||snapshotRole(snapshot)!==role){
+        clearCachedSnapshot();
+        return null;
+      }
+      return snapshot;
+    }catch{
+      clearCachedSnapshot();
+      return null;
+    }
+  }
+  function saveCachedSnapshot(snapshot){
+    if(!validCachedSnapshot(snapshot))return;
+    const session=storedSession(),accountId=String(snapshot.user.id||'').trim(),role=snapshotRole(snapshot);
+    if(!session||session.accountId!==accountId||session.role!==role)return;
+    try{localStorage.setItem(CACHED_SNAPSHOT_KEY,JSON.stringify({version:1,savedAt:Date.now(),accountId,role,snapshot}));}catch(error){
+      if(error?.name!=='QuotaExceededError')console.warn('[crm-cache]',error);
+    }
+  }
     const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));  function referenceNotice(message,type='success') {
     let host=document.getElementById('referenceNoticeHost');
     if(!host){
@@ -73,18 +116,92 @@
     banner.innerHTML='<img src="./customer-journey.svg?v=20260917-panorama" alt="Hành trình khách hàng NVT Agency">';
     firstTable.before(banner);
   }
+    // Nhóm KẾ TOÁN & HOA HỒNG gồm đúng 4 mục trên sidebar theo mẫu chuẩn
   function normalizeAccountingMenu() {
-    const accountingLink=q('[data-tab="tab-accounting"]');
-    const reportLink=q('[data-tab="tab-businessReport"]');
-    if(!accountingLink)return;
-    const accountingItem=accountingLink.closest('li'), reportItem=reportLink?.closest('li');
-    if(reportItem&&accountingItem?.parentElement&&!accountingItem.parentElement.contains(reportItem))accountingItem.parentElement.appendChild(reportItem);
-    const label=accountingLink.querySelector('span');
-    if(label)label.textContent='Hoa Hồng nhân viên';
+    const accountingList = q('#accountingNavList') || q('.accounting-nav-link')?.closest('ul') || q('[data-tab="tab-accounting"]')?.closest('ul');
+    if (!accountingList) return;
+    const accountingGroup = accountingList.closest('.nav-group') || accountingList.parentElement;
+    const title = accountingGroup?.querySelector('.nav-group-title');
+    if (title) {
+      title.classList.add('accounting-nav-toggle');
+      title.setAttribute('role','button');
+      title.setAttribute('tabindex','0');
+      const titleText = '\u004b\u1ebe TO\u00c1N & HOA H\u1ed2NG';
+      title.innerHTML = '<span>'+titleText+'</span><span class="accounting-nav-chevron" aria-hidden="true">&#x2304;</span>';
+    }
+
+    // Remove the retired standalone business report entry from every cached/static menu.
+    const reportLink = q('[data-tab="tab-businessReport"]');
+    reportLink?.closest('li')?.remove();
+
+    // 4 mục chuẩn trên Sidebar của nhóm KẾ TOÁN & HOA HỒNG (giống hệt bản demo)
+    const items = [
+      ['mindmap', 'Cây Mindmap (Lv1-Lv3)', '<circle cx="12" cy="12" r="3"></circle><path d="M12 3v6m0 6v6M3 12h6m6 0h6"></path>'],
+      ['report', 'Báo cáo Doanh thu (23)', '<path d="M18 20V10M12 20V4M6 20v-6"></path>'],
+      ['orders', 'Kiểm Tra Đơn & Xuất VAT', '<rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M7 8h10M7 12h10M7 16h6"></path>'],
+      ['expenses', 'Kế toán & Chi phí Admin', '<circle cx="12" cy="12" r="10"></circle><path d="M12 6v12M17 10a5 5 0 0 0-10 0c0 5 10 3 10 8a5 5 0 0 1-10 0"></path>']
+    ];
+
+    const currentSub = window.accountingSubView || accountingSubView || 'mindmap';
+    const outerTab = q('section.tab-section.active[id^=\"tab-\"]')?.id;
+    const accountingIsActive = outerTab === 'tab-accounting';
+    // Mở sẵn nhóm khi CRM khởi tạo lần đầu. Trước đây trạng thái undefined bị
+    // hiểu là đóng, làm 4 mục kế toán nhấp nháy hoặc biến mất sau F5.
+    if (accountingGroup && !['true', 'false'].includes(accountingGroup.dataset.expanded || '')) {
+      accountingGroup.dataset.expanded = 'true';
+    }
+    const expanded = accountingGroup?.dataset.expanded !== 'false';
+    accountingList.hidden = !expanded;
+    if (title) {
+      title.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+      const chevron = title.querySelector('.accounting-nav-chevron');
+      if (chevron) chevron.textContent = expanded ? '\u2303' : '\u2304';
+      const toggle = () => {
+        const next = title.getAttribute('aria-expanded') !== 'true';
+        accountingGroup.dataset.expanded = next ? 'true' : 'false';
+        accountingList.hidden = !next;
+        title.setAttribute('aria-expanded', next ? 'true' : 'false');
+        if (chevron) chevron.textContent = next ? '\u2303' : '\u2304';
+      };
+      title.onclick = toggle;
+      title.onkeydown = event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggle(); } };
+    }
+
+    accountingList.innerHTML = items.map(([view, label, icon]) =>
+      `<li><button type="button" class="nav-link accounting-nav-link ${accountingIsActive && currentSub === view ? 'active' : ''}" data-accounting-view="${view}"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">${icon}</svg><span>${label}</span></button></li>`
+    ).join('');
+
+    accountingList.querySelectorAll('[data-accounting-view]').forEach(button => {
+      button.onclick = event => {
+        event.preventDefault();
+        event.stopPropagation();
+        const view = button.dataset.accountingView;
+        accountingSubView = view;
+        window.accountingSubView = view;
+        accountingGroup.dataset.expanded = 'true';
+        accountingList.hidden = false;
+        title?.setAttribute('aria-expanded','true');
+        title?.querySelector('.accounting-nav-chevron')?.replaceChildren(document.createTextNode('\u2303'));
+        rememberActiveTab('tab-accounting');
+
+        qa('.nav-link').forEach(item => item.classList.remove('active'));
+        button.classList.add('active');
+
+        renders.switchTab('tab-accounting');
+        accountingReport(view);
+      };
+    });
   }
   function applyRoleVisibility() {
     const role=data?.user?.actualRole||data?.user?.role||'';
     const isAdmin=role==='ADMIN';
+    const accountingGroup=q('#accountingNavGroup');
+    if(accountingGroup){
+      accountingGroup.hidden=!isAdmin;
+      accountingGroup.setAttribute('aria-hidden',String(!isAdmin));
+      accountingGroup.style.setProperty('display',isAdmin?'':'none','important');
+    }
+
     const restrictedOperations=['SALE','LEADER','MANAGER'].includes(role);
     const importHistory=q('#customerImportHistory');
     if(importHistory){importHistory.hidden=!isAdmin;importHistory.style.setProperty('display',isAdmin?'':'none','important');}
@@ -212,8 +329,19 @@
   const renders={customers:renderCustomerTable,care:renderCareView,queue:renderDataQueue,orders:renderOrdersTable,drawer:openDrawerForCust,careOpen:openCareGroupModal,careOptions:updateCareGroupOptions,switchTab};
   let customerDraftOwner='';
   const customerDraftValues=new Map();
+  const customerNoteDrafts=new Map();
+  const customerNoteSaveTimers=new Map();
   const draftStorageKey=()=> 'nvt-crm-customer-edits-v1:'+customerDraftOwner;
+  const noteDraftStorageKey=()=> 'nvt-crm-customer-note-drafts-v1:'+customerDraftOwner;
   const selectionKey=p=>p.kind+':'+p.id+(p.kind==='field'?':'+p.fieldId:'');
+  function persistCustomerNoteDrafts(){
+    if(!customerDraftOwner)return;
+    try{
+      const records=Array.from(customerNoteDrafts.values());
+      if(records.length)sessionStorage.setItem(noteDraftStorageKey(),JSON.stringify(records));
+      else sessionStorage.removeItem(noteDraftStorageKey());
+    }catch(error){referenceNotice('Khong the luu ban nhap ghi chu tren trinh duyet.','error');}
+  }
   function selectionAction(payload,restored=false){return async()=>{
     const session=api?.sessionIdentity();
     if(!session||session.id!==payload.accountId)throw Error('Phiên đăng nhập đã thay đổi. Bản nháp vẫn được giữ theo tài khoản.');
@@ -227,13 +355,18 @@
   };}
   function restoreCustomerSelections(){
     if(customerDraftOwner===data.user.id)return;
+    customerNoteSaveTimers.forEach(timer=>clearTimeout(timer));customerNoteSaveTimers.clear();customerNoteDrafts.clear();
     customerDraftOwner=data.user.id;customerDraftValues.clear();
     try{
       const records=JSON.parse(sessionStorage.getItem(draftStorageKey())||'[]');
       if(!Array.isArray(records)||records.some(r=>!r.payload||r.payload.accountId!==customerDraftOwner||!['field','leader','sale'].includes(r.payload.kind)))throw Error('Bản nháp không hợp lệ.');
-      for(const {payload} of records)customerDraftValues.set(selectionKey(payload),payload.value);
-      customerSaveQueue.restore(records,payload=>selectionAction(payload,true));
-      if(records.length&&q('#tab-customers.active'))fillCustomerOptions();
+      const noteRecords=JSON.parse(sessionStorage.getItem(noteDraftStorageKey())||'[]');
+      if(!Array.isArray(noteRecords)||noteRecords.some(r=>!r.payload||r.payload.accountId!==customerDraftOwner||r.payload.kind!=='field'))throw Error('Bản nháp ghi chú không hợp lệ.');
+      const combined=[...records,...noteRecords];
+      for(const {payload} of combined)customerDraftValues.set(selectionKey(payload),payload.value);
+      customerSaveQueue.restore(combined,payload=>selectionAction(payload,true));
+      if(noteRecords.length)sessionStorage.removeItem(noteDraftStorageKey());
+      if(combined.length&&q('#tab-customers.active'))fillCustomerOptions();
     }catch(error){referenceNotice(error.message,'error');}
   }
 
@@ -248,7 +381,7 @@
     onChange:({pending,error,running})=>{
       if(!error){
         q('#customerSaveStatus')?.remove();
-        if(!pending&&!running){customerDraftValues.clear();refresh();}
+        if(!pending&&!running){customerDraftValues.clear();customerNoteDrafts.forEach(record=>customerDraftValues.set(record.key,record.payload.value));refresh();}
         return;
       }
       let status=q('#customerSaveStatus');
@@ -276,7 +409,26 @@
     customerDraftValues.set(key,payload.value);
     customerSaveQueue.enqueue(key,selectionAction(payload),payload);
   }
-  window.addEventListener('beforeunload',event=>{if(customerSaveQueue.pending){event.preventDefault();event.returnValue='';}});
+  function stageCustomerNoteSelection(id,fieldId,value,immediate=false){
+    if(!data?.user?.id)return;
+    customerDraftOwner=data.user.id;
+    const payload={kind:'field',id,fieldId,value:String(value||'').slice(0,4000),accountId:data.user.id};
+    const key=selectionKey(payload),existing=customerNoteDrafts.get(key);
+    const current=api.customerSelection(id,'field',fieldId);
+    if(!existing&&String(current??'')===payload.value)return;
+    payload.base=structuredClone(existing?.payload?.base??current);
+    customerDraftValues.set(key,payload.value);
+    customerNoteDrafts.set(key,{key,payload});persistCustomerNoteDrafts();
+    if(customerNoteSaveTimers.has(key))clearTimeout(customerNoteSaveTimers.get(key));
+    const flush=()=>{
+      customerNoteSaveTimers.delete(key);
+      const record=customerNoteDrafts.get(key);if(!record)return;
+      customerSaveQueue.enqueue(key,selectionAction(record.payload),record.payload);
+      customerNoteDrafts.delete(key);persistCustomerNoteDrafts();
+    };
+    if(immediate)flush();else customerNoteSaveTimers.set(key,setTimeout(flush,600));
+  }
+  window.addEventListener('beforeunload',event=>{if(customerSaveQueue.pending||customerNoteDrafts.size){event.preventDefault();event.returnValue='';}});
   // Không cho hai lần bấm tạo cùng lúc. Runtime giữ requestId nếu mất phản hồi server.
   async function run(action,done) {
     if(working||customerSaveQueue.pending){referenceNotice('Đang lưu lựa chọn. Bạn có thể tiếp tục chọn trong bảng.');return null;} if(!api||!data||!api.sessionIdentity())return;
@@ -351,7 +503,19 @@
       control.type='button';control.textContent=(field.options||[]).filter(o=>[].concat(value).includes(o.value)).map(o=>o.label).join(', ')||'— Chọn —';
       control.onclick=()=>{const modal=editor(field.label,`<div style="display:flex;flex-wrap:wrap;gap:12px">${field.options.map(o=>`<label class="chip" style="color:${validColor(o.color)};background:${validColor(o.color)}18"><input type="checkbox" value="${esc(o.value)}" ${[].concat(value).includes(o.value)?'checked':''}> ${esc(o.label)}</label>`).join('')}</div>`,()=>{const next=Array.from(modal.querySelectorAll('input:checked'),n=>n.value);value=next;control.textContent=(field.options||[]).filter(o=>next.includes(o.value)).map(o=>o.label).join(', ')||'— Chọn —';saveCustomerSelection('field',customer.id,next,field.id);},true);};
     }else if(field.type==='CHECKBOX'){control.type='checkbox';control.checked=value===true;control.onchange=()=>save(control.checked);}
-    else{control.value=value;control.maxLength=field.type==='NOTE'?5000:500;control.onchange=()=>save(control.value);}
+    else if(field.type==='NOTE'){
+      control.value=value;control.maxLength=4000;control.rows=2;control.wrap='soft';control.className='customer-note-editor';
+      control.style.cssText='display:block;width:250px;min-width:250px;max-width:250px;height:58px;min-height:58px;max-height:140px;padding:8px 10px;border:1px solid #d7e0ea;border-radius:7px;background:#f8fafc;color:var(--text-main);font:500 11.5px/1.45 var(--font-sans,Arial,sans-serif);white-space:pre-wrap;overflow-wrap:anywhere;overflow-x:hidden;overflow-y:auto;resize:vertical;box-sizing:border-box;transition:height .15s ease,box-shadow .15s ease;';
+      const collapse=()=>{control.style.height='58px';control.dataset.noteExpanded='false';};
+      const expand=()=>{control.style.height='auto';control.style.height=Math.min(140,Math.max(58,control.scrollHeight))+'px';control.dataset.noteExpanded='true';};
+      control.onfocus=expand;
+      control.onmouseenter=()=>{if(document.activeElement!==control)expand();};
+      control.onmouseleave=()=>{if(document.activeElement!==control)collapse();};
+      control.oninput=()=>{value=control.value;expand();stageCustomerNoteSelection(customer.id,field.id,value,false);};
+      control.onblur=()=>{stageCustomerNoteSelection(customer.id,field.id,control.value,true);collapse();};
+      collapse();
+    }
+    else{control.value=value;control.maxLength=500;control.onchange=()=>save(control.value);}
     control.disabled=!editable;control.dataset.customerField=field.id;control.setAttribute('aria-label',field.label+' · '+customer.name);cell.replaceChildren(control);
   }
   const baseFields=['customerLevel','customerClass','callStatus','documentStatus','result'];
@@ -382,6 +546,8 @@
     referenceHeader.dataset.referenceAmountColumn='1';
     referenceHeader.textContent='DỮ LIỆU KHÁCH THAM KHẢO';
     head.insertBefore(referenceHeader,head.lastElementChild);
+    const legacyNoteIndex=Array.from(head.cells).findIndex(cell=>/GHI CHÚ MỚI NHẤT/i.test(String(cell.textContent||'').trim()));
+    if(legacyNoteIndex>=0){head.cells[legacyNoteIndex].hidden=true;head.cells[legacyNoteIndex].setAttribute('aria-hidden','true');}
     Array.from(body.rows).forEach(row=>{
       const code=row.querySelector('button[onclick]')?.getAttribute('onclick'),id=code?.match(/'([^']+)'/)?.[1],c=data.customers.find(c=>c.id===id);
       if(!c){if(row.cells.length===1)row.cells[0].colSpan=head.cells.length;return;}
@@ -438,6 +604,7 @@
       referenceCell.dataset.referenceAmountColumn='1';
       referenceCell.innerHTML='<span class="customer-reference-amount">'+(referenceDigits?money(Number(referenceDigits)):'—')+'</span>';
       row.insertBefore(referenceCell,row.lastElementChild);
+      if(legacyNoteIndex>=0&&row.cells[legacyNoteIndex]){row.cells[legacyNoteIndex].hidden=true;row.cells[legacyNoteIndex].setAttribute('aria-hidden','true');}
     });
     applyCustomerSourceVisibility();
     installCustomerColumnFilters(head);
@@ -545,14 +712,14 @@
     const value=(key)=>customer=>raw.get(customer.id)?.[key];
     const staffLabel=id=>data.members.find(member=>String(member.id)===String(id))?.name||id||'Chưa phân công';
     const activeFields=data.fields.filter(field=>field.active!==false);
-    const fieldColumn=field=>({key:'field:'+field.id,label:field.label,value:customer=>raw.get(customer.id)?.customFields?.[field.id],labelFor:value=>field.type==='CHECKBOX'?(value==='true'?'Có':value==='false'?'Không':'Trống'):(field.options||[]).find(option=>String(option.value)===value)?.label||value||'Trống'});
+    const isNoteField=field=>field.type==='NOTE'||String(field.label||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase()==='ghi chu';
+    const fieldColumn=field=>{const noteField=isNoteField(field);return {key:'field:'+field.id,label:field.label,presenceFilter:noteField,value:customer=>{const fieldValue=raw.get(customer.id)?.customFields?.[field.id];return noteField?(String(fieldValue||'').trim()?'HAS_CONTENT':'EMPTY'):fieldValue;},labelFor:filterValue=>noteField?(filterValue==='HAS_CONTENT'?'Có ghi chú':'Không ghi chú'):field.type==='CHECKBOX'?(filterValue==='true'?'Có':filterValue==='false'?'Không':'Trống'):(field.options||[]).find(option=>String(option.value)===filterValue)?.label||filterValue||'Trống'};};
     customerColumnDefinitions=[
       ...((data.user.actualRole||data.user.role)==='ADMIN'?[{key:'source',label:'Nguồn / Landing Page',value:customer=>{const row=raw.get(customer.id);return data.websites.find(site=>site.id===row?.websiteId)?.name||row?.landingPageName||row?.source;}}]:[]),
       {key:'leader',label:'Team / Leader',value:customer=>{const row=raw.get(customer.id);return row?.leaderId||row?.managerId||'';},labelFor:staffLabel},
       {key:'sale',label:'Sale phụ trách',value:customer=>assignedSaleIdForCustomer(customer),labelFor:id=>{const member=data.members.find(item=>String(item.id)===String(id));return member?`${member.name||'Chưa đặt tên'} · ${member.accountId||member.phone||member.id}`:(id||'Chưa phân công');}},
       ...activeFields.filter(field=>baseFields.includes(field.id)||field.showInTable).map(fieldColumn),
       {key:'status',label:'Trạng thái',value:value('status'),labelFor:value=>({NEW:'Data mới',CONTACTED:'Đã liên hệ',PAID:'Đã thanh toán',ARCHIVED:'Đã lưu trữ'}[value]||value||'Trống')},
-      {key:'note',label:'Ghi chú',value:value('note')},
       {key:'referenceAmount',label:'Dữ liệu khách tham khảo',value:customer=>{const row=raw.get(customer.id);return row?.referenceAmount??row?.customFields?.referenceAmount??row?.customFields?.customerReferenceAmount;}}
     ];
     const keys=new Set(customerColumnDefinitions.map(column=>column.key));
@@ -606,15 +773,16 @@
     if(rect.bottom+380>window.innerHeight&&rect.top>380)popup.style.bottom=(window.innerHeight-rect.top+6)+'px';else popup.style.top=Math.max(8,Math.min(rect.bottom+6,window.innerHeight-380))+'px';
     const label=value=>String(column.labelFor?.(value)||value||'Trống');
     const counts=new Map();appState.customers.forEach(customer=>new Set(customerColumnValues(column.value(customer))).forEach(value=>counts.set(value,(counts.get(value)||0)+1)));
-    const values=orderCustomerColumnFilterValues(column,[...counts.keys()],label);
+    const values=column.presenceFilter?['HAS_CONTENT','EMPTY']:orderCustomerColumnFilterValues(column,[...counts.keys()],label);
     const search=popup.querySelector('input'),list=popup.querySelector('.customer-column-options');
+    if(column.presenceFilter)search.hidden=true;
     const draw=()=>{
       list.replaceChildren();
       const add=(value,text)=>{const item=document.createElement('button');item.type='button';item.textContent=text;item.setAttribute('aria-pressed',String(customerFilterState.columns[column.key]===value));item.onclick=()=>{if(value===undefined)delete customerFilterState.columns[column.key];else customerFilterState.columns[column.key]=value;closeCustomerColumnMenu();customerPage=1;renderCustomerTable();};list.appendChild(item);};
       add(undefined,'Tất cả · Xóa lọc cột này');
       const query=search.value.trim().toLocaleLowerCase('vi');
       const filtered=values.filter(value=>label(value).toLocaleLowerCase('vi').includes(query));
-      filtered.forEach(value=>add(value,label(value)+' ('+counts.get(value)+')'));
+      filtered.forEach(value=>add(value,label(value)+' ('+(counts.get(value)||0)+')'));
       if(!filtered.length){const empty=document.createElement('p');empty.textContent='Không có giá trị phù hợp';list.appendChild(empty);}
     };
     const outside=event=>{if(!popup.contains(event.target)&&event.target!==button)closeCustomerColumnMenu();};
@@ -749,7 +917,13 @@
         if(!q('#saleDashboardAcceptStyles')){
           const style=document.createElement('style');style.id='saleDashboardAcceptStyles';style.textContent='.sale-dashboard-panel{border-color:#fed7aa!important;box-shadow:0 4px 14px rgba(234,88,12,.12)!important}.sale-dashboard-panel .pending-data-head b{color:#c2410c}.sale-dashboard-table{min-width:760px}.sale-dashboard-table td:nth-child(2) small{display:block;margin-top:3px;color:var(--text-muted);font-size:10.5px;white-space:nowrap}.sale-dashboard-countdown{display:inline-flex;align-items:center;min-height:28px;padding:5px 10px;border-radius:7px;background:#fff7ed;color:#c2410c;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}.sale-dashboard-accept{justify-content:center;background:#059669;color:#fff;border:1px solid #059669;box-shadow:0 3px 10px rgba(5,150,105,.2)}.sale-dashboard-accept:hover{background:#047857;border-color:#047857}.sale-dashboard-accept:disabled{opacity:.6;cursor:wait}';document.head.appendChild(style);
         }
-        goal.querySelectorAll('[data-dashboard-accept-offer]').forEach(button=>button.onclick=async()=>{button.disabled=true;await run(()=>api.acceptOffer(button.dataset.dashboardAcceptOffer));});
+        goal.querySelectorAll('[data-dashboard-accept-offer]').forEach(button=>button.onclick=async()=>{
+          if(button.dataset.busy==='1')return;
+          const label=button.textContent;
+          button.dataset.busy='1';button.disabled=true;button.setAttribute('aria-busy','true');button.textContent='\u0110ang nh\u1eadn...';
+          try{await run(()=>api.acceptOffer(button.dataset.dashboardAcceptOffer));}
+          finally{button.dataset.busy='';button.disabled=false;button.removeAttribute('aria-busy');button.textContent=label;}
+        });
       }else if(!goal.hidden){
         goal.classList.remove('sale-dashboard-panel');
         const allCustomers=data.managerHierarchy?.customers||data.customers;
@@ -1100,13 +1274,14 @@
         ?String(customer.saleId||'')===String(member.id)||(String(customer.leaderId||'')===String(member.id)&&!customer.saleId)
         :String(customer.saleId||'')===String(member.id)||(String(customer.managerId||'')===String(member.id)&&!customer.leaderId&&!customer.saleId));
     const initials=name=>String(name||'?').trim().split(/\s+/).slice(-2).map(part=>part[0]||'').join('').toUpperCase()||'?';
-    const dataRows=(member,kind)=>{const rows=ownCustomers(member,kind).slice().sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));return '<div class="team-tree-data"><span class="team-tree-data-title">Data phu trach ('+rows.length+')</span>'+(rows.length?rows.map(customer=>'<button type="button" class="team-tree-data-row" data-team-customer="'+esc(customer.id)+'"><b>'+esc(customer.name||'Chua dat ten')+'</b><small>'+esc(customer.phone||'')+'</small></button>').join(''):'<div class="team-tree-empty">Chua co data</div>')+'</div>';};
-    const memberCard=(member,kind,children)=>{const nested=children||'';const rows=ownCustomers(member,kind);return '<article class="team-tree-member"><button type="button" class="team-tree-member-head" data-team-member-toggle="'+esc(member.id)+'"><span class="team-tree-person"><span class="team-tree-avatar '+kind+'">'+esc(initials(member.name))+'</span><span class="team-tree-person-copy"><b>'+esc(kind==='manager'?'Manager: ':kind==='leader'?'Leader: ':'Sale: ')+esc(member.name||'Chua dat ten')+'</b><small>'+esc(kind==='leader'?'Team '+(member.teamId||'Chua gan Team'):kind==='sale'?'Sale truc thuoc':'Data nhan truc tiep')+'</small></span></span><span class="team-tree-count"><span>'+rows.length+' data</span><span class="team-tree-chevron">+</span></span></button><div class="team-tree-member-body" data-team-member-body="'+esc(member.id)+'" hidden>'+dataRows(member,kind)+nested+'</div></article>';};
+    const dataRows=(member,kind,customRows)=>{const rows=(customRows||ownCustomers(member,kind)).slice().sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));return '<div class="team-tree-data"><span class="team-tree-data-title">Data phu trach ('+rows.length+')</span>'+(rows.length?rows.map(customer=>'<button type="button" class="team-tree-data-row" data-team-customer="'+esc(customer.id)+'"><b>'+esc(customer.name||'Chua dat ten')+'</b><small>'+esc(customer.phone||'')+'</small></button>').join(''):'<div class="team-tree-empty">Chua co data</div>')+'</div>';};
+    const memberCard=(member,kind,children,countRows)=>{const nested=children||'';const rows=countRows||ownCustomers(member,kind);return '<article class="team-tree-member"><button type="button" class="team-tree-member-head" data-team-member-toggle="'+esc(member.id)+'"><span class="team-tree-person"><span class="team-tree-avatar '+kind+'">'+esc(initials(member.name))+'</span><span class="team-tree-person-copy"><b>'+esc(kind==='manager'?'Manager: ':kind==='leader'?'Leader: ':'Sale: ')+esc(member.name||'Chua dat ten')+'</b><small>'+esc(kind==='leader'?'Team '+(member.teamId||'Chua gan Team'):kind==='sale'?'Sale truc thuoc':'Data nhan truc tiep')+'</small></span></span><span class="team-tree-count"><span>'+rows.length+' data</span><span class="team-tree-chevron">+</span></span></button><div class="team-tree-member-body" data-team-member-body="'+esc(member.id)+'" hidden>'+dataRows(member,kind)+nested+'</div></article>';};
     const managerRoots=role==='ADMIN'?members.filter(m=>m.role==='MANAGER'):role==='MANAGER'?[current].filter(m=>m?.role==='MANAGER'):[ ];
     const visibleLeaders=role==='ADMIN'?members.filter(m=>m.role==='LEADER'):role==='MANAGER'?managerLeaders(current):role==='LEADER'?[current]:current?.leaderId?[byId(current.leaderId)].filter(Boolean):[];
     const visibleSales=role==='ADMIN'?members.filter(m=>m.role==='SALE'):role==='MANAGER'?members.filter(m=>m.role==='SALE'&&managerOf(m)?.id===current.id):role==='LEADER'?leaderSales(current):[current].filter(m=>m.role==='SALE');
-    const leaderCard=leader=>memberCard(leader,'leader',leaderSales(leader).filter(s=>visibleSales.some(v=>v.id===s.id)).map(s=>memberCard(s,'sale','')).join(''));
-    const managerCard=manager=>{const leaders=managerLeaders(manager).filter(l=>visibleLeaders.some(v=>v.id===l.id)),direct=directManagerSales(manager).filter(s=>visibleSales.some(v=>v.id===s.id)),managerRows=ownCustomers(manager,'manager');const nested=dataRows(manager,'manager')+direct.map(s=>memberCard(s,'sale','')).join('')+leaders.map(leaderCard).join('');return '<section class="team-tree-manager"><button type="button" class="team-tree-manager-head" data-team-root-toggle="'+esc(manager.id)+'" aria-expanded="false"><span class="team-tree-person"><span class="team-tree-avatar manager">M</span><span class="team-tree-person-copy"><b>Manager: '+esc(manager.name||'Chua dat ten')+'</b><small>'+esc([...new Set(leaders.map(l=>l.teamId).filter(Boolean))].join(', ')||'Chua gan Team')+' · '+leaders.length+' Leader · '+(direct.length+leaders.reduce((sum,l)=>sum+leaderSales(l).filter(s=>visibleSales.some(v=>v.id===s.id)).length,0))+' Sale</small></span></span><span class="team-tree-chevron">+</span></button><div class="team-tree-body" data-team-root-body="'+esc(manager.id)+'" hidden>'+nested+'</div></section>';};
+    const leaderCustomers=leader=>{const salesIds=new Set(leaderSales(leader).map(sale=>String(sale.id)));return visibleCustomers.filter(customer=>String(customer.leaderId||'')===String(leader.id)||salesIds.has(String(customer.saleId||'')));};
+    const leaderCard=leader=>{const sales=leaderSales(leader).filter(s=>visibleSales.some(v=>v.id===s.id)),rows=leaderCustomers(leader);return memberCard(leader,'leader',sales.map(s=>memberCard(s,'sale','')).join(''),rows);};
+    const managerCard=manager=>{const leaders=managerLeaders(manager).filter(l=>visibleLeaders.some(v=>v.id===l.id)),direct=directManagerSales(manager).filter(s=>visibleSales.some(v=>v.id===s.id)),nested=dataRows(manager,'manager')+direct.map(s=>memberCard(s,'sale','')).join('')+leaders.map(leaderCard).join('');return '<section class="team-tree-manager"><button type="button" class="team-tree-manager-head" data-team-root-toggle="'+esc(manager.id)+'" aria-expanded="true"><span class="team-tree-person"><span class="team-tree-avatar manager">M</span><span class="team-tree-person-copy"><b>Manager: '+esc(manager.name||'Chua dat ten')+'</b><small>'+esc([...new Set(leaders.map(l=>l.teamId).filter(Boolean))].join(', ')||'Chua gan Team')+' · '+leaders.length+' Leader · '+(direct.length+leaders.reduce((sum,l)=>sum+leaderSales(l).filter(s=>visibleSales.some(v=>v.id===s.id)).length,0))+' Sale</small></span></span><span class="team-tree-chevron">−</span></button><div class="team-tree-body" data-team-root-body="'+esc(manager.id)+'">'+nested+'</div></section>';};
     const roots=managerRoots.map(managerCard),assignedLeaderIds=new Set(managerRoots.flatMap(manager=>managerLeaders(manager).map(leader=>leader.id))),orphanLeaders=visibleLeaders.filter(leader=>!assignedLeaderIds.has(leader.id));
     if(orphanLeaders.length)roots.push('<section class="team-tree-manager team-tree-orphan"><button type="button" class="team-tree-manager-head" data-team-root-toggle="orphan-leaders" aria-expanded="false"><span class="team-tree-person"><span class="team-tree-avatar leader">L</span><span class="team-tree-person-copy"><b>Chua gan Manager</b><small>'+orphanLeaders.length+' Leader · '+orphanLeaders.reduce((sum,l)=>sum+leaderSales(l).length,0)+' Sale</small></span></span><span class="team-tree-chevron">+</span></button><div class="team-tree-body" data-team-root-body="orphan-leaders" hidden>'+orphanLeaders.map(leaderCard).join('')+'</div></section>');
     const shownSales=new Set([...managerRoots.flatMap(manager=>directManagerSales(manager)),...visibleLeaders.flatMap(leader=>leaderSales(leader))].map(member=>member.id)),orphanSales=visibleSales.filter(sale=>!shownSales.has(sale.id));
@@ -1256,7 +1431,7 @@
               <input data-telegram-host value="Ban Quản Trị NVT Agency">
             </label>
             <label style="display:block;margin-top:12px;font-size:12.5px;font-weight:800;color:#1e335f">
-              Ná»™i dung
+              Nội dung
               <textarea required maxlength="4000" rows="4" data-telegram-content></textarea>
             </label>
             <div class="telegram-send-row"><div style="display:flex;justify-content:flex-end;gap:8px;width:100%">
@@ -1770,7 +1945,7 @@
       const label=card.textContent||'';
       if(/Email nội bộ|Gửi email cho Sale|Leader bắt buộc điểm danh/i.test(label))card.remove();
     });
-    
+
   }
   function wireParity(){
     removeUnusedControls();
@@ -1824,13 +1999,20 @@
       .attendance-detail-table{border:1px solid var(--border);border-radius:8px;overflow:auto;max-height:360px}.attendance-detail-table table{min-width:620px;width:100%}.attendance-detail-table thead{position:sticky;top:0;z-index:1;background:var(--bg-card)}.attendance-detail-empty{padding:22px!important;text-align:center;color:var(--text-muted)}
       .attendance-action-cell{text-align:right!important;white-space:nowrap}.attendance-action-cell .btn-action{min-height:30px;padding:5px 10px;font-size:11px}#referenceAttendanceHistory th:last-child,#referenceAttendanceHistory td:last-child{white-space:nowrap;text-align:right}
       @media(max-width:700px){.attendance-detail-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.attendance-calendar-content{padding:8px}.attendance-month-grid{gap:3px}.attendance-day{min-height:42px;padding:4px 2px}.attendance-day small{font-size:8px}}
+      .attendance-personal-card{display:grid;gap:16px;padding:22px;background:var(--bg-card);border:1px solid var(--border);border-radius:16px;box-shadow:0 8px 24px rgba(15,23,42,.06);color:var(--text-main)}
+      .attendance-personal-head,.attendance-personal-history-head,.attendance-today-card{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap}.attendance-personal-head h2{margin:4px 0 3px;font-size:21px}.attendance-personal-head p,.attendance-personal-history-head span,.attendance-today-card span{display:block;margin:0;color:var(--text-muted);font-size:12px}.attendance-eyebrow{font-size:10px;font-weight:800;letter-spacing:.12em;color:var(--accent)}
+      .attendance-today-card{padding:16px 18px;border:1px solid var(--border-light);border-radius:12px;background:linear-gradient(135deg,var(--bg-subtle),var(--bg-card))}.attendance-today-card b,.attendance-personal-history-head b{display:block;font-size:14px;margin-bottom:4px}.attendance-today-result{text-align:right}.attendance-today-result strong{display:block;font-size:22px;color:var(--accent)}.attendance-today-result small{color:var(--text-muted);font-size:11px}
+      .attendance-personal-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.attendance-personal-kpis>div{padding:13px 14px;border:1px solid var(--border-light);border-radius:11px;background:var(--bg-subtle)}.attendance-personal-kpis strong{display:block;font-size:22px}.attendance-personal-kpis span{display:block;margin-top:3px;color:var(--text-muted);font-size:11px}.attendance-personal-history{overflow:hidden;border:1px solid var(--border);border-radius:12px}.attendance-personal-history-head{padding:14px 16px;border-bottom:1px solid var(--border);background:var(--bg-subtle)}.attendance-personal-history .table-responsive{max-height:380px;overflow:auto}.attendance-personal-history table{min-width:700px}@media(max-width:600px){.attendance-personal-card{padding:16px}.attendance-personal-kpis{grid-template-columns:1fr}.attendance-personal-head .chip{width:100%;text-align:center}}
     `;document.head.appendChild(style);
   }
   function attendanceMonthIso(base,offset){const d=new Date(String(base).slice(0,10)+'T00:00:00Z');d.setUTCDate(1);d.setUTCMonth(d.getUTCMonth()-offset);return {year:d.getUTCFullYear(),month:d.getUTCMonth()};}
   function attendanceDetailMarkup(memberId,selectedMonth=''){
-    const member=data.members.find(item=>item.id===memberId);if(!member)return '';
+    const role=data.user.actualRole||data.user.role;
+    const personal=role!=='ADMIN';
+    const member=(data.members||[]).find(item=>String(item.id)===String(memberId));
+    if(!member)return '';
     window.__nvtAttendanceMonthChange=select=>{const body=select.closest('.modal-body');if(body)body.innerHTML=attendanceDetailMarkup(select.dataset.attendanceMember,select.value);};
-    const today=String(data.today).slice(0,10),records=data.attendance.filter(item=>item.accountId===memberId&&item.date<=today).sort((a,b)=>String(b.date).localeCompare(String(a.date))||String(b.at).localeCompare(String(a.at)));
+    const today=String(data.today||'').slice(0,10),records=(data.attendance||[]).filter(item=>String(item.accountId)===String(memberId)&&String(item.date||'')<=today).sort((a,b)=>String(b.date).localeCompare(String(a.date))||String(b.at||'').localeCompare(String(a.at||'')));
     const currentMonth=today.slice(0,7),allowedMonths=Array.from({length:3},(_,offset)=>{const d=new Date(today+'T00:00:00Z');d.setUTCDate(1);d.setUTCMonth(d.getUTCMonth()-offset);return d.toISOString().slice(0,7);}),monthValue=allowedMonths.includes(selectedMonth)?selectedMonth:currentMonth;
     const monthOptions=allowedMonths.map(value=>{const d=new Date(value+'-01T00:00:00Z'),label=d.toLocaleDateString('vi-VN',{month:'long',year:'numeric',timeZone:'UTC'});return '<option value="'+value+'" '+(value===monthValue?'selected':'')+'>'+esc(label)+'</option>';}).join('');
     const scoped=records.filter(item=>String(item.date||'').slice(0,7)===monthValue),late=scoped.filter(item=>item.late),outside=scoped.filter(item=>item.ipValid===false),weekdays=['T2','T3','T4','T5','T6','T7','CN'];
@@ -1845,77 +2027,67 @@
       cells+='<div class="'+cls+'" title="'+esc(date)+'"><b>'+day+'</b><small>'+esc(label)+'</small></div>';
     }
     const monthName=new Date(Date.UTC(year,month,1)).toLocaleDateString('vi-VN',{month:'long',year:'numeric',timeZone:'UTC'});
-    const rows=scoped.map(item=>'<tr><td>'+esc(fmtDate(item.date))+'</td><td>'+esc(String(item.at||'').slice(11,16)||'\u2014')+'</td><td>'+(item.late?'<span class="chip chip-warm">Mu\u1ed9n '+Number(item.lateMinutes||0)+' ph\u00fat</span>':'<span class="chip chip-green">\u0110\u00fang gi\u1edd</span>')+'</td><td>'+(item.ipValid===false?'<span class="chip chip-warm">Ngo\u00e0i Wi-Fi</span>':'<span class="chip chip-green">\u0110\u00fang Wi-Fi</span>')+'</td><td>'+esc(item.note||'\u2014')+'</td></tr>').join('');
-    return '<div class="attendance-detail"><div class="attendance-detail-toolbar"><div class="attendance-detail-intro"><strong>L\u1ecdc \u0111i\u1ec3m danh theo th\u00e1ng</strong><span>Xem l\u1ecbch, k\u1ebft qu\u1ea3 v\u00e0 c\u00e1c l\u01b0\u1ee3t \u0111i\u1ec3m danh c\u1ee7a '+esc(member.name)+'.</span></div><div class="attendance-month-picker"><label for="attendanceMonthSelect">Th\u00e1ng xem</label><select id="attendanceMonthSelect" data-attendance-month data-attendance-member="'+esc(memberId)+'" onchange="window.__nvtAttendanceMonthChange(this)">'+monthOptions+'</select></div></div>'+
-      '<div class="attendance-detail-kpis"><div class="attendance-detail-kpi"><strong>'+scoped.length+'</strong><span>L\u01b0\u1ee3t \u0111i\u1ec3m danh trong th\u00e1ng</span></div><div class="attendance-detail-kpi"><strong>'+late.length+'</strong><span>L\u01b0\u1ee3t \u0111i mu\u1ed9n</span></div><div class="attendance-detail-kpi"><strong>'+late.reduce((sum,item)=>sum+Number(item.lateMinutes||0),0)+'p</strong><span>T\u1ed5ng th\u1eddi gian \u0111i mu\u1ed9n</span></div><div class="attendance-detail-kpi"><strong>'+outside.length+'</strong><span>L\u01b0\u1ee3t ngo\u00e0i Wi-Fi</span></div></div>'+
+    const rows=scoped.map(item=>'<tr><td>'+esc(fmtDate(item.date))+'</td><td>'+esc(String(item.at||item.checkInAt||'').slice(11,16)||'\u2014')+'</td><td>'+(item.late?'<span class="chip chip-warm">Mu\u1ed9n '+Number(item.lateMinutes||0)+' ph\u00fat</span>':'<span class="chip chip-green">\u0110\u00fang gi\u1edd</span>')+'</td>'+(personal?'':'<td>'+(item.ipValid===false?'<span class="chip chip-warm">Ngo\u00e0i Wi-Fi</span>':'<span class="chip chip-green">\u0110\u00fang Wi-Fi</span>')+'</td><td>'+esc(item.note||'\u2014')+'</td>')+'</tr>').join('');
+    const headers=personal?'<th>Ng\u00e0y</th><th>Gi\u1edd</th><th>K\u1ebft qu\u1ea3</th>':'<th>Ng\u00e0y</th><th>Gi\u1edd</th><th>K\u1ebft qu\u1ea3</th><th>Wi-Fi</th><th>Ghi ch\u00fa</th>';
+    const emptyColspan=personal?3:5;
+    const wifiKpi=personal?'':'<div class="attendance-detail-kpi"><strong>'+outside.length+'</strong><span>L\u01b0\u1ee3t ngo\u00e0i Wi-Fi</span></div>';
+    return '<div class="attendance-detail"><div class="attendance-detail-toolbar"><div class="attendance-detail-intro"><strong>L\u1ecbch s\u1eed \u0111i\u1ec3m danh '+(personal?'c\u00e1 nh\u00e2n':'theo nh\u00e2n s\u1ef1')+'</strong><span>Xem l\u1ecbch, k\u1ebft qu\u1ea3 v\u00e0 c\u00e1c l\u01b0\u1ee3t \u0111i\u1ec3m danh c\u1ee7a '+esc(member.name)+'.</span></div><div class="attendance-month-picker"><label for="attendanceMonthSelect">Th\u00e1ng xem</label><select id="attendanceMonthSelect" data-attendance-month data-attendance-member="'+esc(memberId)+'" onchange="window.__nvtAttendanceMonthChange(this)">'+monthOptions+'</select></div></div>'+
+      '<div class="attendance-detail-kpis"><div class="attendance-detail-kpi"><strong>'+scoped.length+'</strong><span>L\u01b0\u1ee3t \u0111i\u1ec3m danh trong th\u00e1ng</span></div><div class="attendance-detail-kpi"><strong>'+late.length+'</strong><span>L\u01b0\u1ee3t \u0111i mu\u1ed9n</span></div><div class="attendance-detail-kpi"><strong>'+late.reduce((sum,item)=>sum+Number(item.lateMinutes||0),0)+'p</strong><span>T\u1ed5ng th\u1eddi gian \u0111i mu\u1ed9n</span></div>'+wifiKpi+'</div>'+
       '<section class="attendance-detail-calendar"><div class="attendance-month-head"><b>'+esc(monthName)+'</b><small>'+present+' c\u00f3 m\u1eb7t \u00b7 '+lateCount+' \u0111i mu\u1ed9n \u00b7 '+missing+' ng\u00e0y ch\u01b0a \u0111i\u1ec3m danh</small></div><div class="attendance-calendar-content"><div class="attendance-calendar-legend"><span><i></i>C\u00f3 m\u1eb7t</span><span><i class="legend-late"></i>\u0110i mu\u1ed9n</span><span><i class="legend-missing"></i>Ch\u01b0a \u0111i\u1ec3m danh</span><span><i class="legend-off"></i>Cu\u1ed1i tu\u1ea7n / ch\u01b0a t\u1edbi</span></div><div class="attendance-month-grid">'+cells+'</div></div></section>'+
-      '<div class="attendance-detail-table"><table class="modern-table"><thead><tr><th>Ng\u00e0y</th><th>Gi\u1edd</th><th>K\u1ebft qu\u1ea3</th><th>Wi-Fi</th><th>Ghi ch\u00fa</th></tr></thead><tbody>'+(rows||'<tr><td colspan="5" class="attendance-detail-empty">Kh\u00f4ng c\u00f3 l\u01b0\u1ee3t \u0111i\u1ec3m danh trong th\u00e1ng n\u00e0y.</td></tr>')+'</tbody></table></div></div>';
+      '<div class="attendance-detail-table"><table class="modern-table"><thead><tr>'+headers+'</tr></thead><tbody>'+(rows||'<tr><td colspan="'+emptyColspan+'" class="attendance-detail-empty">Kh\u00f4ng c\u00f3 l\u01b0\u1ee3t \u0111i\u1ec3m danh trong th\u00e1ng n\u00e0y.</td></tr>')+'</tbody></table></div></div>';
   }
   function attendanceDetailModal(memberId){
-    const role=data.user.actualRole||data.user.role;if(role!=='ADMIN')return;const member=data.members.find(item=>item.id===memberId);if(!member)return;
-    installAttendanceDetailStyles();const modal=editor('Chi tiết điểm danh · '+member.name,attendanceDetailMarkup(memberId));const card=modal.querySelector('.modal-card');if(card){card.style.width='min(1000px,calc(100vw - 24px))';card.style.maxHeight='92dvh';}modal.querySelector('.modal-body')?.style.setProperty('padding','16px');
+    const role=data.user.actualRole||data.user.role;
+    const ownId=data.user.saleId||data.user.leaderId||data.user.id;
+    if(role!=='ADMIN'&&String(memberId)!==String(ownId))return;
+    const member=(data.members||[]).find(item=>String(item.id)===String(memberId));
+    if(!member)return;
+    installAttendanceDetailStyles();
+    const modal=editor('Chi ti\u1ebft \u0111i\u1ec3m danh \u00b7 '+member.name,attendanceDetailMarkup(memberId));
+    const card=modal.querySelector('.modal-card');
+    if(card){card.style.width='min(1000px,calc(100vw - 24px))';card.style.maxHeight='92dvh';}
+    modal.querySelector('.modal-body')?.style.setProperty('padding','16px');
   }
   function attendance(){
     const role=data.user.actualRole||data.user.role;
     const attendanceTab=q('#tab-attendance');
     if(!['ADMIN','MANAGER','LEADER','SALE','MARKETING','ACCOUNTING','UNASSIGNED'].includes(role)){attendanceTab?.classList.remove('active');return;}
-    const attendancePanels=Array.from(attendanceTab?.querySelectorAll('.table-container')||[]);
+    installAttendanceDetailStyles();
+    const panels=Array.from(attendanceTab?.querySelectorAll('.table-container')||[]);
+    const today=String(data.today||'').slice(0,10);
+    const ownId=data.user.saleId||data.user.leaderId||data.user.id;
+    const ownMember=(data.members||[]).find(item=>String(item.id)===String(ownId));
+    const allRecords=(data.attendance||[]).filter(item=>String(item.date||'')<=today);
+    const recordTime=item=>{const match=String(item?.at||item?.checkInAt||'').match(/(\d{2}:\d{2})(?::\d{2})?$/);return match?match[1]:String(item?.at||item?.checkInAt||'').slice(11,16)||'?';};
     if(role!=='ADMIN'){
-      // Moi vai tro van hanh tu diem danh va chi xem ket qua cua chinh minh.
-      attendancePanels.forEach(panel=>{panel.hidden=true;panel.style.setProperty('display','none','important');});
-      let status=attendanceTab?.querySelector('#referenceSaleAttendance');
-      if(!status){status=document.createElement('div');status.id='referenceSaleAttendance';status.className='table-container';status.style.cssText='padding:20px 24px;max-width:620px';attendanceTab?.appendChild(status);}
-      const attendanceAccountId=data.user.saleId||data.user.leaderId||data.user.id;
-      const mine=(data.attendance||[]).find(item=>item.accountId===attendanceAccountId&&item.date===data.today);
-      status.hidden=false;status.style.removeProperty('display');
-      const todayLabel=new Date(`${String(data.today).slice(0,10)}T00:00:00+07:00`).toLocaleDateString('vi-VN',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
-      status.innerHTML=`<div style="display:grid;gap:14px">
-        <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap">
-          <div><b style="font-size:18px;color:var(--text-main)">Điểm danh hôm nay</b><div style="margin-top:4px;color:var(--text-muted);font-size:12px;text-transform:capitalize">${esc(todayLabel)}</div></div>
-          <span class="chip ${mine?'chip-green':'chip-warm'}">${mine?'Đã điểm danh':'Chưa điểm danh'}</span>
-        </div>
-        <div class="empty" style="margin:0">
-          <b>${mine?'Đã ghi nhận lúc '+esc(String(mine.at||'').slice(11,16)):'Chưa có lượt điểm danh hôm nay'}</b>
-          <span>${mine?(mine.late?'Đi muộn '+Number(mine.lateMinutes||0)+' phút':'Đúng giờ'):'Bấm nút bên trên sau khi vào ca làm việc.'}</span>
-        </div>
-      </div>`;
+      panels.forEach(panel=>{panel.hidden=true;panel.style.setProperty('display','none','important');});
+      let card=attendanceTab?.querySelector('#referencePersonalAttendance');
+      if(!card){card=document.createElement('section');card.id='referencePersonalAttendance';card.className='table-container';attendanceTab?.appendChild(card);}
+      card.hidden=false;card.style.removeProperty('display');
+      const mineToday=allRecords.find(item=>String(item.accountId)===String(ownId)&&String(item.date)===today);
+      const todayLabel=new Date(today+'T00:00:00+07:00').toLocaleDateString('vi-VN',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
+      card.innerHTML='<div class="attendance-personal-card"><div class="attendance-personal-head"><div><span class="attendance-eyebrow">H\u1ed2 S\u01a0 \u0110I\u1ec2M DANH C\u00c1 NH\u00c2N</span><h2>\u0110i\u1ec3m danh c\u1ee7a t\u00f4i</h2><p>'+esc(ownMember?.name||data.user.name||'Nh\u00e2n s\u1ef1')+' \u00b7 '+esc(ownMember?.role||role)+'</p></div><span class="chip '+(mineToday?'chip-green':'chip-warm')+'">'+(mineToday?'\u0110\u00e3 \u0111i\u1ec3m danh h\u00f4m nay':'Ch\u01b0a \u0111i\u1ec3m danh h\u00f4m nay')+'</span></div><div class="attendance-today-card"><div><b>\u0110i\u1ec3m danh h\u00f4m nay</b><span>'+esc(todayLabel)+'</span></div><div class="attendance-today-result">'+(mineToday?'<strong>'+esc(recordTime(mineToday))+'</strong><small>'+(mineToday.late?'\u0110i mu\u1ed9n '+Number(mineToday.lateMinutes||0)+' ph\u00fat':'\u0110\u00fang gi\u1edd')+'</small>':'<strong>\u2014</strong><small>B\u1ea1n ch\u01b0a ghi nh\u1eadn \u0111i\u1ec3m danh</small>')+'</div></div><div class="attendance-personal-history-head"><div><b>L\u1ecbch s\u1eed \u0111i\u1ec3m danh c\u1ee7a t\u00f4i</b><span>Xem chi ti\u1ebft l\u1ecbch s\u1eed \u0111i\u1ec3m danh trong 3 th\u00e1ng g\u1ea7n nh\u1ea5t.</span></div><button type="button" class="btn-action btn-secondary" id="referencePersonalAttendanceDetail">Xem chi ti\u1ebft</button></div></div>';
+      q('#referencePersonalAttendanceDetail')?.addEventListener('click',()=>attendanceDetailModal(ownId));
       let checkInButton=attendanceTab?.querySelector('#referenceCheckIn');
-      if(!checkInButton){checkInButton=document.createElement('button');checkInButton.id='referenceCheckIn';checkInButton.className='btn-action btn-primary';checkInButton.textContent='Điểm danh hôm nay';attendanceTab?.querySelector('.headline-row')?.appendChild(checkInButton);}
-      checkInButton.hidden=false;
-      checkInButton.disabled=Boolean(mine);
-      checkInButton.onclick=async event=>{event?.preventDefault?.();event?.stopPropagation?.();if(checkInButton.disabled||working)return;checkInButton.disabled=true;checkInButton.setAttribute('aria-busy','true');try{await run(()=>api.checkIn());}catch(error){checkInButton.disabled=false;throw error;}finally{checkInButton.removeAttribute('aria-busy');}};
+      if(!checkInButton){checkInButton=document.createElement('button');checkInButton.id='referenceCheckIn';checkInButton.className='btn-action btn-primary';checkInButton.textContent='\u0110i\u1ec3m danh h\u00f4m nay';attendanceTab?.querySelector('.headline-row')?.appendChild(checkInButton);}
+      checkInButton.hidden=false;checkInButton.disabled=Boolean(mineToday);checkInButton.onclick=async event=>{event?.preventDefault?.();event?.stopPropagation?.();if(checkInButton.disabled||working)return;checkInButton.disabled=true;checkInButton.setAttribute('aria-busy','true');try{await run(()=>api.checkIn());}catch(error){checkInButton.disabled=false;throw error;}finally{checkInButton.removeAttribute('aria-busy');}};
       return;
     }
-    attendancePanels.forEach(panel=>{panel.hidden=false;panel.style.removeProperty('display');});
-    attendanceTab?.querySelector('#referenceSaleAttendance')?.remove();
-    attendanceTab?.querySelector('#referenceCheckIn')?.remove();
-    const panel=attendancePanels[0],inputs=Array.from(panel?.querySelectorAll('input')||[]);
+    panels.forEach(panel=>{panel.hidden=false;panel.style.removeProperty('display');});
+    attendanceTab?.querySelector('#referencePersonalAttendance')?.remove();attendanceTab?.querySelector('#referenceCheckIn')?.remove();
+    const panel=panels[0],inputs=Array.from(panel?.querySelectorAll('input')||[]);
     if(inputs.length>=3){inputs[0].value=data.settings.attendanceIp||'';inputs[1].type='time';inputs[1].value=data.settings.attendanceDeadline||'09:00';inputs[2].value=24;inputs[2].readOnly=true;inputs.forEach(n=>n.disabled=data.user.role!=='ADMIN');const button=panel.querySelector('button');button.removeAttribute('onclick');button.disabled=data.user.role!=='ADMIN';button.onclick=()=>run(()=>api.attendanceSettings({ip:inputs[0].value,deadline:inputs[1].value}));}
-    const todayPanel=attendancePanels[1],todayBody=todayPanel?.querySelector('tbody');
+    const todayPanel=panels[1],todayBody=todayPanel?.querySelector('tbody');
     const todayMembers=data.members.filter(member=>member.active!==false&&['ADMIN','MANAGER','LEADER','SALE'].includes(member.role));
     const todayTime=value=>{const match=String(value||'').match(/(\d{2}:\d{2})(?::\d{2})?$/);return match?match[1]:'';};
     const todayRecords=new Map((data.attendance||[]).filter(item=>item.date===data.today).map(item=>[item.accountId,item]));
     const checkedIn=todayMembers.filter(member=>todayRecords.has(member.id)).length;
     let todaySummary=todayPanel?.querySelector('#referenceAttendanceTodaySummary');
     if(!todaySummary&&todayPanel){todaySummary=document.createElement('div');todaySummary.id='referenceAttendanceTodaySummary';todaySummary.style.cssText='display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;padding:18px 22px 14px;border-bottom:1px solid var(--border)';todayPanel.insertBefore(todaySummary,todayPanel.firstChild);}
-    if(todaySummary){const label=new Date(String(data.today).slice(0,10)+'T00:00:00+07:00').toLocaleDateString('vi-VN',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});todaySummary.innerHTML='<div><b style="font-size:15px;color:var(--text-main)">Điểm danh hôm nay</b><div style="margin-top:4px;color:var(--text-muted);font-size:11px;text-transform:capitalize">'+esc(label)+'</div></div><span class="chip '+(checkedIn===todayMembers.length&&todayMembers.length?'chip-green':'chip-warm')+'">'+checkedIn+'/'+todayMembers.length+' đã điểm danh</span>';}
-    table(todayBody,todayMembers.map(member=>{const record=todayRecords.get(member.id);return [member.name+(member.phone?' · '+member.phone:''),member.teamId||'—',record?todayTime(record.at||record.checkInAt)||'Đã điểm danh':'Chưa điểm danh',record?.ip||'—',record?(record.ipValid?'Đúng Wi-Fi':'Ngoài Wi-Fi'):'—',record?(record.late?'Muộn '+record.lateMinutes+' phút':'Đúng giờ'):'—',''];}));
-    Array.from(todayBody?.rows||[]).forEach((row,index)=>{const cell=row.cells[row.cells.length-1];if(!cell)return;cell.classList.add('attendance-action-cell');cell.replaceChildren();const button=document.createElement('button');button.type='button';button.className='btn-action btn-secondary';button.textContent='Chi tiết';button.setAttribute('aria-label','Xem chi tiết điểm danh của '+(todayMembers[index]?.name||''));button.onclick=()=>attendanceDetailModal(todayMembers[index]?.id);cell.appendChild(button);});
+    if(todaySummary){const label=new Date(String(data.today).slice(0,10)+'T00:00:00+07:00').toLocaleDateString('vi-VN',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});todaySummary.innerHTML='<div><b style="font-size:15px;color:var(--text-main)">\u0110i\u1ec3m danh h\u00f4m nay</b><div style="margin-top:4px;color:var(--text-muted);font-size:11px;text-transform:capitalize">'+esc(label)+'</div></div><span class="chip '+(checkedIn===todayMembers.length&&todayMembers.length?'chip-green':'chip-warm')+'">'+checkedIn+'/'+todayMembers.length+' \u0111\u00e3 \u0111i\u1ec3m danh</span>';}
+    table(todayBody,todayMembers.map(member=>{const record=todayRecords.get(member.id);return [member.name+(member.phone?' \u00b7 '+member.phone:''),member.teamId||'\u2014',record?todayTime(record.at||record.checkInAt)||'\u0110\u00e3 \u0111i\u1ec3m danh':'Ch\u01b0a \u0111i\u1ec3m danh',record?.ip||'\u2014',record?(record.ipValid?'\u0110\u00fang Wi-Fi':'Ngo\u00e0i Wi-Fi'):'\u2014',record?(record.late?'Mu\u1ed9n '+record.lateMinutes+' ph\u00fat':'\u0110\u00fang gi\u1edd'):'\u2014',''];}));
+    Array.from(todayBody?.rows||[]).forEach((row,index)=>{const cell=row.cells[row.cells.length-1];if(!cell)return;cell.classList.add('attendance-action-cell');cell.replaceChildren();const button=document.createElement('button');button.type='button';button.className='btn-action btn-secondary';button.textContent='Chi ti\u1ebft';button.setAttribute('aria-label','Xem chi ti\u1ebft \u0111i\u1ec3m danh c\u1ee7a '+(todayMembers[index]?.name||''));button.onclick=()=>attendanceDetailModal(todayMembers[index]?.id);cell.appendChild(button);});
     q('#referenceAttendanceHistory')?.remove();
-    return;
-    const body=attendancePanels[1]?.querySelector('tbody');
-    const ownMemberIds=new Set([data.user.id,data.user.saleId,data.user.leaderId].filter(Boolean));
-    const members=data.members.filter(m=>m.active!==false&&['ADMIN','MANAGER','LEADER','SALE'].includes(m.role)&&(role==='ADMIN'||ownMemberIds.has(m.id)));
-    table(body,members.map(m=>{const r=data.attendance.find(r=>r.accountId===m.id&&r.date===data.today);return [m.name+(m.phone?' · '+m.phone:''),m.teamId||'—',r?.at||'Chua diem danh',r?.ip||'—',r?(r.ipValid?'Dung Wi-Fi':'Ngoai Wi-Fi'):'—',r?(r.late?'Muon '+r.lateMinutes+' phut':'Dung gio'):'—',''];}));
-    if(role==='ADMIN')Array.from(body?.rows||[]).forEach((row,index)=>{const cell=row.cells[row.cells.length-1];if(!cell)return;cell.classList.add('attendance-action-cell');cell.replaceChildren();const button=document.createElement('button');button.type='button';button.className='btn-action btn-secondary';button.textContent='Chi ti\u1ebft';button.setAttribute('aria-label','Xem chi ti\u1ebft \u0111i\u1ec3m danh c\u1ee7a '+(members[index]?.name||''));button.onclick=()=>attendanceDetailModal(members[index]?.id);cell.appendChild(button);});
-    if(role==='ADMIN'){
-      let historyPanel=q('#referenceAttendanceHistory');if(!historyPanel){historyPanel=document.createElement('div');historyPanel.id='referenceAttendanceHistory';historyPanel.className='table-container';attendanceTab?.appendChild(historyPanel);}historyPanel.style.marginTop='14px';
-      const historicalMembers=data.members.filter(member=>['ADMIN','MANAGER','LEADER','SALE'].includes(member.role)),eligible=new Set(historicalMembers.map(member=>member.id)),rangeStart=attendanceMonthIso(data.today,2),from=String(rangeStart.year)+'-'+String(rangeStart.month+1).padStart(2,'0')+'-01',to=String(data.today).slice(0,10);
-      const history=(data.attendance||[]).filter(item=>eligible.has(item.accountId)&&item.date>=from&&item.date<=to).sort((a,b)=>String(b.date).localeCompare(String(a.date))||String(b.at).localeCompare(String(a.at)));
-      const historyRows=history.map(item=>{const member=historicalMembers.find(person=>person.id===item.accountId);return '<tr><td><b>'+esc(item.name||member?.name||'—')+'</b></td><td>'+esc(member?.role||'')+'</td><td>'+esc(item.teamId||member?.teamId||'—')+'</td><td class="mono">'+esc(item.date)+'</td><td class="mono">'+esc(String(item.at||'').slice(11,16)||'—')+'</td><td>'+(item.late?'<span class="chip chip-warm">Muộn '+Number(item.lateMinutes||0)+'p</span>':'<span class="chip chip-green">Đúng giờ</span>')+'</td><td>'+(item.ipValid===false?'<span class="chip chip-warm">Ngoài Wi-Fi</span>':'<span class="chip chip-green">Đúng Wi-Fi</span>')+'</td><td>'+esc(item.note||'—')+'</td><td><button type="button" class="btn-action btn-secondary" data-attendance-history-detail="'+esc(item.accountId)+'">Chi tiết</button></td></tr>';}).join('');
-      historyPanel.innerHTML='<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap;margin-bottom:12px"><div><b style="font-size:15px">Lịch sử điểm danh 3 tháng gần nhất</b><div style="color:var(--text-muted);font-size:11px;margin-top:4px">Từ '+esc(from)+' đến '+esc(to)+' · '+history.length+' lượt</div></div></div><div class="table-responsive" style="overflow:auto"><table class="modern-table" style="min-width:900px"><thead><tr><th>Nhân sự</th><th>Vai trò</th><th>Team</th><th>Ngày</th><th>Giờ</th><th>Kết quả</th><th>Wi-Fi</th><th>Ghi chú</th><th>Thao t\u00e1c</th></tr></thead><tbody>'+(historyRows||'<tr><td colspan="9"><div class="empty"><b>Chưa có điểm danh trong 3 tháng gần nhất</b></div></td></tr>')+'</tbody></table></div>';
-      historyPanel.querySelectorAll('[data-attendance-history-detail]').forEach(button=>button.onclick=()=>attendanceDetailModal(button.dataset.attendanceHistoryDetail));
-    }else q('#referenceAttendanceHistory')?.remove();
   }
   let brokeragePeriod='';
   function installBrokerageStyles(){
@@ -1937,160 +2109,189 @@
     host.innerHTML=`<div class="headline-row"><div><h1>Báo cáo kinh doanh</h1></div></div><div class="brokerage-toolbar"><label>Kỳ báo cáo<input id="brokeragePeriod" type="month" value="${esc(period)}"></label>${role==='ADMIN'?`<button type="button" class="btn-action ${published?'btn-secondary':'btn-primary'}" id="brokeragePublishBtn">${published?'Ẩn kỳ báo cáo':'Công bố tháng này'}</button>`:''}</div><div class="brokerage-grid"><article class="brokerage-kpi"><small>Lot chuẩn</small><b>${sum('lots').toFixed(2)}</b></article><article class="brokerage-kpi"><small>DS chỉ báo</small><b>${brokerageMoney(sum('indicatorRevenue'))}</b></article><article class="brokerage-kpi"><small>Tổng hoa hồng</small><b>${brokerageMoney(sum('gross'))}</b></article><article class="brokerage-kpi"><small>VAT chỉ báo / khóa học</small><b>${brokerageMoney(sum('vat'))}</b></article><article class="brokerage-kpi"><small>Thực nhận</small><b>${brokerageMoney(sum('net'))}</b></article></div><div class="brokerage-table-wrap"><table class="modern-table brokerage-table"><thead><tr><th>#</th><th>Nhân sự</th><th>Team</th><th>Lot cơ bản</th><th>Micro</th><th>Nano</th><th>Lot chuẩn</th><th>DS chỉ báo</th><th>DS khóa học</th><th>HH lot</th><th>HH chỉ báo</th><th>HH khóa học</th><th>Thưởng</th><th>Tổng thu</th><th>VAT</th><th>Thực nhận</th>${role==='ADMIN'?'<th></th>':''}</tr></thead><tbody>${visibleRows.map((row,index)=>`<tr><td>${index+1}</td><td><b>${esc(row.member.name)}</b><div style="font-size:10px;color:var(--text-muted)">${esc(row.member.accountId||row.member.phone||'')}</div></td><td>${esc(row.member.teamId||'—')}</td><td>${Number(row.metric.basicLots||0)}</td><td>${Number(row.metric.microLots||0)}</td><td>${Number(row.metric.nanoLots||0)}</td><td><b>${row.lots.toFixed(2)}</b></td><td>${brokerageMoney(row.indicatorRevenue)}</td><td>${brokerageMoney(row.courseRevenue)}</td><td>${brokerageMoney(row.lotCommission)}</td><td>${brokerageMoney(row.indicatorCommission)}<div style="font-size:10px;color:var(--text-muted)">${brokerageRate(row.metric.indicatorCommissionRate)}</div></td><td>${brokerageMoney(row.courseCommission)}<div style="font-size:10px;color:var(--text-muted)">${brokerageRate(row.metric.courseCommissionRate)}</div></td><td>${brokerageMoney(row.bonus)}</td><td><b>${brokerageMoney(row.gross)}</b></td><td>${brokerageMoney(row.vat)}<div style="font-size:10px;color:var(--text-muted)">${brokerageRate(row.metric.vatRate)}</div></td><td><b>${brokerageMoney(row.net)}</b></td>${role==='ADMIN'?`<td><button class="btn-action btn-secondary" data-brokerage-edit="${esc(row.member.id)}">Lot / tỷ lệ</button></td>`:''}</tr>`).join('')||'<tr><td colspan="17"><div class="empty"><b>Chưa có Sale trong phạm vi</b></div></td></tr>'}</tbody></table></div>`;
     q('#brokeragePeriod').onchange=e=>{brokeragePeriod=e.target.value||data.today.slice(0,7);businessReport();};q('#brokeragePublishBtn')?.addEventListener('click',()=>toggleBrokeragePublication(period));host.querySelectorAll('[data-brokerage-edit]').forEach(button=>button.onclick=()=>brokerageMetricEditor(rows.find(row=>row.member.id===button.dataset.brokerageEdit),period));
   }  function accountingMindmap(rows,period){const salesByLeader=new Map();rows.forEach(row=>{const list=salesByLeader.get(row.member.leaderId)||[];list.push(row);salesByLeader.set(row.member.leaderId,list);});const leaders=data.members.filter(member=>member.role==='LEADER'&&member.active!==false).sort((a,b)=>a.name.localeCompare(b.name,'vi'));return `<div class="mindmap"><div class="mindmap-root">CÂY MÔI GIỚI · ${esc(period)}</div>${leaders.length?`<ul class="mindmap-list">${leaders.map(leader=>{const children=salesByLeader.get(leader.id)||[];return `<li><span class="mindmap-node"><b>${esc(leader.name)}</b> <small>${esc(leader.accountId||leader.id)} · ${children.reduce((sum,row)=>sum+row.lots,0).toFixed(2)} lot</small></span><ul class="mindmap-list">${children.map(row=>`<li><span class="mindmap-node">${esc(row.member.name)} <small>${esc(row.member.accountId||row.member.id)} · ${row.lots.toFixed(2)} lot · ${brokerageMoney(row.net)}</small></span></li>`).join('')||'<li><span class="mindmap-node">Chưa có Sale</span></li>'}</ul></li>`;}).join('')}</ul>`:'<div class="mindmap-empty">Chưa có cấu trúc Leader / Sale để dựng cây môi giới.</div>'}</div>`;}
-  function getStoredAdminExpenses(period) {
-    try {
-      const all = JSON.parse(localStorage.getItem('nvt_crm_admin_expenses') || 'null');
-      if (all && Array.isArray(all)) return all.filter(e => !period || e.date.slice(0, 7) === period);
-    } catch {}
-    const defaults = [
-      { id: "EXP_01", date: period + "-02", title: "Tiền thuê văn phòng Landmark tháng " + period.slice(5), category: "Mặt bằng", amount: 22000000, payer: "Admin Hoàng Phúc", note: "Thanh toán mặt bằng" },
-      { id: "EXP_02", date: period + "-05", title: "Chi phí chạy Ads Facebook & TikTok", category: "Marketing", amount: 18500000, payer: "Admin Hoàng Phúc", note: "Thu lead khóa học" },
-      { id: "EXP_03", date: period + "-10", title: "Thuê máy chủ Cloud VPS & Bot tín hiệu", category: "Server / Tools", amount: 4500000, payer: "Admin Hoàng Phúc", note: "Gia hạn máy chủ" },
-      { id: "EXP_04", date: period + "-15", title: "Tiếp khách đối tác sàn giao dịch", category: "Tiếp khách", amount: 6000000, payer: "Admin Hoàng Phúc", note: "Bữa tối thảo luận cơ chế" }
-    ];
-    try { localStorage.setItem('nvt_crm_admin_expenses', JSON.stringify(defaults)); } catch {}
-    return defaults;
+  // Chi phí kế toán lấy từ collection expenses đã đồng bộ SQL, không dùng localStorage.
+  function getStoredAdminExpenses(period){
+    return (data.expenses||[]).filter(item=>!period||String(item.date||'').slice(0,7)===period).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
   }
-  function saveStoredAdminExpenses(list) {
-    try { localStorage.setItem('nvt_crm_admin_expenses', JSON.stringify(list)); } catch {}
+  function saveStoredAdminExpenses(list){
+    return list;
   }
-  function accountingReport(){
-    const host=q('#accountingHost');if(!host)return;
-    installBrokerageStyles();
-    const period=brokeragePeriod||data.today.slice(0,7),
-          rows=brokerageRows(period),
-          sum=key=>rows.reduce((total,row)=>total+Number(row[key]||0),0);
-    const expenses = getStoredAdminExpenses(period);
-    const totalExpenses = expenses.reduce((s, e) => s + (Number(e.amount) || 0), 0);
-    const totalRev = sum('indicatorRevenue') + sum('courseRevenue');
-    const netProfit = totalRev - sum('gross') - totalExpenses;
+  window.accountingSubView = 'mindmap';
+  let accountingSubView = 'mindmap';
 
-    host.innerHTML=`<div class="headline-row" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
-      <div><h1>Kế toán & Chi phí</h1><div style="font-size:12px;color:var(--text-muted)">Quản lý Doanh thu, Hoa hồng chi trả, Chi phí hoạt động do Admin nhập & Lợi nhuận ròng</div></div>
-      <button type="button" class="btn-action btn-primary" id="btnAddNewAdminExpense">➕ Nhập chi phí mới</button>
-    </div>
-    <div class="brokerage-toolbar"><label>Kỳ kế toán<input id="accountingPeriod" type="month" value="${esc(period)}"></label></div>
-    <div class="brokerage-grid" style="grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));">
-      <article class="brokerage-kpi"><small>Doanh số chỉ báo</small><b>${brokerageMoney(sum('indicatorRevenue'))}</b></article>
-      <article class="brokerage-kpi"><small>Doanh số khóa học</small><b>${brokerageMoney(sum('courseRevenue'))}</b></article>
-      <article class="brokerage-kpi"><small>Tổng thu hoa hồng (23 NV)</small><b style="color:#ea580c;">${brokerageMoney(sum('gross'))}</b></article>
-      <article class="brokerage-kpi" style="border:1px solid #ddd6fe;background:#f5f3ff;"><small style="color:#6d28d9;font-weight:700;">Chi phí do Admin nhập</small><b style="color:#7c3aed;">${brokerageMoney(totalExpenses)}</b></article>
-      <article class="brokerage-kpi" style="border:2px solid #10b981;background:#ecfdf5;"><small style="color:#047857;font-weight:800;">Lợi nhuận ròng công ty</small><b style="color:#059669;font-size:17px;">${brokerageMoney(netProfit)}</b></article>
-    </div>
-    
-    <!-- SỔ CHI PHÍ DO ADMIN NHẬP -->
-    <section style="margin-bottom:18px">
-      <div class="table-container">
-        <div class="table-head-bar" style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;">
-          <div><b>Sổ chi tiết chi phí do Admin nhập (Tháng ${esc(period)})</b><div style="font-size:11px;color:var(--text-muted)">Các khoản chi hoạt động: Marketing ads, thuê mặt bằng, server, tiếp khách... do Admin phê duyệt</div></div>
-          <button type="button" class="btn-action btn-secondary" id="btnAddNewAdminExpense2" style="font-size:11.5px;">➕ Thêm khoản chi</button>
-        </div>
-        <div class="brokerage-table-wrap">
-          <table class="modern-table brokerage-table">
-            <thead>
-              <tr>
-                <th style="width:40px;text-align:center;">#</th>
-                <th style="width:110px;">Ngày chi</th>
-                <th>Khoản mục chi phí</th>
-                <th>Danh mục</th>
-                <th style="text-align:right;color:#dc2626;">Số tiền (VNĐ)</th>
-                <th>Người chi / Duyệt</th>
-                <th>Ghi chú</th>
-                <th style="text-align:center;width:100px;">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${expenses.map((e, index) => `<tr>
-                <td style="text-align:center;">${index + 1}</td>
-                <td>${esc(e.date)}</td>
-                <td><b>${esc(e.title)}</b></td>
-                <td><span class="chip" style="font-size:11px;font-weight:700;">${esc(e.category)}</span></td>
-                <td style="text-align:right;font-weight:800;color:#dc2626;">- ${brokerageMoney(e.amount)}</td>
-                <td>${esc(e.payer || 'Admin')}</td>
-                <td><small>${esc(e.note || '—')}</small></td>
-                <td style="text-align:center;">
-                  <button type="button" class="btn-action btn-secondary" data-del-exp="${esc(e.id)}" style="font-size:10px;padding:2px 6px;color:#dc2626;">Xóa</button>
-                </td>
-              </tr>`).join('') || '<tr><td colspan="8"><div class="empty">Chưa có khoản chi phí nào trong kỳ này. Bấm "Nhập chi phí mới" để thêm.</div></td></tr>'}
-            </tbody>
-            <tfoot>
-              <tr style="background:var(--bg-card);font-weight:800;">
-                <td colspan="4" style="text-align:right;">TỔNG CHI PHÍ DO ADMIN NHẬP:</td>
-                <td style="text-align:right;color:#dc2626;font-size:13px;">${brokerageMoney(totalExpenses)}</td>
-                <td colspan="3" style="font-size:11px;color:var(--text-muted);">(Đã trừ vào lợi nhuận ròng)</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- BẢNG XẾP HẠNG THỰC NHẬN -->
-    <section style="margin-bottom:14px">
-      <div class="table-container">
-        <div class="table-head-bar"><div><b>Bảng xếp hạng thực nhận nhân sự</b></div></div>
-        <div class="brokerage-table-wrap">
-          <table class="modern-table brokerage-table">
-            <thead>
-              <tr><th>#</th><th>Sale</th><th>Lot chuẩn</th><th>HH lot</th><th>HH chỉ báo</th><th>HH khóa học</th><th>Tổng thu</th><th>VAT</th><th>Thực nhận</th></tr>
-            </thead>
-            <tbody>
-              ${rows.map((row,index)=>`<tr><td>${index+1}</td><td>${esc(row.member.name)}</td><td>${row.lots.toFixed(2)}</td><td>${brokerageMoney(row.lotCommission)}</td><td>${brokerageMoney(row.indicatorCommission)}</td><td>${brokerageMoney(row.courseCommission)}</td><td>${brokerageMoney(row.gross)}</td><td>${brokerageMoney(row.vat)}</td><td><b>${brokerageMoney(row.net)}</b></td></tr>`).join('')||'<tr><td colspan="9">Chưa có dữ liệu.</td></tr>'}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- CÂY MINDMAP -->
-    <section>
-      <div class="table-container">
-        <div class="table-head-bar"><div><b>Cây Mindmap môi giới</b><div style="font-size:11px;color:var(--text-muted)">Hiển thị theo tuyến Leader → Sale, lot chuẩn và thực nhận trong kỳ.</div></div></div>
-        ${accountingMindmap(rows,period)}
-      </div>
-    </section>`;
-
-    q('#accountingPeriod').onchange=e=>{brokeragePeriod=e.target.value||data.today.slice(0,7);accountingReport();};
-
-    // Event handlers for expenses
-    const handleAddExpenseModal = () => {
-      const modal = editor('Nhập khoản chi phí mới (Admin)', 
-        formField('Tên khoản chi *', `<input id="expTitle" required placeholder="Ví dụ: Chạy Ads Facebook, Tiền thuê văn phòng...">`) +
-        formField('Danh mục chi *', `<select id="expCategory"><option value="Marketing">Marketing & Ads</option><option value="Mặt bằng">Mặt bằng / Văn phòng</option><option value="Lương cứng">Lương cứng & Phụ cấp</option><option value="Server / Tools">Server / Tools</option><option value="Tiếp khách">Tiếp khách</option><option value="Khác">Khác</option></select>`) +
-        formField('Số tiền chi (VNĐ) *', `<input id="expAmount" type="number" min="0" step="500000" placeholder="15000000" required>`) +
-        formField('Ngày chi', `<input id="expDate" type="date" value="${period}-01">`) +
-        formField('Người duyệt', `<input id="expPayer" value="Admin Hoàng Phúc">`) +
-        formField('Ghi chú / Chứng từ', `<textarea id="expNote" rows="2" placeholder="Ghi chú thêm..."></textarea>`),
-        () => {
-          const title = q('#expTitle')?.value.trim();
-          const amount = Number(q('#expAmount')?.value) || 0;
-          if (!title || amount <= 0) { alert('Vui lòng nhập tên khoản chi và số tiền hợp lệ!'); return false; }
-          const allExp = getStoredAdminExpenses('');
-          allExp.unshift({
-            id: 'EXP_' + Date.now().toString().slice(-6),
-            date: q('#expDate')?.value || (period + '-01'),
-            title,
-            category: q('#expCategory')?.value || 'Khác',
-            amount,
-            payer: q('#expPayer')?.value || 'Admin',
-            note: q('#expNote')?.value || ''
-          });
-          saveStoredAdminExpenses(allExp);
-          accountingReport();
-        }
-      );
+  function syncMembersToAccountingMindmap(period){
+    const iframe=q('#accountingIframe');
+    if(!iframe||!data)return;
+    // The accounting iframe is static in index.html. During the first CRM boot,
+    // postMessage can run before the iframe document has loaded, so bind a load
+    // retry once and wait until the accounting DOM is available.
+    if(!iframe.dataset.crmAccountingSyncBound){
+      iframe.dataset.crmAccountingSyncBound='1';
+      iframe.addEventListener('load',()=>syncMembersToAccountingMindmap(period),{once:false});
+    }
+    if(!iframe.contentWindow)return;
+    try{
+      if(!iframe.contentDocument||!iframe.contentDocument.querySelector('.tab-content-panel'))return;
+    }catch{return;}
+    const selectedPeriod=String(period||data.today||'').slice(0,7);
+    const members=(data.members||[]).filter(member=>member&&member.active!==false&&member.active!==0&&member.active!=='0'&&member.role!=='ADMIN'&&['MANAGER','LEADER','SALE'].includes(member.role));
+    const products=data.products||[],orders=data.orders||[],metrics=data.brokerageMetrics||[];
+    const productType=order=>{
+      const product=products.find(item=>String(item.id)===String(order.productId))||{};
+      const label=String(product.category||product.name||order.productName||'').toLowerCase();
+      if(product.type==='RENTAL'||label.includes('chỉ báo')||label.includes('indicator')||label.includes('tín hiệu'))return 'INDICATOR';
+      if(label.includes('khóa học')||label.includes('khoa hoc')||label.includes('course'))return 'COURSE';
+      return 'OTHER';
     };
-    q('#btnAddNewAdminExpense')?.addEventListener('click', handleAddExpenseModal);
-    q('#btnAddNewAdminExpense2')?.addEventListener('click', handleAddExpenseModal);
-    host.querySelectorAll('[data-del-exp]').forEach(btn => {
-      btn.onclick = () => {
-        if (!confirm('Xóa khoản chi phí này?')) return;
-        const allExp = getStoredAdminExpenses('').filter(e => e.id !== btn.dataset.delExp);
-        saveStoredAdminExpenses(allExp);
-        accountingReport();
-      };
+    const periodOrders=orders.filter(order=>order&&order.status==='PAID'&&String(order.paidAt||order.createdAt||'').slice(0,7)===selectedPeriod);
+    const parentFor=member=>member.role==='LEADER'?member.managerId||null:member.role==='SALE'?(member.leaderId||member.managerId||null):null;
+    const roleMeta={MANAGER:{level:'LV1',title:'Manager',rate:90000},LEADER:{level:'LV2',title:'Leader',rate:70000},SALE:{level:'LV3',title:'Sale',rate:50000}};
+    const apexFormattedList=members.map(member=>{
+      const meta=roleMeta[member.role]||roleMeta.SALE,parentId=parentFor(member),parent=members.find(item=>String(item.id)===String(parentId));
+      const metric=metrics.find(item=>String(item.memberId)===String(member.id)&&String(item.period||'')===selectedPeriod)||{};
+      const owned=periodOrders.filter(order=>String(order.saleId||'')===String(member.id));
+      const indicatorRev=owned.filter(order=>productType(order)==='INDICATOR').reduce((sum,order)=>sum+Number(order.subtotal??order.total??0),0);
+      const courseRev=owned.filter(order=>productType(order)==='COURSE').reduce((sum,order)=>sum+Number(order.subtotal??order.total??0),0);
+      const rate=Number(metric.lotCommissionRate||metric.ratePerLot||meta.rate)||meta.rate;
+      return {id:String(member.id),name:member.name||member.accountId||member.id,phone:member.phone||'',roleLevel:meta.level,roleTitle:meta.title,team:member.teamId||'',teamId:member.teamId||'',directManager:parent?((parent.name||parent.accountId||parent.id)+' - ID: '+(parent.accountId||parent.id)):'—',parentId:parentId?String(parentId):null,managerId:member.managerId||null,leaderId:member.leaderId||null,ratePerLot:rate,customDiffRate:Math.max(0,rate-(meta.level==='LV1'?70000:meta.level==='LV2'?50000:0)),basicLot:Number(metric.basicLots??metric.basicLot??0),miniLot:Number(metric.miniLots??metric.miniLot??0),microLot:Number(metric.microLots??metric.microLot??0),indicatorRev,courseRev,productRate:Number(metric.productRate??10),bonus:Number(metric.bonus||0)};
     });
+    iframe.contentWindow.postMessage({type:'SYNC_MEMBERS_DATA',members:apexFormattedList,period:selectedPeriod},'*');
+    iframe.contentWindow.postMessage({type:'SYNC_ORDERS_DATA',orders:orders,customers:data.customers||[],products:products,members:data.members||[],expenses:data.expenses||[],period:selectedPeriod},'*');
   }
+  async function createAccountingOrderFromIframe(payload, sourceWindow){
+    if(!api) throw Error('CRM chưa sẵn sàng.');
+    const result=await api.createOrder({...payload,source:'accounting-iframe'});
+    refresh(true);
+    const iframe=q('#accountingIframe');
+    (sourceWindow||iframe?.contentWindow)?.postMessage({type:'ACCOUNTING_ORDER_RESULT',ok:true,order:result.order||result},'*');
+    return result;
+  }
+  function accountingReport(view) {
+    const sub = view || window.accountingSubView || accountingSubView || 'mindmap';
+    accountingSubView = sub;
+    window.accountingSubView = sub;
+
+    // Highlight only the selected accounting button
+    document.querySelectorAll('.accounting-nav-link').forEach(button => {
+      button.classList.toggle('active', button.dataset.accountingView === sub);
+    });
+
+    const host = q('#accountingHost');
+    if (!host) return;
+
+    const tabMap = {
+      'mindmap': 'tab-mindmap',
+      'report': 'tab-report',
+      'orders': 'tab-vat-orders',
+      'expenses': 'tab-accounting'
+    };
+    const targetTab = tabMap[sub] || 'tab-mindmap';
+
+    let iframe = host.querySelector('#accountingIframe');
+    if (!iframe) {
+      host.innerHTML = `<iframe id="accountingIframe" src="commission_tree_demo.html?embedded=1&tab=${encodeURIComponent(targetTab)}&v=20260930-accounting-sync-v12" style="width:100%;height:calc(100vh - 66px);min-height:850px;border:none;display:block;background:#f8fafc;" title="Kế toán & Hoa hồng APEX"></iframe>`;
+      iframe = host.querySelector('#accountingIframe');
+      iframe?.addEventListener('load',()=>syncMembersToAccountingMindmap(),{once:true});
+    } else {
+      // Refresh/state sync must not reset the user's currently open accounting tab.
+      // Only navigate the iframe when its actual view differs from the requested view.
+      let currentInnerTab = '';
+      try { currentInnerTab = iframe.contentDocument?.querySelector('.tab-content-panel.active')?.id || ''; } catch {}
+      if (currentInnerTab !== targetTab) {
+        try {
+          if (iframe.contentWindow && typeof iframe.contentWindow.switchView === 'function') {
+            iframe.contentWindow.switchView(targetTab);
+          } else if (iframe.contentWindow) {
+            iframe.contentWindow.postMessage({ type: 'SWITCH_APEX_VIEW', view: targetTab }, '*');
+          }
+        } catch (err) {
+          if (iframe.contentWindow) iframe.contentWindow.postMessage({ type: 'SWITCH_APEX_VIEW', view: targetTab }, '*');
+        }
+      }
+    }
+    syncMembersToAccountingMindmap();
+  }
+
+  document.addEventListener('DOMContentLoaded',()=>{
+    const iframe=q('#accountingIframe');
+    if(iframe&&!iframe.dataset.crmAccountingSyncBound){
+      iframe.dataset.crmAccountingSyncBound='1';
+      iframe.addEventListener('load',()=>{if(data)syncMembersToAccountingMindmap();},{once:false});
+    }
+  });
+
+  window.addEventListener('message', function(event) {
+    if (event.data && event.data.type === 'CREATE_ACCOUNTING_ORDER') {
+      createAccountingOrderFromIframe(event.data.payload || {}, event.source).catch(error => {
+        (event.source || q('#accountingIframe')?.contentWindow)?.postMessage({type:'ACCOUNTING_ORDER_RESULT',ok:false,error:error.message||'Không tạo được đơn hàng.'},'*');
+      });
+      return;
+    }
+    if (event.data && event.data.type === 'ACCOUNTING_EXPENSE_SAVE') {
+      (async()=>{
+        if(!api) throw Error('CRM chưa sẵn sàng.');
+        const result=await api.saveExpense(event.data.payload||{});
+        refresh(true);
+        (event.source || q('#accountingIframe')?.contentWindow)?.postMessage({type:'ACCOUNTING_EXPENSE_RESULT',ok:true,action:'save',result},'*');
+      })().catch(error=>(event.source || q('#accountingIframe')?.contentWindow)?.postMessage({type:'ACCOUNTING_EXPENSE_RESULT',ok:false,action:'save',error:error.message||'Không lưu được khoản chi.'},'*'));
+      return;
+    }
+    if (event.data && event.data.type === 'ACCOUNTING_EXPENSE_DELETE') {
+      (async()=>{
+        if(!api) throw Error('CRM chưa sẵn sàng.');
+        const result=await api.removeExpense(event.data.id);
+        refresh(true);
+        (event.source || q('#accountingIframe')?.contentWindow)?.postMessage({type:'ACCOUNTING_EXPENSE_RESULT',ok:true,action:'delete',id:event.data.id,result},'*');
+      })().catch(error=>(event.source || q('#accountingIframe')?.contentWindow)?.postMessage({type:'ACCOUNTING_EXPENSE_RESULT',ok:false,action:'delete',error:error.message||'Không xóa được khoản chi.'},'*'));
+      return;
+    }
+    if (event.data && event.data.type === 'ACCOUNTING_ORDER_ACTION') {
+      (async()=>{
+        if(!api) throw Error('CRM chưa sẵn sàng.');
+        const result=await api.updateOrderAccounting(event.data.orderId,event.data.payload||{});
+        refresh(true);
+        (event.source || q('#accountingIframe')?.contentWindow)?.postMessage({type:'ACCOUNTING_ACTION_RESULT',ok:true,orderId:event.data.orderId,result},'*');
+      })().catch(error=>(event.source || q('#accountingIframe')?.contentWindow)?.postMessage({type:'ACCOUNTING_ACTION_RESULT',ok:false,error:error.message||'Không lưu được thao tác kế toán.'},'*'));
+      return;
+    }
+    if (event.data && event.data.type === 'ACCOUNTING_BROKERAGE_SAVE') {
+      (async()=>{
+        if(!api) throw Error('CRM chưa sẵn sàng.');
+        const result=await api.saveBrokerageMetric(event.data.payload||{});
+        refresh(true);
+        (event.source || q('#accountingIframe')?.contentWindow)?.postMessage({type:'ACCOUNTING_BROKERAGE_RESULT',ok:true,result},'*');
+      })().catch(error=>(event.source || q('#accountingIframe')?.contentWindow)?.postMessage({type:'ACCOUNTING_BROKERAGE_RESULT',ok:false,error:error.message||'Không lưu được cấu hình hoa hồng.'},'*'));
+      return;
+    }
+    if (event.data && event.data.type === 'APEX_VIEW_CHANGED') {
+      // Bỏ qua sự kiện khởi tạo của iframe khi một tab CRM khác đang mở.
+      const accountingIframe = q('#accountingIframe');
+      const outerTab = q('section.tab-section.active[id^="tab-"]')?.id;
+      if (!accountingIframe || event.source !== accountingIframe.contentWindow || outerTab !== 'tab-accounting') return;
+      const tabMap = {
+        'tab-mindmap': 'mindmap',
+        'tab-report': 'report',
+        'tab-vat-orders': 'orders',
+        'tab-accounting': 'expenses'
+      };
+      const sub = tabMap[event.data.view];
+      if (sub) {
+        accountingSubView = sub;
+        window.accountingSubView = sub;
+        rememberActiveTab('tab-accounting');
+        document.querySelectorAll('.accounting-nav-link').forEach(button => {
+          button.classList.toggle('active', button.dataset.accountingView === sub);
+        });
+        const activeBtn = document.querySelector(`.accounting-nav-link[data-accounting-view="${sub}"]`);
+        const title = activeBtn?.querySelector('span')?.innerText;
+        if (title && document.getElementById('topBreadcrumbTitle')) {
+          document.getElementById('topBreadcrumbTitle').innerText = title;
+        }
+      }
+    }
+  });
+
+
   function renderCustomerImportHistory(){
     const panel=q('#customerImportHistory'),body=q('#customerImportHistoryBody');
     if(!panel||!body)return;
@@ -2142,7 +2343,7 @@
       'tab-audit':[renderUserLog,[userActivitySnapshot,data.user]],
       'tab-revenue':[renderRevenue,[data.orders,data.financialEvents]],
       'tab-businessReport':[businessReport,[data.orders,data.products,data.members,data.brokerageMetrics]],
-      'tab-accounting':[accountingReport,[data.orders,data.products,data.members,data.brokerageMetrics]],
+      'tab-accounting':[accountingReport,[data.orders,data.products,data.members,data.brokerageMetrics,data.expenses]],
       'tab-dashboard':[()=>{dashboard();dashboardExtras();},[data.customers,data.orders,data.members,data.financialEvents,data.managerHierarchy,data.offers,data.pendingOffers]],
       'tab-websites':[()=>{sourceAnalytics();websites();},[data.websites,data.customers,data.orders,data.webhookPending,data.webhookTransport]],
       'tab-attendance':[attendance,[data.attendance,data.members,data.settings,data.today]],
@@ -2151,16 +2352,17 @@
     const job=jobs[id];if(!job)return;const key=JSON.stringify([data.user.id,...job[1]]);
     if(force||renderedTabs.get(id)!==key){job[0]();renderedTabs.set(id,key);}
   }
-  function refresh(force=false) {
+  function refresh(force=false,suppliedSnapshot=null) {
     if(customerSaveQueue.pending)return;
     normalizeAccountingMenu();
     if(!force&&(document.hidden||working||workflowBusy||q('.modal-overlay.open')||['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName)))return;
     const runtime=frame.contentWindow;
-    api=runtime?.crmApi;
+    if(runtime?.crmApi)api=runtime.crmApi;
+    const fromCache=Boolean(suppliedSnapshot);
     // crmApi is available before CRM finishes restoring a saved session. Waiting here
     // prevents the login/static index screen from flashing after F5.
-    if(!api)return;
-    let next=api.snapshot();
+    if(!fromCache&&!api)return;
+    let next=fromCache?suppliedSnapshot:api.snapshot();
 
     // Chỉ cho thao tác trên snapshot đã xác thực và tải từ máy chủ.
     // Cho phép mở ngay khi snapshot hợp lệ đã có; cờ boot chỉ cần dùng để
@@ -2169,12 +2371,16 @@
     // A valid token can still be restoring while auth/state requests are in flight.
     // Keep the boot screen during that window instead of showing a false login form.
     if(!next && runtime?.crmRuntimeAuthState!=='unauthenticated')return;
-    if(!next){data=null;signature='';if(bootFallbackTimer){clearTimeout(bootFallbackTimer);bootFallbackTimer=null;}bootScreen?.setAttribute('hidden','');frame.hidden=false;frame.style.display='block';frame.classList.add('is-login-visible');document.body.classList.remove('reference-ready');q('.app-shell')?.style.setProperty('visibility','hidden');q('.bg-aura')?.style.setProperty('visibility','hidden');return;}
-    const first=!data;if(first)customerFilterState.columns={};if(bootFallbackTimer){clearTimeout(bootFallbackTimer);bootFallbackTimer=null;}data=next;frame.hidden=true;frame.style.display='none';frame.classList.remove('is-login-visible');document.body.classList.add('reference-ready');q('.app-shell')?.style.setProperty('visibility','visible');q('.bg-aura')?.style.setProperty('visibility','visible');
+    if(!next){data=null;signature='';if(!storedSession())clearCachedSnapshot();if(bootFallbackTimer){clearTimeout(bootFallbackTimer);bootFallbackTimer=null;}bootScreen?.setAttribute('hidden','');frame.hidden=false;frame.style.display='block';frame.classList.add('is-login-visible');document.body.classList.remove('reference-ready');q('.app-shell')?.style.setProperty('visibility','hidden');q('.bg-aura')?.style.setProperty('visibility','hidden');return;}
+    if(!validCachedSnapshot(next)){if(fromCache)clearCachedSnapshot();return;}
+    const first=!data;
+    const editing=!first&&Boolean(working||workflowBusy||q('.modal-overlay.open')||q('#careGroupModal')?.style.display==='flex'||['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName));
+    if(first)customerFilterState.columns={};if(bootFallbackTimer){clearTimeout(bootFallbackTimer);bootFallbackTimer=null;}data=next;if(!fromCache)saveCachedSnapshot(next);frame.hidden=true;frame.style.display='none';frame.classList.remove('is-login-visible');document.body.classList.add('reference-ready');q('.app-shell')?.style.setProperty('visibility','visible');q('.bg-aura')?.style.setProperty('visibility','visible');
     const sign=JSON.stringify(data);
-    if(!force && !first && (sign===signature||working||q('.modal-overlay.open')||q('#careGroupModal')?.style.display==='flex'||['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName)))return;
+    if(!first&&(sign===signature||editing))return;
     signature=sign;if(first){dateDefaults();bindReferenceSettings();setupSources();installRoleVisibilityObserver();installPendingDataStyles();}
     project();
+    if(q('#accountingIframe'))syncMembersToAccountingMindmap();
     installCustomerJourney();
     // Chỉ dựng tab đang xem; số thông báo vẫn cập nhật độc lập.
     if(first)renderedTabs.clear();
@@ -2261,6 +2467,7 @@
   }
   // Ghi đè callback cũ để dùng form thành công trong giao diện, không dùng alert().
   submitOrder=()=>run(()=>api.createOrder({customerId:q('#modalCustomerSelect').value,productId:q('#prodSelect').value,paymentMode:q('#modalPaymentType').value,paymentMethod:qa('#orderModal select')[3]?.selectedIndex===1?'CASH':'VietQR'}),result=>{closeOrderModal();showOrderSuccess(result);});
+  openOrderModal=()=>workflow('newOrder');
   markAllNotificationsRead=()=>run(()=>api.readNotifications());
   // Khi bat tu dong, mac dinh dung che do ty trong cho data moi.
   toggleAutoDist=enabled=>run(()=>api.distribution(enabled,enabled?'BALANCED':data.settings.assignmentMode));
@@ -2439,9 +2646,30 @@
   switchSourcePeriod=sourceAnalytics;
   renderFunnelChart=()=>{if(!data)return;const value=q('#funnelLpSelect')?.value;const pool=data.customers.filter(c=>!value||value==='all'||c.websiteId===value);const paid=new Set(data.orders.filter(o=>o.status==='PAID').map(o=>o.customerId));const count=pool.filter(c=>paid.has(c.id)).length;const pct=pool.length?count/pool.length*100:0;q('#funnelDonutWrap').innerHTML=drawDonutSvg([{pct,color:'#10b981',label:pct.toFixed(1)+'%'},{pct:pool.length?100-pct:0,color:'#94a3b8',label:'Còn lại'}],String(pool.length),'KHÁCH');text('funnelWinRateText',pct.toFixed(1)+'%');text('funnelLegendWrap','Đã mua: '+count+' · Còn lại: '+(pool.length-count));text('funnelRevenueText',money(data.orders.filter(o=>o.status==='PAID'&&pool.some(c=>c.id===o.customerId)).reduce((s,o)=>s+Number(o.total||0),0)));};
   const setupSources=()=>{q('#funnelLpSelect').innerHTML=opt('all','Tất cả Landing page')+data.websites.map(w=>opt(w.id,w.name)).join('');renderFunnelChart();};
-  // Các nút không có form nghiệp vụ trong mẫu được giữ vị trí, không báo thành công giả.
-  document.addEventListener('click',event=>{const button=event.target.closest('[onclick]');if(!button)return;const code=button.getAttribute('onclick')||'';
-    if(code.startsWith('alert(')){event.preventDefault();event.stopImmediatePropagation();if(code.includes('đăng xuất')){run(()=>api.logout(),()=>{data=null;signature='';frame.style.display='block';});}else if(code.includes('đánh dấu')||code.includes('đã đọc'))markAllNotificationsRead();else alert('Chức năng này chưa có form kết nối trong giao diện mẫu; sẽ bổ sung ở đợt sau.');}
+  // Safe logout bridge for the reference UI.
+  let referenceLogoutBusy=false;
+  async function performReferenceLogout(){
+    if(referenceLogoutBusy||!api)return;
+    referenceLogoutBusy=true;
+    try{
+      if(customerSaveQueue.pending&&!customerSaveQueue.running){
+        customerSaveQueue.cancel();
+        referenceNotice('B\u1ea3n nh\u00e1p ch\u01b0a đ\u1ed3ng b\u1ed9 đ\u01b0\u1ee3c gi\u1eef l\u1ea1i. Đang đ\u0103ng xu\u1ea5t...');
+      }
+      await api.logout();
+      data=null;signature='';customerDraftOwner='';customerDraftValues.clear();frame.style.display='block';
+    }catch(error){
+      const message=error?.name==='AbortError'||/abort|signal/i.test(error?.message||'')
+        ? 'M\u00e1y ch\u1ee7 ph\u1ea3n h\u1ed3i qu\u00e1 l\u00e2u. B\u1ea3n nh\u00e1p v\u1eabn đ\u01b0\u1ee3c gi\u1eef l\u1ea1i, h\u00e3y th\u1eed đ\u0103ng xu\u1ea5t l\u1ea1i.'
+        : (error?.message||'Kh\u00f4ng th\u1ec3 đ\u0103ng xu\u1ea5t l\u00fac n\u00e0y.');
+      referenceNotice(message,'error');
+    }finally{referenceLogoutBusy=false;}
+  }
+  const logoutButton=qa('button').find(button=>button.closest('.topbar')&&/(logout|xu.t|xuat)/i.test(button.textContent||''));
+  if(logoutButton){logoutButton.removeAttribute('onclick');logoutButton.type='button';logoutButton.onclick=event=>{event.preventDefault();event.stopPropagation();void performReferenceLogout();};}
+  document.addEventListener('click',event=>{const button=event.target.closest('button');if(!button)return;const text=String(button.textContent||'').trim();const code=button.getAttribute('onclick')||'';
+    if(button.closest('.topbar')&&/(logout|xu.t|xuat)/i.test(text)){event.preventDefault();event.stopImmediatePropagation();void performReferenceLogout();return;}
+    if(code.startsWith('alert(')){event.preventDefault();event.stopImmediatePropagation();if(/dang xuat|logout/i.test(code)||/\u0111\u0103ng xu\u1ea5t/i.test(code)){void performReferenceLogout();}else if(/danh dau|da doc/i.test(code)||/\u0111\u00e1nh d\u1ea5u|\u0111\u00e3 \u0111\u0111\u1ecdc/i.test(code))markAllNotificationsRead();else alert('Ch?c n?ng n?y ch?a c? form k?t n?i trong giao di?n m?u.');}
   },true);
   qa('#tab-customers button').filter(b=>b.textContent.trim()==='Quản lý cột').forEach(b=>b.onclick=fieldManager);
   function renderDistributionWeights(){
@@ -2792,7 +3020,7 @@
     const role=data?.user?.actualRole||data?.user?.role, tab=q('#tab-data');
     if(!tab)return;
     if(!q('#referenceScopedDataStyles')){const style=document.createElement('style');style.id='referenceScopedDataStyles';style.textContent=`
-      /* Gi? b?ng data v? b? l?c, ch? ?n nh?n h?ng ??i c? ?? giao di?n g?n h?n. */
+      /* Giờ b?ng data v? b? l?c, ch? ?n nh?n h?ng ??i c? ?? giao di?n g?n h?n. */
       #tab-data.data-scope-limited #dataTabQueueBtn,#tab-data.data-scope-limited #dataSubViewQueue>.table-container>.table-head-bar{display:none!important}
       #tab-data.data-scope-limited #dataSubViewQueue{display:block!important}
       #tab-data.data-scope-limited #dataSubViewQueue>.table-container{width:100%;border-radius:10px}
@@ -2948,7 +3176,15 @@
       if(!q('#saleDataAcceptStyles')){const style=document.createElement('style');style.id='saleDataAcceptStyles';style.textContent='#tab-data .sale-data-countdown{display:inline-flex;align-items:center;min-height:28px;padding:5px 10px;border-radius:7px;background:#fff7ed;color:#c2410c;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}#tab-data .sale-accept-data{justify-content:center;background:#059669;color:#fff;border:1px solid #059669;box-shadow:0 3px 10px rgba(5,150,105,.2)}#tab-data .sale-accept-data:hover{background:#047857;border-color:#047857;box-shadow:0 5px 14px rgba(5,150,105,.28)}#tab-data .sale-accept-data:disabled{opacity:.6;cursor:wait}';document.head.appendChild(style);}
       const body=q('#dataQueueTableBody');
       body.innerHTML=items.map((o,index)=>{const minutes=Math.max(0,Number(o.minutesLeft)||0),countdown=Math.floor(minutes/60)+' giờ '+(minutes%60)+' phút';return '<tr><td><b>#'+(index+1)+'</b></td><td>'+esc(fmtDate(String(o.offeredAt||'').slice(0,10)))+'</td><td><b>'+esc(o.name)+'</b></td><td><span class="sale-data-countdown">'+esc(countdown)+'</span></td><td><button type="button" class="btn-action sale-accept-data" data-accept-offer="'+esc(o.id)+'">Nhận data</button></td></tr>';}).join('')||'<tr><td colspan="5"><div class="empty"><b>Không có data chờ nhận</b></div></td></tr>';
-      body.querySelectorAll('[data-accept-offer]').forEach(button=>button.onclick=async()=>{button.disabled=true;const result=await run(()=>api.acceptOffer(button.dataset.acceptOffer));if(result?.ok){q('#custSearchInput')&&(q('#custSearchInput').value='');q('#topGlobalSearch')&&(q('#topGlobalSearch').value='');switchTab('tab-customers');}});
+      body.querySelectorAll('[data-accept-offer]').forEach(button=>button.onclick=async()=>{
+        if(button.dataset.busy==='1')return;
+        const label=button.textContent;
+        button.dataset.busy='1';button.disabled=true;button.setAttribute('aria-busy','true');button.textContent='\u0110ang nh\u1eadn...';
+        try{
+          const result=await run(()=>api.acceptOffer(button.dataset.acceptOffer));
+          if(result?.ok){q('#custSearchInput')&&(q('#custSearchInput').value='');q('#topGlobalSearch')&&(q('#topGlobalSearch').value='');switchTab('tab-customers');}
+        }finally{button.dataset.busy='';button.disabled=false;button.removeAttribute('aria-busy');button.textContent=label;}
+      });
       // Thong ke data duoc giao khong giam khi Sale bam nhan.
       const assigned=data.assignedDataStats||{today:0,threeDays:0,sevenDays:0};
       text('sidebarDataBadge',(data.pendingOffers||[]).length);
@@ -2981,6 +3217,8 @@
     frame.classList.add('is-login-visible');
   };
   window.addEventListener('crm:session-changed',()=>refresh(true));
+  const cachedSnapshot=readCachedSnapshot();
+  if(cachedSnapshot)refresh(true,cachedSnapshot);
   // Catch a session that became ready before this script attached its listener.
   refresh(true);
   bootFallbackTimer=setTimeout(revealLoginFallback,250);

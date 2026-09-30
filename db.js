@@ -22,7 +22,7 @@ const connectionOptions = {
   database: dbName,
   waitForConnections: true,
   queueLimit: 0,
-  connectTimeout: setting('DB_CONNECT_TIMEOUT', 5000),
+  connectTimeout: setting('DB_CONNECT_TIMEOUT', 10000),
   enableKeepAlive: true,
   keepAliveInitialDelay: 10000,
   charset: 'utf8mb4',
@@ -39,8 +39,8 @@ function createManagedPool(limit, queueLimit) {
     console.warn('[mysql-connection]', error.code || 'CONNECTION_ERROR');
   }));
   return managedPool(raw, { limit, queueLimit,
-    acquireTimeout: setting('DB_ACQUIRE_TIMEOUT', 5000),
-    queryTimeout: setting('DB_QUERY_TIMEOUT', 5000) });
+    acquireTimeout: setting('DB_ACQUIRE_TIMEOUT', 10000),
+    queryTimeout: setting('DB_QUERY_TIMEOUT', 10000) });
 }
 const pool = createManagedPool(setting('DB_CONNECTION_LIMIT', 60), setting('DB_QUEUE_LIMIT', 0, 0));
 // Authentication must not wait behind large CRM snapshots or Telegram outbox

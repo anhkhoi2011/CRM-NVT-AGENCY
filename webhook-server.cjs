@@ -23,8 +23,9 @@ const crypto = require('node:crypto');
 const net = require('node:net');
 const zlib = require('node:zlib');
 const bcrypt = require('bcryptjs');
+const passwordService = require('./password-service.cjs');
 const crmData = require('./crm-data.cjs');
-const { dbConfigured, dbQuery, authQuery, dbHealth, pool } = require('./db.js');
+const { dbConfigured, dbQuery, authQuery, dbHealth, pool, authPool } = require('./db.js');
 const { provisionSystemAccounts } = require('./system-accounts.cjs');
 const { persistWebhook } = require('./webhook-store.cjs');
 const telegramBot = require('./telegram-bot.cjs');
@@ -35,7 +36,7 @@ try { nodemailer = require('nodemailer'); } catch { /* email optional until npm 
 const PORT = Number(process.env.PORT || 4173);
 const HOST = process.env.HOST || '0.0.0.0';
 const SERVER_INSTANCE = crypto.randomUUID();
-const BUILD_VERSION = '20260929-login-state-fast';
+const BUILD_VERSION = '20260930-auth-workers';
 const REPO_ROOT = path.resolve(__dirname);
 const DEFAULT_WEBHOOK_DATA_DIR = process.env.WEBHOOK_DATA_DIR
   ? path.resolve(process.env.WEBHOOK_DATA_DIR)
@@ -96,8 +97,15 @@ async function recordUserActivity(user,request,action,detail){
 }
 async function touchUserSession(request){
  const hash=tokenHash(request);if(!hash)return;
+ const cache=touchUserSession.recent||(touchUserSession.recent=new Map());
+ const now=Date.now();
+ if(cache.has(hash)&&now-cache.get(hash)<20000)return;
+ if(cache.size>=5000)cache.delete(cache.keys().next().value);
+ cache.set(hash,now);
  const ip=clientIp(request),agent=clientUserAgent(request);
- await dbQuery(`UPDATE crm_sessions SET last_seen_at=NOW(),ip=IF(?<>'',?,ip),user_agent=IF(?<>'',?,user_agent) WHERE token_hash=? AND (last_seen_at IS NULL OR last_seen_at<DATE_SUB(NOW(),INTERVAL 20 SECOND))`,[ip,ip,agent,agent,hash]);
+ try {
+ await dbQuery(`UPDATE crm_sessions SET last_seen_at=NOW(),expires_at=DATE_ADD(NOW(),INTERVAL 1 DAY),ip=IF(?<>'',?,ip),user_agent=IF(?<>'',?,user_agent) WHERE token_hash=? AND (last_seen_at IS NULL OR last_seen_at<DATE_SUB(NOW(),INTERVAL 20 SECOND))`,[ip,ip,agent,agent,hash]);
+ } catch(error) {cache.delete(hash);throw error;}
 }
 async function setUserActivity(request,view){
  const hash=tokenHash(request),detail=activityLabel(view);if(!hash)return detail;
@@ -121,9 +129,29 @@ async function adminUserActivity(){
  const latestEvent=new Map();for(const event of events)if(!latestEvent.has(event.user_id))latestEvent.set(event.user_id,event);
  return {generatedAt:stamp(),users:users.map(user=>{const session=latestSession.get(user.id),event=latestEvent.get(user.id),online=Number(session?.idle_seconds)<=120;return {id:user.id,name:user.name,role:user.role,accountId:user.account_code||'',online,lastSeen:session?.last_seen_at||null,activity:online?(session?.last_activity||'Đang sử dụng CRM'):'Đã ngoại tuyến',ip:session?.ip||event?.ip||'',lastEvent:event||null};}),events};
 }
+const sessionUserCache = new Map();
+const SESSION_CACHE_TTL = 60000;
+function cacheSessionUser(hash, user) {
+  if (!hash || !user) return;
+  if (sessionUserCache.size >= 10000) sessionUserCache.delete(sessionUserCache.keys().next().value);
+  sessionUserCache.set(hash, { user, at: Date.now() });
+}
 async function authUser(request) {
-  const rows = await dbQuery('SELECT u.* FROM crm_sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>NOW() AND u.active=1 LIMIT 1', [tokenHash(request)]);
-  return rows[0] ? crmData.userRow(rows[0]) : null;
+  const hash = tokenHash(request);
+  if (!hash) return null;
+  try {
+    const rows=await authQuery('SELECT u.* FROM crm_sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>NOW() AND u.active=1 LIMIT 1', [hash]);
+    const user = rows[0] ? crmData.userRow(rows[0]) : null;
+    if (user) cacheSessionUser(hash, user); else sessionUserCache.delete(hash);
+    return user;
+  } catch (error) {
+    const cached = sessionUserCache.get(hash);
+    if (cached && Date.now() - cached.at < SESSION_CACHE_TTL) {
+      console.warn('[auth-session-cache] D?ng phi?n cache t?m th?i:', error.code || error.message);
+      return cached.user;
+    }
+    throw error;
+  }
 }
 function readDbBody(request) { return readBody(request).then(buffer => JSON.parse(buffer.toString('utf8') || '{}')); }
 function manualCustomerError(message){throw Object.assign(new Error(message),{status:400});}
@@ -169,13 +197,13 @@ async function createManualCustomer(user,input,request){
   return {...result,customerId:customer.id};
 }
 async function passwordMatches(value, stored) {
-  if (/^\$2[aby]\$/.test(stored || '')) return bcrypt.compare(value, stored);
+  if (/^\$2[aby]\$/.test(stored || '')) return passwordService.compare(value, stored);
   // Hỗ trợ mật khẩu cũ; nâng cấp sang bcrypt sau lần đăng nhập đúng.
   return value.length > 0 && value === stored;
 }
 
 async function hashPassword(value) {
-  return bcrypt.hash(value, 10);
+  return passwordService.hash(value);
 }
 
 function needsPasswordRehash(stored) {
@@ -275,17 +303,11 @@ function seedDemoWorkspace() {
     customer('DEMO-CUS-10', 'Hoang Mai Phuong', '0900000028', owners.leader2, 'CONTACTED', 'Whale', 'L4.1', '2026-09-12 11:30')
   ].forEach(row => addOnce(demoState.customers, row));
 
-  const order = (id, code, customerId, saleId, leaderId, teamId, productId, status, total, createdAt, paidAt = '') => ({
-    id, code, customerId, saleId, leaderId, teamId, productId, status, total, subtotal: total, qty: 1,
-    unitPrice: total, discount: 0, vatRate: 0.1, vatAmount: Math.round(total * 0.1), amountPaid: status === 'PAID' ? total : 0,
-    balanceDue: status === 'PAID' ? 0 : total, paymentMode: 'FULL', paymentMethod: 'VietQR', note: 'Don hang mau', createdAt, updatedAt: createdAt, paidAt
-  });
-  [
-    order('DEMO-ORD-1', 'NVT-DEMO-0001', 'DEMO-CUS-3', 'demo-sale', 'demo-leader', 'DEMO', 'p-kh-hhcb', 'PAID', 5000000, '2026-09-15 09:20', '2026-09-15 10:05'),
-    order('DEMO-ORD-2', 'NVT-DEMO-0002', 'DEMO-CUS-5', 'demo-sale-2', 'demo-leader-2', 'DEMO-2', 'p-ind-3m', 'PAID', 3042000, '2026-09-15 13:10', '2026-09-15 14:00'),
-    order('DEMO-ORD-3', 'NVT-DEMO-0003', 'DEMO-CUS-8', 'demo-sale', 'demo-leader', 'DEMO', 'p-ind-1m', 'PENDING', 1014000, '2026-09-17 08:40'),
-    order('DEMO-ORD-4', 'NVT-DEMO-0004', 'DEMO-CUS-10', 'demo-sale-2', 'demo-leader-2', 'DEMO-2', 'p-kh-klcs', 'REFUNDED', 10000000, '2026-09-12 12:00', '2026-09-12 12:30')
-  ].forEach(row => addOnce(demoState.orders, row));
+  // Accounting starts empty in the demo. Orders are created only through the CRM/Accounting form,
+  // so the four accounting views always reflect current CRM data instead of stale sample orders.
+  demoState.orders = [];
+  demoState.expenses = [];
+  demoState.brokerageMetrics = [];
 
   addOnce(demoState.dataOffers, { id: 'DEMO-OFFER-1', customerId: 'DEMO-CUS-6', saleId: 'demo-sale', leaderId: 'demo-leader', teamId: 'DEMO', status: 'PENDING', offeredAt: '2026-09-17 08:00' });
   addOnce(demoState.dataOffers, { id: 'DEMO-OFFER-2', customerId: 'DEMO-CUS-7', saleId: 'demo-sale-2', leaderId: 'demo-leader-2', teamId: 'DEMO-2', status: 'PENDING', offeredAt: '2026-09-17 08:10' });
@@ -297,8 +319,6 @@ function seedDemoWorkspace() {
   addOnce(demoState.attendance, { id: 'DEMO-ATT-2', accountId: 'demo-leader', date: '2026-09-17', checkInAt: '2026-09-17 08:05', status: 'PRESENT', ip: '127.0.0.1' });
   addOnce(demoState.tasks, { id: 'DEMO-TASK-1', customerId: 'DEMO-CUS-4', saleId: 'demo-sale-3', leaderId: 'demo-leader', teamId: 'DEMO', title: 'Goi lai khach Whale', status: 'OPEN', dueAt: '2026-09-18 09:00', createdAt: '2026-09-17 08:30' });
   addOnce(demoState.tasks, { id: 'DEMO-TASK-2', customerId: 'DEMO-CUS-5', saleId: 'demo-sale-2', leaderId: 'demo-leader-2', teamId: 'DEMO-2', title: 'Gui thong tin khoa hoc', status: 'DONE', dueAt: '2026-09-16 15:00', createdAt: '2026-09-15 10:30' });
-  addOnce(demoState.brokerageMetrics, { id: 'BRK-2026-09-demo-sale', memberId: 'demo-sale', leaderId: 'demo-leader', teamId: 'DEMO', period: '2026-09', basicLots: 8, microLots: 5, nanoLots: 10, lotCommissionRate: 120000, indicatorCommissionRate: 0.05, courseCommissionRate: 0.1, vatRate: 0.1, updatedAt: '2026-09-17 08:00' });
-  addOnce(demoState.brokerageMetrics, { id: 'BRK-2026-09-demo-sale-2', memberId: 'demo-sale-2', leaderId: 'demo-leader-2', teamId: 'DEMO-2', period: '2026-09', basicLots: 5, microLots: 3, nanoLots: 0, lotCommissionRate: 120000, indicatorCommissionRate: 0.05, courseCommissionRate: 0.1, vatRate: 0.1, updatedAt: '2026-09-17 08:00' });
   demoState.leaderDistribution = { ...demoState.leaderDistribution, enabled: true, enabledLeaderIds: ['demo-leader', 'demo-leader-2'], weights: { 'demo-leader': 1, 'demo-leader-2': 1 }, sourceRules: [] };
   demoState.saleDistributionByLeader = {
     ...demoState.saleDistributionByLeader,
@@ -477,7 +497,9 @@ async function handleDbApi(request, response, pathname) {
         void hashPassword(password).then(hash => authQuery('UPDATE users SET password_hash=? WHERE id=?',[hash,row.id])).catch(error => console.warn('[password-rehash]',error.code||error.message));
       }
       const token=crypto.randomBytes(32).toString('hex');
-      await loginStep(() => authQuery('INSERT INTO crm_sessions(token_hash,user_id,ip,user_agent,expires_at,last_seen_at,last_activity) VALUES (?,?,?,?,DATE_ADD(NOW(),INTERVAL 1 DAY),NOW(),?)',[crypto.createHash('sha256').update(token).digest('hex'),row.id,clientIp(request)||null,clientUserAgent(request)||null,'Đang vào CRM']));
+      const tokenHashValue=crypto.createHash('sha256').update(token).digest('hex');
+      await loginStep(() => authQuery('INSERT INTO crm_sessions(token_hash,user_id,ip,user_agent,expires_at,last_seen_at,last_activity) VALUES (?,?,?,?,DATE_ADD(NOW(),INTERVAL 1 DAY),NOW(),?)',[tokenHashValue,row.id,clientIp(request)||null,clientUserAgent(request)||null,'Đang vào CRM']));
+      cacheSessionUser(tokenHashValue, crmData.userRow(row));
       markLogin('session');
       // Nhat ky dang nhap khong duoc chan phan hoi xac thuc; ghi nen de nguoi dung vao CRM ngay.
       void recordUserActivity(row,request,'LOGIN','Đăng nhập CRM').catch(error=>console.warn('[user-activity login]',error.message));
@@ -486,10 +508,12 @@ async function handleDbApi(request, response, pathname) {
     }
     const user=await authUser(request);
     if(!user)return dbJson(request,response,401,{error:'Phiên đã hết hạn. Đăng nhập lại để tiếp tục.'});
-    await touchUserSession(request);
+    // Refreshing last_seen is telemetry. It must never turn a valid session
+    // into a 500/timeout when MySQL is briefly busy or waking from idle.
+    void touchUserSession(request).catch(error => console.warn('[session-touch]', error.code || error.message));
     if(pathname.startsWith('/api/support/'))return await handleSupportApi(request,response,pathname,user);
     if(pathname==='/api/auth/me')return dbJson(request,response,200,{user});
-    if(pathname==='/api/auth/logout' && request.method==='POST'){await recordUserActivity(user,request,'LOGOUT','Đăng xuất CRM');await dbQuery('DELETE FROM crm_sessions WHERE token_hash=?',[tokenHash(request)]);return dbJson(request,response,200,{ok:true});}
+    if(pathname==='/api/auth/logout' && request.method==='POST'){void recordUserActivity(user,request,'LOGOUT','Dang xuat CRM');const hash=tokenHash(request);sessionUserCache.delete(hash);await authQuery('DELETE FROM crm_sessions WHERE token_hash=?',[hash]);return dbJson(request,response,200,{ok:true});}
     if(pathname==='/api/user-activity' && request.method==='POST'){
       const body=await readDbBody(request),activity=await setUserActivity(request,body.view);
       if(activity.changed)await recordUserActivity(user,request,'OPEN_SCREEN',activity.detail);
@@ -556,7 +580,7 @@ async function handleDbApi(request, response, pathname) {
       if(request.method==='POST'){
         const body=await readDbBody(request);
         if(body.skipAutomatic===true&&user.role!=='ADMIN')return dbJson(request,response,403,{error:'Admin only'});
-        const result=await crmData.write(user,body.requestId,body.changes,{skipAutomatic:body.skipAutomatic===true});
+        const result=await crmData.write(user,body.requestId,body.changes,{skipAutomatic:body.skipAutomatic===true,fastNote:body.fastNote===true});
         notifyInboxListeners({id:body.requestId,kind:'state',receivedAt:stamp()});
 
         void telegramBot.drainLeadNotifications();
@@ -1508,14 +1532,14 @@ const server = http.createServer(async (request, response) => {
     }
     if (pathname === '/api/db/health' || pathname === '/api/navigation-counts' || pathname === '/api/user-activity' || pathname === '/api/admin/user-activity' || pathname.startsWith('/api/auth/') || pathname.startsWith('/api/telegram/') || pathname.startsWith('/api/support/') || pathname.startsWith('/api/users') || pathname.startsWith('/api/customers') || pathname.startsWith('/api/orders') || pathname.startsWith('/api/products') || pathname.startsWith('/api/settings') || pathname === '/api/state') return await handleDbApi(request, response, pathname);
     if (pathname === '/api/health/live') {
-      return sendJson(response, 200, { ok: true, live: true, instance: SERVER_INSTANCE, build: BUILD_VERSION });
+      return sendJson(response, 200, { ok: true, live: true, instance: SERVER_INSTANCE, build: BUILD_VERSION, authPool: authPool.stats(), password: passwordService.stats() });
     }
     if (pathname === '/api/health') {
       if (DEMO_MODE) return sendJson(response, 200, { ok: true, demo: true, inbox: inbox.length, token: Boolean(WEBHOOK_TOKEN) });
       if (!dbConfigured) return sendJson(response, 503, { ok: false, mysql: 'not_configured', error: 'MySQL chưa được cấu hình.' });
       try {
         await dbHealth();
-        return sendJson(response, 200, { ok: true, mysql: 'ready', inbox: inbox.length, token: Boolean(WEBHOOK_TOKEN) });
+        return sendJson(response, 200, { ok: true, mysql: 'ready', inbox: inbox.length, token: Boolean(WEBHOOK_TOKEN), build: BUILD_VERSION, authPool: authPool.stats(), password: passwordService.stats() });
       } catch (error) {
         return sendJson(response, 503, { ok: false, mysql: 'unavailable', code: error.code || 'DB_ERROR', error: 'Node đang chạy nhưng chưa kết nối được MySQL.' });
       }
