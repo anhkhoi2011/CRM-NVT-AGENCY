@@ -6400,7 +6400,10 @@ async function initialize() {
   refreshSessionContext();
   try {
     let session = null;
-    try { session = JSON.parse(sessionStorage.getItem(SESSION_KEY)); } catch (error) {}
+    for (const storage of [sessionStorage, localStorage]) {
+      if (session?.token) break;
+      try { session = JSON.parse(storage.getItem(SESSION_KEY) || 'null'); } catch {}
+    }
     window.crmRuntimeAuthState = session?.token ? 'restoring' : 'unauthenticated';
     if (session?.token) serverSyncToken = session.token;
     // /api/state đã xác thực token và trả cả user; không gọi /auth/me lần nữa.

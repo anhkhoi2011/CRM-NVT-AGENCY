@@ -57,8 +57,16 @@
   }
   function saveCachedSnapshot(snapshot){
     if(!validCachedSnapshot(snapshot))return;
-    const session=storedSession(),accountId=String(snapshot.user.id||'').trim(),role=snapshotRole(snapshot);
-    if(!session||session.accountId!==accountId||session.role!==role)return;
+    const session=storedSession(),accountId=String(snapshot.user?.id||'').trim(),role=snapshotRole(snapshot);
+    if(!session||!accountId||!role)return;
+    if(session.accountId&&session.accountId!==accountId)return;
+    if(session.accountId!==accountId||session.role!==role){
+      session.accountId=accountId;
+      session.role=role;
+      const payload=JSON.stringify(session);
+      try{sessionStorage.setItem(SESSION_KEY,payload);}catch{}
+      try{localStorage.setItem(SESSION_KEY,payload);}catch{}
+    }
     try{localStorage.setItem(CACHED_SNAPSHOT_KEY,JSON.stringify({version:1,savedAt:Date.now(),accountId,role,snapshot}));}catch(error){
       if(error?.name!=='QuotaExceededError')console.warn('[crm-cache]',error);
     }
@@ -3297,10 +3305,11 @@
     const runtime=frame.contentWindow;
     try{refresh(true);}catch(error){console.error('[crm-boot]',error);return;}
     if(data)return;
-    // Không giữ toàn bộ trang trắng khi runtime hoặc MySQL khởi động chậm.
-    // Sau 4 giây cho phép iframe hiển thị form đăng nhập/trạng thái kết nối;
-    // nếu runtime kịp xác thực thì refresh() ở sự kiện session-changed sẽ
-    // chuyển sang app-shell mà không làm mất dữ liệu.
+    // Nếu tài khoản có token đang khôi phục phiên, tiếp tục giữ màn hình boot thương hiệu NVT, không hiện form login đè lên
+    if(storedSession()?.token&&Date.now()<bootDeadline){
+      bootFallbackTimer=setTimeout(revealLoginFallback,400);
+      return;
+    }
     if(Date.now()<bootDeadline-8000){bootFallbackTimer=setTimeout(revealLoginFallback,250);return;}
     bootFallbackShown=true;
     bootScreen.setAttribute('hidden','');
@@ -3310,9 +3319,21 @@
   };
   window.addEventListener('crm:session-changed',()=>refresh(true));
   const cachedSnapshot=readCachedSnapshot();
-  if(cachedSnapshot)refresh(true,cachedSnapshot);
+  if(cachedSnapshot){
+    document.body.classList.add('reference-ready');
+    const shell=q('.app-shell');
+    if(shell){
+      shell.style.setProperty('visibility','visible','important');
+      shell.style.setProperty('display','flex','important');
+    }
+    q('.bg-aura')?.style.setProperty('visibility','visible','important');
+    bootScreen?.setAttribute('hidden','');
+    refresh(true,cachedSnapshot);
+  }
   // Catch a session that became ready before this script attached its listener.
   refresh(true);
-  bootFallbackTimer=setTimeout(revealLoginFallback,250);
+  if(!data){
+    bootFallbackTimer=setTimeout(revealLoginFallback,storedSession()?.token?800:250);
+  }
   refreshTimer=setInterval(()=>{if(!document.hidden){refresh();if(q('#tab-audit.active'))loadUserActivity();}},15000);frame.addEventListener('load',()=>refresh(true));
 })();
