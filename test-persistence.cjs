@@ -1437,13 +1437,13 @@ test('Saved session restores user and data with one authenticated state request'
 });
 
 
-test('Failed session restoration keeps token and exits the loading screen',async()=>{
+test('Failed session restoration keeps token and never falsely reports logout',async()=>{
  const c=frontend();c.sessionStorage.setItem('nvt-crm-session-v1',JSON.stringify({token:'saved-token'}));
  vm.runInContext('refreshSessionContext=()=>{};',c);
  c.setTimeout=(fn,ms)=>{if(ms<1000)queueMicrotask(fn);return 1;};
  c.fetch=async()=>{throw new Error('offline');};
  await c.initialize();
- assert.equal(c.window.crmRuntimeBooted,true);assert.equal(c.window.crmRuntimeAuthState,'unauthenticated');
+ assert.equal(c.window.crmRuntimeBooted,true);assert.equal(c.window.crmRuntimeAuthState,'restoring');
  assert.equal(JSON.parse(c.sessionStorage.getItem('nvt-crm-session-v1')).token,'saved-token');
  assert.match(c.document.querySelector('#loginError').textContent,/Chưa tải/);
 });

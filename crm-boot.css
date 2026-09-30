@@ -1,54 +1,13 @@
-/* Startup state for the outer CRM shell. Kept separate from the protected reference stylesheet. */
-.app-shell {
-  display: flex !important;
-  visibility: visible !important;
-}
-.bg-aura {
-  visibility: visible !important;
-}
-#crmRuntimeFrame {
-  visibility: hidden;
-  opacity: 0;
-  transition: opacity .12s ease;
-}
-#crmRuntimeFrame.is-login-visible {
-  visibility: visible;
-  opacity: 1;
-}
-#crmBootScreen {
-  position: fixed;
-  inset: 0 0 auto;
-  z-index: 2147483646;
-  display: block;
-  height: 3px;
-  overflow: hidden;
-  background: #dbeafe;
-  pointer-events: none;
-}
-#crmBootScreen::after {
-  content: "";
-  display: block;
-  width: 38%;
-  height: 100%;
-  background: #2563eb;
-  box-shadow: 0 0 10px rgba(37,99,235,.45);
-  animation: crmBootProgress 1.15s ease-in-out infinite;
-}
-#crmBootScreen[hidden] {
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  display: none !important;
-}
-.crm-boot-mark {
-  display: none;
-}
-.crm-boot-spinner {
-  display: none;
-}
-@keyframes crmBootProgress {
-  0% { transform: translateX(-110%); }
-  55% { transform: translateX(155%); }
-  100% { transform: translateX(290%); }
-}
-
+/* Chỉ mở shell sau khi hoàn tất dựng dữ liệu và phân quyền. */
+body:not(.reference-ready) > .app-shell,
+body:not(.reference-ready) > .bg-aura { visibility:hidden!important; }
+body.reference-ready > .app-shell { visibility:visible; display:flex; }
+body.reference-ready > .bg-aura { visibility:visible; }
+#crmRuntimeFrame { visibility:hidden; opacity:0; }
+#crmRuntimeFrame.is-login-visible { visibility:visible; opacity:1; }
+#crmBootScreen { position:fixed; inset:0; z-index:2147483646; display:flex; align-items:center; justify-content:center; background:#f8fafc; }
+#crmBootScreen[hidden] { display:none!important; }
+.crm-boot-mark { display:flex; flex-direction:column; align-items:center; gap:16px; color:#0f172a; font:600 15px system-ui,sans-serif; }
+.crm-boot-spinner { width:36px; height:36px; border:3px solid #e2e8f0; border-top-color:#2563eb; border-radius:50%; animation:crmSpin .75s linear infinite; }
+@keyframes crmSpin { to { transform:rotate(360deg); } }
+@media(prefers-reduced-motion:reduce) { .crm-boot-spinner { animation-duration:2s; } }

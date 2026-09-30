@@ -2474,7 +2474,7 @@
     if(!validCachedSnapshot(next)){if(fromCache)clearCachedSnapshot();return;}
     const first=!data;
     const editing=!first&&Boolean(working||workflowBusy||q('.modal-overlay.open')||q('#careGroupModal')?.style.display==='flex'||['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName));
-    if(first)customerFilterState.columns={};if(bootFallbackTimer){clearTimeout(bootFallbackTimer);bootFallbackTimer=null;}data=next;if(!fromCache)saveCachedSnapshot(next);frame.hidden=true;frame.style.display='none';frame.classList.remove('is-login-visible');document.body.classList.add('reference-ready');q('.app-shell')?.style.setProperty('visibility','visible');q('.bg-aura')?.style.setProperty('visibility','visible');
+    if(first)customerFilterState.columns={};if(bootFallbackTimer){clearTimeout(bootFallbackTimer);bootFallbackTimer=null;}data=next;if(!fromCache)saveCachedSnapshot(next);frame.hidden=true;frame.style.display='none';frame.classList.remove('is-login-visible');
     const sign=JSON.stringify(data);
     if(!first&&(sign===signature||editing))return;
     signature=sign;if(first){dateDefaults();bindReferenceSettings();setupSources();installRoleVisibilityObserver();installPendingDataStyles();}
@@ -2497,7 +2497,6 @@
     if(['ADMIN','MANAGER','LEADER'].includes(data.user.actualRole||data.user.role)&&q('section.active#tab-data')){
       renderManagementDataTable(data.user.actualRole||data.user.role);
     }
-    bootScreen?.setAttribute('hidden','');
     text('sidebarDataBadge',data.user.role==='SALE'?(data.pendingOffers||[]).length:data.customers.filter(c=>!c.saleId).length);
     q('#sidebarCareBadge')?.remove();
     q('#sidebarTeamBadge')?.remove();
@@ -2523,6 +2522,9 @@
     q('#assignmentModeSelect').value=data.settings.assignmentMode||'MANUAL';
     text('autoStatWaiting',data.customers.filter(c=>!c.leaderId).length);text('autoStatLeaders',(data.leaderDistribution.enabledLeaderIds||[]).length);
     restoreCustomerSelections();
+    // Chỉ hiện giao diện khi dữ liệu, tab và phân quyền đã dựng xong.
+    document.body.classList.add('reference-ready');q('.app-shell')?.style.setProperty('visibility','visible');q('.bg-aura')?.style.setProperty('visibility','visible');
+    bootScreen?.setAttribute('hidden','');
   }
   updateCustomerClass=(id,value)=>saveCustomerSelection('field',id,value,'customerClass');
   assignCustomerSale=(id,value)=>saveCustomerSelection('sale',id,value);
@@ -3306,38 +3308,20 @@
   ['#teamStartDate','#teamEndDate'].forEach(id=>q(id)?.addEventListener('change',()=>team()));
   if(!q('#liveClockDisplay')){const clock=document.createElement('time');clock.id='liveClockDisplay';clock.setAttribute('aria-label','Giờ hiện tại');clock.style.cssText='font:500 11px var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-muted);white-space:nowrap';q('#themeBtn')?.before(clock);updateLiveClock();}
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();});
-  // Không để màn hình chờ quay vô hạn khi iframe đăng nhập khởi tạo chậm/lỡ sự kiện load.
-  const bootDeadline=Date.now()+12000;
-  let bootFallbackShown=false;
+  // Không dùng thời gian chờ để suy luận rằng người dùng đã đăng xuất.
   const revealLoginFallback=()=>{
-    if(data||!bootScreen||bootFallbackShown)return;
-    const runtime=frame.contentWindow;
-    try{refresh(true);}catch(error){console.error('[crm-boot]',error);return;}
-    if(data)return;
-    // Nếu tài khoản có token đang khôi phục phiên, tiếp tục giữ màn hình boot thương hiệu NVT, không hiện form login đè lên
-    if(storedSession()?.token&&Date.now()<bootDeadline){
-      bootFallbackTimer=setTimeout(revealLoginFallback,400);
-      return;
-    }
-    if(Date.now()<bootDeadline-8000){bootFallbackTimer=setTimeout(revealLoginFallback,250);return;}
-    bootFallbackShown=true;
-    bootScreen.setAttribute('hidden','');
-    frame.hidden=false;
-    frame.style.display='block';
-    frame.classList.add('is-login-visible');
+    if(data||!bootScreen)return;
+    try{refresh(true);}catch(error){console.error('[crm-boot]',error);}
+    if(!data&&!bootScreen.hidden)bootFallbackTimer=setTimeout(revealLoginFallback,500);
   };
   window.addEventListener('crm:session-changed',()=>refresh(true));
   const cachedSnapshot=readCachedSnapshot();
   if(cachedSnapshot){
-    document.body.classList.add('reference-ready');
-    const shell=q('.app-shell');
-    if(shell){
-      shell.style.setProperty('visibility','visible','important');
-      shell.style.setProperty('display','flex','important');
+    try{refresh(true,cachedSnapshot);}catch(error){
+      // Cache cũ không dựng được thì chờ snapshot thật, không lộ HTML mẫu.
+      data=null;signature='';renderedTabs.clear();clearCachedSnapshot();
+      console.warn('[crm-cache-render]',error);
     }
-    q('.bg-aura')?.style.setProperty('visibility','visible','important');
-    bootScreen?.setAttribute('hidden','');
-    refresh(true,cachedSnapshot);
   }
   // Catch a session that became ready before this script attached its listener.
   refresh(true);

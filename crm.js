@@ -149,7 +149,8 @@
     return {config:next,cursor:{...cursor,index:view.index,ids:[...view.ids,memberId],cycleId:view.cycleId||String(Date.now()),roundId:view.roundId,slotSignature:slotSignature(config.rounds?.[0]||config,people,mode)}};
   }
   return {slots,preview,skip,removeMember,addExtraTurn,take,recipients,cursorFrom};
-});/* END BUNDLED DISTRIBUTION ROUNDS */
+});
+/* END BUNDLED DISTRIBUTION ROUNDS */
 let orderTypeFilter = 'ALL';
 'use strict';
 
@@ -6430,7 +6431,7 @@ async function initialize() {
         }
         await new Promise(resolve => setTimeout(resolve, 350 * (attempt + 1)));
       }
-      window.crmRuntimeAuthState = 'unauthenticated';
+      window.crmRuntimeAuthState = 'restoring';
       $('#loginError').textContent='Máy chủ đang chậm hoặc tạm gián đoạn. Phiên đăng nhập vẫn được giữ, hãy thử lại.';
       return;
     }
@@ -6442,7 +6443,7 @@ async function initialize() {
   } catch (error) {
     $('#loginError').textContent='Chưa tải được dữ liệu máy chủ. Vui lòng thử đăng nhập lại.';
   }
-  if (!currentAccount) window.crmRuntimeAuthState = 'unauthenticated';
+  if (!currentAccount) window.crmRuntimeAuthState = serverSyncToken ? 'restoring' : 'unauthenticated';
   $('#loginScreen').classList.remove('is-hidden');
   $('#appShell').classList.add('is-hidden');
   } finally {
