@@ -3652,7 +3652,7 @@ function renderMindmapTree() {
         ${person.name}
       </text>
       <text x="12" y="33" font-size="9.5" font-family="'JetBrains Mono', monospace" pointer-events="none">
-        <tspan fill="#94a3b8">ID: ${person.id}</tspan>
+        <tspan fill="#94a3b8">ID: ${person.displayId || person.accountId || (String(person.id || '').startsWith('u-reg-') ? '—' : person.id)}</tspan>
         <tspan fill="${strokeColor}" font-weight="800"> • ${lotRateText}</tspan>
       </text>
       <rect x="${cardW - 68}" y="11" width="58" height="22" rx="5" fill="${rateBadgeBg}" stroke="${strokeColor}" stroke-width="0.8" pointer-events="none"/>
@@ -3739,7 +3739,7 @@ function renderMindmapTree() {
         <td style="color:#64748b; text-align:center; font-weight:600;">${index + 1}</td>
         <td>
           <b style="color:#0f172a; font-size:12.5px; cursor:pointer;" onclick="openEditPersonnelModal('${item.id}')" title="Bấm để mở bảng điều chỉnh cơ chế của ${item.name}">${item.name}</b>
-          <div style="font-size:10px; color:#64748b; font-family:'JetBrains Mono';">ID: ${item.id} • ${item.phone}</div>
+          <div style="font-size:10px; color:#64748b; font-family:'JetBrains Mono';">ID: ${item.displayId || item.accountId || (String(item.id || '').startsWith('u-reg-') ? '—' : item.id)} • ${item.phone}</div>
         </td>
         <td style="text-align:center;">${getRoleBadgeHtml(item.roleLevel)}</td>
         <td>
@@ -3928,7 +3928,7 @@ function renderMindmapTree() {
 
     const metaEl = document.getElementById('modalPersonnelMeta');
     if (metaEl) {
-      metaEl.textContent = `Cấp bậc: ${person.roleTitle || 'Sale'} • ID: ${person.id} • Quản lý trực thuộc: ${person.directManager || '—'}`;
+      metaEl.textContent = `Cấp bậc: ${person.roleTitle || 'Sale'} • ID: ${person.displayId || person.accountId || (String(person.id || '').startsWith('u-reg-') ? '—' : person.id)} • Quản lý trực thuộc: ${person.directManager || '—'}`;
     }
 
     const fin = calculatePersonnelFinance(person);
@@ -4196,7 +4196,7 @@ function renderMindmapTree() {
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${idx + 1}</td>
-        <td><strong>${sub.name}</strong> <span style="font-size:11px; color:#64748b;">(ID: ${sub.id})</span></td>
+        <td><strong>${sub.name}</strong> <span style="font-size:11px; color:#64748b;">(ID: ${sub.displayId || sub.accountId || (String(sub.id || '').startsWith('u-reg-') ? '—' : sub.id)})</span></td>
         <td><span class="role-badge role-${sub.roleLevel.toLowerCase()}">${sub.roleTitle}</span></td>
         <td>${sub.parentId === person.id ? '<span style="color:#059669; font-weight:700;">Trực thuộc</span>' : '<span style="color:#64748b;">Cấp 2 qua Leader</span>'}</td>
         <td style="font-family:'JetBrains Mono'; font-weight:800; color:#0f172a;">${sLot.toFixed(2)} lot</td>
@@ -4847,7 +4847,7 @@ function renderMindmapTree() {
         <td style="color:#64748b; font-weight:700;">${idx + 1}</td>
         <td>
           <div style="font-weight:800; color:#0f172a;">${item.name}</div>
-          <div style="font-size:10.5px; color:#64748b; font-family:'JetBrains Mono';">SĐT: ${item.phone} • ID: ${item.id}</div>
+          <div style="font-size:10.5px; color:#64748b; font-family:'JetBrains Mono';">SĐT: ${item.phone} • ID: ${item.displayId || item.accountId || (String(item.id || '').startsWith('u-reg-') ? '—' : item.id)}</div>
         </td>
         <td>${getRoleBadgeHtml(item.roleLevel)}</td>
         <td style="font-size:11.5px; color:#475569;">${item.directManager}</td>
@@ -5809,7 +5809,7 @@ function renderMindmapTree() {
         <td style="color:#64748b; font-weight:700; text-align:center;">${idx + 1}</td>
         <td>
           <div style="font-weight:800; color:#0f172a; font-size:12px;">${person.name}</div>
-          <div style="font-size:10px; color:#64748b; font-family:'JetBrains Mono';">ID: ${person.id} • ${person.roleTitle}</div>
+          <div style="font-size:10px; color:#64748b; font-family:'JetBrains Mono';">ID: ${person.displayId || person.accountId || (String(person.id || '').startsWith('u-reg-') ? '—' : person.id)} • ${person.roleTitle}</div>
         </td>
         <td style="font-size:11px; color:#475569;">${person.directManager || 'Direct'}</td>
         <td style="text-align:center;">
@@ -10176,6 +10176,7 @@ window.printOrderInvoice = printOrderInvoice;
 
       return {
         id: String(m.id || existing.id || Date.now()),
+        displayId: String(m.displayId || m.accountId || existing.displayId || existing.accountId || '').trim() || (String(m.id || existing.id || '').startsWith('u-reg-') ? '—' : String(m.id || existing.id || '—')),
         name: m.name || existing.name || 'Nhân sự',
         phone: m.phone || existing.phone || '—',
         roleLevel: roleLevel,
