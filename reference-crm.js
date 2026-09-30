@@ -25,14 +25,22 @@
   function readCachedSnapshot(){
     const session=storedSession();
     if(!session){clearCachedSnapshot();return null;}
-    if(!session.accountId||!session.role)return null;
     try{
       const cached=JSON.parse(localStorage.getItem(CACHED_SNAPSHOT_KEY)||'null');
       const snapshot=cached?.snapshot;
       const accountId=String(cached?.accountId||'').trim();
       const role=String(cached?.role||'').trim().toUpperCase();
       const snapshotAccountId=String(snapshot?.user?.id||'').trim();
-      if(cached?.version!==1||!validCachedSnapshot(snapshot)||accountId!==session.accountId||snapshotAccountId!==accountId||role!==session.role||snapshotRole(snapshot)!==role){
+      if(cached?.version!==1||!validCachedSnapshot(snapshot)||!accountId||!role||snapshotAccountId!==accountId||snapshotRole(snapshot)!==role){
+        clearCachedSnapshot();
+        return null;
+      }
+      // Các phiên cũ chỉ lưu token. Có token hợp lệ và snapshot cùng tài khoản
+      // thì dùng cache ngay, đồng thời bổ sung metadata để các lần F5 sau không
+      // phải chờ /api/state mới được vẽ giao diện.
+      if(!session.accountId||!session.role){
+        try{sessionStorage.setItem(SESSION_KEY,JSON.stringify({...session,accountId,role}));}catch{}
+      }else if(session.accountId!==accountId||session.role!==role){
         clearCachedSnapshot();
         return null;
       }
@@ -2189,9 +2197,9 @@
 
     let iframe = host.querySelector('#accountingIframe');
     if (!iframe) {
-      host.innerHTML = `<iframe id="accountingIframe" src="commission_tree_demo.html?embedded=1&tab=${encodeURIComponent(targetTab)}&v=20260930-accounting-sync-v12" style="width:100%;height:calc(100vh - 66px);min-height:850px;border:none;display:block;background:#f8fafc;" title="Kế toán & Hoa hồng APEX"></iframe>`;
+      host.innerHTML = `<iframe id="accountingIframe" src="commission_tree_demo.html?embedded=1&tab=${encodeURIComponent(targetTab)}&v=20260930-accounting-sync-v13" title="Kế toán & Hoa hồng APEX" loading="eager"></iframe>`;
       iframe = host.querySelector('#accountingIframe');
-      iframe?.addEventListener('load',()=>syncMembersToAccountingMindmap(),{once:true});
+      iframe?.addEventListener('load',()=>{host.classList.add('is-ready');syncMembersToAccountingMindmap();},{once:true});
     } else {
       // Refresh/state sync must not reset the user's currently open accounting tab.
       // Only navigate the iframe when its actual view differs from the requested view.
@@ -2652,8 +2660,13 @@
     if(referenceLogoutBusy||!api)return;
     referenceLogoutBusy=true;
     try{
-      if(customerSaveQueue.pending&&!customerSaveQueue.running){
-        customerSaveQueue.cancel();
+      customerNoteSaveTimers.forEach(timer=>clearTimeout(timer));
+      customerNoteSaveTimers.clear();
+      customerNoteDrafts.forEach(record=>customerSaveQueue.enqueue(record.key,selectionAction(record.payload),record.payload));
+      customerNoteDrafts.clear();
+      persistCustomerNoteDrafts();
+      if(customerSaveQueue.pending||customerSaveQueue.running){
+        await customerSaveQueue.flush({timeout:15000});
         referenceNotice('B\u1ea3n nh\u00e1p ch\u01b0a đ\u1ed3ng b\u1ed9 đ\u01b0\u1ee3c gi\u1eef l\u1ea1i. Đang đ\u0103ng xu\u1ea5t...');
       }
       await api.logout();
@@ -3203,14 +3216,19 @@
   if(!q('#liveClockDisplay')){const clock=document.createElement('time');clock.id='liveClockDisplay';clock.setAttribute('aria-label','Giờ hiện tại');clock.style.cssText='font:500 11px var(--font-mono);font-variant-numeric:tabular-nums;color:var(--text-muted);white-space:nowrap';q('#themeBtn')?.before(clock);updateLiveClock();}
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();});
   // Không để màn hình chờ quay vô hạn khi iframe đăng nhập khởi tạo chậm/lỡ sự kiện load.
-  const bootDeadline=Date.now()+20000;
+  const bootDeadline=Date.now()+12000;
+  let bootFallbackShown=false;
   const revealLoginFallback=()=>{
-    if(data||!bootScreen||Date.now()>bootDeadline)return;
+    if(data||!bootScreen||bootFallbackShown)return;
     const runtime=frame.contentWindow;
     try{refresh(true);}catch(error){console.error('[crm-boot]',error);return;}
     if(data)return;
-    if(runtime?.crmRuntimeBooted!==true){bootFallbackTimer=setTimeout(revealLoginFallback,250);return;}
-    if(runtime?.crmRuntimeAuthState!=='unauthenticated'){bootFallbackTimer=setTimeout(revealLoginFallback,250);return;}
+    // Không giữ toàn bộ trang trắng khi runtime hoặc MySQL khởi động chậm.
+    // Sau 4 giây cho phép iframe hiển thị form đăng nhập/trạng thái kết nối;
+    // nếu runtime kịp xác thực thì refresh() ở sự kiện session-changed sẽ
+    // chuyển sang app-shell mà không làm mất dữ liệu.
+    if(Date.now()<bootDeadline-8000){bootFallbackTimer=setTimeout(revealLoginFallback,250);return;}
+    bootFallbackShown=true;
     bootScreen.setAttribute('hidden','');
     frame.hidden=false;
     frame.style.display='block';

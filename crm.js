@@ -2329,7 +2329,7 @@ function executiveDashboardView() {
     </section>
     <section class="goal-progress-box"><div class="goal-head"><span>Mục tiêu doanh số Agency tháng này</span><strong>${monthTarget ? `${targetPercent.toFixed(1).replace('.', ',')}%` : 'Chưa đặt chỉ tiêu'}</strong></div><div class="progress-track"><i class="progress-fill-orange" style="width:${targetPercent}%">${monthTarget ? `${targetPercent.toFixed(1).replace('.', ',')}%` : ''}</i></div><div class="goal-foot"><span>Thực hiện: <b>${money(monthlyRevenue, true)}</b></span><span>${monthTarget ? `Còn thiếu: ${money(remainingTarget, true)}` : targetMessage}</span></div><div class="goal-stat-pills"><span class="goal-stat-pill"><span class="p-lbl">Thực hiện tháng</span><span class="p-val">${money(monthlyRevenue, true)}</span></span><span class="goal-stat-pill"><span class="p-lbl">Còn thiếu</span><span class="p-val">${money(remainingTarget, true)}</span></span><span class="goal-stat-pill"><span class="p-lbl">Thời gian</span><span class="p-val">${daysRemaining} ngày</span></span><span class="goal-stat-pill"><span class="p-lbl">Cần mỗi ngày</span><span class="p-val">${money(daysRemaining ? Math.ceil(remainingTarget / daysRemaining) : 0, true)}</span></span></div></section>
     ${revenueAnalysis}
-    <section class="analytics-grid"><article class="chart-panel"><div class="chart-panel-header"><div><div class="chart-metric-title">Tăng trưởng khách hàng mới</div><div class="chart-metric-num">${number(newWeek)} ${deltaBadge(delta(newWeek, previous.leads))}</div></div><button class="button button-small" data-view-jump="customers">Chi tiết</button></div><div class="chart-svg-container">${executiveLineChart(customerSeries)}</div></article><article class="chart-panel"><div class="chart-panel-header"><div><div class="chart-metric-title">Doanh thu theo tuần</div><div class="chart-metric-num">${money(monthlyRevenue, true)} ${deltaBadge(delta(monthlyRevenue, netRevenue(scopedOrders(), inPreviousPeriod)))}</div></div><button class="button button-small" data-view-jump="revenue">Chi tiết</button></div><div class="chart-svg-container">${executiveBarChart(revenueSeries)}</div></article><aside class="side-widgets-column"><section class="widget-box"><div class="widget-box-head"><span>Sản phẩm bán chạy</span><button class="button button-small" data-view-jump="products">Xem</button></div><div class="product-list">${products.map(product => `<div class="product-item"><span class="product-thumb">${product.type === 'RENTAL' ? '↯' : '▤'}</span><div class="product-meta"><span class="product-name">${escapeHtml(product.name)}</span><span class="product-sku">${money(product.revenue, true)} · ${number(product.paidOrders)} đơn</span></div></div>`).join('') || '<div class="empty"><b>Chưa có sản phẩm bán ra</b></div>'}</div></section><section class="widget-box rental-widget"><div class="widget-box-head"><span>Gói thuê cần gia hạn</span><button class="button button-small" data-view-jump="orders">Xem</button></div>${rentalAlerts.slice(0, 3).map(order => `<div class="rental-item"><div><b>${escapeHtml(order.customerName)}</b><small>${escapeHtml(order.productName)}</small></div><span class="status ${order.daysLeft <= 2 ? 'status-cancelled' : 'status-pending'}">${order.daysLeft <= 0 ? 'Đã hết hạn' : `Còn ${order.daysLeft} ngày`}</span></div>`).join('') || '<div class="empty"><b>Không có gói cần gia hạn</b></div>'}</section></aside></section>
+    <section class="analytics-grid"><article class="chart-panel"><div class="chart-panel-header"><div><div class="chart-metric-title">Tăng trưởng khách hàng mới</div><div class="chart-metric-num">${number(newWeek)} ${deltaBadge(delta(newWeek, previous.leads))}</div></div><button class="button button-small" data-view-jump="customers">Chi tiết</button></div><div class="chart-svg-container">${executiveLineChart(customerSeries)}</div></article><article class="chart-panel"><div class="chart-panel-header"><div><div class="chart-metric-title">Doanh thu theo tuần</div><div class="chart-metric-num">${money(monthlyRevenue, true)} ${deltaBadge(delta(monthlyRevenue, netRevenue(scopedOrders(), inPreviousPeriod)))}</div></div><button class="button button-small" data-view-jump="revenue">Chi tiết</button></div><div class="chart-svg-container">${executiveBarChart(revenueSeries)}</div></article><aside class="side-widgets-column"><section class="widget-box"><div class="widget-box-head"><span>Sản phẩm bán chạy</span><button class="button button-small" data-view-jump="products">Xem</button></div><div class="product-list">${products.map(product => `<div class="product-item">${/^data:image\/(?:png|jpeg|webp);base64,/i.test(String(product.imageData || '')) ? `<img class="product-thumb product-thumb-image" src="${escapeHtml(product.imageData)}" alt="" loading="lazy">` : ''}<div class="product-meta"><span class="product-name">${escapeHtml(product.name)}</span><span class="product-sku">${money(product.revenue, true)} · ${number(product.paidOrders)} đơn</span></div></div>`).join('') || '<div class="empty"><b>Chưa có sản phẩm bán ra</b></div>'}</div></section><section class="widget-box rental-widget"><div class="widget-box-head"><span>Gói thuê cần gia hạn</span><button class="button button-small" data-view-jump="orders">Xem</button></div>${rentalAlerts.slice(0, 3).map(order => `<div class="rental-item"><div><b>${escapeHtml(order.customerName)}</b><small>${escapeHtml(order.productName)}</small></div><span class="status ${order.daysLeft <= 2 ? 'status-cancelled' : 'status-pending'}">${order.daysLeft <= 0 ? 'Đã hết hạn' : `Còn ${order.daysLeft} ngày`}</span></div>`).join('') || '<div class="empty"><b>Không có gói cần gia hạn</b></div>'}</section></aside></section>
   </div>`;
 }
 
@@ -2388,8 +2388,28 @@ function transactionsTable(events, showReconciliation = false) {
 }
 
 function canUpdateCustomer(customer) {
+  if (!customer) return false;
   const permissionRole = effectivePermissionRole();
-  return !!customer && (permissionRole === 'ADMIN' || (permissionRole === 'MANAGER' && scopedCustomers().includes(customer)) || (permissionRole === 'LEADER' && state.settings.leaderCanUpdate && customer.teamId === currentAccount.teamId && customer.leaderId === currentAccount.leaderId) || (permissionRole === 'SALE' && customer.saleId === currentAccount.saleId));
+  const inScope = () => scopedCustomers().some(item => String(item.id) === String(customer.id));
+  if (permissionRole === 'ADMIN') return true;
+  if (permissionRole === 'MANAGER') return inScope();
+  if (permissionRole === 'LEADER') {
+    return Boolean(
+      (currentAccount.teamId && customer.teamId === currentAccount.teamId) ||
+      customer.leaderId === currentAccount.id ||
+      customer.leaderId === currentAccount.leaderId ||
+      inScope()
+    );
+  }
+  if (permissionRole === 'SALE') {
+    return Boolean(
+      customer.saleId === currentAccount.id ||
+      customer.saleId === currentAccount.saleId ||
+      customer.ownerId === currentAccount.id ||
+      inScope()
+    );
+  }
+  return false;
 }
 
 function canEditCustomerName(customer) {

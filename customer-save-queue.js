@@ -21,6 +21,19 @@
       }
     }catch(cause){error=cause;}finally{running=false;setBusy(false);emit();}
   }
+  function flush({timeout=12000}={}){
+    if(!jobs.length&&!running)return Promise.resolve(true);
+    return new Promise((resolve,reject)=>{
+      const started=Date.now();
+      const check=()=>{
+        if(!jobs.length&&!running){resolve(true);return;}
+        if(error){reject(error);return;}
+        if(Date.now()-started>=timeout){reject(Error('Chưa lưu xong các thay đổi khách hàng trong thời gian cho phép.'));return;}
+        void drain();setTimeout(check,50);
+      };
+      check();
+    });
+  }
   return {
     get pending(){return jobs.length;},
     enqueue(key,action,payload){
@@ -50,6 +63,7 @@
       }
     },
     retry(){error=null;emit();void drain();},
+    flush,
     cancel(){if(running)return false;jobs.length=0;error=null;emit();return true},
     get running(){return running}
   };
