@@ -158,6 +158,32 @@ const SESSION_KEY = 'nvt-crm-session-v1';
 const THEME_KEY = 'nvt-crm-theme-v1';
 const CACHED_SNAPSHOT_KEY = 'nvt_crm_cached_snapshot_v1';
 
+function writeRuntimeSession(payload) {
+  const serialized = JSON.stringify(payload);
+  try { sessionStorage.setItem(SESSION_KEY, serialized); } catch (error) {}
+  try { localStorage.setItem(SESSION_KEY, serialized); } catch (error) {}
+  try {
+    if (window.parent && window.parent !== window) {
+      window.parent.sessionStorage.setItem(SESSION_KEY, serialized);
+      window.parent.localStorage.setItem(SESSION_KEY, serialized);
+    }
+  } catch (error) {}
+}
+
+function removeRuntimeSession() {
+  for (const storage of [sessionStorage, localStorage]) {
+    try { storage.removeItem(SESSION_KEY); } catch (error) {}
+    try { storage.removeItem(CACHED_SNAPSHOT_KEY); } catch (error) {}
+  }
+  try {
+    if (window.parent && window.parent !== window) {
+      window.parent.sessionStorage.removeItem(SESSION_KEY);
+      window.parent.localStorage.removeItem(SESSION_KEY);
+      window.parent.localStorage.removeItem(CACHED_SNAPSHOT_KEY);
+    }
+  } catch (error) {}
+}
+
 const ACCOUNTS = [];
 const STAFF_SEED = [];
 let STAFF = [];
@@ -5988,7 +6014,7 @@ async function startSession(account, restored = false, token = serverSyncToken, 
   globalQuery = '';
   selectedPoolIds.clear();
   customerOwnerFilter = 'ALL';
-  try { sessionStorage.setItem(SESSION_KEY, JSON.stringify({ token: serverSyncToken, accountId: currentAccount.id, role: currentAccount.actualRole || currentAccount.role })); } catch (error) {}
+  writeRuntimeSession({ token: serverSyncToken, accountId: currentAccount.id, role: currentAccount.actualRole || currentAccount.role });
   try {
     const recovered=await recoverPendingWrite(account);
     if(recovered)initialSnapshot=recovered;
@@ -6032,8 +6058,7 @@ async function endSession(skipFlush=false) {
   currentView = 'dashboard';
   selectedPoolIds.clear();
   customerOwnerFilter = 'ALL';
-  try { sessionStorage.removeItem(SESSION_KEY); } catch (error) {}
-  try { localStorage.removeItem(CACHED_SNAPSHOT_KEY); } catch (error) {}
+  removeRuntimeSession();
   try { if (window.parent && window.parent !== window) window.parent.dispatchEvent(new Event('crm:session-changed')); } catch (error) {}
   closeDrawer(); closeModal();
   $('#appShell').classList.add('is-hidden');
@@ -6409,8 +6434,7 @@ async function initialize() {
     if (response && response.status === 401) {
       window.crmRuntimeAuthState = 'unauthenticated';
       serverSyncToken='';
-      try { sessionStorage.removeItem(SESSION_KEY); } catch (error) {}
-      try { localStorage.removeItem(CACHED_SNAPSHOT_KEY); } catch (error) {}
+      removeRuntimeSession();
     }
   } catch (error) {
     $('#loginError').textContent='Chưa tải được dữ liệu máy chủ. Vui lòng thử đăng nhập lại.';

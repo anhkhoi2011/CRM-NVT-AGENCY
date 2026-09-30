@@ -1,3 +1,9 @@
+# Giữ Node.js Passenger hoạt động liên tục để giảm cold start khi mở hoặc F5.
+<IfModule mod_passenger.c>
+  PassengerMinInstances 1
+  PassengerPoolIdleTime 0
+</IfModule>
+
 # NVT AGENCY CRM - UTF-8 for Apache/LiteSpeed
 AddDefaultCharset UTF-8
 AddCharset UTF-8 .html .htm .css .js .cjs .json .svg .txt

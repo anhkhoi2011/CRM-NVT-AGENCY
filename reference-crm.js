@@ -5,14 +5,17 @@
   const ACTIVE_TAB_KEY='nvt-crm-active-tab-v1';
   const SESSION_KEY='nvt-crm-session-v1';
   const CACHED_SNAPSHOT_KEY='nvt_crm_cached_snapshot_v1';
-  try{localStorage.removeItem('nvt-crm-snapshot-cache-v1');}catch{}
   const frame=q('#crmRuntimeFrame');
   const bootScreen=q('#crmBootScreen');
   let api=null, data=null, signature='', working=false, refreshTimer=null, bootFallbackTimer=null, selectedCustomer='', careKey='', dataQueuePage=1, dataQueuePageSize=20, dataQueueDateFrom='', dataQueueDateTo='', userActivitySnapshot=null, userActivityLoading=false, userActivityRequestedAt=0, lastReportedActivity='';
   const snapshotRole=snapshot=>String(snapshot?.user?.actualRole||snapshot?.user?.role||'').trim().toUpperCase();
   function storedSession(){
     try{
-      const session=JSON.parse(sessionStorage.getItem(SESSION_KEY)||'null');
+      let session=null;
+      for(const storage of [sessionStorage,localStorage]){
+        if(session?.token)break;
+        try{session=JSON.parse(storage.getItem(SESSION_KEY)||'null');}catch{}
+      }
       const token=String(session?.token||session?.accessToken||'').trim();
       if(!token)return null;
       return {token,accountId:String(session?.accountId||'').trim(),role:String(session?.role||'').trim().toUpperCase()};
@@ -24,7 +27,7 @@
   function clearCachedSnapshot(){try{localStorage.removeItem(CACHED_SNAPSHOT_KEY);}catch{}}
   function readCachedSnapshot(){
     const session=storedSession();
-    if(!session){clearCachedSnapshot();return null;}
+    if(!session)return null;
     try{
       const cached=JSON.parse(localStorage.getItem(CACHED_SNAPSHOT_KEY)||'null');
       const snapshot=cached?.snapshot;
@@ -39,7 +42,9 @@
       // thì dùng cache ngay, đồng thời bổ sung metadata để các lần F5 sau không
       // phải chờ /api/state mới được vẽ giao diện.
       if(!session.accountId||!session.role){
-        try{sessionStorage.setItem(SESSION_KEY,JSON.stringify({...session,accountId,role}));}catch{}
+        const payload=JSON.stringify({...session,accountId,role});
+        try{sessionStorage.setItem(SESSION_KEY,payload);}catch{}
+        try{localStorage.setItem(SESSION_KEY,payload);}catch{}
       }else if(session.accountId!==accountId||session.role!==role){
         clearCachedSnapshot();
         return null;
