@@ -640,6 +640,73 @@
     q('#refFieldType').onchange=sync;sync();
   }
   let editingCareId=null;
+  const defaultCareFallback=[
+    {id:'g-conv',title:'Khách đã chuyển đổi',tag:'Premium Whale',color:'#10b981'},
+    {id:'g-hot',title:'Khách đang quan tâm nóng',tag:'Nóng',color:'#ef4444'},
+    {id:'g-warm',title:'Khách đang theo dõi ấm',tag:'Ấm',color:'#f59e0b'},
+    {id:'g-cold',title:'Khách chưa kết nối được lạnh',tag:'Lạnh',color:'#3b82f6'}
+  ];
+  function defaultCareGroups(){
+    const saved=new Map((data?.settings?.careDefaultGroups||[]).map(group=>[String(group.id),group]));
+    const savedOrder=(data?.settings?.careDefaultGroups||[]).map(group=>String(group.id)).filter(id=>defaultCareFallback.some(group=>group.id===id));
+    const order=[...new Set([...savedOrder,...defaultCareFallback.map(group=>group.id)])];
+    return order.map(id=>{const group=defaultCareFallback.find(item=>item.id===id),stored=saved.get(id)||{};return {...group,...stored,id,active:stored.active!==false};});
+  }
+  function saveDefaultCareGroups(groups,notice='Đã cập nhật mục chăm sóc.'){
+    return run(()=>api.settings({careDefaultGroups:groups.map(group=>({id:group.id,title:group.title,tag:group.tag,color:group.color,active:group.active!==false}))}),()=>referenceNotice(notice));
+  }
+  function openDefaultCareEditor(id){
+    if(data.user.role!=='ADMIN')return;
+    const group=defaultCareGroups().find(item=>item.id===id);if(!group)return;
+    editor('Sửa mục chăm sóc mặc định',formField('Tên mục',`<input id="refDefaultCareTitle" maxlength="160" required value="${esc(group.title)}">`)+formField('Nhãn phân loại',`<input id="refDefaultCareTag" maxlength="100" required value="${esc(group.tag)}">`)+formField('Màu mục','<input id="refDefaultCareColor" type="color" value="'+validColor(group.color)+'" style="width:64px;height:36px">'),()=>{
+      const next=defaultCareGroups().map(item=>item.id===id?{...item,title:q('#refDefaultCareTitle').value.trim(),tag:q('#refDefaultCareTag').value.trim(),color:q('#refDefaultCareColor').value}:item);
+      return saveDefaultCareGroups(next,'Đã cập nhật mục chăm sóc.');
+    });
+  }
+  function reorderDefaultCare(id,direction){
+    if(data.user.role!=='ADMIN')return;
+    const groups=defaultCareGroups(),index=groups.findIndex(group=>group.id===id),next=index+(direction==='up'?-1:1);if(index<0||next<0||next>=groups.length)return;
+    [groups[index],groups[next]]=[groups[next],groups[index]];
+    // The settings sanitizer preserves the canonical four IDs while this order
+    // is applied to the rendered cards immediately below.
+    const order=groups.map(group=>group.id),byId=new Map(groups.map(group=>[group.id,group]));
+    saveDefaultCareGroups(order.map(groupId=>byId.get(groupId))).then(()=>{});
+  }
+  function deleteDefaultCare(id){
+    if(data.user.role!=='ADMIN')return;
+    const groups=defaultCareGroups().map(group=>group.id===id?{...group,active:false}:group);
+    saveDefaultCareGroups(groups,'Đã ẩn mục chăm sóc.');
+  }
+  function addDefaultCareAdminControls(host,group,index,groups){
+    if(data.user.role!=='ADMIN'||!host||host.querySelector('[data-default-care-admin-controls]'))return;
+    const controls=document.createElement('span');controls.dataset.defaultCareAdminControls='1';controls.style.cssText='display:inline-flex;align-items:center;gap:4px;margin-left:auto;flex-shrink:0;';
+    controls.append(careAdminButton('↑','Đưa mục lên',()=>reorderDefaultCare(group.id,'up'),index===0),careAdminButton('↓','Đưa mục xuống',()=>reorderDefaultCare(group.id,'down'),index===groups.length-1),careAdminButton('Sửa','Sửa mục chăm sóc',()=>openDefaultCareEditor(group.id)),careAdminButton('Xóa','Ẩn mục chăm sóc',()=>{if(confirm('Ẩn mục chăm sóc này? Dữ liệu khách hàng vẫn được giữ nguyên.'))deleteDefaultCare(group.id);},false,true));
+    host.appendChild(controls);
+  }
+  function applyDefaultCareGroups(){
+    const groups=defaultCareGroups(),active=groups.filter(group=>group.active!==false),grid=q('#tab-care .analytics-grid'),cards=qa('#tab-care .analytics-grid>div');if(!grid)return;
+    cards.slice(0,4).forEach((card,index)=>{if(!card.dataset.careGroup)card.dataset.careGroup=defaultCareFallback[index].id;});
+    const cardById=new Map(cards.slice(0,4).map(card=>[card.dataset.careGroup,card]));
+    active.forEach((group,index)=>{const card=cardById.get(group.id);if(!card)return;card.hidden=false;card.dataset.careGroup=group.id;card.style.borderTopColor=validColor(group.color);const title=card.querySelector(':scope > div:first-child > span:first-child');if(title)title.textContent=group.title;const tag=card.querySelector(':scope > div:last-child span');if(tag)tag.textContent=group.tag;addDefaultCareAdminControls(card.querySelector(':scope > div:first-child'),group,index,active);grid.appendChild(card);});
+    groups.filter(group=>group.active===false).forEach(group=>{const card=cardById.get(group.id);if(card){card.hidden=true;card.dataset.careGroup=group.id;}});
+
+    // Giữ phần danh sách chi tiết bên dưới khớp với 4 ô thống kê: cùng tên,
+    // màu, trạng thái hiển thị và thứ tự sau khi Admin chỉnh sửa.
+    const panelContainer=q('#carePanelsContainer');
+    if(!panelContainer)return;
+    const panels=new Map(qa('#carePanelsContainer > [data-care-group]').map(panel=>[panel.dataset.careGroup,panel]));
+    active.forEach(group=>{
+      const panel=panels.get(group.id);if(!panel)return;
+      panel.hidden=false;
+      panel.style.borderTopColor=validColor(group.color);
+      const title=panel.querySelector('[data-care-toggle] > div:first-child > span:first-child');
+      if(title)title.textContent=group.title;
+      const tag=panel.querySelector('[data-care-toggle] > div:first-child .chip');
+      if(tag){tag.textContent=group.tag;tag.style.color=validColor(group.color);tag.style.background=`${validColor(group.color)}15`;}
+      panelContainer.appendChild(panel);
+    });
+    groups.filter(group=>group.active===false).forEach(group=>{const panel=panels.get(group.id);if(panel)panel.hidden=true;});
+  }
   function openCareEditor(id=null) {
     if(data.user.role!=='ADMIN')return;editingCareId=id;
     const group=data.careGroups.find(g=>g.id===id),modal=q('#careGroupModal');
@@ -862,7 +929,7 @@
     const grid=q('#tab-care .analytics-grid'),container=q('#carePanelsContainer');
     if(!grid||!container)return;
     qa('[data-care-inline-list]').forEach(list=>list.remove());
-    const defaultKeys=['g-conv','g-hot','g-warm','g-cold'];
+    const defaultKeys=defaultCareGroups().map(group=>group.id);
     qa('#tab-care .analytics-grid>div').forEach((card,index)=>{if(!card.dataset.careGroup&&defaultKeys[index])card.dataset.careGroup=defaultKeys[index];});
     const panels=new Map(qa('#carePanelsContainer>[data-care-group]').map(panel=>[panel.dataset.careGroup,panel]));
     qa('#carePanelsContainer>[data-care-group]').forEach(panel=>{panel.hidden=true;});
@@ -879,7 +946,7 @@
       }else card.classList.remove('is-care-open');
     });
   }
-  renderCareView=function(){if(!data)return;renders.care();renderCustomCareCards();decorateCare();const panels=qa('#carePanelsContainer > [data-care-group]');panels.forEach(panel=>{const key=panel.dataset.careGroup,open=Boolean(careKey&&key===careKey);panel.hidden=!open;panel.classList.toggle('is-open',open);const toggle=panel.querySelector('[data-care-toggle]');const list=panel.querySelector('[data-care-list]');if(toggle)toggle.setAttribute('aria-expanded',String(open));if(list)list.hidden=!open;});mountInlineCareLists();};
+  renderCareView=function(){if(!data)return;renders.care();applyDefaultCareGroups();renderCustomCareCards();decorateCare();const panels=qa('#carePanelsContainer > [data-care-group]');panels.forEach(panel=>{const key=panel.dataset.careGroup,open=Boolean(careKey&&key===careKey);panel.hidden=!open;panel.classList.toggle('is-open',open);const toggle=panel.querySelector('[data-care-toggle]');const list=panel.querySelector('[data-care-list]');if(toggle)toggle.setAttribute('aria-expanded',String(open));if(list)list.hidden=!open;});mountInlineCareLists();};
   window.filterCareGroup=function(key){
     const raw=String(key||'').trim();
     const aliases={converted:'g-conv',conversion:'g-conv',conv:'g-conv',hot:'g-hot',warm:'g-warm',cold:'g-cold'};

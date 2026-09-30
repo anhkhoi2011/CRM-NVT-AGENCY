@@ -572,6 +572,27 @@ function sanitizeSettings(settings, defaults) {
   const saleAssignmentModes = input.saleAssignmentModes && typeof input.saleAssignmentModes === 'object' && !Array.isArray(input.saleAssignmentModes)
     ? Object.fromEntries(Object.entries(input.saleAssignmentModes).filter(([leaderId, mode]) => cleanId(leaderId) && ['MANUAL', 'EQUAL', 'ROUND_ROBIN', 'BALANCED'].includes(mode)))
     : {};
+  const defaultCareGroups = [
+    { id: 'g-conv', title: 'Khách đã chuyển đổi', tag: 'Premium Whale', color: '#10b981', active: true },
+    { id: 'g-hot', title: 'Khách đang quan tâm nóng', tag: 'Nóng', color: '#ef4444', active: true },
+    { id: 'g-warm', title: 'Khách đang theo dõi ấm', tag: 'Ấm', color: '#f59e0b', active: true },
+    { id: 'g-cold', title: 'Khách chưa kết nối được lạnh', tag: 'Lạnh', color: '#3b82f6', active: true }
+  ];
+  const savedCareGroups = Array.isArray(input.careDefaultGroups) ? input.careDefaultGroups : [];
+  const savedCareById = new Map(savedCareGroups.map(item => [String(item?.id || ''), item]));
+  const savedCareOrder = [...new Set(savedCareGroups.map(item => String(item?.id || '')).filter(id => defaultCareGroups.some(group => group.id === id)))];
+  const orderedCareGroups = [...savedCareOrder, ...defaultCareGroups.map(group => group.id).filter(id => !savedCareOrder.includes(id))];
+  const careDefaultGroups = orderedCareGroups.map(groupId => {
+    const defaultGroup = defaultCareGroups.find(group => group.id === groupId);
+    const saved = savedCareById.get(defaultGroup.id) || {};
+    return {
+      ...defaultGroup,
+      title: cleanText(saved.title, defaultGroup.title, 160),
+      tag: cleanText(saved.tag, defaultGroup.tag, 100),
+      color: /^#[0-9a-f]{6}$/i.test(saved.color) ? saved.color : defaultGroup.color,
+      active: saved.active !== false
+    };
+  });
   return {
     leaderCanUpdate: typeof input.leaderCanUpdate === 'boolean' ? input.leaderCanUpdate : defaults.leaderCanUpdate,
     notifyMilestones: typeof input.notifyMilestones === 'boolean' ? input.notifyMilestones : defaults.notifyMilestones,
@@ -588,6 +609,7 @@ function sanitizeSettings(settings, defaults) {
     dataBotChatId: cleanText(input.dataBotChatId || input.telegramChatId, '', 100),
     memberBotToken: cleanText(input.memberBotToken, '', 200),
     memberBotChatId: cleanText(input.memberBotChatId, '', 100),
+    careDefaultGroups,
     webhookPublicBase: cleanWebhookBase(input.webhookPublicBase, defaults.webhookPublicBase),
     attendanceIp: cleanText(input.attendanceIp, defaults.attendanceIp || '', 200),
     // Migration một lần: giờ chốt cũ 08:30 nâng lên 09:00 theo quy định mới.
