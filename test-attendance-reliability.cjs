@@ -2,7 +2,7 @@
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
 function fixture(shared={claims:new Set(),attendance:new Map()}) {
  const events=[],sent=[],user={id:'sale-1',name:'Nhân viên',team_id:'TEAM',role:'SALE',telegram_chat_id:'123'};
- let failing=false,lookupFailure=false;
+ let failing=false,lookupFailure=false,slowAnswer=false;
  const execute=async(sql,args=[])=>{
   events.push('sql');
   if(sql.includes('INSERT IGNORE')){const old=shared.claims.has(args[0]);shared.claims.add(args[0]);return [{affectedRows:old?0:1}];}
@@ -14,13 +14,13 @@ function fixture(shared={claims:new Set(),attendance:new Map()}) {
  };
  let releaseLock;
  const connection={execute,query:async()=>[[]],beginTransaction:async()=>{await shared.lock;shared.lock=new Promise(r=>{releaseLock=r;});},commit:async()=>{},rollback:async()=>{},release(){events.push('release');releaseLock?.();}};
- const context={module:{exports:{}},console,AbortSignal,Buffer,FormData,Blob,process:{env:{TELEGRAM_BOT_TOKEN:'fake-token'}},fetch:async(url,options)=>{const method=url.split('/').pop();events.push(method);sent.push({method,...JSON.parse(options.body)});return {json:async()=>failing&&method==='sendMessage'?{ok:false,error_code:429}:{ok:true,result:{message_id:1}}};},require(name){
+ const context={module:{exports:{}},console,AbortSignal,Buffer,FormData,Blob,process:{env:{TELEGRAM_BOT_TOKEN:'fake-token'}},fetch:async(url,options)=>{const method=url.split('/').pop();events.push(method);if(slowAnswer&&method==='answerCallbackQuery')return new Promise(()=>{});sent.push({method,...JSON.parse(options.body)});return {json:async()=>failing&&method==='sendMessage'?{ok:false,error_code:429}:{ok:true,result:{message_id:1}}};},require(name){
   if(name==='./db.js')return {pool:{execute,getConnection:async()=>connection},telegramPool:{getConnection:async()=>connection},dbQuery:async(sql)=>{events.push('lookup');if(lookupFailure)throw Error('DB_QUERY_TIMEOUT');return [user];}};
   if(name==='./support-chat.cjs')return {};
   return require(name);
  }};
  vm.runInNewContext(fs.readFileSync('telegram-bot.cjs','utf8'),context);
- return {api:context.module.exports,events,sent,shared,fail(value){failing=value;},failLookup(){lookupFailure=true;}};
+ return {api:context.module.exports,events,sent,shared,fail(value){failing=value;},failLookup(){lookupFailure=true;},slowAnswer(){slowAnswer=true;}};
 }
 const callback={callback_query:{id:'cb',data:'checkin',from:{id:123},message:{chat:{id:123,type:'private'},message_id:10}}};
 test('Repeated scheduler calls and worker restarts send only one reminder per recipient/day',async()=>{
@@ -44,4 +44,12 @@ test('Database error still answers the button and reports no successful check-in
 });
 test('Forwarded group check-in cannot mark another person present',async()=>{
  const f=fixture();await f.api.handleTelegramUpdate({callback_query:{...callback.callback_query,from:{id:999}}});assert.equal(f.shared.attendance.size,0);assert.ok(!f.events.includes('lookup'));
+});
+
+test('Telegram phản hồi nút chậm không chặn lưu SQL và báo thành công',async()=>{
+ const f=fixture();f.slowAnswer();
+ let timer;
+ try{await Promise.race([f.api.handleTelegramUpdate(callback),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('Điểm danh bị chặn bởi mạng Telegram')),500);})]);}
+ finally{clearTimeout(timer);}
+ assert.equal(f.shared.attendance.size,1);assert.match(f.sent.at(-1).text,/Đã đồng bộ vào CRM/);
 });

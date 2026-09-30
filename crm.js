@@ -1694,7 +1694,11 @@ async function readServerState() {
     finally{if(timeout)clearTimeout(timeout);}
     if(!response.ok)throw new Error(payload.error||'Không tải được dữ liệu');
     if(version!==serverMutationVersion||token!==serverSyncToken||(serverStateLoaded&&hasServerChanges()))return false;
-    const before=stableJson(state);applyServerSnapshot(payload);
+    const before=stableJson(state),attendanceBefore=stableJson(state.attendance);applyServerSnapshot(payload);
+    // Điểm danh Telegram vừa vào SQL: cập nhật trang mẹ ngay, không chờ thêm lượt vẽ.
+    if(wasLoaded&&attendanceBefore!==stableJson(state.attendance)){
+      try{if(window.parent&&window.parent!==window)window.parent.dispatchEvent(new Event('crm:session-changed'));}catch{}
+    }
     setSaveStatus('Đã đồng bộ MySQL');
     if(wasLoaded&&before!==stableJson(state)&&!$('#modalRoot')?.children.length&&!$('#drawerRoot')?.children.length&&!['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName))render();
     return true;

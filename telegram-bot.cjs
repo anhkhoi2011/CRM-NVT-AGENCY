@@ -420,7 +420,8 @@ async function recordTelegramAttendance(user) {
 async function handleCallbackQueryLegacy(query) {
   const chatId = query.message?.chat?.id, messageId = query.message?.message_id;
   if (query.data !== 'checkin' || !chatId || !messageId) { await answerCallbackQuery(query.id); return; }
-  await answerCallbackQuery(query.id, 'Đang lưu điểm danh...');
+  // Tắt vòng xoay ngay, không để mạng Telegram chặn giao dịch SQL.
+  void answerCallbackQuery(query.id, 'Đang lưu điểm danh...');
   try {
     if (query.message.chat.type !== 'private' || String(query.from?.id) !== String(chatId)) throw Error('Hãy điểm danh trong cuộc trò chuyện riêng đã liên kết với CRM.');
     const rows = await dbQuery('SELECT * FROM users WHERE telegram_chat_id = ? AND active = 1 LIMIT 1', [String(chatId)]);
@@ -916,9 +917,11 @@ async function runTelegramScheduler() {
 
     // 2. Điểm danh lúc 09:00 - 09:10 sáng hàng ngày
     if (hour === 9 && minute >= 0 && minute <= 10 && lastCheckinDate !== vnDateStr) {
-      // ??nh d?u tr??c khi g?i; l?i c?a m?t ng??i kh?ng g?i l?i c? danh s?ch.
+      // Đánh dấu trước khi gửi để tránh chạy chồng trong cùng tiến trình.
       lastCheckinDate = vnDateStr;
-      await sendMorningCheckinAlert();
+      const reminders = await sendMorningCheckinAlert();
+      // Khóa SQL giữ từng người đã gửi; chỉ thử lại người bị Telegram từ chối rõ ràng.
+      if (reminders.failed > 0) lastCheckinDate = '';
     }
 
     // 3. Báo cáo tuần tối Chủ Nhật lúc 20:00 - 20:10

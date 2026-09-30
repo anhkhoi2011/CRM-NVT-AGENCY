@@ -759,6 +759,9 @@ async function write(user,requestId,changes,options={}){
   const [done]=await c.execute('SELECT actor_id FROM crm_changes WHERE request_id=?',[requestId]);
   if(done.length){if(done[0].actor_id!==user.id)error(409,'Mã yêu cầu đã tồn tại');const result=snapshot(user,await allData(c));await c.commit();return {...result,ok:true,replayed:true};}
   const data=await allData(c),seen=new Set(),history=[];
+  // Telegram và Web dùng chung khóa ghi: giữ lần điểm danh đầu tiên của mỗi ngày.
+  const attendanceDays=new Set([...data.attendance.values()].map(row=>JSON.stringify([row.accountId,row.date])));
+  const duplicateAttendance=new Set();
   // Kiểm tra khách trước; ghi chú/công việc/đơn có thể tham chiếu khách mới trong cùng giao dịch.
   changes=changes.map(change=>({...change})).sort((a,b)=>(a.key==='customers'?0:1)-(b.key==='customers'?0:1));
   const prospective={...data,customers:new Map(data.customers)};
@@ -776,6 +779,11 @@ async function write(user,requestId,changes,options={}){
    if(key==='members'&&old?.role==='ADMIN'&&old.active!==false&&(!value||value.role!=='ADMIN'||value.active===false)&&[...data.members.values()].filter(r=>r.role==='ADMIN'&&r.active!==false).length<=1)error(400,'Phải giữ ít nhất một Admin hoạt động');
    if(revision(old===undefined?undefined:publicValue(user,key,old,data))!==base)error(409,`Bản ghi ${key}/${id} đã được máy khác cập nhật. Xuất bản nháp rồi tải lại.`);
    authorize(user,key,key==='settings'&&old?publicValue(user,key,old,data):old,change.value,key==='customers'?data:prospective);
+   if(key==='attendance'&&!old&&change.value){
+    const dayKey=JSON.stringify([change.value.accountId,change.value.date]);
+    if(attendanceDays.has(dayKey)){duplicateAttendance.add(change);continue;}
+    attendanceDays.add(dayKey);
+   }
    if(key==='settings'&&value&&user.role!=='ADMIN')change.value={...old,...value,...(user.role==='MANAGER'?{saleAssignmentModes:{...old?.saleAssignmentModes,...value.saleAssignmentModes}}:{})};
    if(key==='saleDistributionByLeader'&&value&&user.role==='MANAGER')change.value={...old,...value};
    history.push({key,id,before:old??null,after:change.value});
@@ -794,7 +802,7 @@ async function write(user,requestId,changes,options={}){
   for(const change of changes.filter(x=>x.key==='products')){if(change.value)resultingProducts.set(change.id,change.value);else resultingProducts.delete(change.id);}
   const productSkus=new Set();
   for(const product of resultingProducts.values()){const sku=String(product.sku||'').trim().toLowerCase();if(!sku)continue;if(productSkus.has(sku))error(400,'Mã SKU sản phẩm đã tồn tại');productSkus.add(sku);}
-  for(const {key,id,value}of changes){
+  for(const {key,id,value}of changes.filter(change=>!duplicateAttendance.has(change))){
    await project(c,key,id,value);
    await c.execute('INSERT INTO crm_documents(collection,id,body,deleted) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE body=VALUES(body),deleted=VALUES(deleted)',[key,id,JSON.stringify(value===null?data[key].get(id)||{}:value),value===null?1:0]);
   }

@@ -1503,3 +1503,34 @@ test('Login deadline returns JSON 503 and a late lookup cannot create a session'
  resolveLookup([{id:'admin',role:'ADMIN',password_hash:'correct-password'}]);
  await new Promise(setImmediate);assert.equal(sessionWrites,0);
 });
+
+test('Điểm danh Telegram rồi Web giữ một bản ghi và giờ đầu tiên trong SQL',async()=>{
+ const f=fixture(),date=new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Ho_Chi_Minh'});
+ const tele={id:'ATT-'+date+'-sale',accountId:'sale',name:'Sale',date,at:date+' 08:30:00',ip:'Telegram',teamId:'T'};
+ f.db.docs.push({collection:'attendance',id:tele.id,body:tele,deleted:0});
+ const result=await f.api.write(sale,'web-after-telegram',[change('attendance',{...tele,id:'ATT-web',at:date+' 09:10:00',ip:'Web'})]);
+ assert.equal(result.ok,true);assert.equal(result.state.attendance.length,1);assert.equal(result.state.attendance[0].at,tele.at);
+ assert.equal(f.db.docs.filter(d=>d.collection==='attendance').length,1);
+ const reread=await f.api.read(admin);assert.equal(reread.state.attendance[0].at,tele.at);
+});
+test('Hai lần điểm danh Web trong một giao dịch vẫn chỉ lưu một lần',async()=>{
+ const f=fixture(),date=new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Ho_Chi_Minh'});
+ const record={accountId:'sale',name:'Sale',date,at:date+' 08:30:00',teamId:'T'};
+ const result=await f.api.write(sale,'two-checkins',[change('attendance',{...record,id:'ATT-first'}),change('attendance',{...record,id:'ATT-second'})]);
+ assert.equal(result.state.attendance.length,1);assert.equal(result.state.attendance[0].id,'ATT-first');
+});
+test('Chống trùng điểm danh không cho Sale điểm danh thay người khác',async()=>{
+ const f=fixture(),date=new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Ho_Chi_Minh'});
+ const other={id:'ATT-other',accountId:'other',date,at:date+' 08:30:00'};
+ f.db.docs.push({collection:'attendance',id:other.id,body:other,deleted:0});
+ await assert.rejects(f.api.write(sale,'forged-checkin',[change('attendance',{...other,id:'ATT-forged'})]),e=>e.status===403);
+});
+
+test('SQL nhận điểm danh Telegram thì runtime báo ngay cho giao diện CRM',async()=>{
+ const c=frontend(),events=[];c.Event=class{constructor(type){this.type=type;}};c.window.parent={dispatchEvent(event){events.push(event.type);}};
+ vm.runInContext("currentAccount={id:'sale',role:'SALE'};serverSyncToken='session';applyServerSnapshot({state:initialState(),versions:{}});render=()=>{};",c);
+ const payload=vm.runInContext("({state:{...state,attendance:[{id:'ATT-sync',accountId:'sale',date:dayIso(0),at:dayIso(0)+' 08:30:00',ip:'Telegram'}]},versions:{'attendance/ATT-sync':'v1'}})",c);
+ c.fetch=async()=>({ok:true,json:async()=>payload});
+ assert.equal(await c.syncServerState(),true);assert.deepEqual(events,['crm:session-changed']);
+ assert.equal(await c.syncServerState(),true);assert.equal(events.length,1);
+});
