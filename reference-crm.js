@@ -2415,9 +2415,10 @@
   const rememberActiveTab=id=>{
     if(!id)return;
     try{sessionStorage.setItem(ACTIVE_TAB_KEY,id);}catch{}
+    try{localStorage.setItem(ACTIVE_TAB_KEY,id);}catch{}
   };
   const savedActiveTab=()=>{
-    try{return sessionStorage.getItem(ACTIVE_TAB_KEY)||'';}catch{return '';}
+    try{return sessionStorage.getItem(ACTIVE_TAB_KEY)||localStorage.getItem(ACTIVE_TAB_KEY)||'';}catch{return '';}
   };
   const tabAllowedForSnapshot=id=>{
     if(!data||!id||!q('#'+id))return false;
@@ -2570,7 +2571,7 @@
   // Khi bat tu dong, mac dinh dung che do ty trong cho data moi.
   toggleAutoDist=enabled=>run(()=>api.distribution(enabled,enabled?'BALANCED':data.settings.assignmentMode));
   updateAssignmentMode=mode=>run(()=>api.distribution(data.leaderDistribution.enabled,mode));
-  switchTab=function(id){if(data){const view=id.replace('tab-',''),alias={data:data.user.role==='LEADER'?'pool':data.user.role==='SALE'?'accept':'distribution'},target=alias[view]||view;if(!sharedOrganizationTabs.has(view)&&!data.navigation.includes(target)&&!data.navigation.includes(view))return;}rememberActiveTab(id);renders.switchTab(id);if(data){if(id==='tab-customers')clearAutofilledCustomerSearch();if(id==='tab-data'&&(data.user.actualRole||data.user.role)==='SALE'){const search=q('#dataQueueSearch');if(search)search.value='';}paintTab(id,id==='tab-data');if(id==='tab-audit'){renderUserLog();loadUserActivity();}reportUserActivity(id);wireParity();}};
+  switchTab=function(id){document.getElementById('crm-preheat-tab-style')?.remove();if(data){const view=id.replace('tab-',''),alias={data:data.user.role==='LEADER'?'pool':data.user.role==='SALE'?'accept':'distribution'},target=alias[view]||view;if(!sharedOrganizationTabs.has(view)&&!data.navigation.includes(target)&&!data.navigation.includes(view))return;}rememberActiveTab(id);renders.switchTab(id);if(data){if(id==='tab-customers')clearAutofilledCustomerSearch();if(id==='tab-data'&&(data.user.actualRole||data.user.role)==='SALE'){const search=q('#dataQueueSearch');if(search)search.value='';}paintTab(id,id==='tab-data');if(id==='tab-audit'){renderUserLog();loadUserActivity();}reportUserActivity(id);wireParity();}};
   qa('.nav-link[data-tab]').forEach(button=>button.addEventListener('click',()=>rememberActiveTab(button.dataset.tab),true));
   filterTeamPeriod=(period,button)=>{q('#teamStartDate').value=fromDay(parseInt(period)||30);q('#teamEndDate').value=data.today;if(button){qa('.team-period-btn').forEach(b=>b.className='btn-secondary team-period-btn');button.className='btn-primary team-period-btn';}updateTeamDateLabel();};
   updateTeamDateLabel=()=>text('teamDateRangeLabel',fmtDate(q('#teamStartDate').value)+' - '+fmtDate(q('#teamEndDate').value));

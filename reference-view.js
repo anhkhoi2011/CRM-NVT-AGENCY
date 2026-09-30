@@ -796,6 +796,7 @@ window.setCarePage = setCarePage;
 
   // Chuyển Tab
   function switchTab(tabId) {
+    document.getElementById('crm-preheat-tab-style')?.remove();
     document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
     const target = document.getElementById(tabId);
     if (target) target.classList.add('active');
