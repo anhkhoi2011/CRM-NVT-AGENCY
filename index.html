@@ -1525,11 +1525,11 @@
 <body>
 <script id="crm-instant-preheat">
 try {
-  var _savedTab = sessionStorage.getItem('nvt-crm-active-tab-v1') || localStorage.getItem('nvt-crm-active-tab-v1');
-  if (_savedTab && _savedTab !== 'tab-dashboard' && document.getElementById) {
+  var _savedTab = sessionStorage.getItem('nvt-crm-active-tab-v1') || localStorage.getItem('nvt-crm-active-tab-v1') || 'tab-customers';
+  if (_savedTab && _savedTab !== 'tab-customers' && document.getElementById) {
     var _preheatStyle = document.createElement('style');
     _preheatStyle.id = 'crm-preheat-tab-style';
-    _preheatStyle.textContent = '#tab-dashboard { display: none !important; } #' + _savedTab + ' { display: block !important; } .nav-link[data-tab="tab-dashboard"] { background: transparent !important; color: var(--nvt-sidebar-text) !important; } .nav-link[data-tab="' + _savedTab + '"] { background: var(--accent) !important; color: #fff !important; }';
+    _preheatStyle.textContent = '#tab-customers { display: none !important; } #' + _savedTab + ' { display: block !important; } .nav-link[data-tab="tab-customers"] { background: transparent !important; color: var(--nvt-sidebar-text) !important; } .nav-link[data-tab="' + _savedTab + '"] { background: var(--accent) !important; color: #fff !important; }';
     document.head.appendChild(_preheatStyle);
   }
   var _cachedRaw = localStorage.getItem('nvt_crm_cached_snapshot_v1');
@@ -1592,13 +1592,13 @@ try {
         <div class="nav-group-title">VẬN HÀNH</div>
         <ul class="nav-list">
           <li>
-            <button class="nav-link active" data-tab="tab-dashboard">
+            <button class="nav-link" data-tab="tab-dashboard">
               <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7" rx="2"></rect><rect x="14" y="3" width="7" height="7" rx="2"></rect><rect x="14" y="14" width="7" height="7" rx="2"></rect><rect x="3" y="14" width="7" height="7" rx="2"></rect></svg>
               <span>Tổng quan</span>
             </button>
           </li>
           <li>
-            <button class="nav-link" data-tab="tab-customers">
+            <button class="nav-link active" data-tab="tab-customers">
               <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
               <span>Khách hàng tổng</span>
             </button>
@@ -1738,7 +1738,7 @@ try {
         </button>
         <div class="breadcrumb">
           <span>NVT AGENCY</span>
-          <strong id="topBreadcrumbTitle">Tổng quan</strong>
+          <strong id="topBreadcrumbTitle">Khách hàng tổng</strong>
         </div>
         <div class="search-wrap">
           <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
@@ -1821,7 +1821,7 @@ try {
     <div class="content-body">
 
       <!-- ══════════ [TAB 1] TỔNG QUAN (DASHBOARD VIP PRO) ══════════ -->
-      <section class="tab-section active" id="tab-dashboard">
+      <section class="tab-section" id="tab-dashboard">
         <div class="headline-row">
           <h1>Tổng quan · Toàn hệ thống</h1>
           <button class="btn-action btn-primary" onclick="openOrderModal()">+ Tạo Đơn Hàng Mới</button>
@@ -2218,7 +2218,7 @@ try {
       </section>
 
       <!-- ══════════ [TAB 2] KHÁCH HÀNG TỔNG (THEO CHUẨN ẢNH 1 CỦA BẠN) ══════════ -->
-      <section class="tab-section" id="tab-customers">
+      <section class="tab-section active" id="tab-customers">
         <div class="headline-row">
           <h1>Khách hàng tổng</h1>
           <div style="display: flex; gap: 8px; flex-wrap: wrap;">
@@ -4217,7 +4217,7 @@ try {
 <!-- ══════════════ MOBILE BOTTOM BAR ══════════════ -->
 <nav class="mobile-app-bottom-bar">
   <div class="bottom-bar-grid">
-    <button class="bar-nav-tab active" onclick="switchTab('tab-dashboard')">
+    <button class="bar-nav-tab" onclick="switchTab('tab-dashboard')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
       <span>Trang chủ</span>
     </button>
@@ -4225,7 +4225,7 @@ try {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
       <span>Đơn hàng</span>
     </button>
-    <button class="bar-nav-tab" onclick="switchTab('tab-customers')">
+    <button class="bar-nav-tab active" onclick="switchTab('tab-customers')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
       <span>Khách hàng</span>
     </button>
@@ -4718,9 +4718,9 @@ try {
 </div>
 
 
-<script src="reference-view.js?v=20260930-instant-f5-4"></script>
+<script src="reference-view.js?v=20260930-instant-f5-5"></script>
 <script src="customer-save-queue.js?v=20260928-attendance-all-14"></script>
-<script src="reference-crm.js?v=20260930-instant-f5-4"></script>
+<script src="reference-crm.js?v=20260930-instant-f5-5"></script>
 <script src="support-chat-widget.js?v=20260926-livechat-scroll-3"></script>
 <script>
   (() => {

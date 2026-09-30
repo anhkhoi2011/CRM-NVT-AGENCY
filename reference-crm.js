@@ -256,7 +256,7 @@
       target.setAttribute('aria-hidden',String(!attendanceAllowed));
       target.style.setProperty('display',attendanceAllowed?'':'none','important');
     });
-    if(!attendanceAllowed&&q('section.active[id="tab-attendance"]')) renders.switchTab('tab-dashboard');
+    if(!attendanceAllowed&&q('section.active[id="tab-attendance"]')) renders.switchTab('tab-customers');
 
     // Sale khong quan ly doi ngu; an menu va tab doi ngu theo vai tro.
     const teamAllowed=['ADMIN','MANAGER','LEADER'].includes(role);
@@ -266,7 +266,7 @@
       target.setAttribute('aria-hidden',String(!teamAllowed));
       target.style.setProperty('display',teamAllowed?'':'none','important');
     });
-    if(!teamAllowed&&q('section.active[id="tab-team"]')) renders.switchTab('tab-dashboard');
+    if(!teamAllowed&&q('section.active[id="tab-team"]')) renders.switchTab('tab-customers');
 
     // Giao diện tham chiếu có thể dựng lại menu sau khi đồng bộ dữ liệu.
     // Ẩn cả nút, thẻ li cha và section để không còn khoảng trống hoặc đường dẫn sót.
@@ -302,7 +302,7 @@
     });
 
     const active=q('section.active[id^="tab-"]')?.id?.replace('tab-','');
-    if(!isAdmin&&restrictedAdminTabs.has(active)) renders.switchTab('tab-dashboard');
+    if(!isAdmin&&restrictedAdminTabs.has(active)) renders.switchTab('tab-customers');
 
     // Admin xem tong quan data theo pham vi; Sale xem rieng data dang cho nhan.
     const pendingOverview=q('#tab-dashboard .goal-progress-box');
@@ -2484,7 +2484,7 @@
     // Chỉ dựng tab đang xem; số thông báo vẫn cập nhật độc lập.
     if(first)renderedTabs.clear();
     const storedTab=savedActiveTab();
-    const initialTab=tabAllowedForSnapshot(storedTab)?storedTab:'tab-dashboard';
+    const initialTab=tabAllowedForSnapshot(storedTab)?storedTab:'tab-customers';
     paintTab('tab-notifications');
     paintTab(initialTab);wireParity();
     // Restore the outer tab after the runtime snapshot is ready. The static HTML
@@ -2512,7 +2512,7 @@
     // Không để các liên kết tĩnh trong dashboard mở được mục Admin-only bằng cách click trực tiếp.
     qa('[onclick*="tab-websites"],[onclick*="tab-products"],[onclick*="tab-audit"],[onclick*="tab-settings"]').forEach(link=>{link.hidden=role!=='ADMIN';});
     adminOnlyTabs.forEach(tab=>{const section=q('#tab-'+tab);if(section)section.hidden=role!=='ADMIN';});
-    if(role!=='ADMIN'&&adminOnlyTabs.has(q('section.active[id^="tab-"]')?.id?.replace('tab-','')))renders.switchTab('tab-dashboard');
+    if(role!=='ADMIN'&&adminOnlyTabs.has(q('section.active[id^="tab-"]')?.id?.replace('tab-','')))renders.switchTab('tab-customers');
     applyRoleVisibility();
     // Non-admin không thấy mã đơn/mã nội bộ trên giao diện nghiệp vụ.
     if(role!=='ADMIN')qa('th').forEach(th=>{if(th.textContent.trim()==='Mã đơn')th.textContent='Đơn hàng';});
