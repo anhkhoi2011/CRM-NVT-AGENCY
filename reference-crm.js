@@ -67,7 +67,15 @@
       try{sessionStorage.setItem(SESSION_KEY,payload);}catch{}
       try{localStorage.setItem(SESSION_KEY,payload);}catch{}
     }
-    try{localStorage.setItem(CACHED_SNAPSHOT_KEY,JSON.stringify({version:1,savedAt:Date.now(),accountId,role,snapshot}));}catch(error){
+    try{
+      const pruned = {
+        ...snapshot,
+        audit: Array.isArray(snapshot.audit) ? snapshot.audit.slice(-50) : [],
+        assignmentHistory: Array.isArray(snapshot.assignmentHistory) ? snapshot.assignmentHistory.slice(-100) : [],
+        attendance: Array.isArray(snapshot.attendance) ? snapshot.attendance.slice(-100) : []
+      };
+      localStorage.setItem(CACHED_SNAPSHOT_KEY,JSON.stringify({version:1,savedAt:Date.now(),accountId,role,snapshot:pruned}));
+    }catch(error){
       if(error?.name!=='QuotaExceededError')console.warn('[crm-cache]',error);
     }
   }

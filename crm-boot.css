@@ -1,14 +1,23 @@
 /* Startup state for the outer CRM shell. Kept separate from the protected reference stylesheet. */
-body:not(.reference-ready) > .app-shell,
-body:not(.reference-ready) > .bg-aura {
+html:not(.reference-ready) body:not(.reference-ready) > .app-shell,
+html:not(.reference-ready) body:not(.reference-ready) > .bg-aura {
   visibility: hidden;
 }
+html.reference-ready .app-shell,
+html.reference-ready .bg-aura,
 body.reference-ready > .app-shell,
 body.reference-ready > .bg-aura {
-  visibility: visible;
+  visibility: visible !important;
 }
+html.reference-ready .app-shell,
 body.reference-ready > .app-shell {
   display: flex !important;
+}
+html.reference-ready #crmBootScreen {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
 #crmRuntimeFrame {
   visibility: hidden;
