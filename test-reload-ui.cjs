@@ -36,8 +36,40 @@ test('F5: chỉ runtime xác nhận unauthenticated mới được hiện login'
  const start=source.indexOf('  function refresh(force=false,suppliedSnapshot=null) {');
  const end=source.indexOf('    if(!next){',start);
  for(const authState of ['restoring','authenticated','unauthenticated']){
-  const context={customerSaveQueue:{pending:0},normalizeAccountingMenu(){},document:{hidden:false,activeElement:{}},working:false,workflowBusy:false,q:()=>null,frame:{contentWindow:{crmApi:{snapshot:()=>null},crmRuntimeAuthState:authState,crmRuntimeBooted:true}},api:null,reachedLogin:false};
+  const context={data:null,bootScreen:null,customerSaveQueue:{pending:0},normalizeAccountingMenu(){},document:{hidden:false,activeElement:{}},working:false,workflowBusy:false,q:()=>null,frame:{contentWindow:{crmApi:{snapshot:()=>null},crmRuntimeAuthState:authState,crmRuntimeBooted:true}},api:null,reachedLogin:false};
   vm.createContext(context);vm.runInContext(source.slice(start,end)+'reachedLogin=true;} refresh(true);',context);
   assert.equal(context.reachedLogin,authState==='unauthenticated');
  }
+});
+
+function restoreHarness(responses){
+ const runtime=fs.readFileSync(__dirname+'/crm.js','utf8');
+ const code=runtime.slice(runtime.indexOf('let runtimeRestorePromise='),runtime.indexOf('async function initialize()'));
+ const timers=[],removed=[],seen=[],nodes={};let session={token:'t'};
+ const storage={getItem:()=>JSON.stringify(session)};
+ const ctx={window:{},sessionStorage:storage,localStorage:storage,SESSION_KEY:'session',serverSyncToken:'',console,AbortController,
+  setTimeout(fn,delay){timers.push({fn,delay});return timers.length;},clearTimeout(){},webhookApiBase:()=>'',
+  $:key=>nodes[key]||=( {classList:{add(){},remove(){}},textContent:''}),removeRuntimeSession(){removed.push(true);session=null;},
+  fetch:async()=>{seen.push(true);const result=responses.shift();if(result instanceof Error)throw result;return result;},startSession:async()=>true};
+ vm.createContext(ctx);vm.runInContext(code,ctx);return {ctx,timers,removed,seen};
+}
+test('F5: 503 giữ token và thử lại nền thay vì chờ ba request liên tiếp',async()=>{
+ const h=restoreHarness([{ok:false,status:503},{ok:true,status:200,json:async()=>({user:{id:'u'},state:{}})}]);
+ assert.equal(await h.ctx.restoreRuntimeSession(),false);assert.equal(h.seen.length,1);assert.equal(h.ctx.serverSyncToken,'t');assert.equal(h.removed.length,0);
+ assert.ok(h.timers.some(t=>t.delay===8000));assert.ok(h.timers.some(t=>t.delay===3000));assert.equal(h.ctx.window.crmRuntimeAuthState,'restoring');
+ assert.equal(await h.ctx.restoreRuntimeSession(),true);assert.equal(h.ctx.window.crmRuntimeAuthState,'authenticated');assert.equal(h.ctx.window.crmRuntimeRestoreError,'');
+});
+test('F5: chỉ 401 mới xóa phiên, không tự thử lại token hết hạn',async()=>{
+ const h=restoreHarness([{ok:false,status:401}]);assert.equal(await h.ctx.restoreRuntimeSession(),false);
+ assert.equal(h.removed.length,1);assert.equal(h.ctx.serverSyncToken,'');assert.equal(h.ctx.window.crmRuntimeAuthState,'unauthenticated');assert.ok(!h.timers.some(t=>t.delay===3000));
+});
+test('F5: bấm thử lại liên tiếp chỉ có một request khôi phục đang chạy',async()=>{
+ let release;const h=restoreHarness([]);h.ctx.fetch=()=>new Promise(resolve=>{release=resolve;h.seen.push(true);});
+ const a=h.ctx.restoreRuntimeSession(),b=h.ctx.restoreRuntimeSession();assert.equal(a,b);assert.equal(h.seen.length,1);
+ release({ok:true,status:200,json:async()=>({user:{id:'u'},state:{}})});await a;
+});
+test('HTML runtime có version vẫn phải kiểm tra lại cache khi deploy',()=>{
+ const server=fs.readFileSync(__dirname+'/webhook-server.cjs','utf8');
+ assert.match(server,/'Cache-Control':extension==='\.html' \? 'no-cache'/);
+ assert.match(html,/crm-runtime\.html\?v=20261001-worker-swr-1/);
 });

@@ -28,7 +28,7 @@ test('Failed liveness request reports uncertainty rather than claiming another s
 });
 function bootFixture(){
  const timers=[],listeners={};let reloaded=false,disconnected=false;
- const element=()=>({children:[],style:{},setAttribute(){},appendChild(n){this.children.push(n);},replaceChildren(n){this.children=[n];}});
+ const element=()=>({children:[],style:{},querySelector(){return null;},setAttribute(){},appendChild(n){this.children.push(n);},replaceChildren(n){this.children=[n];}});
  const boot=element();boot.hidden=false;
  let observerCallback;
  const context={document:{getElementById:()=>boot,createElement:element},window:{addEventListener:(event,fn)=>{listeners[event]=fn;}},location:{reload(){reloaded=true;}},setTimeout:(fn,ms)=>{const timer={fn,ms};timers.push(timer);return timer;},clearTimeout:timer=>{timer.cleared=true;},MutationObserver:class{constructor(fn){observerCallback=fn;}observe(){}disconnect(){disconnected=true;}}};
@@ -43,4 +43,8 @@ test('Stalled boot has a bounded timeout and no automatic reload loop',()=>{
 });
 test('Successful boot cancels watchdog and ignores later resource errors',()=>{
  const f=bootFixture();f.boot.hidden=true;f.observer();assert.equal(f.timers[0].cleared,true);assert.equal(f.disconnected,true);f.listeners.error({target:{tagName:'SCRIPT'}});assert.equal(f.boot.children.length,0);
+});
+
+test('Thông báo phục hồi phiên không bị watchdog thay bằng lỗi chung',()=>{
+ const f=bootFixture();f.boot.querySelector=()=>({});f.timers[0].fn();assert.equal(f.boot.children.length,0);assert.equal(f.reloaded,false);
 });

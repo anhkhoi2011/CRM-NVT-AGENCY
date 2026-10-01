@@ -16,7 +16,7 @@
     try{
       checkpoint();
       while(jobs.length){
-        try{await jobs[0].action();jobs.shift();checkpoint();emit();}
+        try{await jobs[0].action(jobs[0].payload);jobs.shift();checkpoint();emit();}
         catch(cause){error=cause;break;}
       }
     }catch(cause){error=cause;}finally{running=false;setBusy(false);emit();}
@@ -40,7 +40,7 @@
       // Chỉ giữ bản mới nhất của cùng một ô khi bản trước chưa chạy.
       // Nếu không gộp, thao tác A -> B -> C có thể gửi các base revision
       // nối tiếp nhau và bản C bị coi là xung đột giả sau khi A đã lưu.
-      const start=running?1:0;
+      const start=(running||error)?1:0;
       const index=jobs.findIndex((job,position)=>position>=start&&job.key===key);
       if(index>=0){
         const previous=jobs[index];

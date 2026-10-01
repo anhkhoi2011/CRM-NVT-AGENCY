@@ -847,10 +847,10 @@ async function sendWeeklyReport() {
 let lastCheckinDate = '';
 let lastWeeklyReportDate = '';
 
-async function runTelegramScheduler() {
+async function runTelegramScheduler({skipLeadDrain=false}={}) {
   try {
     // Retry durable lead notices before lower-priority periodic reminders.
-    await drainLeadNotifications();
+    if(!skipLeadDrain)await drainLeadNotifications();
     const now = new Date();
     const vnTimeStr = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Ho_Chi_Minh', hour12: false });
     const vnDateStr = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
@@ -919,9 +919,9 @@ async function runTelegramScheduler() {
     if (hour === 9 && minute >= 0 && minute <= 10 && lastCheckinDate !== vnDateStr) {
       // Đánh dấu trước khi gửi để tránh chạy chồng trong cùng tiến trình.
       lastCheckinDate = vnDateStr;
-      const reminders = await sendMorningCheckinAlert();
+      await sendMorningCheckinAlert();
       // Khóa SQL giữ từng người đã gửi; chỉ thử lại người bị Telegram từ chối rõ ràng.
-      if (reminders.failed > 0) lastCheckinDate = '';
+      // Giữ nguyên ngày đã gửi, không phát lại toàn bộ danh sách khi một người bị lỗi.
     }
 
     // 3. Báo cáo tuần tối Chủ Nhật lúc 20:00 - 20:10

@@ -69,3 +69,16 @@ test('Reload restores queued selections from a persisted draft',async()=>{
  await tick();assert.deepEqual(writes,['L2','Contacted']);assert.deepEqual(records,[]);
  release();await tick();
 });
+
+test('Coalesced action receives the same base and value as its persisted checkpoint',async()=>{
+ const f=fixture(),seen=[];f.setBusy(true);
+ f.queue.enqueue('cell',async p=>seen.push(p),{base:'A',value:'B'});
+ f.queue.enqueue('cell',async p=>seen.push(p),{base:'B',value:'C'});
+ f.setBusy(false);f.scheduled.shift()();await tick();assert.deepEqual(seen,[{base:'A',value:'C'}]);
+});
+test('Cached snapshot waits for matching runtime identity before restoring drafts',()=>{
+ const vm=require('node:vm'),fs=require('node:fs'),source=fs.readFileSync('reference-crm.js','utf8');
+ const start=source.indexOf('  function restoreCustomerSelections()'),end=source.indexOf('  const customerSaveQueue=',start);
+ const c={api:null,data:{user:{id:'sale'}},customerDraftOwner:null};vm.createContext(c);vm.runInContext(source.slice(start,end),c);
+ c.restoreCustomerSelections();assert.equal(c.customerDraftOwner,null);c.api={sessionIdentity:()=>({id:'other'})};c.restoreCustomerSelections();assert.equal(c.customerDraftOwner,null);
+});

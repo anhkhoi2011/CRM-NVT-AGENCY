@@ -29,6 +29,12 @@ const { dbConfigured, dbQuery, authQuery, dbHealth, pool, authPool } = require('
 const { provisionSystemAccounts } = require('./system-accounts.cjs');
 const { persistWebhook } = require('./webhook-store.cjs');
 const telegramBot = require('./telegram-bot.cjs');
+let telegramWorker=null;
+const inlineTelegramScheduler=process.env.RUN_TELEGRAM_SCHEDULER==='1';
+function wakeTelegramOutbox(){
+ // Worker riêng đọc hàng đợi SQL; web chỉ gửi trực tiếp khi bật chế độ tương thích.
+ if(inlineTelegramScheduler)void telegramBot.drainLeadNotifications().catch(error=>console.warn('[telegram-outbox]',error.code||error.message));
+}
 const supportChat = require('./support-chat.cjs');
 let nodemailer = null;
 try { nodemailer = require('nodemailer'); } catch { /* email optional until npm install */ }
@@ -574,7 +580,7 @@ async function handleDbApi(request, response, pathname) {
       if(request.method==='GET'){
         const query=new URL(request.url,`http://${request.headers.host||'localhost'}`).searchParams;
         const result=await crmData.read(user,{passive:query.get('passive')==='1'});
-        if(query.get('passive')!=='1')void telegramBot.drainLeadNotifications();
+        if(query.get('passive')!=='1')wakeTelegramOutbox();
         return dbJson(request,response,200,{...result,user});
       }
       if(request.method==='POST'){
@@ -583,7 +589,7 @@ async function handleDbApi(request, response, pathname) {
         const result=await crmData.write(user,body.requestId,body.changes,{skipAutomatic:body.skipAutomatic===true,fastNote:body.fastNote===true});
         notifyInboxListeners({id:body.requestId,kind:'state',receivedAt:stamp()});
 
-        void telegramBot.drainLeadNotifications();
+        wakeTelegramOutbox();
         return dbJson(request,response,200,result);
       }
     }
@@ -601,7 +607,7 @@ async function handleDbApi(request, response, pathname) {
       const old=key==='settings'?snapshot.state.settings:[...(snapshot.state[key]||[]),...(key==='members'?snapshot.state.registeredAccounts:[])].find(r=>r.id===recordId);
       const value=request.method==='DELETE'?null:{...old,...fields,...(key==='settings'?{}:{id:recordId})};
       const result=await crmData.write(user,crypto.randomUUID(),[{key,id:recordId,base:_revision??null,value}]);
-      void telegramBot.drainLeadNotifications();
+      wakeTelegramOutbox();
       return dbJson(request,response,request.method==='POST'?201:200,result);
     }
     return dbJson(request,response,404,{error:'API không tồn tại'});
@@ -1219,7 +1225,7 @@ async function handleWebhook(request, response, slug) {
   if (existing) {
     try {
       const saved = await persistWebhook(existing);
-      if(dbConfigured&&!DEMO_MODE)void telegramBot.drainLeadNotifications();
+      if(dbConfigured&&!DEMO_MODE)wakeTelegramOutbox();
       sendJson(response, 200, { received: true, duplicate: true, id: saved.eventId });
     } catch (error) {
       console.error('[webhook-mysql]', error.message);
@@ -1262,7 +1268,7 @@ async function handleWebhook(request, response, slug) {
   scheduleFlush();
   notifyInboxListeners(record);
 
-  if(dbConfigured&&!DEMO_MODE)void telegramBot.drainLeadNotifications();
+  if(dbConfigured&&!DEMO_MODE)wakeTelegramOutbox();
 
   console.log(`[webhook] ${record.status} ${slug} · ${record.customer.name || '(không tên)'} · ${record.customer.phone || '(không sdt)'}`);
   sendJson(response, adapted.ok ? 200 : 422, {
@@ -1416,7 +1422,7 @@ async function serveStatic(request, response, urlPathname) {
     const headers={
       'Content-Type':contentType,
       'Content-Length':responseBody.length,
-      'Cache-Control':hasVersion ? 'public, max-age=31536000, immutable' : 'no-cache',
+      'Cache-Control':extension==='.html' ? 'no-cache' : hasVersion ? 'public, max-age=31536000, immutable' : 'no-cache',
       'Vary':'Accept-Encoding'
     };
     if(responseBody!==body)headers['Content-Encoding']='gzip';
@@ -1532,7 +1538,7 @@ const server = http.createServer(async (request, response) => {
     }
     if (pathname === '/api/db/health' || pathname === '/api/navigation-counts' || pathname === '/api/user-activity' || pathname === '/api/admin/user-activity' || pathname.startsWith('/api/auth/') || pathname.startsWith('/api/telegram/') || pathname.startsWith('/api/support/') || pathname.startsWith('/api/users') || pathname.startsWith('/api/customers') || pathname.startsWith('/api/orders') || pathname.startsWith('/api/products') || pathname.startsWith('/api/settings') || pathname === '/api/state') return await handleDbApi(request, response, pathname);
     if (pathname === '/api/health/live') {
-      return sendJson(response, 200, { ok: true, live: true, instance: SERVER_INSTANCE, build: BUILD_VERSION, authPool: authPool.stats(), password: passwordService.stats() });
+      return sendJson(response, 200, { ok: true, live: true, telegramWorker: telegramWorker?.status() || (inlineTelegramScheduler ? 'inline' : 'disabled'), instance: SERVER_INSTANCE, build: BUILD_VERSION, authPool: authPool.stats(), password: passwordService.stats() });
     }
     if (pathname === '/api/health') {
       if (DEMO_MODE) return sendJson(response, 200, { ok: true, demo: true, inbox: inbox.length, token: Boolean(WEBHOOK_TOKEN) });
@@ -1607,17 +1613,19 @@ server.listen(PORT, HOST, () => {
   console.log(`       -H "Content-Type: application/json" \\`);
   console.log(`       -d '{"Họ và tên":"Nguyễn Test","Số điện thoại":"0912345678","Email":"test@gmail.com"}'\n`);
   selfCheckHealth();
-  if (dbConfigured && !DEMO_MODE) {
-    // Passenger may finish a webhook response before a background send has
-    // completed. Keep draining the durable outbox independently of browser
-    // traffic so Admin and assignee notices are retried after failures.
-    void systemAccountsReady.then(ready => { if (ready) return telegramBot.drainLeadNotifications(); });
-    setInterval(() => {
-      void systemAccountsReady.then(ready => { if (ready) return telegramBot.drainLeadNotifications(); });
-    }, 15000);
-    setInterval(() => {
-      void systemAccountsReady.then(ready => ready && telegramBot.runTelegramScheduler()).catch(err => console.warn('[Telegram Scheduler]', err.message));
-    }, 60000);
+  if(dbConfigured&&!DEMO_MODE){
+    void systemAccountsReady.then(ready=>{
+      if(!ready)return;
+      if(inlineTelegramScheduler){
+        console.warn('[Telegram] Đang dùng scheduler trong web do RUN_TELEGRAM_SCHEDULER=1.');
+        const stop=require('./telegram-worker.cjs').createTelegramLoop(telegramBot);
+        server.once('close',stop);
+      }else if(process.env.RUN_TELEGRAM_WORKER!=='0'){
+        telegramWorker=require('./telegram-worker-supervisor.cjs').startTelegramWorker();
+        server.once('close',()=>telegramWorker.stop());
+        process.once('exit',()=>telegramWorker.stop());
+      }else console.warn('[Telegram] Worker tự động đã tắt; cần chạy telegram-worker.cjs riêng.');
+    }).catch(error=>console.warn('[telegram-start]',error.code||error.message));
   }
   if (TELEGRAM_WEBHOOK_URL) {
     void telegramBot.setWebhook(TELEGRAM_WEBHOOK_URL, TELEGRAM_WEBHOOK_SECRET)

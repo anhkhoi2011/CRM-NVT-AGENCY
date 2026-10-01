@@ -27,7 +27,7 @@
   function clearCachedSnapshot(){try{localStorage.removeItem(CACHED_SNAPSHOT_KEY);}catch{}}
   function readCachedSnapshot(){
     const session=storedSession();
-    if(!session)return null;
+    if(!session){clearCachedSnapshot();return null;}
     try{
       const cached=JSON.parse(localStorage.getItem(CACHED_SNAPSHOT_KEY)||'null');
       const snapshot=cached?.snapshot;
@@ -38,17 +38,10 @@
         clearCachedSnapshot();
         return null;
       }
-      // Các phiên cũ chỉ lưu token. Có token hợp lệ và snapshot cùng tài khoản
-      // thì dùng cache ngay, đồng thời bổ sung metadata để các lần F5 sau không
-      // phải chờ /api/state mới được vẽ giao diện.
-      if(!session.accountId||!session.role){
-        const payload=JSON.stringify({...session,accountId,role});
-        try{sessionStorage.setItem(SESSION_KEY,payload);}catch{}
-        try{localStorage.setItem(SESSION_KEY,payload);}catch{}
-      }else if(session.accountId!==accountId||session.role!==role){
-        clearCachedSnapshot();
-        return null;
-      }
+      // Cache chỉ được hiện khi metadata phiên xác nhận đúng tài khoản và vai trò.
+      // Phiên cũ thiếu metadata phải chờ máy chủ, không suy đoán danh tính từ cache.
+      if(!session.accountId||!session.role)return null;
+      if(session.accountId!==accountId||session.role!==role){clearCachedSnapshot();return null;}
       return snapshot;
     }catch{
       clearCachedSnapshot();
@@ -371,7 +364,9 @@
       else sessionStorage.removeItem(noteDraftStorageKey());
     }catch(error){referenceNotice('Khong the luu ban nhap ghi chu tren trinh duyet.','error');}
   }
-  function selectionAction(payload,restored=false){return async()=>{
+  let customerEditReady=false;
+  function selectionAction(payload,restored=false){return async(currentPayload=payload)=>{
+    payload=currentPayload;
     const session=api?.sessionIdentity();
     if(!session||session.id!==payload.accountId)throw Error('Phiên đăng nhập đã thay đổi. Bản nháp vẫn được giữ theo tài khoản.');
     if(session.conflict)throw Error('Lần lưu trước đang xung đột. Bản nháp được giữ lại để kiểm tra.');
@@ -383,6 +378,7 @@
     return payload.kind==='field'?api.updateField(payload.id,payload.fieldId,payload.value):payload.kind==='leader'?api.assignLeader(payload.id,payload.value):api.assign(payload.id,payload.value);
   };}
   function restoreCustomerSelections(){
+    if(!api?.sessionIdentity()||api.sessionIdentity().id!==data.user.id)return;
     if(customerDraftOwner===data.user.id)return;
     customerNoteSaveTimers.forEach(timer=>clearTimeout(timer));customerNoteSaveTimers.clear();customerNoteDrafts.clear();
     customerDraftOwner=data.user.id;customerDraftValues.clear();
@@ -408,7 +404,7 @@
     },
     setBusy:value=>{working=value;},
     onChange:({pending,error,running})=>{
-      if(!error){
+      if(!error&&!pending&&!running){
         q('#customerSaveStatus')?.remove();
         if(!pending&&!running){customerDraftValues.clear();customerNoteDrafts.forEach(record=>customerDraftValues.set(record.key,record.payload.value));refresh();}
         return;
@@ -421,7 +417,7 @@
       }
       status.hidden=false;status.replaceChildren();
       const label=document.createElement('span');
-      label.textContent='Chưa lưu được. Lựa chọn đang được giữ lại.';status.appendChild(label);
+      label.textContent=error?'Chưa lưu được. Lựa chọn đang được giữ lại.':'Đang lưu thay đổi lên máy chủ…';status.appendChild(label);
       if(error){
         status.title=error.message||'Không kết nối được máy chủ';
         const retry=document.createElement('button');retry.type='button';retry.textContent='Thử lưu lại';retry.style.cssText='margin-left:10px;cursor:pointer;';retry.onclick=()=>customerSaveQueue.retry();status.appendChild(retry);
@@ -517,7 +513,7 @@
   const formField=(label,html)=>`<div class="form-group" style="margin-bottom:14px"><label for="${html.match(/id="([^"]+)"/)?.[1]||''}" style="display:block">${esc(label)}</label>${html}</div>`;
   const validColor=color=>/^#[a-f0-9]{6}$/i.test(color)?color:'#64748b';
   function fieldControl(cell,field,customer) {
-    let value=customerDraftValues.has('field:'+customer.id+':'+field.id)?customerDraftValues.get('field:'+customer.id+':'+field.id):(customer.customFields?.[field.id]??'');const editable=['ADMIN','MANAGER','LEADER','SALE'].includes(data.user.actualRole||data.user.role);
+    let value=customerDraftValues.has('field:'+customer.id+':'+field.id)?customerDraftValues.get('field:'+customer.id+':'+field.id):(customer.customFields?.[field.id]??'');const editable=api?.sessionIdentity()?.id===data.user.id&&['ADMIN','MANAGER','LEADER','SALE'].includes(data.user.actualRole||data.user.role);
     const control=document.createElement(field.type==='SELECT'?'select':field.type==='NOTE'?'textarea':field.type==='MULTI_SELECT'?'button':'input');
     control.className='chip';control.style.cssText='width:210px;max-width:210px;padding:5px 8px;border-radius:6px;font:inherit;font-size:11px;font-weight:700;border:1px solid var(--border);';
     const applyOptionColor=next=>{const color=validColor(field.options?.find(o=>o.value===next)?.color);control.style.color=color;control.style.backgroundColor=color+'18';};
@@ -2452,9 +2448,10 @@
     if(force||renderedTabs.get(id)!==key){job[0]();renderedTabs.set(id,key);}
   }
   function refresh(force=false,suppliedSnapshot=null) {
-    if(customerSaveQueue.pending)return;
+    const signedOut=frame.contentWindow?.crmRuntimeBooted===true&&frame.contentWindow?.crmRuntimeAuthState==='unauthenticated';
+    if(customerSaveQueue.pending&&!signedOut)return;
     normalizeAccountingMenu();
-    if(!force&&(document.hidden||working||workflowBusy||q('.modal-overlay.open')||['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName)))return;
+    if(!signedOut&&!force&&(document.hidden||working||workflowBusy||q('.modal-overlay.open')||['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName)))return;
     const runtime=frame.contentWindow;
     if(runtime?.crmApi)api=runtime.crmApi;
     const fromCache=Boolean(suppliedSnapshot);
@@ -2469,20 +2466,35 @@
     if(!next && runtime?.crmRuntimeBooted!==true)return;
     // A valid token can still be restoring while auth/state requests are in flight.
     // Keep the boot screen during that window instead of showing a false login form.
-    if(!next && runtime?.crmRuntimeAuthState!=='unauthenticated')return;
+    if(!next && runtime?.crmRuntimeAuthState!=='unauthenticated'){
+      if(!data&&runtime?.crmRuntimeRestoreError&&bootScreen){
+        let notice=bootScreen.querySelector('[data-restore-error]');
+        if(!notice){
+          notice=document.createElement('div');notice.dataset.restoreError='true';notice.style.cssText='max-width:440px;padding:24px;text-align:center;line-height:1.6';
+          const message=document.createElement('p');message.textContent=runtime.crmRuntimeRestoreError;
+          const retry=document.createElement('button');retry.type='button';retry.textContent='Thử kết nối lại';retry.style.cssText='padding:10px 18px;border:0;border-radius:8px;background:#2563eb;color:white;cursor:pointer';
+          retry.onclick=async()=>{retry.disabled=true;try{await runtime.crmRetrySessionRestore?.();refresh(true);}finally{retry.disabled=false;}};
+          notice.append(message,retry);bootScreen.replaceChildren(notice);
+        }
+      }
+      return;
+    }
     if(!next){data=null;signature='';if(!storedSession())clearCachedSnapshot();if(bootFallbackTimer){clearTimeout(bootFallbackTimer);bootFallbackTimer=null;}bootScreen?.setAttribute('hidden','');frame.hidden=false;frame.style.display='block';frame.classList.add('is-login-visible');document.body.classList.remove('reference-ready');q('.app-shell')?.style.setProperty('visibility','hidden');q('.bg-aura')?.style.setProperty('visibility','hidden');return;}
     if(!validCachedSnapshot(next)){if(fromCache)clearCachedSnapshot();return;}
     const first=!data;
     const editing=!first&&Boolean(working||workflowBusy||q('.modal-overlay.open')||q('#careGroupModal')?.style.display==='flex'||['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName));
-    if(first)customerFilterState.columns={};if(bootFallbackTimer){clearTimeout(bootFallbackTimer);bootFallbackTimer=null;}data=next;if(!fromCache)saveCachedSnapshot(next);frame.hidden=true;frame.style.display='none';frame.classList.remove('is-login-visible');
-    const sign=JSON.stringify(data);
+    if(first)customerFilterState.columns={};if(bootFallbackTimer){clearTimeout(bootFallbackTimer);bootFallbackTimer=null;}data=next;frame.hidden=true;frame.style.display='none';frame.classList.remove('is-login-visible');
+    const ready=Boolean(api?.sessionIdentity()?.id===data.user.id),readinessChanged=ready!==customerEditReady;
+    if(!fromCache)restoreCustomerSelections();
+    const sign=JSON.stringify(data)+ready;
     if(!first&&(sign===signature||editing))return;
-    signature=sign;if(first){dateDefaults();bindReferenceSettings();setupSources();installRoleVisibilityObserver();installPendingDataStyles();}
+    if(!fromCache)saveCachedSnapshot(next);
+    customerEditReady=ready;signature=sign;if(first){dateDefaults();bindReferenceSettings();setupSources();installRoleVisibilityObserver();installPendingDataStyles();}
     project();
     if(q('#accountingIframe'))syncMembersToAccountingMindmap();
     installCustomerJourney();
     // Chỉ dựng tab đang xem; số thông báo vẫn cập nhật độc lập.
-    if(first)renderedTabs.clear();
+    if(first||readinessChanged)renderedTabs.clear();
     const storedTab=savedActiveTab();
     const initialTab=tabAllowedForSnapshot(storedTab)?storedTab:'tab-customers';
     paintTab('tab-notifications');

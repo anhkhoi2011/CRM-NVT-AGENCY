@@ -1478,7 +1478,7 @@
       color: var(--text-faint);
     }
   </style>
-  <link rel="stylesheet" href="crm-boot.css?v=20260930-verified-boot-1">
+  <link rel="stylesheet" href="crm-boot.css?v=20261001-worker-swr-1">
   <link rel="stylesheet" href="./team-tree-hierarchy.css?v=20260918-nested-tree-1">
     <style id="dataDateFilterStyles">
       .data-date-filter-panel{padding:0!important;overflow:hidden;border:1px solid #e2e8f0!important;border-radius:16px!important;background:#fff!important;box-shadow:0 12px 30px rgba(15,23,42,.08)!important;transition:box-shadow .2s ease}
@@ -1521,13 +1521,16 @@
       @media(max-width:860px){.data-date-filter-grid{grid-template-columns:1fr 1fr}.data-date-filter-footer{align-items:flex-start;flex-direction:column}.data-date-filter-actions{width:100%}.data-date-filter-actions button{flex:1}}
       @media(max-width:480px){.data-date-filter-head,.data-date-filter-body,.data-date-filter-footer{padding-left:15px;padding-right:15px}.data-date-filter-grid{grid-template-columns:1fr}.data-date-filter-presets{gap:6px}.data-date-filter-preset{flex:1 1 calc(50% - 6px);padding-left:8px;padding-right:8px}.data-date-filter-footer{gap:12px}}
     </style>
+<link rel="preload" as="script" href="reference-view.js?v=20260930-instant-f5-5">
+<link rel="preload" as="script" href="customer-save-queue.js?v=20261001-customer-sql-1">
+<link rel="preload" as="script" href="reference-crm.js?v=20261001-worker-swr-1">
 <style id="crm-startup-guard">
 body:not(.reference-ready) > .app-shell,
 body:not(.reference-ready) > .bg-aura { visibility:hidden!important; }
 </style>
 </head>
 <body>
-<div id=crmBootScreen role=status aria-label="Đang tải CRM"><div class=crm-boot-mark><span class=crm-boot-spinner aria-hidden=true></span><span>NVT AGENCY · Đang tải dữ liệu…</span></div></div>
+<div id=crmBootScreen role=status aria-label="Đang tải CRM"><div class="crm-boot-skeleton" aria-hidden="true"><aside class="crm-boot-sidebar"><b>NVT AGENCY</b><i></i><i></i><i></i><i></i></aside><div class="crm-boot-topbar"><i></i></div></div><div class=crm-boot-mark><span class=crm-boot-spinner aria-hidden=true></span><span>NVT AGENCY · Đang tải dữ liệu…</span></div></div>
 
 <script id="crm-boot-watchdog">
 (() => {
@@ -1535,7 +1538,7 @@ body:not(.reference-ready) > .bg-aura { visibility:hidden!important; }
   if (!boot) return;
   let failed = false;
   function showFailure() {
-    if (boot.hidden || failed) return;
+    if (boot.hidden || failed || boot.querySelector('[data-restore-error]')) return;
     failed = true;
     const message = document.createElement('div');
     message.setAttribute('role', 'alert');
@@ -1560,7 +1563,7 @@ body:not(.reference-ready) > .bg-aura { visibility:hidden!important; }
 })();
 </script>
 <!-- Ẩn lớp đăng nhập trong lúc khôi phục phiên để F5 không nhấp nháy về form login. -->
-<iframe id="crmRuntimeFrame" title="Đăng nhập CRM" src="crm-runtime.html?v=20260930-attendance-sync-2" style="display:none;position:fixed;inset:0;width:100%;height:100%;border:0;z-index:2147483647;background:white"></iframe>
+<iframe id="crmRuntimeFrame" title="Đăng nhập CRM" src="crm-runtime.html?v=20261001-worker-swr-1" style="display:none;position:fixed;inset:0;width:100%;height:100%;border:0;z-index:2147483647;background:white"></iframe>
 
 
 <div class="bg-aura"></div>
@@ -4708,8 +4711,8 @@ body:not(.reference-ready) > .bg-aura { visibility:hidden!important; }
 
 
 <script src="reference-view.js?v=20260930-instant-f5-5"></script>
-<script src="customer-save-queue.js?v=20260928-attendance-all-14"></script>
-<script src="reference-crm.js?v=20260930-attendance-sync-2"></script>
+<script src="customer-save-queue.js?v=20261001-customer-sql-1"></script>
+<script src="reference-crm.js?v=20261001-worker-swr-1"></script>
 <script src="support-chat-widget.js?v=20260926-livechat-scroll-3"></script>
 <script>
   (() => {

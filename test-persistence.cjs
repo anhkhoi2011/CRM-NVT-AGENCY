@@ -1445,7 +1445,8 @@ test('Failed session restoration keeps token and never falsely reports logout',a
  await c.initialize();
  assert.equal(c.window.crmRuntimeBooted,true);assert.equal(c.window.crmRuntimeAuthState,'restoring');
  assert.equal(JSON.parse(c.sessionStorage.getItem('nvt-crm-session-v1')).token,'saved-token');
- assert.match(c.document.querySelector('#loginError').textContent,/Chưa tải/);
+ assert.match(c.document.querySelector('#loginError').textContent,/Phiên đăng nhập và bản nháp vẫn được giữ/);
+ assert.match(c.window.crmRuntimeRestoreError,/tự thử lại/);
 });
 
 
@@ -1533,4 +1534,60 @@ test('SQL nhận điểm danh Telegram thì runtime báo ngay cho giao diện CR
  c.fetch=async()=>({ok:true,json:async()=>payload});
  assert.equal(await c.syncServerState(),true);assert.deepEqual(events,['crm:session-changed']);
  assert.equal(await c.syncServerState(),true);assert.equal(events.length,1);
+});
+
+test('Customer field edits preserve raw SQL source metadata after UI enrichment',()=>{
+ const c=frontend();
+ vm.runInContext(`applyServerSnapshot({state:{...initialState(),websites:[{id:'w',name:'Landing',domain:'example.test'}],customers:[{id:'c',websiteId:'w',saleId:'sale',customFields:{}}]},versions:{'customers/c':'v1'}});state.customers[0].customFields={level:'L3',note:'Ghi chú đã lưu'};`,c);
+ const patch=JSON.parse(JSON.stringify(vm.runInContext('pendingChanges().find(x=>x.key==="customers").value',c)));
+ assert.equal(patch.landingPageUrl,undefined);assert.equal(patch.landingPageName,undefined);assert.equal(patch.customFields.level,'L3');assert.equal(patch.customFields.note,'Ghi chú đã lưu');
+});
+
+test('Sale Level and Note survive SQL reread on a fresh device with enriched website display',async()=>{
+ const f=fixture();
+ await f.api.write(admin,'seed-source',[change('websites',{id:'w',name:'Landing',domain:'example.test',webhookSlug:'DS-W'}),change('customers',{...customer,websiteId:'legacy-source',webhookSlug:'DS-W'})]);
+ const snapshot=await f.api.read(sale),c=frontend();c.inputSnapshot=JSON.parse(JSON.stringify(snapshot));
+ vm.runInContext(`applyServerSnapshot(inputSnapshot);state.customers[0].customFields={...state.customers[0].customFields,level:'L4',customerNote:'Ghi chú từ máy khác'};`,c);
+ const changes=JSON.parse(JSON.stringify(vm.runInContext('pendingChanges()',c)));
+ const unsafe=JSON.parse(JSON.stringify(vm.runInContext('state.customers[0]',c)));
+ await assert.rejects(f.api.write(sale,'old-enriched-payload',[change('customers',unsafe,snapshot.versions['customers/c1'])]),e=>e.status===403);
+ await f.api.write(sale,'save-from-other-device',changes);
+ const fresh=await f.api.read(sale),other=frontend();other.inputSnapshot=JSON.parse(JSON.stringify(fresh));vm.runInContext('applyServerSnapshot(inputSnapshot)',other);
+ assert.equal(vm.runInContext('state.customers[0].customFields.level',other),'L4');
+ assert.equal(vm.runInContext('state.customers[0].customFields.customerNote',other),'Ghi chú từ máy khác');
+ assert.equal(JSON.parse(f.db.customers[0].custom_fields_json).__crmFields.customerNote,'Ghi chú từ máy khác');
+});
+
+for(const actor of [admin,{id:'manager',role:'MANAGER'},{id:'lead',role:'LEADER',teamId:'T'},sale])test(actor.role+' saves Level and Note within assigned scope into SQL',async()=>{
+ const f=fixture();f.db.docs.push({collection:'members',id:'manager',deleted:0,body:{id:'manager',name:'Manager',role:'MANAGER',active:true}},{collection:'members',id:'sale',deleted:0,body:{...sale,managerId:'manager',active:true}},{collection:'members',id:'lead',deleted:0,body:{id:'lead',role:'LEADER',teamId:'T',managerId:'manager',active:true}});await f.api.write(admin,'seed',[change('customers',{...customer,managerId:'manager'})]);
+ const snap=await f.api.read(actor),c=frontend();c.inputSnapshot=JSON.parse(JSON.stringify(snap));
+ vm.runInContext(`applyServerSnapshot(inputSnapshot);state.customers[0].customFields={level:'L5',customerNote:'Đã chăm sóc'};`,c);
+ await f.api.write(actor,'edit',JSON.parse(JSON.stringify(vm.runInContext('pendingChanges()',c))));
+ const again=await f.api.read(actor);assert.equal(again.state.customers[0].customFields.level,'L5');assert.equal(again.state.customers[0].customFields.customerNote,'Đã chăm sóc');
+ if(actor.role!=='ADMIN')await assert.rejects(f.api.write({...actor,id:'outsider',teamId:'other'},'unauthorized',[change('customers',{...again.state.customers[0],customFields:{level:'HACK'}},again.versions['customers/c1'])]),e=>e.status===403);
+});
+
+test('Manual customer without webhook slug never inherits an unrelated website',()=>{
+ const c=frontend();vm.runInContext(`applyServerSnapshot({state:{...initialState(),websites:[{id:'w',name:'Website',domain:'example.test'}],customers:[{id:'manual',websiteId:null,saleId:'sale',customFields:{}}]},versions:{}});`,c);
+ assert.equal(vm.runInContext('state.customers[0].websiteId',c),null);assert.equal(vm.runInContext('state.customers[0].landingPageName',c),undefined);
+});
+
+test('F5 dựng snapshot xác thực trước khi chờ khôi phục SQL của bản nháp',async()=>{
+ const c=frontend();let finish;c.holdRecovery=()=>new Promise(resolve=>{finish=resolve;});
+ vm.runInContext('recoverPendingWrite=holdRecovery;render=()=>{};startWebhookConsumer=()=>{};startServerSyncPolling=()=>{};refreshNavigationCounts=()=>{};',c);
+ const task=vm.runInContext("startSession({id:'admin',role:'ADMIN'},true,'token',{state:initialState(),versions:{}})",c);
+ assert.equal(vm.runInContext('serverStateLoaded',c),true);assert.equal(vm.runInContext('serverRecoveryPending',c),true);
+ finish(null);assert.equal(await task,true);assert.equal(vm.runInContext('serverRecoveryPending',c),false);
+});
+
+test('Phiên thiếu metadata không được lấy danh tính từ cache tài khoản cũ',()=>{
+ const f=referenceCacheFixture();f.storage.setItem('nvt-crm-session-v1',JSON.stringify({token:'new-token'}));
+ f.storage.setItem('nvt_crm_cached_snapshot_v1',JSON.stringify({version:1,accountId:'old-admin',role:'ADMIN',snapshot:{user:{id:'old-admin',role:'ADMIN'},navigation:[],customers:[]}}));
+ assert.equal(vm.runInContext('readCachedSnapshot()',f.context),null);assert.equal(JSON.parse(f.storage.getItem('nvt-crm-session-v1')).accountId,undefined);
+});
+test('401 khi đồng bộ xóa token/cache nhưng giữ bản nháp riêng của tài khoản',async()=>{
+ const c=frontend();vm.runInContext("currentAccount={id:'sale',role:'SALE'};serverSyncToken='expired';applyServerSnapshot({state:initialState(),versions:{}});",c);
+ c.sessionStorage.setItem('nvt-crm-session-v1',JSON.stringify({token:'expired',accountId:'sale',role:'SALE'}));c.localStorage.setItem('nvt_crm_cached_snapshot_v1','cached');c.sessionStorage.setItem('nvt-crm-customer-edits-v1:sale','draft');
+ c.fetch=async()=>({ok:false,status:401,json:async()=>({error:'Expired'})});assert.equal(await c.syncServerState(),false);
+ assert.equal(c.localStorage.getItem('nvt_crm_cached_snapshot_v1'),null);assert.equal(c.sessionStorage.getItem('nvt-crm-session-v1'),null);assert.equal(c.sessionStorage.getItem('nvt-crm-customer-edits-v1:sale'),'draft');assert.equal(c.window.crmRuntimeAuthState,'unauthenticated');
 });

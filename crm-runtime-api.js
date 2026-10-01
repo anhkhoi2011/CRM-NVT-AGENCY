@@ -9,7 +9,7 @@
   const permissionRole = () => typeof effectivePermissionRole === 'function'
     ? effectivePermissionRole()
     : currentAccount?.actualRole || currentAccount?.role || '';
-  const requireRole = roles => { if (!currentAccount || !serverStateLoaded || !roles.includes(permissionRole())) throw Error('Tài khoản không có quyền thực hiện thao tác này.'); };
+  const requireRole = roles => { if(serverRecoveryPending)throw Error('Đang khôi phục lần lưu trước. Vui lòng chờ trong giây lát.'); if (!currentAccount || !serverStateLoaded || !roles.includes(permissionRole())) throw Error('Tài khoản không có quyền thực hiện thao tác này.'); };
   async function persist(action, kind) {
     if (!serverStateLoaded && currentAccount && serverSyncToken) await syncServerState();
     if (!currentAccount || !serverStateLoaded) throw Error('Dữ liệu chưa sẵn sàng. Vui lòng chờ đồng bộ rồi thử lại.');
@@ -172,7 +172,7 @@
       if(!await flushServerPersistence())throw Error('Hoàn tất lưu trước khi đổi Team.');
       managerTeamSelection=leaderId;currentAccount=hydrateSessionAccount({...currentAccount,role:'MANAGER'});closeModal();closeDrawer();return {ok:true};
     },
-    sessionIdentity(){return currentAccount&&serverStateLoaded?{id:currentAccount.id,conflict:serverConflict}:null;},
+    sessionIdentity(){return currentAccount&&serverStateLoaded&&!serverRecoveryPending?{id:currentAccount.id,conflict:serverConflict}:null;},
     customerSelection(id,kind,fieldId){
       const customer=customerById(id);
       if(!currentAccount||!serverStateLoaded||!customer||!canViewCustomer(customer))throw Error('Không còn quyền xem khách hàng trong bản nháp.');
