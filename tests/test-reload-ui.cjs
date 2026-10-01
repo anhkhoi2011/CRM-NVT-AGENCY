@@ -76,3 +76,13 @@ test('HTML runtime có version vẫn phải kiểm tra lại cache khi deploy',(
  assert.match(server,/'Cache-Control':extension==='\.html' \? 'no-cache'/);
  assert.match(html,/crm-runtime\.html\?v=20261001-fast-boot-1/);
 });
+test('Actions re-render immediately after save instead of waiting for the 15s poll',()=>{
+ const src=require('node:fs').readFileSync('reference-crm.js','utf8');
+ const body=src.slice(src.indexOf('async function run(action,done)'),src.indexOf('function project()'));
+ // refresh() bỏ qua lượt vẽ khi working=true; lượt vẽ sau khi lưu phải nằm sau finally.
+ assert.ok(body.indexOf('finally{working=false;}')>=0);
+ assert.ok(body.lastIndexOf('refresh(true)')>body.indexOf('finally{working=false;}'));
+ assert.doesNotMatch(body,/try \{ const result=await action\(\); if\(done\)done\(result\); refresh\(true\)/);
+ assert.match(src,/finally\{workflowBusy=false;\}\s*if\(done\)refresh\(true\);/);
+ assert.match(src,/if\(saved\)refresh\(true\);/);
+});

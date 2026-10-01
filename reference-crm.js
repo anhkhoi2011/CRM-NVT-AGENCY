@@ -464,9 +464,16 @@
   async function run(action,done) {
     if(working||customerSaveQueue.pending){referenceNotice('Đang lưu lựa chọn. Bạn có thể tiếp tục chọn trong bảng.');return null;} if(!api||!data||!api.sessionIdentity())return;
     working=true;
-    try { const result=await action(); if(done)done(result); refresh(true); return result; }
-    catch(e){window.alert(e.message||'Không lưu được dữ liệu.');refresh(true); return null;}
+    // refresh() bỏ qua lượt vẽ khi working=true (coi như đang sửa), nên phải nhả cờ
+    // trước rồi mới vẽ lại. Trước đây vẽ lại trong try nên bị bỏ qua: xóa/sửa xong
+    // phải chờ chu kỳ làm mới 15 giây mới thấy thay đổi.
+    let result=null;
+    try { result=await action(); }
+    catch(e){working=false;window.alert(e.message||'Không lưu được dữ liệu.');refresh(true);return null;}
     finally{working=false;}
+    if(done)done(result);
+    refresh(true);
+    return result;
   }
   function project() {
     const customersById = new Map(data.customers.map(c => [c.id,c]));
@@ -481,7 +488,10 @@
     modal.innerHTML=`<form class="modal-card reference-editor-card" role="dialog" aria-modal="true" aria-labelledby="refEditorTitle"><div class="modal-header"><h3 id="refEditorTitle">${esc(title)}</h3><button type="button" class="modal-close-btn" data-editor-close aria-label="Đóng">×</button></div><div class="modal-body reference-editor-body">${body}<p data-editor-error role="alert"></p></div><div class="modal-footer"><button type="button" class="btn-action btn-secondary" data-editor-close>Đóng</button>${onSave?'<button class="btn-action btn-primary" type="submit">Lưu</button>':''}</div></form>`;
     document.body.appendChild(modal);modal.querySelectorAll('[data-editor-close]').forEach(n=>n.onclick=()=>{if(background||!working){modal.remove();refresh(true);}});
     modal.querySelector('form').onsubmit=async e=>{e.preventDefault();if(!onSave||(!background&&working))return;if(!background)working=true;const controls=Array.from(e.currentTarget.elements),disabled=controls.map(n=>n.disabled);modal.querySelector('[data-editor-error]').textContent='';
-      try{const operation=onSave();controls.forEach(n=>n.disabled=true);await operation;modal.remove();refresh(true);}catch(error){modal.querySelector('[data-editor-error]').textContent=error.message;}finally{if(!background)working=false;controls.forEach((n,i)=>n.disabled=disabled[i]);}
+      let saved=false;
+      try{const operation=onSave();controls.forEach(n=>n.disabled=true);await operation;modal.remove();saved=true;}catch(error){modal.querySelector('[data-editor-error]').textContent=error.message;}finally{if(!background)working=false;controls.forEach((n,i)=>n.disabled=disabled[i]);}
+      // Vẽ lại sau khi đã nhả cờ working, nếu không refresh() bỏ qua lượt này.
+      if(saved)refresh(true);
     };return modal;
   }
   function ensureReferenceEditorStyles(){
@@ -1320,9 +1330,11 @@
       const form=event.currentTarget,input=Object.fromEntries(new FormData(form));input.active=input.active==='true';
       input.imageData=selectedImageData||(removeImage?'':String(p.imageData||''));
       const controls=Array.from(form.elements);controls.forEach(n=>n.disabled=true);text('refProductError','');
-      try{await api.saveProduct(id,input);modal.remove();refresh(true);}
+      let saved=false;
+      try{await api.saveProduct(id,input);modal.remove();saved=true;}
       catch(error){text('refProductError',error.message||'Chưa lưu được sản phẩm.');}
       finally{working=false;controls.forEach(n=>n.disabled=false);if(modal.isConnected)sync();}
+      if(saved)refresh(true);
     };
     q('#refProductName').focus();
   }
@@ -1952,9 +1964,11 @@
         if(type==='click'&&!clone.matches('button,a,input[readonly]'))return;
         if(type==='click'&&clone.matches('button')&&clone.type==='submit'&&clone.closest('form'))return;
         event.preventDefault();event.stopPropagation();if(workflowBusy)return;syncWorkflowControls();workflowBusy=true;
-        try{const result=await api.workflowEvent(source,type);if(type!=='input')drawWorkflow();if(workflowModal)workflowModal.querySelector('[data-workflow-notice]').textContent=result.notice||'';refresh(true);}
+        let done=false;
+        try{const result=await api.workflowEvent(source,type);if(type!=='input')drawWorkflow();if(workflowModal)workflowModal.querySelector('[data-workflow-notice]').textContent=result.notice||'';done=true;}
         catch(e){modal.querySelector('[data-workflow-notice]').textContent=e.message;}
         finally{workflowBusy=false;}
+        if(done)refresh(true);
       };
       modal.addEventListener('click',e=>{if(kind==='profile'&&e.target.closest('[data-workflow-profile-save]')){e.preventDefault();e.stopPropagation();modal.querySelector('#wf-profileForm')?.requestSubmit();}},true);
       modal.addEventListener('click',e=>invoke(e,'click'));
