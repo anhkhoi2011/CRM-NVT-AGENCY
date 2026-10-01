@@ -1723,58 +1723,6 @@
     `;document.head.appendChild(style);}
     if(root)root.className='telegram-admin-studio';
   }
-  function telegramStudio(){
-    const host=q('#tab-notifications');if(!host||data.user.role!=='ADMIN')return;styleTelegramStudio();let root=q('#adminTelegramStudio');
-    if(!root){
-      root=document.createElement('section');root.id='adminTelegramStudio';root.className='telegram-admin-studio';
-      root.innerHTML='<div class="telegram-studio-head"><div class="telegram-studio-head-main"><span class="telegram-studio-icon">📢</span><div><h2>Trung Tâm Thông Báo Telegram Cho Admin</h2><p class="telegram-subtitle">Chọn mẫu và chỉnh sửa nội dung trước khi gửi</p></div></div><span class="telegram-admin-tag">ADMIN STUDIO</span></div><div class="telegram-studio-body"><div class="telegram-presets-heading"><span>💡 Mẫu thông báo</span><button type="button" data-telegram-reset>✏️ Tự soạn tự do</button></div><div data-telegram-presets></div><form data-telegram-form><input type="hidden" data-telegram-type value="MEETING"><div class="telegram-form-top"><div style="display:flex;align-items:center;gap:8px"><span style="color:#64748b;font-size:12px;font-weight:600">Đang chọn:</span><span data-telegram-active-badge class="telegram-active-badge" data-tone="blue"><span>📅</span> <span>Họp tổng tuần</span></span></div><label style="font-size:12px;font-weight:700;color:#334155;display:flex;align-items:center;gap:8px;margin:0"><span>Đối tượng nhận:</span><select data-telegram-target style="min-height:36px;padding:6px 10px;border:1px solid #cbd5e1;border-radius:8px;font-weight:700;color:#1e293b;width:auto"><option value="ALL">🌐 Toàn bộ Agency (Sale + Leader + Manager)</option><option value="SALE">💼 Chỉ Đội ngũ Sales / Tư vấn</option><option value="MANAGERS">🎖️ Chỉ Ban Quản Lý (Leader & Manager)</option></select></label></div><label style="display:block;margin-top:12px;font-size:12.5px;font-weight:800;color:#1e335f">Tiêu đề thông báo</label><input required maxlength="200" data-telegram-title placeholder="Tiêu đề thông báo..."><div data-telegram-meeting class="telegram-meeting-box"><label style="font-size:12px;font-weight:700;color:#1e3a8a">⏰ Thời gian diễn ra họp<input data-telegram-time placeholder="VD: 16:30 chiều nay"></label><label style="font-size:12px;font-weight:700;color:#1e3a8a">📍 Địa điểm / Link họp<input data-telegram-link placeholder="meet.google.com/..."></label><div class="telegram-meeting-reminder"><div class="telegram-meeting-reminder-copy"><span style="font-size:16px">🔔</span><span><strong>Nhắc lại trước giờ họp</strong></span></div><select data-telegram-remind><option value="15">⏰ Nhắc trước 15 phút (Khuyên dùng)</option><option value="30">⏰ Nhắc trước 30 phút</option><option value="45">⏰ Nhắc trước 45 phút</option><option value="60">⏰ Nhắc trước 1 tiếng</option><option value="120">⏰ Nhắc trước 2 tiếng</option><option value="0">❌ Không nhắc</option></select></div></div><label style="display:block;margin-top:12px;font-size:12.5px;font-weight:800;color:#1e335f">Người chủ trì / Ban hành<input data-telegram-host value="Ban Quản Trị NVT Agency"></label><label style="display:block;margin-top:12px;font-size:12.5px;font-weight:800;color:#1e335f">Nội dung chi tiết thông báo<textarea required maxlength="4000" rows="4" data-telegram-content></textarea></label><div class="telegram-send-row"><button type="submit" class="btn-primary" data-telegram-send>🚀 BẮN THÔNG BÁO TELEGRAM NGAY</button></div></form></div>';
-      const presets=root.querySelector('[data-telegram-presets]');
-      Object.entries(telegramTemplates).forEach(([key,item])=>{
-        const b=document.createElement('button');b.type='button';b.dataset.telegramPreset=key;b.dataset.tone=item.tone;
-        b.innerHTML='<div class="preset-top"><span class="preset-icon">'+item.icon+'</span><span class="preset-badge">'+item.badge+'</span></div><strong class="preset-title">'+item.title+'</strong><span class="preset-desc">'+item.desc+'</span>';
-        b.onclick=()=>{
-          root.querySelectorAll('[data-telegram-preset]').forEach(n=>n.classList.remove('is-selected'));
-          b.classList.add('is-selected');
-          const typeInput=root.querySelector('[data-telegram-type]');if(typeInput)typeInput.value=item.type;
-          root.querySelector('[data-telegram-target]').value=item.target;
-          root.querySelector('[data-telegram-title]').value=item.title;
-          root.querySelector('[data-telegram-content]').value=item.content;
-          const timeInput=root.querySelector('[data-telegram-time]');if(timeInput)timeInput.value=item.time||'';
-          const linkInput=root.querySelector('[data-telegram-link]');if(linkInput)linkInput.value=item.link||'';
-          const hostInput=root.querySelector('[data-telegram-host]');if(hostInput)hostInput.value=item.host||'Ban Quản Trị NVT Agency';
-          toggleTelegramMeeting(root);
-        };
-        presets.appendChild(b);
-      });
-      root.querySelector('[data-telegram-reset]').onclick=()=>{
-        root.querySelectorAll('[data-telegram-preset]').forEach(n=>n.classList.remove('is-selected'));
-        const typeInput=root.querySelector('[data-telegram-type]');if(typeInput)typeInput.value='CUSTOM';
-        root.querySelector('[data-telegram-title]').value='';root.querySelector('[data-telegram-content]').value='';
-        const timeInput=root.querySelector('[data-telegram-time]');if(timeInput)timeInput.value='';
-        const linkInput=root.querySelector('[data-telegram-link]');if(linkInput)linkInput.value='';
-        toggleTelegramMeeting(root);
-        root.querySelector('[data-telegram-title]')?.focus();
-      };
-      presets.querySelector('[data-telegram-preset="meeting_weekly"]')?.click();
-      root.querySelector('[data-telegram-form]').onsubmit=e=>{
-        e.preventDefault();const get=s=>root.querySelector(s)?.value?.trim()||'';const remindSelect=root.querySelector('[data-telegram-remind]');
-        const title=get('[data-telegram-title]'), content=get('[data-telegram-content]');
-        run(async ()=>{
-          const res=await api.telegramBroadcast({
-            type:get('[data-telegram-type]'),target:get('[data-telegram-target]'),title:title,content:content,host:get('[data-telegram-host]'),
-            meeting_time:root.querySelector('[data-telegram-time]')?.value||null,meeting_link:get('[data-telegram-link]'),remind_minutes:remindSelect?Number(remindSelect.value):0
-          });
-          try{await api.announce({title:title,text:content});}catch(_){}
-          return res;
-        },(result)=>{
-          referenceNotice(`Đã bắn thông báo Telegram và lưu hệ thống CRM tới ${result?.sent||0} tài khoản.`);
-          e.target.reset();root.querySelector('[data-telegram-host]').value='Ban Quản Trị NVT Agency';toggleTelegramMeeting(root);
-        });
-      };
-      host.querySelector('.headline-row')?.after(root);
-    }
-    toggleTelegramMeeting(root);
-  }
   let noticeFilter=0;
   const userActivityToken=()=>{try{const session=JSON.parse(sessionStorage.getItem('nvt-crm-session-v1')||'{}');const stored=String(session.token||session.accessToken||'').trim();if(stored)return stored;}catch{}try{return typeof serverSyncToken!=='undefined'?String(serverSyncToken||'').trim():'';}catch{return '';}};
   const userActivityTime=value=>{const raw=String(value||'').replace('T',' ').replace(/\.\d+Z?$/,'');return raw&&raw!=='null'?raw.slice(0,19):'Chưa ghi nhận';};
@@ -2028,9 +1976,6 @@
     const role=data.user.actualRole||data.user.role,allowed=roleTools[role];
     featureActions.set(tab,items.filter(([kind])=>(!allowed||allowed.has(kind))&&(!['profile','customers','pool','accept','attendance','revenue','marketing','orders'].includes(kind)||data.navigation.includes(kind)||(kind==='pool'&&role==='ADMIN'))&&(kind!=='reports'||['ADMIN','MANAGER','LEADER'].includes(role))&&(!['import','categories','fields','settings','createTeam','products','distribution','member','emailTest'].includes(kind)||role==='ADMIN')));
   }
-  function renderTools(){
-    q('#referenceTools')?.remove();
-  }
   function removeUnusedControls(){
     q('#tab-team .headline-row button')?.remove();
     q('#referenceTools')?.remove();
@@ -2103,7 +2048,6 @@
       .attendance-personal-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.attendance-personal-kpis>div{padding:13px 14px;border:1px solid var(--border-light);border-radius:11px;background:var(--bg-subtle)}.attendance-personal-kpis strong{display:block;font-size:22px}.attendance-personal-kpis span{display:block;margin-top:3px;color:var(--text-muted);font-size:11px}.attendance-personal-history{overflow:hidden;border:1px solid var(--border);border-radius:12px}.attendance-personal-history-head{padding:14px 16px;border-bottom:1px solid var(--border);background:var(--bg-subtle)}.attendance-personal-history .table-responsive{max-height:380px;overflow:auto}.attendance-personal-history table{min-width:700px}@media(max-width:600px){.attendance-personal-card{padding:16px}.attendance-personal-kpis{grid-template-columns:1fr}.attendance-personal-head .chip{width:100%;text-align:center}}
     `;document.head.appendChild(style);
   }
-  function attendanceMonthIso(base,offset){const d=new Date(String(base).slice(0,10)+'T00:00:00Z');d.setUTCDate(1);d.setUTCMonth(d.getUTCMonth()-offset);return {year:d.getUTCFullYear(),month:d.getUTCMonth()};}
   function attendanceDetailMarkup(memberId,selectedMonth=''){
     const role=data.user.actualRole||data.user.role;
     const personal=role!=='ADMIN';
@@ -2206,14 +2150,8 @@
     const host=q('#businessReportHost');if(!host)return;installBrokerageStyles();const period=brokeragePeriod||data.today.slice(0,7);brokeragePeriod=period;const role=data.user.actualRole||data.user.role,rows=brokerageRows(period),published=role==='ADMIN'||(data.settings?.brokeragePublishedPeriods||[]).includes(period),visibleRows=published?rows:rows.map(row=>({...row,lots:0,indicatorRevenue:0,courseRevenue:0,lotCommission:0,indicatorCommission:0,courseCommission:0,bonus:0,gross:0,vat:0,net:0,metric:{...row.metric,basicLots:0,microLots:0,nanoLots:0}})),sum=key=>visibleRows.reduce((total,row)=>total+Number(row[key]||0),0);
     host.innerHTML=`<div class="headline-row"><div><h1>Báo cáo kinh doanh</h1></div></div><div class="brokerage-toolbar"><label>Kỳ báo cáo<input id="brokeragePeriod" type="month" value="${esc(period)}"></label>${role==='ADMIN'?`<button type="button" class="btn-action ${published?'btn-secondary':'btn-primary'}" id="brokeragePublishBtn">${published?'Ẩn kỳ báo cáo':'Công bố tháng này'}</button>`:''}</div><div class="brokerage-grid"><article class="brokerage-kpi"><small>Lot chuẩn</small><b>${sum('lots').toFixed(2)}</b></article><article class="brokerage-kpi"><small>DS chỉ báo</small><b>${brokerageMoney(sum('indicatorRevenue'))}</b></article><article class="brokerage-kpi"><small>Tổng hoa hồng</small><b>${brokerageMoney(sum('gross'))}</b></article><article class="brokerage-kpi"><small>VAT chỉ báo / khóa học</small><b>${brokerageMoney(sum('vat'))}</b></article><article class="brokerage-kpi"><small>Thực nhận</small><b>${brokerageMoney(sum('net'))}</b></article></div><div class="brokerage-table-wrap"><table class="modern-table brokerage-table"><thead><tr><th>#</th><th>Nhân sự</th><th>Team</th><th>Lot cơ bản</th><th>Micro</th><th>Nano</th><th>Lot chuẩn</th><th>DS chỉ báo</th><th>DS khóa học</th><th>HH lot</th><th>HH chỉ báo</th><th>HH khóa học</th><th>Thưởng</th><th>Tổng thu</th><th>VAT</th><th>Thực nhận</th>${role==='ADMIN'?'<th></th>':''}</tr></thead><tbody>${visibleRows.map((row,index)=>`<tr><td>${index+1}</td><td><b>${esc(row.member.name)}</b><div style="font-size:10px;color:var(--text-muted)">${esc(row.member.accountId||row.member.phone||'')}</div></td><td>${esc(row.member.teamId||'—')}</td><td>${Number(row.metric.basicLots||0)}</td><td>${Number(row.metric.microLots||0)}</td><td>${Number(row.metric.nanoLots||0)}</td><td><b>${row.lots.toFixed(2)}</b></td><td>${brokerageMoney(row.indicatorRevenue)}</td><td>${brokerageMoney(row.courseRevenue)}</td><td>${brokerageMoney(row.lotCommission)}</td><td>${brokerageMoney(row.indicatorCommission)}<div style="font-size:10px;color:var(--text-muted)">${brokerageRate(row.metric.indicatorCommissionRate)}</div></td><td>${brokerageMoney(row.courseCommission)}<div style="font-size:10px;color:var(--text-muted)">${brokerageRate(row.metric.courseCommissionRate)}</div></td><td>${brokerageMoney(row.bonus)}</td><td><b>${brokerageMoney(row.gross)}</b></td><td>${brokerageMoney(row.vat)}<div style="font-size:10px;color:var(--text-muted)">${brokerageRate(row.metric.vatRate)}</div></td><td><b>${brokerageMoney(row.net)}</b></td>${role==='ADMIN'?`<td><button class="btn-action btn-secondary" data-brokerage-edit="${esc(row.member.id)}">Lot / tỷ lệ</button></td>`:''}</tr>`).join('')||'<tr><td colspan="17"><div class="empty"><b>Chưa có Sale trong phạm vi</b></div></td></tr>'}</tbody></table></div>`;
     q('#brokeragePeriod').onchange=e=>{brokeragePeriod=e.target.value||data.today.slice(0,7);businessReport();};q('#brokeragePublishBtn')?.addEventListener('click',()=>toggleBrokeragePublication(period));host.querySelectorAll('[data-brokerage-edit]').forEach(button=>button.onclick=()=>brokerageMetricEditor(rows.find(row=>row.member.id===button.dataset.brokerageEdit),period));
-  }  function accountingMindmap(rows,period){const salesByLeader=new Map();rows.forEach(row=>{const list=salesByLeader.get(row.member.leaderId)||[];list.push(row);salesByLeader.set(row.member.leaderId,list);});const leaders=data.members.filter(member=>member.role==='LEADER'&&member.active!==false).sort((a,b)=>a.name.localeCompare(b.name,'vi'));return `<div class="mindmap"><div class="mindmap-root">CÂY MÔI GIỚI · ${esc(period)}</div>${leaders.length?`<ul class="mindmap-list">${leaders.map(leader=>{const children=salesByLeader.get(leader.id)||[];return `<li><span class="mindmap-node"><b>${esc(leader.name)}</b> <small>${esc(leader.accountId||leader.id)} · ${children.reduce((sum,row)=>sum+row.lots,0).toFixed(2)} lot</small></span><ul class="mindmap-list">${children.map(row=>`<li><span class="mindmap-node">${esc(row.member.name)} <small>${esc(row.member.accountId||row.member.id)} · ${row.lots.toFixed(2)} lot · ${brokerageMoney(row.net)}</small></span></li>`).join('')||'<li><span class="mindmap-node">Chưa có Sale</span></li>'}</ul></li>`;}).join('')}</ul>`:'<div class="mindmap-empty">Chưa có cấu trúc Leader / Sale để dựng cây môi giới.</div>'}</div>`;}
+  }
   // Chi phí kế toán lấy từ collection expenses đã đồng bộ SQL, không dùng localStorage.
-  function getStoredAdminExpenses(period){
-    return (data.expenses||[]).filter(item=>!period||String(item.date||'').slice(0,7)===period).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
-  }
-  function saveStoredAdminExpenses(list){
-    return list;
-  }
   window.accountingSubView = 'mindmap';
   let accountingSubView = 'mindmap';
 
@@ -2635,14 +2573,6 @@
   };
   setRevenueDonutPeriod=(period,btn)=>{revenuePeriod=parseInt(period)||30;q('#revStartDate').value=fromDay(revenuePeriod);q('#revEndDate').value=data.today;qa('#donutRevenuePeriodTabs button,#revenueTopPeriodTabs button').forEach(b=>b.classList.toggle('active',parseInt(b.textContent)===revenuePeriod));renderRevenue();};
   filterRevenuePeriod=setRevenueDonutPeriod;applyCustomRevenueDate=renderRevenue;
-  function bindSettings(){const root=q('#tab-settings'),selects=root.querySelectorAll('select:not([data-feature-menu])'),ranges=root.querySelectorAll('input[type=range]'),inputs=root.querySelectorAll('input');const fonts=Object.fromEntries(data.fonts||[]);selects[1].innerHTML=(data.fonts||[]).map(([key,label])=>opt(key,label,data.settings.fontFamily||'aptos')).join('');
-    if(!Array.from(selects[0].options).some(o=>o.value===(data.settings.customAccent||'#2563eb')))selects[0].add(new Option(data.settings.customAccent,data.settings.customAccent));selects[0].value=data.settings.customAccent||'#2563eb';if(!q('#referenceAccentPicker')){const picker=document.createElement('input');picker.id='referenceAccentPicker';picker.type='color';picker.value=selects[0].value;selects[0].parentElement.appendChild(picker);picker.oninput=()=>{if(!Array.from(selects[0].options).some(o=>o.value===picker.value))selects[0].add(new Option(picker.value,picker.value));selects[0].value=picker.value;preview();};}selects[1].value=data.settings.fontFamily||'aptos';ranges[0].value=data.settings.navigationFontSize||12;ranges[1].value=data.settings.contentFontSize||14;
-    const settingsFields={};root.querySelectorAll('.form-group').forEach(group=>{const label=group.querySelector('label')?.textContent||'',input=group.querySelector('input');if(!input)return;const key=label.includes('DATA - TOKEN')?'dataBotToken':label.includes('DATA - CHAT ID')?'dataBotChatId':label.includes('THÀNH VIÊN - TOKEN')?'memberBotToken':label.includes('THÀNH VIÊN - CHAT ID')?'memberBotChatId':null;if(key){settingsFields[key]=input;input.value=data.settings[key]||'';}});root.querySelector('input[type=checkbox]')?.setAttribute('data-legacy-hidden','true');
-    const preview=()=>{const style=document.documentElement.style;style.setProperty('--accent',selects[0].value);style.setProperty('--font-sans',"'"+(fonts[selects[1].value]||'Aptos')+"', sans-serif");qa('.nav-link').forEach(n=>n.style.fontSize=ranges[0].value+'px');qa('.content-body input:not([type=range]),.content-body select,.content-body td').forEach(n=>n.style.fontSize=ranges[1].value+'px');selects[0].nextElementSibling.style.background=selects[0].value;ranges.forEach(range=>{range.previousElementSibling?.querySelector('span:last-child')&&(range.previousElementSibling.querySelector('span:last-child').textContent=range.value+'PX');});};
-    selects[0].onchange=preview;selects[1].onchange=preview;ranges.forEach(r=>r.oninput=preview);if(data.settings.referenceAppearance)preview();
-    const save=qa('#tab-settings button').find(b=>(b.getAttribute('onclick')||'').includes('Đã lưu cấu hình CRM')||b.textContent.trim()==='Lưu cấu hình');
-    if(save){save.removeAttribute('onclick');save.onclick=()=>run(()=>api.settings({customAccent:selects[0].value,fontFamily:selects[1].value,navigationFontSize:Number(ranges[0].value),contentFontSize:Number(ranges[1].value),referenceAppearance:true,...Object.fromEntries(Object.entries(settingsFields).map(([key,input])=>[key,input.value.trim()]))}),()=>alert('Đã lưu cấu hình.'));}
-  }
 
   // Binding rieng cho lop giao dien tham chieu. Dung id co dinh de nut Luu
   // van hoat dong du HTML bi thay doi thu tu hoac bi cache ban cu.

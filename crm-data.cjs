@@ -201,18 +201,30 @@ async function mirrorAttendanceRecords(c,data){
  }
 }
 // Phạm vi Manager lấy từ bản ghi đã lưu, tuyệt đối không lấy danh sách quyền từ request.
-function managerLeaders(user,data){return [...data.members.values()].filter(m=>m.active!==false&&m.role==='LEADER'&&m.managerId===user.id);}
-function managerSales(user,data){const leaders=managerLeaders(user,data),leaderIds=new Set(leaders.map(l=>l.id));return [...data.members.values()].filter(m=>m.active!==false&&m.role==='SALE'&&(m.managerId===user.id||m.leaderId===user.id||leaderIds.has(m.leaderId)));}
+// Trong một lượt snapshot(), các danh sách phạm vi không đổi. Trước đây mỗi khách
+// hàng lại quét toàn bộ members/dataOffers (O(khách × thành viên)), làm một lượt
+// F5 của Manager/Sale tốn hàng giây CPU và chặn mọi người dùng khác trên cùng Node.
+let snapshotMemo=null;
+function memoized(data,name,user,build){
+ if(!snapshotMemo||snapshotMemo.data!==data)return build();
+ const key=name+'\u0000'+user.id;
+ if(!snapshotMemo.values.has(key))snapshotMemo.values.set(key,build());
+ return snapshotMemo.values.get(key);
+}
+function managerLeaders(user,data){return memoized(data,'leaders',user,()=>[...data.members.values()].filter(m=>m.active!==false&&m.role==='LEADER'&&m.managerId===user.id));}
+function managerSales(user,data){return memoized(data,'sales',user,()=>{const leaders=managerLeaders(user,data),leaderIds=new Set(leaders.map(l=>l.id));return [...data.members.values()].filter(m=>m.active!==false&&m.role==='SALE'&&(m.managerId===user.id||m.leaderId===user.id||leaderIds.has(m.leaderId)));});}
+// members là Map theo id; tra trực tiếp thay vì duyệt toàn bộ cho từng bản ghi.
+function memberById(data,id){return id==null?null:data.members.get(id)||null;}
 function managerOwns(user,row,data){if(!row)return false;const leaders=managerLeaders(user,data),sales=managerSales(user,data);return row.managerId===user.id||row.ownerId===user.id||row.leaderId===user.id||leaders.some(l=>row.leaderId===l.id&&row.teamId===l.teamId)||sales.some(s=>row.saleId===s.id);}
 function managerReadable(user,key,r,data){
  const leaders=managerLeaders(user,data),ids=new Set(leaders.map(l=>l.id));
  if(key==='members')return r.id===user.id||ids.has(r.id)||(r.role==='SALE'&&((r.managerId===user.id)||r.leaderId===user.id||ids.has(r.leaderId)&&leaders.some(l=>l.id===r.leaderId&&l.teamId===r.teamId)));
  if(['customers','orders'].includes(key))return managerOwns(user,r,data);
  if(['products','customFieldDefinitions','productCategories','websites','settings','saleDistributionByLeader','careGroups','leaderDistribution'].includes(key))return true;
- if(key==='attendance')return r.accountId===user.id||[...data.members.values()].some(m=>m.id===r.accountId&&(ids.has(m.id)||m.role==='SALE'&&ids.has(m.leaderId)));
- if(key==='products'&&Object.hasOwn(value,'vatRate')&&(!Number.isFinite(Number(value.vatRate))||Number(value.vatRate)<0||Number(value.vatRate)>1))error(400,'Thuế suất sản phẩm không hợp lệ');
+ const inScope=m=>!!m&&(ids.has(m.id)||m.role==='SALE'&&ids.has(m.leaderId));
+ if(key==='attendance')return r.accountId===user.id||inScope(memberById(data,r.accountId));
  if(key==='brokerageMetrics')return ids.has(r.leaderId);
- if(key==='notifications')return r.role==='ALL'||r.saleId===user.id||managerSales(user,data).some(m=>m.id===r.saleId)||ids.has(r.leaderId)||[...data.members.values()].some(m=>m.id===r.saleId&&(ids.has(m.id)||m.role==='SALE'&&ids.has(m.leaderId)));
+ if(key==='notifications')return r.role==='ALL'||r.saleId===user.id||managerSales(user,data).some(m=>m.id===r.saleId)||ids.has(r.leaderId)||inScope(memberById(data,r.saleId));
  if(key==='audit')return r.actorId===user.id;
  if(key==='dataOffers')return (ids.has(r.leaderId)||r.leaderId===user.id||managerSales(user,data).some(m=>m.id===r.saleId))&&managerOwns(user,data.customers.get(r.customerId),data);
  return !!r.customerId&&managerOwns(user,data.customers.get(r.customerId),data);
@@ -268,7 +280,12 @@ function authorizeManager(user,key,old,next,data){
  return;
 }
 function customerScope(user,r){return !!r&&(user.role==='ADMIN'||(user.role==='SALE'&&r.saleId===user.id)||(user.role==='LEADER'&&((!!user.teamId&&r.teamId===user.teamId)||r.leaderId===user.id)));}
-function pendingOffer(data,user,id){return [...data.dataOffers.values()].find(o=>o.customerId===id&&o.saleId===user.id&&o.status==='PENDING'&&Date.parse(String(o.offeredAt).replace(' ','T')+'+07:00')+24*3600000>Date.now());}
+function offerPending(o,user,id){return o.customerId===id&&o.saleId===user.id&&o.status==='PENDING'&&Date.parse(String(o.offeredAt).replace(' ','T')+'+07:00')+24*3600000>Date.now();}
+function pendingOffer(data,user,id){
+ // Trong snapshot: lập chỉ mục một lần theo customerId thay vì quét mọi lời mời cho từng khách.
+ const index=memoized(data,'pendingOffers',user,()=>{const map=new Map();for(const o of data.dataOffers.values())if(o.saleId===user.id&&o.status==='PENDING'){if(!map.has(o.customerId))map.set(o.customerId,[]);map.get(o.customerId).push(o);}return map;});
+ return (index.get(id)||[]).find(o=>offerPending(o,user,id));
+}
 function readable(user,key,r,data){
  if(key==='feedbacks'||key==='processes')return true;
  if(user.role==='MANAGER')return managerReadable(user,key,r,data);
@@ -316,10 +333,24 @@ function publicValue(user,key,r,data){
 }
 function snapshot(user,data){
  const state={},versions={};
- for(const key of [...LISTS,...OBJECTS]){
-  if(LISTS.includes(key))state[key]=[];
-  for(const [id,r]of data[key]){if(!readable(user,key,r,data))continue;const value=publicValue(user,key,r,data);if(LISTS.includes(key))state[key].push(value);else state[key]=value;versions[`${key}/${id}`]=revision(value);}
- }
+ // data.revisions chỉ có trên bản dữ liệu dùng chung (chỉ đọc) của sharedData():
+ // bản ghi không đổi giữ nguyên object nên khỏi băm SHA-256 lại ở mỗi lượt đồng bộ.
+ const revisions=data.revisions instanceof WeakMap?data.revisions:null;
+ const previousMemo=snapshotMemo;snapshotMemo={data,values:new Map()};
+ try{
+  for(const key of [...LISTS,...OBJECTS]){
+   const list=LISTS.includes(key);
+   if(list)state[key]=[];
+   for(const [id,r]of data[key]){
+    if(!readable(user,key,r,data))continue;
+    const value=publicValue(user,key,r,data);
+    if(list)state[key].push(value);else state[key]=value;
+    let hash=revisions&&value&&typeof value==='object'?revisions.get(value):undefined;
+    if(hash===undefined){hash=revision(value);if(revisions&&value&&typeof value==='object')revisions.set(value,hash);}
+    versions[`${key}/${id}`]=hash;
+   }
+  }
+ }finally{snapshotMemo=previousMemo;}
  state.accounts=state.members;
  state.registeredAccounts=state.members.filter(r=>r.role==='UNASSIGNED');
  state.members=state.members.filter(r=>['SALE','LEADER','MANAGER'].includes(r.role));
@@ -674,7 +705,40 @@ async function distributeAutomatic(c, data = null) {
  return count || (roundsChanged?1:0);
 }
 
-async function read(user, options={}){await prepare();const c=await pool.getConnection();try{await c.beginTransaction();if(options.passive!==true)await c.query('SELECT id FROM crm_write_lock WHERE id=1 FOR UPDATE');const data=await allData(c,{mirrorAttendance:options.passive!==true});if(options.passive===true){const result=snapshot(user,data);await c.commit();return result;}await expireOffers(c,data);const assigned=await distributeAutomatic(c,data);await warnRentalExpiry(c,data);const result=snapshot(user,assigned?await allData(c):data);await c.commit();return result;}catch(e){await c.rollback().catch(()=>{});throw e;}finally{c.release();}}
+// Bộ đệm dữ liệu dùng chung cho các lượt đọc passive (F5 + đồng bộ 15 giây).
+// Trước đây mỗi người dùng tự SELECT toàn bộ 6 bảng và dựng lại mọi bản ghi; 30 người
+// cùng lúc là 30 lượt quét đầy đủ xếp hàng trên một luồng Node nên F5 quá 20 giây.
+// - Các lượt đọc đồng thời dùng chung một truy vấn (single-flight).
+// - Ghi qua CRM gọi invalidateSnapshotCache() nên người khác thấy ngay thay đổi.
+// - TTL ngắn bao phủ ghi từ tiến trình khác (worker Telegram, cron) không gọi được hàm trên.
+// Dữ liệu trong cache là chỉ đọc: snapshot()/publicValue() luôn tạo object mới khi cần sửa.
+const SNAPSHOT_CACHE_TTL_MS=Math.max(0,Number(typeof process!=='undefined'&&process.env?.CRM_SNAPSHOT_CACHE_MS!=null?process.env.CRM_SNAPSHOT_CACHE_MS:3000)||0);
+let sharedCache={generation:0,data:null,loadedAt:0,loading:null};
+function invalidateSnapshotCache(){sharedCache={generation:sharedCache.generation+1,data:null,loadedAt:0,loading:null};}
+async function loadSharedData(){
+ const c=await pool.getConnection();
+ try{await c.beginTransaction();const data=await allData(c,{mirrorAttendance:false});await c.commit();data.revisions=new WeakMap();return data;}
+ catch(e){await c.rollback().catch(()=>{});throw e;}
+ finally{c.release();}
+}
+function sharedData(){
+ const entry=sharedCache;
+ if(entry.data&&Date.now()-entry.loadedAt<SNAPSHOT_CACHE_TTL_MS)return Promise.resolve(entry.data);
+ if(entry.loading)return entry.loading;
+ const loading=loadSharedData().then(data=>{
+  // Có lượt ghi xen giữa: trả dữ liệu cho người đang chờ nhưng không giữ lại làm cache.
+  if(sharedCache===entry){entry.data=data;entry.loadedAt=Date.now();}
+  return data;
+ }).finally(()=>{if(entry.loading===loading)entry.loading=null;});
+ entry.loading=loading;
+ return loading;
+}
+async function read(user, options={}){
+ await prepare();
+ if(options.passive===true)return snapshot(user,await sharedData());
+ try{return await readActive(user);}finally{invalidateSnapshotCache();}
+}
+async function readActive(user){const c=await pool.getConnection();try{await c.beginTransaction();await c.query('SELECT id FROM crm_write_lock WHERE id=1 FOR UPDATE');const data=await allData(c,{mirrorAttendance:true});await expireOffers(c,data);const assigned=await distributeAutomatic(c,data);await warnRentalExpiry(c,data);const result=snapshot(user,assigned?await allData(c):data);await c.commit();return result;}catch(e){await c.rollback().catch(()=>{});throw e;}finally{c.release();}}
 function noteOnlyCustomerChange(oldValue, nextValue) {
  if (!oldValue || !nextValue || typeof oldValue !== 'object' || typeof nextValue !== 'object') return false;
  const allowed = new Set(['note','updatedAt']);
@@ -746,7 +810,7 @@ async function writeFastCustomerNotes(user, requestId, changes, enabled = false)
  finally { c.release(); }
 }
 
-async function write(user,requestId,changes,options={}){
+async function writeLocked(user,requestId,changes,options={}){
  if(typeof requestId!=='string'||!/^[-\w]{1,96}$/.test(requestId)||!Array.isArray(changes)||changes.length>2000)error(400,'Gói lưu không hợp lệ');
  const fastResult = await writeFastCustomerNotes(user, requestId, changes, options.fastNote === true);
  if (fastResult) return fastResult;
@@ -809,4 +873,6 @@ async function write(user,requestId,changes,options={}){
   const updated=await allData(c);const assigned=options.skipAutomatic===true?0:await distributeAutomatic(c,updated);const result=snapshot(user,assigned?await allData(c):updated);await c.commit();return {...result,ok:true};
  }catch(e){await c.rollback().catch(()=>{});throw e;}finally{c.release();}
 }
-module.exports={queueTelegramNotice,snapshot,distributeAutomatic,prepare,seedProductCatalog,read,write,writeFastCustomerNotes,revision,canonical,coreRow,userRow,authorize,readable,validate,LISTS,OBJECTS,SCHEMA};
+// Mọi lượt ghi qua CRM làm mới bộ đệm snapshot dùng chung (kể cả khi lỗi giữa chừng).
+async function write(user,requestId,changes,options={}){try{return await writeLocked(user,requestId,changes,options);}finally{invalidateSnapshotCache();}}
+module.exports={invalidateSnapshotCache,queueTelegramNotice,snapshot,distributeAutomatic,prepare,seedProductCatalog,read,write,writeFastCustomerNotes,revision,canonical,coreRow,userRow,authorize,readable,validate,LISTS,OBJECTS,SCHEMA};

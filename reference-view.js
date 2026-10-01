@@ -410,13 +410,6 @@ window.setCarePage = setCarePage;
     }
   }
 
-  function selectAllDataQueue() {
-    document.querySelectorAll('.data-queue-check').forEach(ck => {
-      const customer = appState.customers.find(item => item.id === ck.value);
-      // Chỉ chọn data hoàn toàn chưa có người phụ trách; data đã thuộc Leader/Sale giữ nguyên.
-      ck.checked = Boolean(customer && !customer.leaderId && !customer.saleId);
-    });
-  }
 
   function assignDataAction() {
     const checked = Array.from(document.querySelectorAll('.data-queue-check:checked')).map(ck => ck.value);
@@ -730,9 +723,6 @@ window.setCarePage = setCarePage;
 
   // Modal chi tiết điểm danh (Lịch 3 tháng)
   const attendanceModal = document.getElementById('attendanceModal');
-  function openAttendanceModal() {
-    if (attendanceModal) attendanceModal.classList.add('open');
-  }
   function closeAttendanceModal() {
     if (attendanceModal) attendanceModal.classList.remove('open');
   }

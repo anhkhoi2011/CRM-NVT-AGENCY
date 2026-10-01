@@ -1521,9 +1521,9 @@
       @media(max-width:860px){.data-date-filter-grid{grid-template-columns:1fr 1fr}.data-date-filter-footer{align-items:flex-start;flex-direction:column}.data-date-filter-actions{width:100%}.data-date-filter-actions button{flex:1}}
       @media(max-width:480px){.data-date-filter-head,.data-date-filter-body,.data-date-filter-footer{padding-left:15px;padding-right:15px}.data-date-filter-grid{grid-template-columns:1fr}.data-date-filter-presets{gap:6px}.data-date-filter-preset{flex:1 1 calc(50% - 6px);padding-left:8px;padding-right:8px}.data-date-filter-footer{gap:12px}}
     </style>
-<link rel="preload" as="script" href="reference-view.js?v=20260930-instant-f5-5">
+<link rel="preload" as="script" href="reference-view.js?v=20261001-cleanup-1">
 <link rel="preload" as="script" href="customer-save-queue.js?v=20261001-draft-merge-1">
-<link rel="preload" as="script" href="reference-crm.js?v=20261001-draft-merge-1">
+<link rel="preload" as="script" href="reference-crm.js?v=20261001-cleanup-1">
 <style id="crm-startup-guard">
 body:not(.reference-ready) > .app-shell,
 body:not(.reference-ready) > .bg-aura { visibility:hidden!important; }
@@ -1552,7 +1552,7 @@ body:not(.reference-ready) > .bg-aura { visibility:hidden!important; }
     message.appendChild(retry);
     boot.replaceChildren(message);
   }
-  const timer = setTimeout(showFailure, 20000);
+  const timer = setTimeout(showFailure, 45000);
   const observer = new MutationObserver(() => {
     if (boot.hidden) { clearTimeout(timer); observer.disconnect(); }
   });
@@ -1563,7 +1563,7 @@ body:not(.reference-ready) > .bg-aura { visibility:hidden!important; }
 })();
 </script>
 <!-- Ẩn lớp đăng nhập trong lúc khôi phục phiên để F5 không nhấp nháy về form login. -->
-<iframe id="crmRuntimeFrame" title="Đăng nhập CRM" src="crm-runtime.html?v=20261001-worker-swr-1" style="display:none;position:fixed;inset:0;width:100%;height:100%;border:0;z-index:2147483647;background:white"></iframe>
+<iframe id="crmRuntimeFrame" title="Đăng nhập CRM" src="crm-runtime.html?v=20261001-fast-boot-1" style="display:none;position:fixed;inset:0;width:100%;height:100%;border:0;z-index:2147483647;background:white"></iframe>
 
 
 <div class="bg-aura"></div>
@@ -4710,9 +4710,9 @@ body:not(.reference-ready) > .bg-aura { visibility:hidden!important; }
 </div>
 
 
-<script src="reference-view.js?v=20260930-instant-f5-5"></script>
+<script src="reference-view.js?v=20261001-cleanup-1"></script>
 <script src="customer-save-queue.js?v=20261001-draft-merge-1"></script>
-<script src="reference-crm.js?v=20261001-draft-merge-1"></script>
+<script src="reference-crm.js?v=20261001-cleanup-1"></script>
 <script src="support-chat-widget.js?v=20261001-no-sse-1"></script>
 <script>
   (() => {

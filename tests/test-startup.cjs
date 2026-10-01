@@ -42,7 +42,7 @@ test('Missing startup script offers reload without touching pending storage',()=
  const f=bootFixture();f.listeners.error({target:{tagName:'SCRIPT'}});assert.equal(f.boot.children.length,1);const retry=f.boot.children[0].children[0];retry.onclick();assert.equal(f.reloaded,true);
 });
 test('Stalled boot has a bounded timeout and no automatic reload loop',()=>{
- const f=bootFixture();assert.equal(f.timers[0].ms,20000);f.timers[0].fn();assert.equal(f.boot.children.length,1);assert.equal(f.reloaded,false);
+ const f=bootFixture();assert.equal(f.timers[0].ms,45000);f.timers[0].fn();assert.equal(f.boot.children.length,1);assert.equal(f.reloaded,false);
 });
 test('Successful boot cancels watchdog and ignores later resource errors',()=>{
  const f=bootFixture();f.boot.hidden=true;f.observer();assert.equal(f.timers[0].cleared,true);assert.equal(f.disconnected,true);f.listeners.error({target:{tagName:'SCRIPT'}});assert.equal(f.boot.children.length,0);

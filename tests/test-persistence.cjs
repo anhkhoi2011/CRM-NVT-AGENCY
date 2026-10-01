@@ -1609,3 +1609,28 @@ test('Snapshot reads on one connection run sequentially, avoiding false query ti
  const body=store.slice(start,store.indexOf('\n}\n',start));
  assert.ok(!body.includes('Promise.all('));
 });
+test('Passive reads share one snapshot query and see CRM writes immediately',async()=>{
+ const f=fixture();await f.api.write(admin,'cache-1',[change('customers',customer)]);
+ const customerSelects=()=>f.queries.filter(q=>q.sql==='SELECT * FROM customers').length;
+ const before=customerSelects();
+ // 3 người F5 cùng lúc: chỉ một lượt quét bảng, không xếp hàng 3 lần.
+ const reads=await Promise.all([f.api.read(admin,{passive:true}),f.api.read(sale,{passive:true}),f.api.read(admin,{passive:true})]);
+ assert.equal(customerSelects()-before,1);
+ assert.equal(reads.map(r=>r.state.customers.length).join(','),'1,1,1');
+ assert.equal(f.events.filter(e=>e==='lock').length>0,true);
+ const locksBefore=f.events.filter(e=>e==='lock').length;
+ await f.api.read(admin,{passive:true});
+ assert.equal(f.events.filter(e=>e==='lock').length,locksBefore,'passive read must not take crm_write_lock');
+ await f.api.write(admin,'cache-2',[change('customers',{...customer,id:'c2',phone:'0912345679'})]);
+ const after=await f.api.read(admin,{passive:true});
+ assert.equal(after.state.customers.map(r=>r.id).sort().join(','),'c1,c2');
+ assert.equal(after.versions['customers/c1'],reads[0].versions['customers/c1']);
+});
+test('External invalidation refreshes the shared snapshot cache',async()=>{
+ const f=fixture();await f.api.write(admin,'cache-3',[change('customers',customer)]);
+ await f.api.read(admin,{passive:true});
+ f.db.customers.find(r=>r.id==='c1').name='Đổi từ Telegram';
+ f.api.invalidateSnapshotCache();
+ const next=await f.api.read(admin,{passive:true});
+ assert.equal(next.state.customers[0].name,'Đổi từ Telegram');
+});

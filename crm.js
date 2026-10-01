@@ -367,10 +367,6 @@ function cleanId(value) {
   return typeof value === 'string' && /^[A-Za-z0-9._:-]{1,96}$/.test(value) ? value : null;
 }
 
-function cleanNumber(value, fallback = 0, min = 0, max = Number.MAX_SAFE_INTEGER, integer = false) {
-  if (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max) return fallback;
-  return integer ? Math.round(value) : value;
-}
 
 function cleanTimestamp(value, fallback = '') {
   const candidate = cleanText(value, '', 16);
@@ -394,19 +390,6 @@ function cleanClockTime(value, fallback = '') {
   return candidate;
 }
 
-function uniqueRecords(records, fallback, sanitizer) {
-  const input = Array.isArray(records) ? records : fallback;
-  const seen = new Set();
-  const result = [];
-  input.forEach(raw => {
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return;
-    const item = sanitizer(raw);
-    if (!item || seen.has(item.id)) return;
-    seen.add(item.id);
-    result.push(item);
-  });
-  return result;
-}
 
 function defaultCustomFieldValue(field) {
   if (field.type === 'MULTI_SELECT') return [];
@@ -415,34 +398,6 @@ function defaultCustomFieldValue(field) {
   return '';
 }
 
-function normalizeCustomFieldDefinition(field) {
-  const id = cleanId(field.id);
-  const type = ['TEXT', 'NOTE', 'SELECT', 'MULTI_SELECT', 'CHECKBOX', 'NOTIFICATION', 'DATE', 'NUMBER', 'URL'].includes(field.type) ? field.type : null;
-  if (!id || !type) return null;
-  const seen = new Set();
-  const options = ['SELECT', 'MULTI_SELECT'].includes(type) && Array.isArray(field.options)
-    ? field.options.map((option, index) => {
-      const value = cleanText(typeof option === 'string' ? option : option?.value, '', 160).trim();
-      if (!value || seen.has(value)) return null;
-      seen.add(value);
-      return {
-        value,
-        label: cleanText(typeof option === 'string' ? option : option?.label, value, 200).trim() || value,
-        color: /^#[0-9a-f]{6}$/i.test(option?.color || '') ? option.color : FIELD_COLORS[index % FIELD_COLORS.length]
-      };
-    }).filter(Boolean)
-    : [];
-  return {
-    id,
-    label: cleanText(field.label, 'Cột dữ liệu', 160).trim() || 'Cột dữ liệu',
-    type,
-    showInTable: field.showInTable === true,
-    required: field.required === true,
-    active: field.active !== false,
-    options,
-    notificationWebhookId: cleanId(field.notificationWebhookId)
-  };
-}
 
 function sanitizeCustomFieldValue(value, field) {
   if (!field) return '';
@@ -468,421 +423,20 @@ function sanitizeCustomFieldValue(value, field) {
   return candidate;
 }
 
-function normalizeFieldHistoryRecord(item, customerIds) {
-  const id = cleanId(item.id), customerId = cleanId(item.customerId), fieldId = cleanId(item.fieldId);
-  if (!id || !customerId || !customerIds.has(customerId) || !fieldId) return null;
-  const cleanHistoryValue = value => Array.isArray(value)
-    ? value.map(entry => cleanText(String(entry), '', 160)).slice(0, 50)
-    : typeof value === 'boolean' || typeof value === 'number' ? value : cleanText(String(value ?? ''), '', 4000);
-  return {
-    id,
-    customerId,
-    fieldId,
-    fieldLabel: cleanText(item.fieldLabel, fieldId, 160),
-    from: cleanHistoryValue(item.from),
-    to: cleanHistoryValue(item.to),
-    actorId: cleanId(item.actorId) || 'SYSTEM',
-    actor: cleanText(item.actor, 'Hệ thống', 160),
-    role: ['ADMIN', 'LEADER', 'SALE', 'SYSTEM'].includes(item.role) ? item.role : 'SYSTEM',
-    at: cleanTimestamp(item.at, stamp()),
-    source: ['MANUAL', 'FORM', 'IMPORT', 'API', 'MIGRATION', 'SYSTEM'].includes(item.source) ? item.source : 'MANUAL'
-  };
-}
 
-function normalizeAssignmentHistoryRecord(item, customerIds) {
-  const id = cleanId(item.id), customerId = cleanId(item.customerId);
-  if (!id || !customerId || !customerIds.has(customerId)) return null;
-  return {
-    id,
-    customerId,
-    fromSaleId: cleanId(item.fromSaleId),
-    fromSaleName: cleanText(item.fromSaleName, '', 160),
-    toSaleId: cleanId(item.toSaleId),
-    toSaleName: cleanText(item.toSaleName, '', 160),
-    fromLeaderId: cleanId(item.fromLeaderId),
-    fromLeaderName: cleanText(item.fromLeaderName, '', 160),
-    toLeaderId: cleanId(item.toLeaderId),
-    toLeaderName: cleanText(item.toLeaderName, '', 160),
-    teamId: cleanId(item.teamId),
-    actorId: cleanId(item.actorId) || 'SYSTEM',
-    actor: cleanText(item.actor, 'Hệ thống', 160),
-    role: ['ADMIN', 'LEADER', 'SALE', 'SYSTEM'].includes(item.role) ? item.role : 'SYSTEM',
-    at: cleanTimestamp(item.at, stamp()),
-    reason: dataTerminology(cleanText(item.reason, 'Cập nhật phân công', 1000)),
-    source: ['MANUAL', 'FORM', 'IMPORT', 'API', 'SYSTEM'].includes(item.source) ? item.source : 'MANUAL'
-  };
-}
 
-function normalizeResubmissionRecord(item, customerIds, websites) {
-  const id = cleanId(item.id), customerId = cleanId(item.customerId);
-  if (!id || !customerId || !customerIds.has(customerId)) return null;
-  const websiteId = cleanId(item.websiteId);
-  return {
-    id,
-    customerId,
-    phone: cleanText(item.phone, '', 20),
-    source: dataTerminology(cleanText(item.source, 'Nguồn chưa xác định', 120)),
-    campaign: dataTerminology(cleanText(item.campaign, '', 160)),
-    websiteId: websites.some(website => website.id === websiteId) ? websiteId : null,
-    previousSaleId: cleanId(item.previousSaleId),
-    assignedSaleId: cleanId(item.assignedSaleId),
-    registeredAccount: item.registeredAccount === true,
-    at: cleanTimestamp(item.at, stamp()),
-    intakeType: ['MANUAL', 'FORM', 'IMPORT', 'API'].includes(item.intakeType) ? item.intakeType : 'FORM'
-  };
-}
 
-function sanitizeLeaderDistribution(input, members, defaults) {
-  const value = input && typeof input === 'object' && !Array.isArray(input) ? input : {};
-  const leaderIds = new Set(members.filter(member => member.role === 'LEADER').map(member => member.id));
-  const requested = Array.isArray(value.enabledLeaderIds) ? value.enabledLeaderIds.filter(id => leaderIds.has(id)) : defaults.enabledLeaderIds.filter(id => leaderIds.has(id));
-  const weights = Object.fromEntries(Array.from(leaderIds).map(id => { const raw = value.weights?.[id]; return [id, cleanNumber(raw === undefined ? defaults.weights[id] : raw, 1, 0, 100, true)]; }));
-  const sourceRules = uniqueRecords(value.sourceRules, defaults.sourceRules, rule => {
-    const id = cleanId(rule.id), matchType = ['WEBSITE', 'SOURCE', 'CAMPAIGN'].includes(rule.matchType) ? rule.matchType : null;
-    const matchValue = cleanText(rule.matchValue, '', 200).trim(), targetLeaderId = cleanId(rule.targetLeaderId);
-    if (!id || !matchType || !matchValue || !leaderIds.has(targetLeaderId)) return null;
-    return { id, matchType, matchValue, targetLeaderId, active: rule.active !== false };
-  });
-  return { enabled: value.enabled !== false, enabledLeaderIds: Array.from(new Set(requested)), weights, sourceRules };
-}
 
-function sanitizeSaleDistribution(input, members, defaults) {
-  const value = input && typeof input === 'object' && !Array.isArray(input) ? input : {};
-  const output = {};
-  const globalRecipients = members.filter(member => ['MANAGER', 'LEADER', 'SALE'].includes(member.role));
-  const globalIds = new Set(globalRecipients.map(member => member.id));
-  const globalSource = value.$ && typeof value.$ === 'object' ? value.$ : defaults.$ && typeof defaults.$ === 'object' ? defaults.$ : {};
-  const globalWeights = Object.fromEntries(globalRecipients.map(member => {
-    const raw = globalSource.weights?.[member.id];
-    return [member.id, cleanNumber(raw === undefined ? 1 : raw, 1, 0, 100, true)];
-  }));
-  const globalEnabled = Array.from(new Set((Array.isArray(globalSource.enabledSaleIds) ? globalSource.enabledSaleIds : globalRecipients.map(member => member.id)).filter(id => globalIds.has(id))));
-  const globalRounds = (Array.isArray(globalSource.rounds) ? globalSource.rounds : []).map((round, index) => {
-    if (!round || typeof round !== 'object') return null;
-    const weights = Object.fromEntries(globalRecipients.map(member => [member.id, cleanNumber(round.weights?.[member.id] === undefined ? globalWeights[member.id] : round.weights[member.id], 1, 0, 100, true)]));
-    const enabledSaleIds = Array.from(new Set((Array.isArray(round.enabledSaleIds) ? round.enabledSaleIds : globalEnabled).filter(id => globalIds.has(id))));
-    return { id: cleanId(round.id) || `ROUND-${index + 1}`, createdAt: cleanTimestamp(round.createdAt, stamp()), enabledSaleIds, weights, omittedSlots: Array.isArray(round.omittedSlots) ? [...new Set(round.omittedSlots.filter(n=>Number.isInteger(n)&&n>=0&&n<100000))] : [] };
-  }).filter(Boolean);
-  if (!globalRounds.length) globalRounds.push({ id: cleanId(globalSource.activeRoundId) || 'ROUND-1', createdAt: cleanTimestamp(globalSource.createdAt, stamp()), enabledSaleIds: globalEnabled, weights: globalWeights });
-  output.$ = { globalCycle: true, enabledSaleIds: globalRounds[0].enabledSaleIds, weights: globalRounds[0].weights, rounds: globalRounds };
-  members.filter(member => member.role === 'LEADER').forEach(leader => {
-    const sales = members.filter(member => member.role === 'SALE' && member.leaderId === leader.id);
-    // Keep Manager as a compatible recipient in the leader's distribution pool.
-    const manager = members.find(member => member.role === 'MANAGER' && member.id === leader.managerId);
-    const managerRecipient = manager ? { ...manager, role: 'SALE', actualRole: 'MANAGER', managerRecipient: true, leaderId: leader.id, teamId: leader.teamId } : null;
-    const recipients = managerRecipient ? [...sales, managerRecipient] : sales;
-    const saleIds = new Set(recipients.map(sale => sale.id));
-    const source = value[leader.id] && typeof value[leader.id] === 'object' ? value[leader.id] : defaults[leader.id] || {};
-    const configuredIds = source.managerDistributionInitialized === true && Array.isArray(source.enabledSaleIds) && source.enabledSaleIds.length > 0 ? source.enabledSaleIds : recipients.map(sale => sale.id);
-    const migratedIds = managerRecipient && !configuredIds.includes(managerRecipient.id)
-      ? [...configuredIds, managerRecipient.id]
-      : configuredIds;
-    output[leader.id] = {
-      leaderEnabled: source.leaderEnabled !== false,
-      managerDistributionInitialized: true,
-      enabledSaleIds: Array.from(new Set(migratedIds.filter(id => saleIds.has(id)))),
-      weights: Object.fromEntries([...recipients, leader].map(sale => { const raw = source.weights?.[sale.id]; return [sale.id, cleanNumber(raw === undefined ? 1 : raw, 1, 0, 100, true)]; }))
-    };
-  });
-  return output;
-}
 
-function sanitizeSettings(settings, defaults) {
-  const input = settings && typeof settings === 'object' && !Array.isArray(settings) ? settings : {};
-  const assignmentMode = ['MANUAL', 'EQUAL', 'ROUND_ROBIN', 'BALANCED'].includes(input.assignmentMode)
-    ? input.assignmentMode
-    : input.autoAssign === true ? 'BALANCED' : defaults.assignmentMode;
-  const rawCursor = input.assignmentCursor && typeof input.assignmentCursor === 'object' && !Array.isArray(input.assignmentCursor) ? input.assignmentCursor : {};
-  const salesByTeam = rawCursor.salesByTeam && typeof rawCursor.salesByTeam === 'object' && !Array.isArray(rawCursor.salesByTeam)
-    ? Object.fromEntries(Object.entries(rawCursor.salesByTeam).filter(([teamId, cursor]) => cleanId(teamId) && (Number.isInteger(cursor) && cursor >= 0 || cursor && typeof cursor === 'object' && Number.isInteger(cursor.index) && cursor.index >= 0 && Array.isArray(cursor.ids))).map(([teamId, cursor]) => [teamId, Number.isInteger(cursor) ? cursor : { index: cursor.index, ids: cursor.ids.map(String).slice(0, 10000) }]))
-    : {};
-  const saleAssignmentModes = input.saleAssignmentModes && typeof input.saleAssignmentModes === 'object' && !Array.isArray(input.saleAssignmentModes)
-    ? Object.fromEntries(Object.entries(input.saleAssignmentModes).filter(([leaderId, mode]) => cleanId(leaderId) && ['MANUAL', 'EQUAL', 'ROUND_ROBIN', 'BALANCED'].includes(mode)))
-    : {};
-  const defaultCareGroups = [
-    { id: 'g-conv', title: 'Khách đã chuyển đổi', tag: 'Premium Whale', color: '#10b981', active: true },
-    { id: 'g-hot', title: 'Khách đang quan tâm nóng', tag: 'Nóng', color: '#ef4444', active: true },
-    { id: 'g-warm', title: 'Khách đang theo dõi ấm', tag: 'Ấm', color: '#f59e0b', active: true },
-    { id: 'g-cold', title: 'Khách chưa kết nối được lạnh', tag: 'Lạnh', color: '#3b82f6', active: true }
-  ];
-  const savedCareGroups = Array.isArray(input.careDefaultGroups) ? input.careDefaultGroups : [];
-  const savedCareById = new Map(savedCareGroups.map(item => [String(item?.id || ''), item]));
-  const savedCareOrder = [...new Set(savedCareGroups.map(item => String(item?.id || '')).filter(id => defaultCareGroups.some(group => group.id === id)))];
-  const orderedCareGroups = [...savedCareOrder, ...defaultCareGroups.map(group => group.id).filter(id => !savedCareOrder.includes(id))];
-  const careDefaultGroups = orderedCareGroups.map(groupId => {
-    const defaultGroup = defaultCareGroups.find(group => group.id === groupId);
-    const saved = savedCareById.get(defaultGroup.id) || {};
-    return {
-      ...defaultGroup,
-      title: cleanText(saved.title, defaultGroup.title, 160),
-      tag: cleanText(saved.tag, defaultGroup.tag, 100),
-      color: /^#[0-9a-f]{6}$/i.test(saved.color) ? saved.color : defaultGroup.color,
-      active: saved.active !== false
-    };
-  });
-  return {
-    leaderCanUpdate: typeof input.leaderCanUpdate === 'boolean' ? input.leaderCanUpdate : defaults.leaderCanUpdate,
-    notifyMilestones: typeof input.notifyMilestones === 'boolean' ? input.notifyMilestones : defaults.notifyMilestones,
-    leaderAttendanceRequired: input.leaderAttendanceRequired !== false,
-    assignmentMode,
-    saleAssignmentModes,
-    assignmentCursor: { leaders: cleanNumber(rawCursor.leaders, defaults.assignmentCursor.leaders, 0, Number.MAX_SAFE_INTEGER, true), global: Number.isInteger(rawCursor.global) && rawCursor.global >= 0 ? rawCursor.global : rawCursor.global && typeof rawCursor.global === 'object' && Number.isInteger(rawCursor.global.index) && rawCursor.global.index >= 0 && Array.isArray(rawCursor.global.ids) ? { index: rawCursor.global.index, ids: rawCursor.global.ids.map(String).slice(0, 10000), cycleId: String(rawCursor.global.cycleId||'').slice(0,100) } : 0, salesByTeam },
-    slaMinutes: cleanNumber(input.slaMinutes, defaults.slaMinutes, 5, 1440, true),
-    customAccent: /^#[0-9a-f]{6}$/i.test(input.customAccent) ? input.customAccent : (defaults.customAccent || '#e8572a'),
-    fontFamily: cleanText(input.fontFamily, defaults.fontFamily || 'aptos', 40),
-    navigationFontSize: cleanNumber(input.navigationFontSize, defaults.navigationFontSize || 12, 10, 16, true),
-    contentFontSize: cleanNumber(input.contentFontSize, defaults.contentFontSize || 14, 12, 20, true),
-    dataBotToken: cleanText(input.dataBotToken || input.telegramBotToken, '', 200),
-    dataBotChatId: cleanText(input.dataBotChatId || input.telegramChatId, '', 100),
-    memberBotToken: cleanText(input.memberBotToken, '', 200),
-    memberBotChatId: cleanText(input.memberBotChatId, '', 100),
-    careDefaultGroups,
-    webhookPublicBase: cleanWebhookBase(input.webhookPublicBase, defaults.webhookPublicBase),
-    attendanceIp: cleanText(input.attendanceIp, defaults.attendanceIp || '', 200),
-    // Migration một lần: giờ chốt cũ 08:30 nâng lên 09:00 theo quy định mới.
-    attendanceDeadline: (() => { const raw = cleanClockTime(input.attendanceDeadline, defaults.attendanceDeadline || '09:00'); return raw === '08:30' ? '09:00' : raw; })(),
-    acceptTimeoutHours: 24,
-    notifyAccountCreated: input.notifyAccountCreated !== false,
-    notifyDataReceived: input.notifyDataReceived !== false,
-    emailNotificationsEnabled: input.emailNotificationsEnabled !== false
-  };
-}
 
-function normalizeAttendanceRecord(item, members = STAFF) {
-  const id = cleanId(item.id);
-  const account = members.find(person => person.id === item.accountId);
-  const date = cleanDate(item.date);
-  const at = cleanTimestamp(item.at);
-  if (!id || !account || !date || !at) return null;
-  return {
-    id,
-    date,
-    accountId: account.id,
-    name: cleanText(item.name, account.name, 120),
-    teamId: cleanId(item.teamId) || account.teamId || '',
-    at,
-    ip: cleanText(item.ip, '', 64),
-    late: item.late === true,
-    lateMinutes: cleanNumber(item.lateMinutes, 0, 0, 1440, true),
-    ipValid: item.ipValid !== false,
-    note: cleanText(item.note, '', 300),
-    editedBy: cleanText(item.editedBy, '', 120)
-  };
-}
 
-function normalizeDataOfferRecord(item, customerIds, members = STAFF) {
-  const id = cleanId(item.id);
-  const customerId = cleanId(item.customerId);
-  const sale = members.find(person => person.role === 'SALE' && person.id === item.saleId);
-  const leader = members.find(person => person.role === 'LEADER' && person.id === item.leaderId);
-  const offeredAt = cleanTimestamp(item.offeredAt);
-  if (!id || !customerIds.has(customerId) || !sale || !leader || !offeredAt) return null;
-  const status = ['PENDING', 'ACCEPTED', 'EXPIRED'].includes(item.status) ? item.status : 'PENDING';
-  return {
-    id,
-    customerId,
-    saleId: sale.id,
-    leaderId: leader.id,
-    teamId: cleanId(item.teamId) || leader.teamId,
-    offeredAt,
-    status,
-    resolvedAt: status === 'PENDING' ? '' : cleanTimestamp(item.resolvedAt),
-    source: cleanText(item.source, 'MANUAL', 40)
-  };
-}
 
-function normalizeMemberRecord(member) {
-  const id = cleanId(member.id);
-  const role = ['LEADER', 'SALE', 'MANAGER'].includes(member.role) ? member.role : null;
-  const teamId = cleanId(member.teamId);
-  if (!id || !role || (!teamId && role!=='MANAGER')) return null;
-  return {
-    id,
-    accountId: cleanText(member.accountId, '', 64).trim().toUpperCase(),
-    name: cleanText(member.name, 'Nhân sự', 160),
-    email: cleanText(member.email, '', 254).trim().toLowerCase(),
-    role,
-    teamId,
-    leaderId: role === 'SALE' ? cleanId(member.leaderId) : null,
-    managerId: ['LEADER', 'SALE'].includes(role) ? cleanId(member.managerId) : null,
-    initials: cleanText(member.initials, 'NV', 4).toUpperCase(),
-    avatar: /^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(String(member.avatar || '')) ? String(member.avatar) : '',
-    createdBy: cleanText(member.createdBy, 'Hệ thống', 160),
-    target: role === 'SALE' ? cleanNumber(member.target, 80000000, 0, Number.MAX_SAFE_INTEGER, true) : 0,
-    active: typeof member.active === 'boolean' ? member.active : true
-  };
-}
 
-function normalizeCustomerRecord(customer, members = STAFF, websites = [], fieldDefinitions = CUSTOM_FIELD_SEED) {
-  const id = cleanId(customer.id);
-  const createdAt = cleanTimestamp(customer.createdAt);
-  if (!id || !createdAt) return null;
-  const sale = members.find(person => person.role === 'SALE' && person.id === customer.saleId);
-  const leader = !sale && members.find(person => person.role === 'LEADER' && person.id === customer.leaderId);
-  const requestedWebsiteId = cleanId(customer.websiteId);
-  const websiteId = websites.some(website => website.id === requestedWebsiteId) ? requestedWebsiteId : null;
-  const sourceFields = customer.customFields && typeof customer.customFields === 'object' && !Array.isArray(customer.customFields) ? customer.customFields : {};
-  const customFields = Object.fromEntries(fieldDefinitions.map(field => {
-    const rawValue = Object.hasOwn(sourceFields, field.id) ? sourceFields[field.id] : defaultCustomFieldValue(field);
-    const sanitized = sanitizeCustomFieldValue(rawValue, field);
-    return [field.id, sanitized === '' && field.id === 'customerLevel' ? 'L0' : sanitized];
-  }));
-  return {
-    id,
-    name: cleanText(customer.name, 'Khách chưa đặt tên', 160),
-    phone: cleanText(customer.phone, '', 20),
-    email: cleanText(customer.email, '', 254),
-    ipAddress: cleanText(customer.ipAddress || customer.ip, 'Chưa xác định', 64),
-    source: dataTerminology(cleanText(customer.source, 'Direct / Referral', 120)),
-    campaign: dataTerminology(cleanText(customer.campaign, 'DIRECT', 160)),
-    landingPageName: cleanText(customer.landingPageName || customer.landingPage || websites.find(website => website.id === websiteId)?.name || websites.find(website => website.id === websiteId)?.domain, 'Nguồn chưa được gắn', 200),
-    landingPageUrl: cleanSourceUrl(customer.landingPageUrl || websites.find(website => website.id === websiteId)?.sourceUrl),
-    landingPageDomain: cleanText(customer.landingPageDomain || websites.find(website => website.id === websiteId)?.domain, '', 253),
-    productName: cleanText(customer.productName || customer.product || customer.sanpham, 'Chưa xác định sản phẩm', 200),
-    websiteId,
-    status: Object.hasOwn(STATUS_META, customer.status) ? customer.status : 'NEW',
-    saleId: sale?.id || null,
-    leaderId: sale?.leaderId || leader?.id || null,
-    teamId: sale?.teamId || leader?.teamId || null,
-    managerId: cleanId(customer.managerId) || cleanId(sale?.managerId) || cleanId(leader?.managerId),
-    createdAt,
-    updatedAt: cleanTimestamp(customer.updatedAt, createdAt),
-    saleAcceptedAt: cleanTimestamp(customer.saleAcceptedAt),
-    note: dataTerminology(cleanText(customer.note, '', 2000)),
-    customFields
-  };
-}
 
-function normalizeOrderRecord(order, customers, members = STAFF, websites = []) {
-  const id = cleanId(order.id);
-  const customerId = cleanId(order.customerId);
-  const customer = customers.find(item => item.id === customerId);
-  const sale = members.find(person => person.role === 'SALE' && person.id === order.saleId);
-  const leader = members.find(person => person.role === 'LEADER' && person.id === order.leaderId);
-  const teamId = cleanId(order.teamId);
-  const createdAt = cleanTimestamp(order.createdAt);
-  if (!id || !customer || !sale || !leader || !teamId || !createdAt) return null;
-  const product = PRODUCTS.find(item => item.id === order.productId);
-  if (!product) return null;
-  const qty = cleanNumber(order.qty, 1, 1, 1000, true);
-  const unitPrice = cleanNumber(order.unitPrice, product.price);
-  const computedSubtotal = Math.min(unitPrice * qty, Number.MAX_SAFE_INTEGER);
-  const subtotal = computedSubtotal;
-  const discount = cleanNumber(order.discount, 0, 0, subtotal);
-  const total = Math.max(0, subtotal - discount);
-  const status = Object.hasOwn(ORDER_STATUS, order.status) ? order.status : 'PENDING';
-  const paidAt = ['PAID', 'REFUNDED'].includes(status) ? cleanTimestamp(order.paidAt) : null;
-  const refundedAt = status === 'REFUNDED' ? cleanTimestamp(order.refundedAt) : null;
-  if (['PAID', 'REFUNDED'].includes(status) && !paidAt) return null;
-  if (status === 'REFUNDED' && !refundedAt) return null;
-  const legacyReconciled = typeof order.reconciled === 'boolean' ? order.reconciled : false;
-  return {
-    id,
-    code: cleanText(order.code, id, 120),
-    customerId,
-    customerName: cleanText(order.customerName, 'Khách hàng', 160),
-    saleId: sale.id,
-    leaderId: leader.id,
-    teamId,
-    source: orderSource(cleanText(order.source, customer.source, 120)),
-    campaign: cleanText(order.campaign, customer.campaign || 'UNATTRIBUTED', 160),
-    websiteId: websites.some(website => website.id === order.websiteId) ? order.websiteId : null,
-    productId: product.id,
-    productName: product.name,
-    sku: product.sku,
-    qty,
-    unitPrice,
-    subtotal,
-    discount,
-    total,
-    refund: status === 'REFUNDED' ? cleanNumber(order.refund, total, 0, total) : 0,
-    status,
-    createdAt,
-    paidAt,
-    refundedAt,
-    paymentMethod: cleanText(order.paymentMethod, 'Chuyển khoản', 100),
-    paymentReconciled: typeof order.paymentReconciled === 'boolean' ? order.paymentReconciled : legacyReconciled,
-    refundReconciled: refundedAt ? (typeof order.refundReconciled === 'boolean' ? order.refundReconciled : legacyReconciled) : null
-  };
-}
 
-function normalizeTrafficRecord(event, members = STAFF) {
-  const id = cleanId(event.id);
-  const date = cleanDate(event.date);
-  const sale = members.find(person => person.role === 'SALE' && person.id === event.saleId);
-  const meta = TRAFFIC_META.find(item => item.source === event.source);
-  if (!id || !date || !sale || !meta) return null;
-  return {
-    id,
-    date,
-    saleId: sale.id,
-    leaderId: sale.leaderId,
-    teamId: sale.teamId,
-    sessions: cleanNumber(event.sessions, 0, 0, Number.MAX_SAFE_INTEGER, true),
-    leads: cleanNumber(event.leads, 0, 0, Number.MAX_SAFE_INTEGER, true),
-    spend: cleanNumber(event.spend, 0),
-    source: meta.source,
-    medium: meta.medium,
-    campaign: dataTerminology(cleanText(event.campaign, meta.campaign, 160)),
-    color: meta.color
-  };
-}
 
-function normalizeTaskRecord(task, slaMinutes, customerIds, members = STAFF) {
-  const id = cleanId(task.id);
-  const customerId = cleanId(task.customerId);
-  const owner = members.find(person => person.role === 'SALE' && person.id === task.ownerId);
-  const dueAt = cleanTimestamp(task.dueAt);
-  if (!id || !customerId || !customerIds.has(customerId) || !owner || !dueAt) return null;
-  const type = dataTerminology(cleanText(task.type, 'Chăm sóc khách hàng', 160));
-  const slaBased = typeof task.slaBased === 'boolean' ? task.slaBased : ['Gọi tư vấn', 'Liên hệ data mới'].includes(type);
-  const createdAtFallback = slaBased ? shiftStamp(dueAt, -slaMinutes) : dueAt;
-  return {
-    id,
-    customerId,
-    customerName: cleanText(task.customerName, 'Khách hàng', 160),
-    ownerId: owner.id,
-    leaderId: owner.leaderId,
-    teamId: owner.teamId,
-    type,
-    createdAt: cleanTimestamp(task.createdAt, createdAtFallback),
-    dueAt,
-    slaBased,
-    status: ['OPEN', 'OVERDUE', 'DONE'].includes(task.status) ? task.status : 'OPEN',
-    priority: task.priority === 'HIGH' ? 'HIGH' : 'NORMAL',
-    ...(cleanTimestamp(task.completedAt) ? { completedAt: cleanTimestamp(task.completedAt) } : {}),
-    ...(typeof task.resolution === 'string' ? { resolution: cleanText(task.resolution, '', 200) } : {})
-  };
-}
 
-function normalizeNotificationRecord(item, members = STAFF) {
-  const id = cleanId(item.id);
-  if (!id || !['ALL', 'ADMIN', 'LEADER', 'TEAM', 'OWN'].includes(item.role)) return null;
-  const leader = members.find(person => person.role === 'LEADER' && person.id === item.leaderId);
-  const sale = members.find(person => person.role === 'SALE' && person.id === item.saleId);
-  const validTeamIds = new Set(members.map(person => person.teamId));
-  if (item.role === 'LEADER' && !leader) return null;
-  if (item.role === 'TEAM' && !validTeamIds.has(item.teamId)) return null;
-  if (item.role === 'OWN' && !sale) return null;
-  const accountIds = new Set(ACCOUNTS.map(account => account.id));
-  return {
-    id,
-    role: item.role,
-    ...(leader ? { leaderId: leader.id, teamId: leader.teamId } : {}),
-    ...(item.role === 'TEAM' ? { teamId: item.teamId } : {}),
-    ...(sale ? { saleId: sale.id, leaderId: sale.leaderId, teamId: sale.teamId } : {}),
-    title: dataTerminology(cleanText(item.title, 'Thông báo', 200)),
-    text: dataTerminology(cleanText(item.text, '', 1000)),
-    at: cleanTimestamp(item.at, stamp()),
-    readBy: Array.isArray(item.readBy) ? Array.from(new Set(item.readBy.filter(idValue => accountIds.has(idValue)))) : []
-  };
-}
 
-function normalizeAuditRecord(item) {
-  const id = cleanId(item.id);
-  if (!id) return null;
-  return { id, actorId: cleanId(item.actorId), actor: cleanText(item.actor, 'System', 160), role: ['ADMIN', 'LEADER', 'SALE', 'SYSTEM'].includes(item.role) ? item.role : 'SYSTEM', action: cleanText(item.action, 'UNKNOWN', 120), entity: cleanText(item.entity, '', 120), detail: dataTerminology(cleanText(item.detail, '', 2000)), at: cleanTimestamp(item.at, stamp()) };
-}
 
 function cleanSourceUrl(value) {
   const raw = cleanText(value, '', 500).trim();
@@ -970,12 +524,6 @@ function webhookUrlFor(website) {
   return cleanWebhookOverride(website?.webhookUrlOverride) || `${webhookPublicBase()}/api/data-sources/webhook/${slug}/`;
 }
 
-function webhookLocalUrlFor(website) {
-  const slug = cleanWebhookSlug(website?.webhookSlug);
-  const origin = typeof window !== 'undefined' && window && window.location ? window.location.origin : '';
-  if (!slug || !origin) return '';
-  return `${origin}/api/data-sources/webhook/${slug}/`;
-}
 
 function websiteByWebhookSlug(slug) {
   const wanted = cleanText(slug, '', 60).trim().toUpperCase();
@@ -1039,7 +587,6 @@ function loadWebhookPending(){return [];}
 function saveWebhookPending(){state.webhookPending=webhookPending;saveState();}
 function loadWebhookCursor(){return webhookCursor;}
 function saveWebhookCursor(id){webhookCursor=String(id||'');}
-function loadWebhookConsumed(){return [...webhookConsumed];}
 function claimWebhookRecord(id){if(!id||webhookConsumed.has(id))return false;webhookConsumed.add(id);return true;}
 
 function webhookApiBase() {
@@ -1370,67 +917,10 @@ function webhookTransportMarkup() {
   return `<section class="panel webhook-transport" style="margin-bottom:14px"><div class="panel-body"><div class="webhook-box-head"><b>Đồng bộ data từ server webhook</b><span class="status status-${meta[1]}" data-webhook-transport>${escapeHtml(meta[0])}</span></div><div class="cell-sub" data-webhook-transport-detail>${escapeHtml(webhookTransport.detail)}</div><div class="connection-actions"><button class="button button-small button-primary" type="button" data-webhook-sync="1">Đồng bộ ngay</button><button class="button button-small" type="button" data-webhook-pending="1">Data chờ quy nguồn (<b data-webhook-pending-count>${number(webhookPending.length)}</b>)</button></div></div></section>`;
 }
 
-function normalizeIntegrationRecord(item) {
-  const id = cleanId(item.id);
-  if (!id) return null;
-  const provider = ['SUBDATA', 'FACEBOOK', 'CUSTOM'].includes(item.provider) ? item.provider : 'CUSTOM';
-  const typeByProvider = { SUBDATA: 'CUSTOMER_DATA', FACEBOOK: 'DATA_INTAKE', CUSTOM: 'CONNECTOR' };
-  return {
-    id,
-    name: dataTerminology(cleanText(item.name, 'Tích hợp API', 200)),
-    provider,
-    type: ['CUSTOMER_DATA', 'DATA_INTAKE', 'CONNECTOR'].includes(item.type) ? item.type : typeByProvider[provider],
-    endpoint: cleanText(item.endpoint, '', 500),
-    externalAccountId: cleanText(item.externalAccountId, '', 160),
-    status: ['UNCONFIGURED', 'PENDING_BACKEND', 'VERIFIED', 'ERROR', 'PAUSED'].includes(item.status) ? item.status : 'UNCONFIGURED',
-    credentialConfigured: item.credentialConfigured === true,
-    credentialLast4: cleanText(item.credentialLast4, '', 4).length === 4 ? cleanText(item.credentialLast4, '', 4) : '',
-    lastVerifiedAt: cleanTimestamp(item.lastVerifiedAt),
-    lastError: cleanText(item.lastError, '', 500),
-    archived: item.archived === true
-  };
-}
 
-function normalizeNoteRecord(item, customerIds) {
-  const id = cleanId(item.id), customerId = cleanId(item.customerId);
-  if (!id || !customerId || !customerIds.has(customerId)) return null;
-  return {
-    id,
-    customerId,
-    authorId: cleanId(item.authorId) || 'system',
-    author: cleanText(item.author, 'System', 160),
-    role: ['ADMIN', 'LEADER', 'SALE', 'SYSTEM'].includes(item.role) ? item.role : 'SYSTEM',
-    text: dataTerminology(cleanText(item.text, '', 2000)),
-    at: cleanTimestamp(item.at, stamp())
-  };
-}
 
-function normalizeImportRecord(item) {
-  const id = cleanId(item.id);
-  if (!id) return null;
-  return { id, source: dataTerminology(cleanText(item.source, 'File import', 100)), filename: dataTerminology(cleanText(item.filename, '', 240)), records: cleanNumber(item.records, 0, 0, Number.MAX_SAFE_INTEGER, true), importedAt: cleanTimestamp(item.importedAt, stamp()), actor: cleanText(item.actor, 'Start', 160), status: item.status === 'FAILED' ? 'FAILED' : 'SUCCESS' };
-}
 
-function normalizeRegistrationRecord(item) {
-  const id = cleanId(item.id);
-  if (!id) return null;
-  return { id, name: cleanText(item.name, 'Người đăng ký', 160), phone: cleanText(item.phone, '', 20), email: cleanText(item.email, '', 254), ipAddress: cleanText(item.ipAddress || item.ip, 'Chưa xác định', 64), requestedRole: ['LEADER', 'SALE'].includes(item.requestedRole) ? item.requestedRole : 'PENDING', teamId: cleanId(item.teamId) || 'T2', registeredAt: cleanTimestamp(item.registeredAt, stamp()), status: item.status === 'APPROVED' ? 'APPROVED' : 'PENDING' };
-}
 
-function sanitizeSecurity(security, defaults) {
-  const input = security && typeof security === 'object' && !Array.isArray(security) ? security : {};
-  const history = uniqueRecords(input.loginHistory, defaults.loginHistory, item => {
-    const id = cleanId(item.id);
-    if (!id) return null;
-    return { id, ip: cleanText(item.ip, '127.0.0.1', 64), accountId: cleanId(item.accountId), accountName: cleanText(item.accountName, 'Start', 160), role: ['ADMIN', 'LEADER', 'SALE'].includes(item.role) ? item.role : 'ADMIN', device: cleanText(item.device, 'Trình duyệt không xác định', 160), location: cleanText(item.location, 'Không xác định', 160), at: cleanTimestamp(item.at, stamp()), success: item.success === true };
-  }).slice(0, 30);
-  return {
-    adminPassword: typeof input.adminPassword === 'string' && input.adminPassword.length >= 8 && input.adminPassword.length <= 128 ? input.adminPassword : defaults.adminPassword,
-    twoFactorEnabled: typeof input.twoFactorEnabled === 'boolean' ? input.twoFactorEnabled : defaults.twoFactorEnabled,
-    twoFactorCode: defaults.twoFactorCode,
-    loginHistory: history
-  };
-}
 
 let state = initialState();
 PRODUCTS = state.products;
@@ -1735,8 +1225,6 @@ async function pushServerRecord(resource,method,id,record) {
 async function persistCustomer(customer){return pushServerRecord('customers','PUT',customer.id,customer);}
 async function persistOrder(order){return pushServerRecord('orders','PUT',order.id,order);}
 function makeRecordId(prefix){const bytes=new Uint8Array(12);crypto.getRandomValues(bytes);return `${prefix}-${Date.now()}-${Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('')}`;}
-function exportWorkingCopy(){downloadRecovery({kind:'nvt-working-copy',state,changes:pendingChanges()},'nvt-working-copy.json');}
-function downloadRecovery(value,name){const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 function legacyProductCandidates(){
   const found=[],seen=new Set();
   try{
@@ -1775,37 +1263,6 @@ async function restoreLegacyProducts(){
   if(await flushServerPersistence()){toast(`Đã khôi phục ${products.length} sản phẩm vào MySQL`);return;}
   // Giữ cùng requestId và bản nháp để có thể retry an toàn khi mất phản hồi sau lúc MySQL đã commit.
   toast('Chưa xác nhận được MySQL. Giữ trang mở và bấm Đồng bộ máy chủ để thử lại');
-}
-function importRecoveryModal(){
- if(currentAccount?.role!=='ADMIN'){toast('Chỉ Admin được nhập bản sao');return;}
- openModal('Nhập bản sao dữ liệu', `<p>Chỉ thêm bản ghi có ID chưa tồn tại. Cấu hình và mật khẩu không nhập tự động. Hãy giữ file gốc để đối chiếu các mục bị bỏ qua.</p><input id="recoveryFile" type="file" accept="application/json,.json"><p id="recoveryPreview"></p><button class="button button-primary" id="confirmRecovery" disabled>Nhập vào MySQL</button>`);
- let additions=[];
- $('#recoveryFile').onchange=async event=>{
-  $('#confirmRecovery').disabled=true;
-  try{
-   const file=event.target.files[0];if(!file)return;if(file.size>8*1024*1024)throw new Error('File vượt 8 MB; hãy chia nhỏ bản sao');
-   const raw=JSON.parse(await file.text());
-   const source=raw.state||(raw.kind==='nvt-legacy-export'?Object.values(raw.data||{}).find(v=>v&&Array.isArray(v.customers)):raw);
-   if(!source||!Array.isArray(source.customers))throw new Error('Không nhận diện được bản sao CRM');
-   additions=[];let skipped=0;
-   const existing=serverRecords();
-   for(const key of SERVER_LISTS)for(const original of Array.isArray(source[key])?source[key]:[]){
-    if(!original?.id||existing.has(`${key}/${original.id}`)){skipped++;continue;}
-    const value=structuredClone(original);
-    for(const field of ['password','password_hash','adminPassword','twoFactorCode'])delete value[field];
-    if(key==='members'){value.loginEnabled=false;if(!['SALE','LEADER'].includes(value.role)){skipped++;continue;}}
-    additions.push({key,value});existing.set(`${key}/${value.id}`,value);
-   }
-   if(additions.length>2000)throw new Error('Bản sao có trên 2.000 bản ghi mới; hãy chia thành nhiều file');
-   $('#recoveryPreview').textContent=`${additions.length} bản ghi mới; ${skipped} mục đã có/không hợp lệ bỏ qua. Tài khoản đăng nhập cần đăng ký và phân quyền riêng.`;
-   $('#confirmRecovery').disabled=!additions.length;
-  }catch(error){$('#recoveryPreview').textContent=error.message;}
- };
- $('#confirmRecovery').onclick=async()=>{
-  if(!await flushServerPersistence())return;
-  for(const {key,value} of additions)if(!state[key].some(r=>r.id===value.id))state[key].push(value);
-  saveState();if(await flushServerPersistence()){closeModal();render();toast('Đã nhập bản sao vào MySQL');}
- };
 }
 function refreshTaskStatuses() {
   state.tasks.forEach(task => {
@@ -1905,16 +1362,7 @@ function scopedCustomers() {
 /* Luật hết hạn nhận data đã chuyển sang offer: quá 24 giờ thì
    khách GIỮ leader/team và saleId null (trả về leader đã chia), không đẩy lên phễu
    Admin. Hàm cũ được giữ làm alias để không còn hai luật song song. */
-function reclaimExpiredSaleData() {
-  return expireStaleOffers();
-}
 
-function acceptCustomerData(id) {
-  const customer = customerById(id);
-  if (currentAccount.role !== 'SALE' || customer?.saleId !== currentAccount.saleId) return;
-  customer.saleAcceptedAt = stamp(); customer.updatedAt = stamp();
-  audit('ACCEPT_DATA', id, 'Sale đã nhận data'); saveState(); render();
-}
 
 function scopedOrders() {
   const ids = scopeSaleIds();
@@ -2227,15 +1675,6 @@ function websiteRevenuePerformance() {
   return result.sort((a, b) => b.net - a.net || b.data - a.data);
 }
 
-function sourceScopePanel(title = 'Nguồn khách hàng trong phạm vi') {
-  const sources = sourcePerformance();
-  const websites = websiteRevenuePerformance();
-  const totalRevenue = websites.reduce((sum, row) => sum + row.net, 0);
-  return `<div class="grid grid-2" style="margin-top:14px">
-    <section class="panel"><div class="panel-head"><div><div class="panel-title">${escapeHtml(title)}</div><div class="panel-sub">Chỉ dùng khách hàng và đơn thuộc quyền tài khoản · ${escapeHtml(periodLabel())}</div></div><button class="button button-small" data-view-jump="marketing">Xem chi tiết</button></div><div class="panel-body">${trafficDonut(sources)}</div></section>
-    <section class="panel"><div class="panel-head"><div><div class="panel-title">Landing page tạo khách</div><div class="panel-sub">Data và doanh thu quy về từng website</div></div><button class="button button-small" data-view-jump="revenue">Doanh thu website</button></div><div class="panel-body">${websites.slice(0, 5).map((row, index) => { const share = totalRevenue > 0 ? row.net / totalRevenue * 100 : 0; return `<div class="rank-row"><span class="rank">${index + 1}</span><div><b>${escapeHtml(row.name)}</b><small>${escapeHtml(row.domain)} · ${row.data} data · ${row.paidOrders} lượt thanh toán</small><div class="progress"><i style="width:${Math.max(0, share)}%"></i></div></div><div class="rank-value"><b>${money(row.net, true)}</b><small>${share.toFixed(1).replace('.', ',')}%</small></div></div>`; }).join('') || '<div class="empty"><b>Chưa có dữ liệu nguồn</b><span>Không phát sinh data hoặc giao dịch trong kỳ.</span></div>'}</div></section>
-  </div>`;
-}
 
 function distributionDonut(rows, metric, label) {
   const rawTotal = rows.reduce((sum, row) => sum + row[metric], 0);
@@ -2792,11 +2231,6 @@ function customersView() {
 }
 
 // Ty trong rieng trong Team, khong thay doi ty trong Admin chia xuong Leader.
-function leaderRecipientSettings() {
-  const people=teamRecipients(currentAccount.leaderId,currentAccount.teamId);
-  const config=state.saleDistributionByLeader[currentAccount.leaderId]||{};
-  return pageHead('Tỷ trọng nhận data trong Team','','') + `<section class="panel"><div class="panel-body">${people.map(p=>`<div class="field-manager-row"><b>${escapeHtml(p.name)}${p.teamLeaderRecipient?' (Leader)':''}</b><label>Tỷ trọng<input type="number" min="0" max="100" value="${config.weights?.[p.id] ?? 1}" data-team-weight="${escapeHtml(p.id)}"></label><label><input type="checkbox" data-team-enabled="${escapeHtml(p.id)}" ${(p.teamLeaderRecipient?config.leaderEnabled!==false:!config.enabledSaleIds||config.enabledSaleIds.includes(p.id))?'checked':''}>Nhận data</label></div>`).join('')}</div></section>`;
-}
 function updateTeamRecipient(id, field, value) {
   if(currentAccount.role!=='LEADER')return;
   const people=teamRecipients(currentAccount.leaderId,currentAccount.teamId),person=people.find(p=>p.id===id);if(!person)return;
@@ -3543,17 +2977,6 @@ function attendanceView() {
   return pageHead('Điểm danh', '') + config + `<section class="panel"><div class="table-wrap"><table><thead><tr><th>Nhân viên</th><th>Team</th><th>Thời gian</th><th>IP</th><th>Wi-Fi</th><th>Kết quả</th>${currentAccount.role === 'ADMIN' ? '<th></th>' : ''}</tr></thead><tbody>${body || `<tr><td colspan="${cols}"><div class="empty"><b>Chưa có điểm danh hôm nay</b></div></td></tr>`}</tbody></table></div></section>`;
 }
 
-function attendanceHistoryHtml() {
-  const today = dayIso(0);
-  const threeMonthsAgo = dayIso(90);
-  const staff = activeStaff().filter(person => person.role === 'SALE');
-  const history = state.attendance.filter(item => item.date >= threeMonthsAgo && item.date <= today && staff.some(person => person.id === item.accountId)).sort((a, b) => b.date.localeCompare(a.date) || b.at.localeCompare(a.at));
-  const rows = history.map(item => {
-    const person = staff.find(member => member.id === item.accountId);
-    return `<tr><td><b>${escapeHtml(item.name)}</b><div class="cell-sub">${escapeHtml(person?.role || '')}</div></td><td>${escapeHtml(item.teamId)}</td><td class="mono">${escapeHtml(item.date)}</td><td class="mono">${escapeHtml(item.at.slice(11))}</td><td>${item.late ? `<span class="status status-cancelled">Muộn ${item.lateMinutes || 0}p</span>` : '<span class="status status-paid">Đúng giờ</span>'}</td><td>${item.ipValid ? '<span class="status status-paid">Đúng wifi</span>' : '<span class="status status-cancelled">Ngoài wifi</span>'}</td><td class="note-preview">${escapeHtml(item.note || '')}</td></tr>`;
-  }).join('');
-  return `<section class="panel" style="margin-top:14px"><div class="panel-head"><div><div class="panel-title">Bảng điểm danh chi tiết 3 tháng</div><div class="panel-sub">Admin xem Sale và Leader · ${history.length} bản ghi từ ${escapeHtml(threeMonthsAgo)} đến ${escapeHtml(today)}</div></div></div><div class="table-wrap"><table><thead><tr><th>Nhân sự</th><th>Team</th><th>Ngày</th><th>Giờ</th><th>Kết quả</th><th>Wi-Fi</th><th>Ghi chú</th></tr></thead><tbody>${rows || `<tr><td colspan="7"><div class="empty"><b>Chưa có dữ liệu điểm danh trong 3 tháng</b><span>Bảng sẽ tự cập nhật sau khi Sale hoặc Leader điểm danh.</span></div></td></tr>`}</tbody></table></div></section>`;
-}
 
 /* Bản ghi điểm danh trỏ vào NHÂN SỰ trong state.members (s1, l1…), không phải tài
    khoản đăng nhập (u-sale-1) — nhờ vậy loadState() giữ được bản ghi, bảng của Leader
@@ -5090,18 +4513,7 @@ function assignmentWeight(person, roundConfig = null) {
   return Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : 1;
 }
 
-function matchingLeaderSourceRule(customer) {
-  return state.leaderDistribution.sourceRules.find(rule => {
-    if (rule.active === false || !state.leaderDistribution.enabledLeaderIds.includes(rule.targetLeaderId)) return false;
-    if (rule.matchType === 'WEBSITE') return customer.websiteId === rule.matchValue;
-    if (rule.matchType === 'SOURCE') return normalize(customer.source) === normalize(rule.matchValue);
-    return normalize(customer.campaign) === normalize(rule.matchValue);
-  }) || null;
-}
 
-function weightedCandidateList(candidates) {
-  return candidates.flatMap(candidate => Array.from({ length: assignmentWeight(candidate) }, () => candidate));
-}
 
 function chooseAssignmentTarget(customer, mode) {
   if(!customer.leaderId&&['EQUAL','ROUND_ROBIN','BALANCED'].includes(mode)){
@@ -5577,31 +4989,6 @@ function generateWebhookFor(id) {
   saveState(); render(); toast('Đã tạo mã webhook mới');
 }
 
-function editWebhookUrlModal(id) {
-  if (currentAccount.role !== 'ADMIN') { toast('FORBIDDEN · chỉ Admin được đổi URL webhook'); return; }
-  const website = websiteById(id);
-  if (!website) return;
-  openModal(`URL webhook · ${website.name}`, `<form id="webhookUrlForm"><div class="form-grid"><label class="form-field full">Mã webhook (slug)<input id="webhookSlugField" class="mono" maxlength="60" value="${escapeHtml(website.webhookSlug || '')}" placeholder="ds-1789180581447-IIM6U3AAD1R"></label><label class="form-field full">Ghi đè URL công khai (tuỳ chọn, bắt buộc HTTPS)<input id="webhookOverrideField" class="mono" type="url" maxlength="500" value="${escapeHtml(website.webhookUrlOverride || '')}" placeholder="https://apex.vn/api/data-sources/webhook/ds-.../"></label><label class="form-field full">Domain công khai dùng chung cho mọi website<input id="webhookBaseField" class="mono" maxlength="200" value="${escapeHtml(state.settings.webhookPublicBase || '')}" placeholder="${escapeHtml(DEFAULT_WEBHOOK_BASE)}"></label></div><div class="modal-actions"><button class="button button-danger" type="button" id="webhookRegenerateButton">Tạo mã mới</button><button class="button" type="button" data-close-modal>Huỷ</button><button class="button button-primary" type="submit">Lưu</button></div></form>`);
-  $('#webhookRegenerateButton').onclick = () => {
-    $('#webhookSlugField').value = generateWebhookSlug();
-    $('#webhookOverrideField').value = '';
-    toast('Đã sinh mã mới — bấm Lưu để áp dụng');
-  };
-  $('#webhookUrlForm').onsubmit = event => {
-    event.preventDefault();
-    const slug = cleanText($('#webhookSlugField').value, '', 60).trim();
-    const override = cleanText($('#webhookOverrideField').value, '', 500).trim();
-    const base = cleanText($('#webhookBaseField').value, '', 200).trim();
-    if (!cleanWebhookSlug(slug)) { toast('Mã webhook sai định dạng: ds-<13 số>-<11 ký tự A-Z0-9>'); return; }
-    if (state.websites.some(item => item.id !== website.id && String(item.webhookSlug || '').toUpperCase() === slug.toUpperCase())) { toast('Mã webhook này đã thuộc về website khác'); return; }
-    if (override && !cleanWebhookOverride(override)) { toast('URL ghi đè phải là HTTPS và không chứa khoảng trắng'); return; }
-    website.webhookSlug = slug;
-    website.webhookUrlOverride = cleanWebhookOverride(override);
-    state.settings.webhookPublicBase = cleanWebhookBase(base, DEFAULT_WEBHOOK_BASE);
-    audit('UPDATE_WEBHOOK', website.id, `Cập nhật URL webhook cho ${website.domain}`);
-    saveState(); closeModal(); render(); toast('Đã lưu URL webhook');
-  };
-}
 
 function configureIntegrationModal(id = null) {
   if (currentAccount.role !== 'ADMIN') { toast('FORBIDDEN · chỉ Admin được cấu hình tích hợp'); return; }
@@ -5927,10 +5314,6 @@ function bindViewActions() {
   $$('[data-delete-source-rule]').forEach(button => button.onclick = () => deleteDistributionSourceRule(button.dataset.deleteSourceRule));
 }
 
-function registeredLoginAccounts() { return (state.registeredAccounts || []).filter(account => account.active !== false && !(state.disabledAccountIds || []).includes(account.id)); }
-function loginAccounts() { return [...ACCOUNTS.filter(account => !(state.disabledAccountIds || []).includes(account.id)), ...registeredLoginAccounts()]; }
-function accountMember(account) { return state.members.find(member => member.id === account.id); }
-function accountCanLogin(account) { return !!account && account.active !== false && account.role !== 'UNASSIGNED'; }
 function updateLoginTwoFactorField() {
   $('#loginOtpField')?.classList.add('is-hidden');
   if($('#loginOtp'))$('#loginOtp').value='';
@@ -6286,10 +5669,6 @@ function hydrateSessionAccount(account) {
 }
 
 const baseSettingsView = settingsView;
-const baseProfileView = profileView;
-VIEW_RENDERERS.profile = function profileViewWithAccountId() {
-  return baseProfileView().replace('<label class="form-field">Vai trò', `<label class="form-field">ID tài khoản<input id="profileAccountId" required maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9._-]{2,63}" value="${escapeHtml(currentAccount.accountId || '')}" placeholder="Nhập ID tài khoản"></label><label class="form-field">Vai trò`);
-};
 // Giao diện hồ sơ dùng chung cho mọi vai trò.
 VIEW_RENDERERS.profile = function profileViewModern() {
   const role = currentAccount.actualRole || currentAccount.role;
@@ -6430,7 +5809,7 @@ function restoreRuntimeSession(){
     }
     const token=session.token;serverSyncToken=token;window.crmRuntimeAuthState='restoring';
     const controller=typeof AbortController==='function'?new AbortController():null;
-    const timer=controller?setTimeout(()=>controller.abort(),8000):null;
+    const timer=controller?setTimeout(()=>controller.abort(),25000):null;
     try{
       // Mỗi lượt chỉ có một request; lỗi tạm thời được thử lại nền, không khóa màn hình 3 lần liên tiếp.
       const response=await fetch(webhookApiBase()+'/api/state?passive=1',{headers:{Authorization:'Bearer '+token},cache:'no-store',signal:controller?.signal});

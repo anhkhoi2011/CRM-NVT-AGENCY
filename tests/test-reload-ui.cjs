@@ -59,7 +59,7 @@ function restoreHarness(responses){
 test('F5: 503 giữ token và thử lại nền thay vì chờ ba request liên tiếp',async()=>{
  const h=restoreHarness([{ok:false,status:503},{ok:true,status:200,json:async()=>({user:{id:'u'},state:{}})}]);
  assert.equal(await h.ctx.restoreRuntimeSession(),false);assert.equal(h.seen.length,1);assert.equal(h.ctx.serverSyncToken,'t');assert.equal(h.removed.length,0);
- assert.ok(h.timers.some(t=>t.delay===8000));assert.ok(h.timers.some(t=>t.delay===3000));assert.equal(h.ctx.window.crmRuntimeAuthState,'restoring');
+ assert.ok(h.timers.some(t=>t.delay===25000));assert.ok(h.timers.some(t=>t.delay===3000));assert.equal(h.ctx.window.crmRuntimeAuthState,'restoring');
  assert.equal(await h.ctx.restoreRuntimeSession(),true);assert.equal(h.ctx.window.crmRuntimeAuthState,'authenticated');assert.equal(h.ctx.window.crmRuntimeRestoreError,'');
 });
 test('F5: chỉ 401 mới xóa phiên, không tự thử lại token hết hạn',async()=>{
@@ -74,5 +74,5 @@ test('F5: bấm thử lại liên tiếp chỉ có một request khôi phục đ
 test('HTML runtime có version vẫn phải kiểm tra lại cache khi deploy',()=>{
  const server=fs.readFileSync(ROOT+'/webhook-server.cjs','utf8');
  assert.match(server,/'Cache-Control':extension==='\.html' \? 'no-cache'/);
- assert.match(html,/crm-runtime\.html\?v=20261001-worker-swr-1/);
+ assert.match(html,/crm-runtime\.html\?v=20261001-fast-boot-1/);
 });

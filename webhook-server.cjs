@@ -42,7 +42,7 @@ try { nodemailer = require('nodemailer'); } catch { /* email optional until npm 
 const PORT = Number(process.env.PORT || 4173);
 const HOST = process.env.HOST || '0.0.0.0';
 const SERVER_INSTANCE = crypto.randomUUID();
-const BUILD_VERSION = '20261001-no-sse-notes-fix';
+const BUILD_VERSION = '20261001-shared-snapshot-cache';
 const REPO_ROOT = path.resolve(__dirname);
 const DEFAULT_WEBHOOK_DATA_DIR = process.env.WEBHOOK_DATA_DIR
   ? path.resolve(process.env.WEBHOOK_DATA_DIR)
@@ -1455,6 +1455,9 @@ async function serveStatic(request, response, urlPathname) {
 const server = http.createServer(async (request, response) => {
   const url = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
   const pathname = url.pathname;
+  // Mọi request ghi (webhook, đăng nhập, CRM) làm mới cache snapshot dùng chung để lượt
+  // đồng bộ kế tiếp của người khác thấy dữ liệu mới, không phải chờ hết TTL.
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method)) response.once('finish', () => crmData.invalidateSnapshotCache());
 
   try {
     const webhookMatch = pathname.match(WEBHOOK_PATH_PATTERN);
@@ -1482,7 +1485,9 @@ const server = http.createServer(async (request, response) => {
           sendJson(response, 200, { ok: true });
           void telegramBot.handleTelegramUpdate(update, supportWebhook ? 'support' : 'system')
             .then(handled => { if (handled?.support?.matched && handled.support.requesterUserId) notifySupportListeners(handled.support); })
-            .catch(err => console.warn('[Telegram Webhook] error:', err.code || err.message));
+            .catch(err => console.warn('[Telegram Webhook] error:', err.code || err.message))
+            // Điểm danh/nhận data chạy nền sau khi đã trả 200: làm mới cache khi xong thật.
+            .finally(() => crmData.invalidateSnapshotCache());
           return;
         } catch (err) {
           console.warn('[Telegram Webhook] error:', err.message);
