@@ -3,9 +3,9 @@
 const crypto = require('node:crypto');
 const distributionRounds = require('./distribution-rounds.js');
 const { pool } = require('./db.js');
-const LISTS = ['customers','orders','products','members','registrations','customFieldDefinitions','customerFieldHistory','assignmentHistory','resubmissions','notes','imports','attendance','dataOffers','traffic','tasks','notifications','audit','websites','integrations','webhookPending','brokerageMetrics','feedbacks','processes','expenses'];
+const LISTS = ['customers','orders','products','members','registrations','customFieldDefinitions','customerFieldHistory','assignmentHistory','resubmissions','notes','imports','attendance','dataOffers','traffic','tasks','notifications','audit','websites','integrations','webhookPending','brokerageMetrics','feedbacks','processes','expenses','courseConfigs'];
 const OBJECTS = ['settings','leaderDistribution','saleDistributionByLeader','productCategories','careGroups'];
-const ADMIN_ONLY = new Set(['products','members','registrations','customFieldDefinitions','imports','traffic','websites','integrations','webhookPending','productCategories','leaderDistribution','careGroups','processes','expenses']);
+const ADMIN_ONLY = new Set(['products','members','registrations','customFieldDefinitions','imports','traffic','websites','integrations','webhookPending','productCategories','leaderDistribution','careGroups','processes','expenses','courseConfigs']);
 const SCHEMA = [
  `CREATE TABLE IF NOT EXISTS crm_documents (collection VARCHAR(64) NOT NULL, id VARCHAR(96) NOT NULL, body JSON NOT NULL, deleted TINYINT NOT NULL DEFAULT 0, PRIMARY KEY(collection,id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
  `CREATE TABLE IF NOT EXISTS crm_changes (id BIGINT AUTO_INCREMENT PRIMARY KEY, request_id VARCHAR(96) NOT NULL, actor_id VARCHAR(96) NOT NULL, changes_json JSON NOT NULL, created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE KEY(request_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
@@ -447,6 +447,14 @@ function validate(key,value,id){
  if(key==='members'&&Object.hasOwn(value,'accountId')&&value.accountId&&!/^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$/.test(String(value.accountId)))error(400,'ID tài khoản không hợp lệ');
  if(key==='customers'&&(!value.phone||value.phone.length>30))error(400,'Số điện thoại không hợp lệ');
  if(key==='products'&&(!Number.isFinite(value.price)||value.price<0||!['SALE','RENTAL'].includes(value.type)))error(400,'Sản phẩm không hợp lệ');
+ if(key==='products'&&Object.hasOwn(value,'kind')&&!['COURSE','INDICATOR','VIP','OTHER'].includes(value.kind))error(400,'Loại sản phẩm không hợp lệ');
+ if(key==='products'&&Object.hasOwn(value,'courseKey')&&(typeof value.courseKey!=='string'||value.courseKey.length>120))error(400,'Khoá học của sản phẩm không hợp lệ');
+ if(key==='courseConfigs'){
+  if(typeof value.courseKey!=='string'||!value.courseKey.trim()||value.courseKey.length>120)error(400,'Khoá học không hợp lệ');
+  for(const field of ['trainerIds','leaderIds'])if(!Array.isArray(value[field]??[])||(value[field]??[]).length>50||(value[field]??[]).some(item=>typeof item!=='string'||item.length>80))error(400,'Danh sách nhân sự khóa học không hợp lệ');
+  for(const field of ['rateSale','rateLeader','rateTrainer','rateCompany'])if(!Number.isFinite(Number(value[field]??0))||Number(value[field]??0)<0||Number(value[field]??0)>100)error(400,'Tỷ lệ chia khóa học không hợp lệ');
+  if(Object.hasOwn(value,'startDate')&&value.startDate&&!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(String(value.startDate)))error(400,'Ngày khai giảng không hợp lệ');
+ }
  if(key==='products'&&Object.hasOwn(value,'imageData')&&(typeof value.imageData!=='string'||(value.imageData!==''&&(!/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(value.imageData)||value.imageData.length>2_800_000))))error(400,'\u1ea2nh s\u1ea3n ph\u1ea9m kh\u00f4ng h\u1ee3p l\u1ec7 ho\u1eb7c qu\u00e1 l\u1edbn');
  if(key==='feedbacks'&&(Object.hasOwn(value,'category')||Object.hasOwn(value,'note')||Object.hasOwn(value,'imageData')||Object.hasOwn(value,'authorId'))){
   if(!['COURSE','SUPPORT','GROUP_SIGNAL'].includes(String(value.category||'')))error(400,'Lo\u1ea1i feedback kh\u00f4ng h\u1ee3p l\u1ec7');

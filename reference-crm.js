@@ -159,7 +159,7 @@
     // 4 mục chuẩn trên Sidebar của nhóm KẾ TOÁN & HOA HỒNG (giống hệt bản demo)
     const items = [
       ['mindmap', 'Cây Mindmap (Lv1-Lv3)', '<circle cx="12" cy="12" r="3"></circle><path d="M12 3v6m0 6v6M3 12h6m6 0h6"></path>'],
-      ['report', 'Báo cáo Doanh thu (23)', '<path d="M18 20V10M12 20V4M6 20v-6"></path>'],
+      ['report', 'Báo cáo Doanh thu', '<path d="M18 20V10M12 20V4M6 20v-6"></path>'],
       ['orders', 'Kiểm Tra Đơn & Xuất VAT', '<rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M7 8h10M7 12h10M7 16h6"></path>'],
       ['expenses', 'Kế toán & Chi phí Admin', '<circle cx="12" cy="12" r="10"></circle><path d="M12 6v12M17 10a5 5 0 0 0-10 0c0 5 10 3 10 8a5 5 0 0 1-10 0"></path>']
     ];
@@ -1297,10 +1297,34 @@
       .reference-product-image-picker{display:flex;align-items:center;gap:14px;padding:12px;border:1px dashed #cbd5e1;border-radius:12px;background:#f8fafc}.reference-product-image-preview{width:88px;height:88px;flex:0 0 88px;display:grid;place-items:center;overflow:hidden;border-radius:10px;background:#e2e8f0;color:#64748b;font-size:11px;font-weight:700;text-align:center}.reference-product-image-preview img{display:block;width:100%;height:100%;object-fit:cover}.reference-product-image-actions{display:flex;min-width:0;flex:1;flex-direction:column;align-items:flex-start;gap:7px}.reference-product-image-actions input{max-width:100%;font:inherit;font-size:12px}.reference-product-image-actions small{color:#64748b}.reference-product-image-actions .btn-action{min-height:32px;padding:6px 11px}.reference-product-name{display:flex;align-items:center;gap:9px;min-width:0}.reference-product-name>span:last-child{overflow:hidden;text-overflow:ellipsis}.reference-product-thumb{display:grid;place-items:center;width:38px;height:38px;flex:0 0 38px;overflow:hidden;border-radius:8px;background:#dbeafe;color:#1d4ed8;font-size:13px;font-weight:800;object-fit:cover}@media(max-width:520px){.reference-product-image-picker{align-items:flex-start}.reference-product-image-actions{gap:8px}}
     `;document.head.appendChild(style);
   }
+  // Loại sản phẩm dùng chung cho form sản phẩm và báo cáo doanh thu Kế toán.
+  const PRODUCT_KINDS=[['COURSE','Khóa học'],['INDICATOR','Chỉ báo'],['VIP','Nhóm VIP'],['OTHER','Khác']];
+  function productKind(product){
+    if(['COURSE','INDICATOR','VIP','OTHER'].includes(product?.kind))return product.kind;
+    const label=String(product?.category||product?.name||'').toLowerCase();
+    if(label.includes('vip'))return 'VIP';
+    if(product?.type==='RENTAL'||label.includes('chỉ báo')||label.includes('indicator')||label.includes('tín hiệu'))return 'INDICATOR';
+    if(label.includes('khóa học')||label.includes('khoá học')||label.includes('khoa hoc')||label.includes('course'))return 'COURSE';
+    return 'OTHER';
+  }
+  // Cột "Khoá" của Khách hàng tổng / Chăm sóc khách: giá trị K03, K05... là lớp của báo cáo.
+  function courseField(){
+    const fields=(data.fields||[]).filter(field=>field.active!==false);
+    const key=field=>String(`${field.id} ${field.label}`).normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/đ/gi,'d').toLowerCase();
+    return fields.find(field=>field.id==='course')||fields.find(field=>/\bkhoa\b|course/.test(key(field)))||null;
+  }
+  function courseKeys(){
+    const field=courseField();if(!field)return [];
+    const values=new Set((field.options||[]).map(option=>String(option.value||'').trim()).filter(Boolean));
+    for(const customer of data.customers||[]){const value=customer.customFields?.[field.id];for(const item of Array.isArray(value)?value:[value])if(String(item||'').trim())values.add(String(item).trim());}
+    return [...values].sort((a,b)=>a.localeCompare(b,'vi',{numeric:true}));
+  }
   function productModal(id=null) {
     if(data.user.role!=='ADMIN')return;
     ensureProductImageStyles();
-    const p=data.products.find(p=>p.id===id)||{name:'',sku:'',category:'',price:0,type:'SALE',vatRate:0.1,active:true};
+    const p=data.products.find(p=>p.id===id)||{name:'',sku:'',category:'Khóa học',price:0,type:'SALE',kind:'COURSE',courseKey:'',vatRate:0.1,active:true};
+    const kind=id?productKind(p):'COURSE',keys=courseKeys();
+    if(p.courseKey&&!keys.includes(p.courseKey))keys.push(p.courseKey);
     q('#referenceProductModal')?.remove();
     const modal=document.createElement('div');modal.id='referenceProductModal';modal.className='modal-overlay open';
     modal.innerHTML=`<form id="referenceProductForm" class="modal-card" role="dialog" aria-modal="true" aria-labelledby="referenceProductTitle" style="max-height:92dvh;overflow-y:auto;width:min(600px,calc(100vw - 24px))">
@@ -1308,7 +1332,9 @@
       <div class="modal-body"><div class="grid-2-col" style="grid-template-columns:repeat(auto-fit,minmax(min(210px,100%),1fr));gap:16px">
       <div class="form-group"><label for="refProductName">Tên sản phẩm *</label><input id="refProductName" name="name" required maxlength="200" value="${esc(p.name)}"></div>
       <div class="form-group"><label for="refProductSku">Mã SKU</label><input id="refProductSku" name="sku" maxlength="60" value="${esc(p.sku)}"></div>
-      <div class="form-group"><label for="refProductType">Loại sản phẩm</label><select id="refProductType" name="type">${opt('SALE','Bên Bán',p.type)+opt('RENTAL','Bên Thuê',p.type)}</select></div>
+      <div class="form-group"><label for="refProductKind">Nhóm sản phẩm *</label><select id="refProductKind" name="kind" required aria-describedby="refProductKindHelp">${PRODUCT_KINDS.map(([value,label])=>opt(value,label,kind)).join('')}</select><small id="refProductKindHelp">Quyết định mục doanh thu trong Báo cáo doanh thu.</small></div>
+      <div class="form-group"><label for="refProductType">Hình thức *</label><select id="refProductType" name="type">${opt('SALE','Bán',p.type)+opt('RENTAL','Cho thuê',p.type)}</select></div>
+      <div class="form-group" id="refProductCourseGroup"><label for="refProductCourseKey">Khoá (cột Khoá) *</label><select id="refProductCourseKey" name="courseKey" aria-describedby="refProductCourseHelp">${opt('','Chọn Khoá',p.courseKey||'')+keys.map(key=>opt(key,key,p.courseKey||'')).join('')}</select><small id="refProductCourseHelp">${keys.length?'Lấy từ cột Khoá của Khách hàng tổng.':'Chưa có giá trị trong cột Khoá. Thêm lựa chọn ở Quản lý cột.'}</small></div>
       <div class="form-group"><label for="refProductMonths">Gói thuê</label><select id="refProductMonths" name="rentalMonths">${opt('','Chọn gói')+[1,3,6,12].map(n=>opt(String(n),n+' tháng',String(p.rentalMonths))).join('')}</select></div>
       <div class="form-group"><label for="refProductCategory">Danh mục *</label><input id="refProductCategory" name="category" list="refProductCategories" required maxlength="100" value="${esc(p.category)}"><datalist id="refProductCategories">${(data.productCategories||[]).map(c=>opt(c,c)).join('')}</datalist></div>
       <div class="form-group"><label for="refProductPrice">Đơn giá chưa VAT *</label><input id="refProductPrice" name="price" type="number" required min="0" step="1" value="${esc(p.price)}"></div>
@@ -1319,7 +1345,19 @@
       <div class="modal-footer"><button type="button" class="btn-action btn-secondary" data-product-close>Hủy</button><button type="submit" class="btn-action btn-primary">Lưu sản phẩm</button></div></form>`;
     document.body.appendChild(modal);
     modal.querySelectorAll('[data-product-close]').forEach(n=>n.onclick=()=>{if(!working){modal.remove();refresh(true);}});
-    const sync=()=>{q('#refProductMonths').disabled=q('#refProductType').value!=='RENTAL';q('#refProductMonths').required=!q('#refProductMonths').disabled;};q('#refProductType').onchange=sync;sync();
+    const kindCategory={COURSE:'Khóa học',INDICATOR:'Chỉ báo',VIP:'Nhóm VIP'};
+    let lastKind=q('#refProductKind').value;
+    const sync=()=>{
+      const kindValue=q('#refProductKind').value,course=kindValue==='COURSE',category=q('#refProductCategory');
+      q('#refProductMonths').disabled=q('#refProductType').value!=='RENTAL';q('#refProductMonths').required=!q('#refProductMonths').disabled;
+      q('#refProductCourseGroup').hidden=!course;q('#refProductCourseKey').disabled=!course;q('#refProductCourseKey').required=course&&keys.length>0;
+      // Danh mục đi theo nhóm khi người dùng chưa tự đặt tên khác.
+      if(kindValue!==lastKind&&(!category.value.trim()||category.value===kindCategory[lastKind]))category.value=kindCategory[kindValue]||'';
+      lastKind=kindValue;
+    };
+    q('#refProductType').onchange=sync;
+    q('#refProductKind').onchange=()=>{const value=q('#refProductKind').value;if(value==='INDICATOR'||value==='VIP')q('#refProductType').value='RENTAL';else if(value==='COURSE')q('#refProductType').value='SALE';sync();};
+    sync();
     let selectedImageData='',removeImage=false;
     const imageInput=q('#refProductImage'),imagePreview=q('#refProductImagePreview'),removeImageButton=q('#refProductImageRemove');
     const renderImagePreview=imageData=>{imagePreview.replaceChildren();if(imageData){const image=document.createElement('img');image.src=imageData;image.alt='\u1ea2nh s\u1ea3n ph\u1ea9m xem tr\u01b0\u1edbc';imagePreview.appendChild(image);}else imagePreview.innerHTML='<span>Ch\u01b0a c\u00f3 \u1ea3nh</span>';removeImageButton.hidden=!imageData;};
@@ -1327,7 +1365,7 @@
     removeImageButton.onclick=()=>{selectedImageData='';removeImage=true;imageInput.value='';renderImagePreview('');};
     q('#referenceProductForm').onsubmit=async event=>{
       event.preventDefault();if(working)return;working=true;
-      const form=event.currentTarget,input=Object.fromEntries(new FormData(form));input.active=input.active==='true';
+      const form=event.currentTarget,input=Object.fromEntries(new FormData(form));input.active=input.active==='true';input.kind=q('#refProductKind').value;input.courseKey=input.kind==='COURSE'?String(q('#refProductCourseKey').value||''):'';
       input.imageData=selectedImageData||(removeImage?'':String(p.imageData||''));
       const controls=Array.from(form.elements);controls.forEach(n=>n.disabled=true);text('refProductError','');
       let saved=false;
@@ -2223,11 +2261,8 @@
     const members=(data.members||[]).filter(member=>member&&member.active!==false&&member.active!==0&&member.active!=='0'&&member.role!=='ADMIN'&&['MANAGER','LEADER','SALE'].includes(member.role));
     const products=data.products||[],orders=data.orders||[],metrics=data.brokerageMetrics||[];
     const productType=order=>{
-      const product=products.find(item=>String(item.id)===String(order.productId))||{};
-      const label=String(product.category||product.name||order.productName||'').toLowerCase();
-      if(product.type==='RENTAL'||label.includes('chỉ báo')||label.includes('indicator')||label.includes('tín hiệu'))return 'INDICATOR';
-      if(label.includes('khóa học')||label.includes('khoa hoc')||label.includes('course'))return 'COURSE';
-      return 'OTHER';
+      const product=products.find(item=>String(item.id)===String(order.productId));
+      return productKind(product||{name:order.productName,category:order.productCategory});
     };
     const periodOrders=orders.filter(order=>order&&order.status==='PAID'&&String(order.paidAt||order.createdAt||'').slice(0,7)===selectedPeriod);
     const parentFor=member=>member.role==='LEADER'?member.managerId||null:member.role==='SALE'?(member.leaderId||member.managerId||null):null;
@@ -2236,15 +2271,17 @@
       const meta=roleMeta[member.role]||roleMeta.SALE,parentId=parentFor(member),parent=members.find(item=>String(item.id)===String(parentId));
       const metric=metrics.find(item=>String(item.memberId)===String(member.id)&&String(item.period||'')===selectedPeriod)||{};
       const owned=periodOrders.filter(order=>String(order.saleId||'')===String(member.id));
-      const indicatorRev=owned.filter(order=>productType(order)==='INDICATOR').reduce((sum,order)=>sum+Number(order.subtotal??order.total??0),0);
+      const revenueOf=kind=>owned.filter(order=>productType(order)===kind).reduce((sum,order)=>sum+Number(order.subtotal??order.total??0),0);
+      const indicatorRev=revenueOf('INDICATOR'),vipRev=revenueOf('VIP'),otherRev=revenueOf('OTHER');
       const courseRev=owned.filter(order=>productType(order)==='COURSE').reduce((sum,order)=>sum+Number(order.subtotal??order.total??0),0);
       const rate=Number(metric.lotCommissionRate||metric.ratePerLot||meta.rate)||meta.rate;
       const displayId=String(member.accountId||'').trim()||'—';
       const parentDisplayId=String(parent?.accountId||'').trim();
-      return {id:String(member.id),displayId,name:member.name||member.accountId||member.id,phone:member.phone||'',roleLevel:meta.level,roleTitle:meta.title,team:member.teamId||'',teamId:member.teamId||'',directManager:parent?((parent.name||parent.accountId||'Quản lý')+(parentDisplayId?' - ID: '+parentDisplayId:'')):'—',parentId:parentId?String(parentId):null,managerId:member.managerId||null,leaderId:member.leaderId||null,ratePerLot:rate,customDiffRate:Math.max(0,rate-(meta.level==='LV1'?70000:meta.level==='LV2'?50000:0)),basicLot:Number(metric.basicLots??metric.basicLot??0),miniLot:Number(metric.miniLots??metric.miniLot??0),microLot:Number(metric.microLots??metric.microLot??0),indicatorRev,courseRev,productRate:Number(metric.productRate??10),bonus:Number(metric.bonus||0)};
+      return {id:String(member.id),displayId,name:member.name||member.accountId||member.id,phone:member.phone||'',roleLevel:meta.level,roleTitle:meta.title,team:member.teamId||'',teamId:member.teamId||'',directManager:parent?((parent.name||parent.accountId||'Quản lý')+(parentDisplayId?' - ID: '+parentDisplayId:'')):'—',parentId:parentId?String(parentId):null,managerId:member.managerId||null,leaderId:member.leaderId||null,ratePerLot:rate,customDiffRate:Math.max(0,rate-(meta.level==='LV1'?70000:meta.level==='LV2'?50000:0)),basicLot:Number(metric.basicLots??metric.basicLot??0),miniLot:Number(metric.miniLots??metric.miniLot??0),microLot:Number(metric.microLots??metric.microLot??0),indicatorRev,courseRev,vipRev,otherRev,productRate:Number(metric.productRate??10),bonus:Number(metric.bonus||0)};
     });
     iframe.contentWindow.postMessage({type:'SYNC_MEMBERS_DATA',members:apexFormattedList,period:selectedPeriod},'*');
-    iframe.contentWindow.postMessage({type:'SYNC_ORDERS_DATA',orders:orders,customers:data.customers||[],products:products,members:data.members||[],expenses:data.expenses||[],period:selectedPeriod},'*');
+    const field=courseField();
+    iframe.contentWindow.postMessage({type:'SYNC_ORDERS_DATA',brokerageMetrics:metrics,orders:orders,customers:data.customers||[],products:products.map(product=>({...product,kind:productKind(product)})),members:data.members||[],expenses:data.expenses||[],courseField:field?{id:field.id,label:field.label,options:field.options||[]}:null,courseKeys:courseKeys(),courseConfigs:data.courseConfigs||[],period:selectedPeriod},'*');
   }
   async function createAccountingOrderFromIframe(payload, sourceWindow){
     if(!api) throw Error('CRM chưa sẵn sàng.');
@@ -2351,6 +2388,17 @@
       })().catch(error=>(event.source || q('#accountingIframe')?.contentWindow)?.postMessage({type:'ACCOUNTING_BROKERAGE_RESULT',ok:false,error:error.message||'Không lưu được cấu hình hoa hồng.'},'*'));
       return;
     }
+    if (event.data && event.data.type === 'ACCOUNTING_COURSE_CONFIG_SAVE') {
+      (async()=>{
+        if(!api) throw Error('CRM chưa sẵn sàng.');
+        const configs=Array.isArray(event.data.payload)?event.data.payload:[event.data.payload||{}];
+        const result=[];
+        for(const config of configs)result.push(await api.saveCourseConfig(config));
+        refresh(true);
+        (event.source || q('#accountingIframe')?.contentWindow)?.postMessage({type:'ACCOUNTING_COURSE_CONFIG_RESULT',ok:true,result},'*');
+      })().catch(error=>(event.source || q('#accountingIframe')?.contentWindow)?.postMessage({type:'ACCOUNTING_COURSE_CONFIG_RESULT',ok:false,error:error.message||'Không lưu được cấu hình khóa học.'},'*'));
+      return;
+    }
     if (event.data && event.data.type === 'APEX_VIEW_CHANGED') {
       // Bỏ qua sự kiện khởi tạo của iframe khi một tab CRM khác đang mở.
       const accountingIframe = q('#accountingIframe');
@@ -2432,7 +2480,7 @@
       'tab-audit':[renderUserLog,[userActivitySnapshot,data.user]],
       'tab-revenue':[renderRevenue,[data.orders,data.financialEvents]],
       'tab-businessReport':[businessReport,[data.orders,data.products,data.members,data.brokerageMetrics]],
-      'tab-accounting':[accountingReport,[data.orders,data.products,data.members,data.brokerageMetrics,data.expenses]],
+      'tab-accounting':[accountingReport,[data.orders,data.products,data.members,data.brokerageMetrics,data.expenses,data.courseConfigs,data.customers,data.fields]],
       'tab-dashboard':[()=>{dashboard();dashboardExtras();},[data.customers,data.orders,data.members,data.financialEvents,data.managerHierarchy,data.offers,data.pendingOffers]],
       'tab-websites':[()=>{sourceAnalytics();websites();},[data.websites,data.customers,data.orders,data.webhookPending,data.webhookTransport]],
       'tab-attendance':[attendance,[data.attendance,data.members,data.settings,data.today]],

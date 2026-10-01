@@ -146,7 +146,7 @@ test('Chỉ Admin, Leader và Manager được đổi tên khách trong phạm v
  });
  test('Toàn bộ collection phụ đọc lại được; xóa giữ before-image',async()=>{
  const f=fixture();const keys=f.api.LISTS.filter(k=>!['customers','orders','products','members'].includes(k));
- const changes=keys.map(key=>change(key,key==='brokerageMetrics'?{id:'row-'+key,memberId:'sale',leaderId:'lead',teamId:'T',period:'2026-09',basicLots:0,microLots:0,nanoLots:0,lotCommissionRate:0,indicatorCommissionRate:0,courseCommissionRate:0,vatRate:.1}:{id:'row-'+key,value:'giữ lâu dài'}));
+ const changes=keys.map(key=>change(key,key==='courseConfigs'?{id:'row-'+key,courseKey:'K01',trainerIds:[],leaderIds:[],rateSale:15,rateLeader:5,rateTrainer:15,rateCompany:65}:key==='brokerageMetrics'?{id:'row-'+key,memberId:'sale',leaderId:'lead',teamId:'T',period:'2026-09',basicLots:0,microLots:0,nanoLots:0,lotCommissionRate:0,indicatorCommissionRate:0,courseCommissionRate:0,vatRate:.1}:{id:'row-'+key,value:'giữ lâu dài'}));
  for(const key of f.api.OBJECTS)changes.push({key,id:'$',base:null,value:key==='productCategories'?['Dịch vụ']:{test:'giữ'}});
  await f.api.write(admin,'all',changes);let result=await f.api.read(admin);
  for(const key of keys)assert.equal(result.state[key].length,1,key);

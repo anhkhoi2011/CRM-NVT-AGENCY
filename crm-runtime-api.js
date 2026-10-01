@@ -107,6 +107,24 @@
         audit('SAVE_BROKERAGE_METRIC',id,member.name+' · '+period);return {ok:true};
       },'brokerage-metric');
     },
+    async saveCourseConfig(input){
+      requireRole(['ADMIN']);
+      return persist(()=>{
+        const courseKey=String(input?.courseKey||'').trim();
+        if(!courseKey||courseKey.length>120)throw Error('Chọn Khoá học cần cấu hình.');
+        const ids=list=>[...new Set((Array.isArray(list)?list:[]).map(value=>String(value||'').trim()).filter(Boolean))].slice(0,50);
+        const rate=(value,fallback)=>{const number=value===''||value==null?fallback:Number(value);if(!Number.isFinite(number)||number<0||number>100)throw Error('Tỷ lệ chia phải từ 0 đến 100%.');return number;};
+        state.courseConfigs||=[];
+        const existing=state.courseConfigs.find(row=>row.courseKey===courseKey);
+        const startDate=String(input.startDate||'').slice(0,10);
+        if(startDate&&!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(startDate))throw Error('Ngày khai giảng không hợp lệ.');
+        const item={id:existing?.id||makeRecordId('CCFG'),courseKey,trainerIds:ids(input.trainerIds),leaderIds:ids(input.leaderIds),rateSale:rate(input.rateSale,15),rateLeader:rate(input.rateLeader,5),rateTrainer:rate(input.rateTrainer,15),rateCompany:rate(input.rateCompany,65),startDate,updatedAt:stamp()};
+        if(item.rateSale+item.rateLeader+item.rateTrainer+item.rateCompany>100.0001)throw Error('Tổng tỷ lệ chia không được vượt 100%.');
+        if(existing)Object.assign(existing,item);else state.courseConfigs.push(item);
+        audit('SAVE_COURSE_CONFIG',item.id,courseKey);
+        return {id:item.id,courseKey};
+      },'course-config:'+String(input?.courseKey||''));
+    },
     async saveExpense(input){
       requireRole(['ADMIN']);
       return persist(()=>{
@@ -207,7 +225,7 @@
       const autoLevelSources=new Set(['API','FORM','IMPORT','SYSTEM']);
       const levelChosenIds=new Set(state.customerFieldHistory.filter(h=>h.fieldId==='customerLevel'&&h.to!==''&&h.to!=null&&!autoLevelSources.has(h.source)).map(h=>h.customerId));
       const markLevel=list=>(list||[]).forEach(c=>{const level=String(c.customFields?.customerLevel??'');c.levelChosen=levelChosenIds.has(c.id)||(level!==''&&level!=='L0');});
-      const view=structuredClone({user:currentAccount,distributionRoundViews:distributionRoundViews(),distributionExtraTurnPeople:CrmDistributionRounds.recipients(state.members,state.leaderDistribution,state.saleDistributionByLeader).people,managerHierarchy,fonts:referenceFonts,assignedDataStats:currentAccount.role==='SALE'?assignedDataStatsForMe():null,pendingOffers:currentAccount.role==='SALE'?pendingOffersForMe().map(o=>({id:o.id,name:customerById(o.customerId)?.name||'',offeredAt:o.offeredAt,minutesLeft:offerMinutesLeft(o)})):[],customers,orders:visibleOrders,products:state.products,productCategories:state.productCategories,members:state.members,registeredAccounts:state.registeredAccounts,fields:state.customFieldDefinitions,careGroups:state.careGroups,imports:currentAccount.role==='ADMIN'?state.imports:[],resubmissions:state.resubmissions,assignmentHistory,websites:state.websites.map(w=>({...w,publicWebhookUrl:webhookUrlFor(w)})),webhookPending,webhookTransport:{...webhookTransport,label:(WEBHOOK_TRANSPORT_META[webhookTransport.mode]||WEBHOOK_TRANSPORT_META.idle)[0]},settings:state.settings,notifications:visibleNotifications(),audit:state.audit,attendance:state.attendance,brokerageMetrics:state.brokerageMetrics,feedbacks:state.feedbacks,processes:state.processes,expenses:currentAccount.role==='ADMIN'?state.expenses:[],tasks:scopedTasks(),leaderDistribution:state.leaderDistribution,saleDistributionByLeader:state.saleDistributionByLeader,offers:state.dataOffers,financialEvents:financialEvents(visibleOrders),navigation:allowedViews(),today:dayIso(0)});
+      const view=structuredClone({user:currentAccount,distributionRoundViews:distributionRoundViews(),distributionExtraTurnPeople:CrmDistributionRounds.recipients(state.members,state.leaderDistribution,state.saleDistributionByLeader).people,managerHierarchy,fonts:referenceFonts,assignedDataStats:currentAccount.role==='SALE'?assignedDataStatsForMe():null,pendingOffers:currentAccount.role==='SALE'?pendingOffersForMe().map(o=>({id:o.id,name:customerById(o.customerId)?.name||'',offeredAt:o.offeredAt,minutesLeft:offerMinutesLeft(o)})):[],customers,orders:visibleOrders,products:state.products,productCategories:state.productCategories,members:state.members,registeredAccounts:state.registeredAccounts,fields:state.customFieldDefinitions,careGroups:state.careGroups,imports:currentAccount.role==='ADMIN'?state.imports:[],resubmissions:state.resubmissions,assignmentHistory,websites:state.websites.map(w=>({...w,publicWebhookUrl:webhookUrlFor(w)})),webhookPending,webhookTransport:{...webhookTransport,label:(WEBHOOK_TRANSPORT_META[webhookTransport.mode]||WEBHOOK_TRANSPORT_META.idle)[0]},settings:state.settings,notifications:visibleNotifications(),audit:state.audit,attendance:state.attendance,brokerageMetrics:state.brokerageMetrics,feedbacks:state.feedbacks,processes:state.processes,expenses:currentAccount.role==='ADMIN'?state.expenses:[],courseConfigs:state.courseConfigs||[],tasks:scopedTasks(),leaderDistribution:state.leaderDistribution,saleDistributionByLeader:state.saleDistributionByLeader,offers:state.dataOffers,financialEvents:financialEvents(visibleOrders),navigation:allowedViews(),today:dayIso(0)});
       markLevel(view.customers);markLevel(view.managerHierarchy?.customers);
       return view;
     },
@@ -362,7 +380,11 @@
         const vatPercent= input.vatRate===''||input.vatRate==null ? 10 : Number(input.vatRate);
         const imageData=Object.hasOwn(input,'imageData')?String(input.imageData||''):String(existing?.imageData||'');
         if(imageData&&(!/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(imageData)||imageData.length>2_800_000))throw Error('\u1ea2nh s\u1ea3n ph\u1ea9m kh\u00f4ng h\u1ee3p l\u1ec7 ho\u1eb7c qu\u00e1 l\u1edbn.');
-        const values={name:String(input.name||'').trim(),sku:String(input.sku||'').trim(),category:String(input.category||'').trim(),price:Number(input.price),type:input.type,rentalMonths:input.type==='RENTAL'?Number(input.rentalMonths):null,vatRate:vatPercent/100,active:input.active!==false,imageData};
+        const kind=['COURSE','INDICATOR','VIP','OTHER'].includes(input.kind)?input.kind:(existing?.kind||(input.type==='RENTAL'?'INDICATOR':'OTHER'));
+        const kindCategory={COURSE:'Khóa học',INDICATOR:'Chỉ báo',VIP:'Nhóm VIP'}[kind];
+        const courseKey=kind==='COURSE'?String(input.courseKey??existing?.courseKey??'').trim():'';
+        if(courseKey.length>120)throw Error('Khoá học không hợp lệ.');
+        const values={name:String(input.name||'').trim(),sku:String(input.sku||'').trim(),category:String(input.category||kindCategory||'').trim(),kind,courseKey,price:Number(input.price),type:input.type,rentalMonths:input.type==='RENTAL'?Number(input.rentalMonths):null,vatRate:vatPercent/100,active:input.active!==false,imageData};
         if(!Number.isFinite(vatPercent)||vatPercent<0||vatPercent>100)throw Error('VAT phải từ 0 đến 100%.');
         if(!values.name||values.name.length>200||!values.category||values.category.length>100||values.sku.length>60||input.price===''||!Number.isFinite(values.price)||values.price<0)throw Error('Kiểm tra tên, danh mục và đơn giá sản phẩm.');
         if(!['SALE','RENTAL'].includes(values.type)||values.type==='RENTAL'&&![1,3,6,12].includes(values.rentalMonths))throw Error('Sản phẩm thuê phải chọn gói 1, 3, 6 hoặc 12 tháng.');

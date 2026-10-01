@@ -332,6 +332,7 @@ function initialState() {
     feedbacks: [],
     processes: [],
     expenses: [],
+    courseConfigs: [],
     audit: [],
     websites: [
       { id: 'WEB-NVT', name: 'NVT Agency', domain: 'hoangphucacademy.vn', sourceUrl: 'https://www.hoangphucacademy.vn/', status: 'ACTIVE', provider: 'LANDING_API', endpoint: '', externalAccountId: '', campaignId: '', formId: '', webhookSlug: 'ds-1789180581447-IIM6U3AAD1R', webhookUrlOverride: '', connectionStatus: 'PENDING_BACKEND', domainVerificationStatus: 'UNVERIFIED', credentialConfigured: false, credentialLast4: '', lastVerifiedAt: '', lastError: '', lastSync: 'Chưa đồng bộ' },
@@ -1001,7 +1002,7 @@ function orderSource(source) {
 }
 
 // Chỉ giữ dữ liệu làm việc trong RAM. Server là nguồn dữ liệu duy nhất.
-const SERVER_LISTS = ['customers','orders','products','members','registrations','customFieldDefinitions','customerFieldHistory','assignmentHistory','resubmissions','notes','imports','attendance','dataOffers','traffic','tasks','notifications','audit','websites','integrations','webhookPending','brokerageMetrics','feedbacks','processes','expenses'];
+const SERVER_LISTS = ['customers','orders','products','members','registrations','customFieldDefinitions','customerFieldHistory','assignmentHistory','resubmissions','notes','imports','attendance','dataOffers','traffic','tasks','notifications','audit','websites','integrations','webhookPending','brokerageMetrics','feedbacks','processes','expenses','courseConfigs'];
 const SERVER_OBJECTS = ['settings','leaderDistribution','saleDistributionByLeader','productCategories','careGroups'];
 let serverSyncToken = '', serverSyncTimer = null, serverSaveTimer = null;
 let serverAutomationStatus = null;

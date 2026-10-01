@@ -250,7 +250,7 @@ const demoState = {
   customFieldDefinitions: DEMO_MODE ? structuredClone(require('./crm-defaults.json').customFieldDefinitions) : [], customerFieldHistory: [], assignmentHistory: [],
   resubmissions: [], notes: [], imports: [], attendance: [], dataOffers: [],
   traffic: [], tasks: [], notifications: [], audit: [], websites: [{ id: 'WEB-DEMO', name: 'Nguồn local', domain: 'localhost:4173', sourceUrl: 'http://localhost:4173/', status: 'ACTIVE' }],
-  integrations: [], webhookPending: [], brokerageMetrics: [], careGroups: [],
+  integrations: [], webhookPending: [], brokerageMetrics: [], careGroups: [], expenses: [], courseConfigs: [],
   settings: { assignmentMode: 'BALANCED', leaderCanUpdate: true, leaderAttendanceRequired: true },
   leaderDistribution: { enabled: true, enabledLeaderIds: ['demo-leader'], weights: { 'demo-leader': 1 }, sourceRules: [] },
   saleDistributionByLeader: { 'demo-leader': { leaderEnabled: true, enabledSaleIds: ['demo-sale'], weights: { 'demo-leader': 1, 'demo-sale': 1 } } }
@@ -310,18 +310,39 @@ function seedDemoWorkspace() {
     customer('DEMO-CUS-10', 'Hoang Mai Phuong', '0900000028', owners.leader2, 'CONTACTED', 'Whale', 'L4.1', '2026-09-12 11:30')
   ].forEach(row => addOnce(demoState.customers, row));
 
-  // Accounting starts empty in the demo. Orders are created only through the CRM/Accounting form,
-  // so the four accounting views always reflect current CRM data instead of stale sample orders.
-  demoState.orders = [];
-  demoState.expenses = [];
-  demoState.brokerageMetrics = [];
+  // Cột "Khoá" của Chăm sóc khách là gốc của báo cáo khóa học: mỗi giá trị K0x là một lớp.
+  const courseKeys = ['K01', 'K02', 'K03', 'K04', 'K05'];
+  const courseColors = ['#246b9b', '#a3650b', '#157a4b', '#e8572a', '#7c3aed'];
+  const courseField = demoState.customFieldDefinitions.find(field => field.id === 'course');
+  if (courseField) {
+    const known = new Set((courseField.options || []).map(option => option.value));
+    courseField.label = 'Khoá';
+    courseField.showInTable = true;
+    courseField.options = [...courseKeys.filter(key => !known.has(key)).map((key, index) => ({ value: key, label: key, color: courseColors[index] })), ...(courseField.options || []).filter(option => courseKeys.includes(option.value) || !/^(BMĐTHH|Coaching VIP|Chuyên sâu|Cộng đồng giao dịch)$/.test(option.value))]
+      .sort((a, b) => String(a.value).localeCompare(String(b.value)));
+  }
+  const customerCourse = { 'DEMO-CUS-1': ['K03'], 'DEMO-CUS-3': ['K03'], 'DEMO-CUS-4': ['K05'], 'DEMO-CUS-5': ['K04'], 'DEMO-CUS-8': ['K05'], 'DEMO-CUS-9': ['K03'], 'DEMO-CUS-MANAGER': ['K04'], 'DEMO-CUS-10': ['K02'] };
+  for (const row of demoState.customers) {
+    if (customerCourse[row.id] && !row.customFields?.course) row.customFields = { ...(row.customFields || {}), course: customerCourse[row.id] };
+  }
+
+  // Bốn nhóm sản phẩm của báo cáo doanh thu: Khóa học, Chỉ báo, Nhóm VIP, Khác.
+  const kindOf = product => product.kind || (product.type === 'RENTAL' ? 'INDICATOR' : /kh[oó]a h[oọ]c/i.test(product.category || '') ? 'COURSE' : 'OTHER');
+  for (const product of demoState.products) product.kind = kindOf(product);
+  addOnce(demoState.products, { id: 'p-vip-3m', sku: 'VIP-SIGNAL-3M', name: 'Nhóm VIP tín hiệu · thuê 3 tháng', category: 'Nhóm VIP', kind: 'VIP', price: 6000000, type: 'RENTAL', rentalMonths: 3, vatRate: 0.1, active: true });
+  addOnce(demoState.products, { id: 'p-vip-12m', sku: 'VIP-SIGNAL-12M', name: 'Nhóm VIP tín hiệu · thuê 1 năm', category: 'Nhóm VIP', kind: 'VIP', price: 18000000, type: 'RENTAL', rentalMonths: 12, vatRate: 0.1, active: true });
+  addOnce(demoState.products, { id: 'p-other-coaching', sku: 'SV-COACH-11', name: 'Coaching 1-1 theo giờ', category: 'Dịch vụ khác', kind: 'OTHER', price: 3000000, type: 'SALE', rentalMonths: null, vatRate: 0.1, active: true });
+  for (const category of ['Nhóm VIP', 'Dịch vụ khác']) if (!demoState.productCategories.includes(category)) demoState.productCategories.push(category);
+
+  // Kế toán chỉ ghi nhận đơn được tạo trong CRM, không tự sinh doanh thu mẫu.
+  demoState.expenses ||= [];
+  demoState.courseConfigs ||= [];
 
   addOnce(demoState.dataOffers, { id: 'DEMO-OFFER-1', customerId: 'DEMO-CUS-6', saleId: 'demo-sale', leaderId: 'demo-leader', teamId: 'DEMO', status: 'PENDING', offeredAt: '2026-09-17 08:00' });
   addOnce(demoState.dataOffers, { id: 'DEMO-OFFER-2', customerId: 'DEMO-CUS-7', saleId: 'demo-sale-2', leaderId: 'demo-leader-2', teamId: 'DEMO-2', status: 'PENDING', offeredAt: '2026-09-17 08:10' });
   addOnce(demoState.careGroups, { id: 'DEMO-CARE-PREMIUM', name: 'Khach Premium', fieldId: 'customerClass', values: ['Premium'], color: '#ca8a04' });
   addOnce(demoState.careGroups, { id: 'DEMO-CARE-WHALE', name: 'Khach Whale', fieldId: 'customerClass', values: ['Whale'], color: '#0f766e' });
   addOnce(demoState.notifications, { id: 'DEMO-NOTICE-1', title: 'Co data moi can xu ly', text: 'Hai khach demo dang cho nhan va phan cong.', role: 'ALL', at: '2026-09-17 08:15', readBy: [] });
-  addOnce(demoState.notifications, { id: 'DEMO-NOTICE-2', title: 'Don hang da thanh toan', text: 'Don NVT-DEMO-0001 da ghi nhan thanh cong.', role: 'ALL', at: '2026-09-15 10:05', readBy: [] });
   addOnce(demoState.attendance, { id: 'DEMO-ATT-1', accountId: 'demo-sale', date: '2026-09-17', checkInAt: '2026-09-17 08:02', status: 'PRESENT', ip: '127.0.0.1' });
   addOnce(demoState.attendance, { id: 'DEMO-ATT-2', accountId: 'demo-leader', date: '2026-09-17', checkInAt: '2026-09-17 08:05', status: 'PRESENT', ip: '127.0.0.1' });
   addOnce(demoState.tasks, { id: 'DEMO-TASK-1', customerId: 'DEMO-CUS-4', saleId: 'demo-sale-3', leaderId: 'demo-leader', teamId: 'DEMO', title: 'Goi lai khach Whale', status: 'OPEN', dueAt: '2026-09-18 09:00', createdAt: '2026-09-17 08:30' });

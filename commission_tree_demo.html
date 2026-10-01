@@ -4,7 +4,7 @@
  <meta charset="UTF-8">
  <meta name="viewport" content="width=device-width, initial-scale=1.0">
  <title>NVT AGENCY - HỆ THỐNG QUẢN LÝ MÔI GIỚI APEX</title>
- 
+
  <!-- Fonts Google -->
  <link rel="preconnect" href="https://fonts.googleapis.com">
  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -234,7 +234,7 @@
  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
  }
 
- 
+
  /* KPI Dashboard & 4-Column Balanced Grid */
  .kpi-dashboard-container {
    padding: 14px 24px 8px;
@@ -897,7 +897,7 @@
  .tab-content-panel.active {
  display: block;
  }
- 
+
   /* 4 STATS BOXES AT REPORT VIEW */
   .report-stats-grid {
     display: grid;
@@ -1329,7 +1329,7 @@ body.accounting-modal-open { overflow: hidden; }
  <div class="nav-group-title">KẾ TOÁN & HOA HỒNG</div>
  <ul class="nav-list">
  <li><button class="nav-btn active" id="btnSideMindmap" onclick="switchView('tab-mindmap')">Cây Mindmap (Lv1-Lv3)</button></li>
- <li><button class="nav-btn" id="btnSideReport" onclick="switchView('tab-report')">Báo cáo Doanh thu (23)</button></li>
+ <li><button class="nav-btn" id="btnSideReport" onclick="switchView('tab-report')">Báo cáo Doanh thu</button></li>
  <li><button class="nav-btn" id="btnSideVatOrders" onclick="switchView('tab-vat-orders')">Kiểm Tra Đơn & Xuất VAT</button></li>
  <li><button class="nav-btn" id="btnSideAccounting" onclick="switchView('tab-accounting')">Kế toán & Chi phí Admin</button></li>
  </ul>
@@ -1347,7 +1347,7 @@ body.accounting-modal-open { overflow: hidden; }
 
  <!-- 2. MAIN VIEWPORT -->
  <main class="main-viewport">
- 
+
  <!-- Top Header -->
     <header class="top-header">
       <div class="header-breadcrumb">
@@ -1377,7 +1377,7 @@ body.accounting-modal-open { overflow: hidden; }
        3. BẢNG ĐIỀU KHIỂN THỐNG KÊ (KPI DASHBOARD) - CÂN ĐỐI 4 x 4 LOGIC & RÕ RÀNG
        ==================================================================== -->
   <section class="kpi-dashboard-container" id="kpiDashboardContainer">
-    
+
     <!-- PHÂN HỆ 1: SẢN LƯỢNG LOT & HOA HỒNG CHI TRẢ NHÂN SỰ -->
     <div>
       <div class="kpi-section-header">
@@ -1391,29 +1391,29 @@ body.accounting-modal-open { overflow: hidden; }
       <div class="kpi-grid-4">
         <!-- Ô 1.1: Tổng Lot Quy Đổi -->
         <div class="kpi-card orange">
-          <div class="kpi-label">Tổng Lot Quy Đổi (23 Nhân Sự)</div>
-          <div class="kpi-val" id="kpiTotalLot">424.77</div>
+          <div class="kpi-label">Tổng Lot Quy Đổi (Nhân Sự CRM)</div>
+          <div class="kpi-val" id="kpiTotalLot">0</div>
           <div class="kpi-sub">Standard(x1) + Mini(x0.8) + Micro(x0.35)</div>
         </div>
 
         <!-- Ô 1.2: Tổng Hoa Hồng Theo Lot (Gom cá nhân + chênh lệch tuyến dưới) -->
         <div class="kpi-card blue">
           <div class="kpi-label">Tổng Hoa Hồng Theo Lot</div>
-          <div class="kpi-val" id="kpiTotalHhLot" style="color:#2563eb;">31.257.000 đ</div>
-          <div class="kpi-sub" id="kpiSubHhLotDetail">Cá nhân: 24.499.000 đ • Tuyến dưới: 6.758.000 đ</div>
+          <div class="kpi-val" id="kpiTotalHhLot" style="color:#2563eb;">0 đ</div>
+          <div class="kpi-sub" id="kpiSubHhLotDetail">Cá nhân: 0 đ • Tuyến dưới: 0 đ</div>
         </div>
 
         <!-- Ô 1.3: Tổng Hoa Hồng Sản Phẩm Chi Trả (Sale + Leader + Đào tạo) -->
         <div class="kpi-card purple">
           <div class="kpi-label">Tổng HH Sản Phẩm Chi Trả</div>
-          <div class="kpi-val" id="kpiTotalProductComm" style="color:#7c3aed;">149.750.000 đ</div>
+          <div class="kpi-val" id="kpiTotalProductComm" style="color:#7c3aed;">0 đ</div>
           <div class="kpi-sub" id="kpiSubProductCommDetail">Sale: 46.7tr • Leader: 35.8tr • Đào tạo: 67.3tr</div>
         </div>
 
-        <!-- Ô 1.4: Tổng Thực Nhận Chi Trả (Toàn bộ 23 nhân sự) -->
+        <!-- Ô 1.4: Tổng Thực Nhận Chi Trả (Toàn bộ nhân sự CRM) -->
         <div class="kpi-card emerald" style="border:1.5px solid #10b981; background:#f0fdf4;">
           <div class="kpi-label" style="color:#047857; font-weight:800;">Tổng Thực Nhận Chi Trả</div>
-          <div class="kpi-val" id="kpiTotalNet" style="color:#047857; font-size:20px; font-weight:900;">191.307.000 đ</div>
+          <div class="kpi-val" id="kpiTotalNet" style="color:#047857; font-size:20px; font-weight:900;">0 đ</div>
           <div class="kpi-sub" id="kpiSubNetDetail" style="color:#065f46; font-weight:700;">Lot: 31.3tr • SP: 149.8tr • Thưởng: 10.3tr</div>
         </div>
       </div>
@@ -1433,65 +1433,40 @@ body.accounting-modal-open { overflow: hidden; }
         <!-- Ô 2.1: Tổng Doanh Thu Toàn Bộ Sản Phẩm (MỚI - KHÔNG BỊ THIẾU NỮA) -->
         <div class="kpi-card emerald">
           <div class="kpi-label">Tổng Doanh Thu Tất Cả Sản Phẩm</div>
-          <div class="kpi-val" id="statTotalAllProductRev" style="color:#059669;">448.500.000 đ</div>
-          <div class="kpi-sub" id="statSubCompanyKeepShare">Công ty giữ lại (65%): ~291.525.000 đ</div>
+          <div class="kpi-val" id="statTotalAllProductRev" style="color:#059669;">0 đ</div>
+          <div class="kpi-sub" id="statSubCompanyKeepShare">Công ty giữ lại (65%): ~0 đ</div>
         </div>
 
-        <!-- Ô 2.2: Doanh Thu Khóa Học & Lớp (Có lọc Người Đào Tạo & Lớp) -->
+        <!-- Ô 2.2: Doanh Thu Khóa Học -->
         <div class="kpi-card purple">
-          <div style="display:flex; justify-content:space-between; align-items:center; gap:4px; flex-wrap:wrap; margin-bottom:2px;">
-            <div class="kpi-label" style="margin:0;">Doanh Thu Khóa Học</div>
-            <div style="display:flex; gap:3px; align-items:center;">
-              <select id="statTrainerFilterSelect" onchange="onTrainerStatFilterChange(this.value)" class="trainer-select-badge" style="font-size:10px; padding:1px 4px; border-radius:4px; border:1px solid #ddd6fe; background:#f5f3ff; color:#6d28d9; max-width:135px;" title="Chọn Người Đào Tạo">
-                <option value="ALL">Tất cả Người Đào Tạo</option>
-                <option value="08014278">Nguyễn Hoàng Khánh (Manager)</option>
-                <option value="08049866">Phương Anh (Manager)</option>
-                <option value="08035000">Đặng Tấn Tử (Leader)</option>
-                <option value="08077592">Trần Thị Tuyết (Leader)</option>
-                <option value="08080804">Đỗ Mạnh Hùng (Leader)</option>
-                <option value="08095532">Vũ Thị Quỳnh (Leader)</option>
-              </select>
-              <select id="statBatchFilterSelect" onchange="onBatchStatFilterChange(this.value)" class="trainer-select-badge" style="font-size:10px; padding:1px 4px; border-radius:4px; border:1px solid #fde68a; background:#fef3c7; color:#b45309; max-width:105px;" title="Lọc theo Lớp">
-                <option value="ALL">Tất cả Lớp</option>
-                <option value="CRS_SMC_K01">SMC-K01 (Lớp K01)</option>
-                <option value="CRS_SMC_K02">SMC-K02 (Lớp K02)</option>
-                <option value="CRS_SMC_K03">SMC-K03 (Lớp K03)</option>
-                <option value="CRS_PA_K01">PA-K01 (Lớp K01)</option>
-                <option value="CRS_PA_K02">PA-K02 (Lớp K02)</option>
-                <option value="CRS_GOLD_K01">GOLD-K01 (Lớp K01)</option>
-                <option value="CRS_GOLD_K02">GOLD-K02 (Lớp K02)</option>
-                <option value="CRS_CRYPTO_K01">CRYPTO-K01 (Lớp K01)</option>
-                <option value="CRS_CRYPTO_K02">CRYPTO-K02 (Lớp K02)</option>
-              </select>
-            </div>
-          </div>
-          <div class="kpi-val" id="statTotalCourseRev" style="color:#7c3aed;">231.500.000 đ</div>
+          <div class="kpi-label">Doanh Thu Khóa Học</div>
+          <div class="kpi-val" id="statTotalCourseRev" style="color:#7c3aed;">0 đ</div>
           <div class="kpi-sub" id="statCourseDetail">
-            <span>Đào tạo (15%): <b id="statCourseTrainerShare">34.725.000 đ</b></span>
+            <span>Đào tạo: <b id="statCourseTrainerShare">0 đ</b></span>
             <span>•</span>
-            <span>Công ty (65%): <b id="statCourseCompanyShare">150.475.000 đ</b></span>
+            <span>Công ty: <b id="statCourseCompanyShare">0 đ</b></span>
           </div>
         </div>
 
         <!-- Ô 2.3: Doanh Thu Bộ Chỉ Báo -->
         <div class="kpi-card blue">
           <div class="kpi-label">Doanh Thu Bộ Chỉ Báo</div>
-          <div class="kpi-val" id="statTotalIndicatorRev" style="color:#0284c7;">117.000.000 đ</div>
+          <div class="kpi-val" id="statTotalIndicatorRev" style="color:#0284c7;">0 đ</div>
           <div class="kpi-sub">
-            <span>Sale (15%): <b id="statIndSaleShare">17.550.000 đ</b></span>
+            <span>Hoa hồng Sale: <b id="statIndSaleShare">0 đ</b></span>
             <span>•</span>
-            <span>Công ty (65%): <b id="statIndCompanyShare">76.050.000 đ</b></span>
+            <span>Công ty: <b id="statIndCompanyShare">0 đ</b></span>
           </div>
         </div>
 
         <!-- Ô 2.4: Doanh Thu Gói Hội Viên Nhóm VIP -->
         <div class="kpi-card orange">
           <div class="kpi-label">Doanh Thu Gói Nhóm VIP</div>
-          <div class="kpi-val" id="statTotalVipRev" style="color:#d97706;">100.000.000 đ</div>
+          <div class="kpi-val" id="statTotalVipRev" style="color:#d97706;">0 đ</div>
           <div class="kpi-sub">
-            <span>Sale (15%): <b id="statVipSaleShare">15.000.000 đ</b></span>
+            <span>Hoa hồng Sale: <b id="statVipSaleShare">0 đ</b></span>
             <span>•</span>
-            <span>Công ty (65%): <b id="statVipCompanyShare">65.000.000 đ</b></span>
+            <span>Công ty: <b id="statVipCompanyShare">0 đ</b></span>
           </div>
         </div>
       </div>
@@ -1546,13 +1521,13 @@ body.accounting-modal-open { overflow: hidden; }
  VIEW 2: BÁO CÁO DOANH THU NHÂN VIÊN (23 NHÂN SỰ LV1 - LV2 - LV3)
  ========================================================== -->
  <div id="tab-report" class="tab-content-panel">
- 
+
  <div class="report-card">
  <!-- Report Header & Filters -->
  <div class="report-header-bar">
  <div style="display:flex; align-items:center; gap:12px;">
  <h3 style="margin:0; font-size:15px; font-weight:800; color:#0f172a;">
- BÁO CÁO DOANH THU & HOA HỒNG NHÂN VIÊN (23 NHÂN SỰ)
+ BÁO CÁO DOANH THU & HOA HỒNG NHÂN VIÊN (<span id="crmReportMemberCount">0</span> NHÂN SỰ)
  </h3>
  <div class="luxury-month-nav">
               <button type="button" class="luxury-nav-arrow" onclick="navigateGlobalMonth(-1)" title="Tháng trước">
@@ -1601,10 +1576,10 @@ body.accounting-modal-open { overflow: hidden; }
  <!-- Role Filter Strip -->
  <div class="role-filter-strip">
           <span style="font-size:11.5px; font-weight:700; color:#64748b;">Lọc Vị Trí:</span>
-          <button class="filter-btn active" onclick="filterByRole('ALL', this)">Tất cả (23)</button>
-          <button class="filter-btn" id="filterBtnLv1" onclick="filterByRole('LV1', this)">Manager (2)</button>
-          <button class="filter-btn" id="filterBtnLv2" onclick="filterByRole('LV2', this)">Leader (5)</button>
-          <button class="filter-btn" id="filterBtnLv3" onclick="filterByRole('LV3', this)">Sale (16)</button>
+          <button class="filter-btn active" onclick="filterByRole('ALL', this)">Tất cả</button>
+          <button class="filter-btn" id="filterBtnLv1" onclick="filterByRole('LV1', this)">Manager (0)</button>
+          <button class="filter-btn" id="filterBtnLv2" onclick="filterByRole('LV2', this)">Leader (0)</button>
+          <button class="filter-btn" id="filterBtnLv3" onclick="filterByRole('LV3', this)">Sale (0)</button>
           <span style="margin-left:auto; font-size:11.5px; color:#64748b;">
             <em>Nhân sự không có tuyến dưới hiển thị (—)</em>
           </span>
@@ -1642,7 +1617,7 @@ body.accounting-modal-open { overflow: hidden; }
  </tbody>
  <tfoot>
             <tr>
-              <td colspan="4" style="text-align:right; font-weight:700; color:#475569;">TỔNG CỘNG 23 NHÂN SỰ:</td>
+              <td colspan="4" style="text-align:right; font-weight:700; color:#475569;">TỔNG CỘNG <span id="crmReportFilteredCount">0</span> NHÂN SỰ:</td>
               <td id="footBasicLot" style="text-align:right; color:#334155;">0.0</td>
               <td id="footMicroLot" style="text-align:right; color:#334155;">0.0</td>
               <td id="footMiniLot" style="text-align:right; color:#334155;">0.0</td>
@@ -1675,11 +1650,11 @@ body.accounting-modal-open { overflow: hidden; }
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px; border-bottom:1px solid #f1f5f9; padding-bottom:12px;">
           <div>
             <div style="font-size:16px; font-weight:900; color:#0f172a; display:flex; align-items:center; gap:8px;">
-              
+
               <span id="orderReportMonthTitle">KẾ TOÁN ĐỐI SOÁT ĐƠN HÀNG & XUẤT HÓA ĐƠN VAT (THÁNG 09/2026)</span>
               <span style="font-size:11px; background:#eff6ff; color:#2563eb; padding:2px 8px; border-radius:12px; font-weight:800;">NVT INVOICING & VAT</span>
             </div>
-            
+
           </div>
           <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
             <!-- Cụm chọn & điều hướng tháng -->
@@ -1722,26 +1697,26 @@ body.accounting-modal-open { overflow: hidden; }
         <div class="kpi-grid-4">
           <div class="kpi-card blue">
             <div class="kpi-label">1. Tổng Đơn Hàng Đã Tạo</div>
-            <div class="kpi-val" id="kpiOrderTotalCount" style="color:#2563eb;">12 đơn</div>
-            <div class="kpi-sub" id="kpiOrderTotalValue">148.500.000 đ</div>
+            <div class="kpi-val" id="kpiOrderTotalCount" style="color:#2563eb;">0 đơn</div>
+            <div class="kpi-sub" id="kpiOrderTotalValue">0 đ</div>
           </div>
 
           <div class="kpi-card emerald" style="border:1.5px solid #10b981; background:#f0fdf4;">
             <div class="kpi-label" style="color:#047857; font-weight:800;">2. Đã Thanh Toán Đủ 100%</div>
-            <div class="kpi-val" id="kpiOrderPaidCount" style="color:#059669;">8 đơn</div>
-            <div class="kpi-sub" id="kpiOrderPaidSub" style="color:#065f46; font-weight:700;">121.000.000 đ</div>
+            <div class="kpi-val" id="kpiOrderPaidCount" style="color:#059669;">0 đơn</div>
+            <div class="kpi-sub" id="kpiOrderPaidSub" style="color:#065f46; font-weight:700;">0 đ</div>
           </div>
 
           <div class="kpi-card orange" style="border:1.5px solid #f97316; background:#fff7ed;">
             <div class="kpi-label" style="color:#c2410c; font-weight:800;">3. Khách Đang Cọc (Chưa Đủ)</div>
-            <div class="kpi-val" id="kpiOrderDepositCount" style="color:#ea580c;">4 đơn</div>
-            <div class="kpi-sub" id="kpiOrderDepositSub" style="color:#9a3412; font-weight:700;"><span style="color:#dc2626; font-weight:800;">Còn lại: 27.500.000 đ</span></div>
+            <div class="kpi-val" id="kpiOrderDepositCount" style="color:#ea580c;">0 đơn</div>
+            <div class="kpi-sub" id="kpiOrderDepositSub" style="color:#9a3412; font-weight:700;"><span style="color:#dc2626; font-weight:800;">Còn lại: 0 đ</span></div>
           </div>
 
           <div class="kpi-card purple">
             <div class="kpi-label">4. Đã Xuất Hóa Đơn VAT</div>
-            <div class="kpi-val" id="kpiOrderVatIssuedCount" style="color:#7c3aed;">5 đơn</div>
-            <div class="kpi-sub" id="kpiOrderVatIssuedSub">12.100.000 đ</div>
+            <div class="kpi-val" id="kpiOrderVatIssuedCount" style="color:#7c3aed;">0 đơn</div>
+            <div class="kpi-sub" id="kpiOrderVatIssuedSub">0 đ</div>
           </div>
         </div>
       </div>
@@ -1753,11 +1728,11 @@ body.accounting-modal-open { overflow: hidden; }
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
           <div>
             <div style="font-size:14px; font-weight:800; color:#0f172a; text-transform:uppercase; display:flex; align-items:center; gap:6px;">
-              
+
               <span>DANH SÁCH ĐƠN HÀNG CẦN KIỂM TRA & XUẤT HÓA ĐƠN VAT</span>
               <span id="badgeOrderTableCount" style="font-size:11px; background:#eff6ff; color:#1d4ed8; padding:1px 7px; border-radius:10px; font-weight:800;">12 đơn</span>
             </div>
-            
+
           </div>
 
           <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
@@ -1807,10 +1782,10 @@ body.accounting-modal-open { overflow: hidden; }
             <tfoot>
               <tr style="background:#f8fafc; font-weight:900;">
                 <td colspan="8" style="text-align:right;">TỔNG CỘNG ĐỐI SOÁT:</td>
-                <td id="footOrderTotalRev" style="text-align:right; font-family:'JetBrains Mono'; color:#0f172a;">148.500.000 đ</td>
-                <td id="footOrderTotalVat" style="text-align:right; font-family:'JetBrains Mono'; color:#64748b;">12.100.000 đ</td>
-                <td id="footOrderTotalCollected" style="text-align:right; font-family:'JetBrains Mono'; color:#059669;">121.000.000 đ</td>
-                <td id="footOrderTotalRemaining" style="text-align:right; font-family:'JetBrains Mono'; color:#dc2626; background:#fff1f2;">27.500.000 đ</td>
+                <td id="footOrderTotalRev" style="text-align:right; font-family:'JetBrains Mono'; color:#0f172a;">0 đ</td>
+                <td id="footOrderTotalVat" style="text-align:right; font-family:'JetBrains Mono'; color:#64748b;">0 đ</td>
+                <td id="footOrderTotalCollected" style="text-align:right; font-family:'JetBrains Mono'; color:#059669;">0 đ</td>
+                <td id="footOrderTotalRemaining" style="text-align:right; font-family:'JetBrains Mono'; color:#dc2626; background:#fff1f2;">0 đ</td>
                 <td colspan="2" style="font-size:11px; color:#64748b; font-weight:600; text-align:center;">(Khách cọc cần thu nốt để xuất VAT)</td>
               </tr>
             </tfoot>
@@ -1829,7 +1804,7 @@ body.accounting-modal-open { overflow: hidden; }
               <span id="accReportTitle">BÁO CÁO TÀI CHÍNH & KẾ TOÁN CÔNG TY (THÁNG 09/2026)</span>
               <span id="accMonthStatusBadge" style="font-size:11px; background:#ecfdf5; color:#059669; padding:2px 8px; border-radius:12px; font-weight:800;">ĐÃ ĐỐI SOÁT</span>
             </div>
-            
+
           </div>
 
           <!-- CỤM ĐIỀU HƯỚNG & CHỌN THÁNG KẾ TOÁN (TRƯỚC / SAU) -->
@@ -1870,25 +1845,25 @@ body.accounting-modal-open { overflow: hidden; }
         <div class="kpi-grid-4">
           <div class="kpi-card blue">
             <div class="kpi-label">1. Tổng Doanh Thu SP & Dịch Vụ</div>
-            <div class="kpi-val" id="accTotalRevenue" style="color:#0284c7;">448.500.000 đ</div>
+            <div class="kpi-val" id="accTotalRevenue" style="color:#0284c7;">0 đ</div>
             <div class="kpi-sub">Khóa học (231.5tr) + Chỉ báo (117tr) + VIP (100tr)</div>
           </div>
 
           <div class="kpi-card orange">
-            <div class="kpi-label">2. Chi Phí Hoa Hồng (23 Nhân Sự)</div>
-            <div class="kpi-val" id="accTotalCommission" style="color:#ea580c;">191.307.000 đ</div>
+            <div class="kpi-label">2. Chi Phí Hoa Hồng (Nhân Sự CRM)</div>
+            <div class="kpi-val" id="accTotalCommission" style="color:#ea580c;">0 đ</div>
             <div class="kpi-sub">Lot (31.3tr) + SP (149.8tr) + Thưởng (10.3tr)</div>
           </div>
 
           <div class="kpi-card purple">
             <div class="kpi-label">3. Chi Phí Vận Hành (Admin Nhập)</div>
-            <div class="kpi-val" id="accTotalAdminExpense" style="color:#7c3aed;">58.000.000 đ</div>
+            <div class="kpi-val" id="accTotalAdminExpense" style="color:#7c3aed;">0 đ</div>
             <div class="kpi-sub" id="accExpenseCountSub">Tổng cộng 6 khoản chi trong kỳ</div>
           </div>
 
           <div class="kpi-card emerald" style="border:2px solid #10b981; background:linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%);">
             <div class="kpi-label" style="color:#047857;">4. LỢI NHUẬN RÒNG CÔNG TY (P&L)</div>
-            <div class="kpi-val" id="accNetProfit" style="color:#059669; font-size:24px;">199.193.000 đ</div>
+            <div class="kpi-val" id="accNetProfit" style="color:#059669; font-size:24px;">0 đ</div>
             <div class="kpi-sub" id="accNetProfitMargin" style="color:#047857; font-weight:800;">Tỷ suất LN ròng: ~44.4% doanh thu</div>
           </div>
         </div>
@@ -1947,7 +1922,7 @@ body.accounting-modal-open { overflow: hidden; }
             <tfoot>
               <tr style="background:#f8fafc; font-weight:900;">
                 <td colspan="4" style="text-align:right;">TỔNG CỘNG CHI PHÍ DO ADMIN NHẬP:</td>
-                <td id="footTotalExpenseAmount" style="text-align:right; font-family:'JetBrains Mono'; color:#dc2626; font-size:14px;">58.000.000 đ</td>
+                <td id="footTotalExpenseAmount" style="text-align:right; font-family:'JetBrains Mono'; color:#dc2626; font-size:14px;">0 đ</td>
                 <td colspan="3" style="color:#64748b; font-size:11px; font-weight:600;">(Đã tự động trừ vào P&L Kế toán)</td>
               </tr>
             </tfoot>
@@ -1984,14 +1959,14 @@ body.accounting-modal-open { overflow: hidden; }
     </div>
 
     <div class="modal-body" style="max-height:80vh; overflow-y:auto; padding:18px 22px; display:flex; flex-direction:column; gap:14px;">
-      
+
       <!-- NHÓM 1: CƠ CHẾ HOA HỒNG LOT & SẢN PHẨM CÁ NHÂN -->
       <div style="background:#fff7ed; border:1.5px solid #fed7aa; padding:14px; border-radius:10px;">
         <div style="font-size:12px; font-weight:900; color:#c2410c; margin-bottom:10px; text-transform:uppercase; display:flex; justify-content:space-between; align-items:center;">
           <span>1. Tinh Chỉnh Cơ Chế Hoa Hồng Riêng Cho Nhân Sự Này</span>
           <span style="font-size:11px; background:#ffedd5; color:#c2410c; padding:2px 8px; border-radius:12px; font-weight:800; border:1px solid #fdba74;">Tùy Chỉnh Cá Nhân</span>
         </div>
-        
+
         <div class="form-grid-3">
           <div class="form-group">
             <label style="font-weight:700; font-size:12px; color:#334155;">Định Mức / Lot (VNĐ)</label>
@@ -2001,7 +1976,7 @@ body.accounting-modal-open { overflow: hidden; }
               <small style="color:#64748b; font-size:10px;" id="txtRoleHint">Mặc định Sale: 50k/lot</small>
             </div>
           </div>
-          
+
           <div class="form-group" style="grid-column: span 2;">
             <label style="font-weight:700; font-size:12px; color:#0369a1;">% Hoa Hồng Sản Phẩm (Chỉ Báo & Khóa Học)</label>
             <div style="display:flex; gap:8px; align-items:center;">
@@ -2022,7 +1997,7 @@ body.accounting-modal-open { overflow: hidden; }
           <span style="margin-left:auto; font-size:11px; background:#10b981; color:#ffffff; padding:2px 8px; border-radius:10px; font-weight:800;">Trực Tiếp Khách Hàng</span>
         </div>
         <p style="font-size:12px; color:#065f46; margin:0 0 10px; line-height:1.5;">
-          Nhân sự cấp <strong>Sale (LV3)</strong> nhận hoa hồng trực tiếp trên mỗi lot giao dịch của khách hàng do mình quản lý. 
+          Nhân sự cấp <strong>Sale (LV3)</strong> nhận hoa hồng trực tiếp trên mỗi lot giao dịch của khách hàng do mình quản lý.
           Không có phân cấp quản lý tuyến dưới.
         </p>
         <div style="background:#ffffff; border:1px solid #6ee7b7; border-radius:8px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
@@ -2050,7 +2025,7 @@ body.accounting-modal-open { overflow: hidden; }
           </div>
           <span style="font-size:11px; background:#7c3aed; color:#ffffff; padding:2px 8px; border-radius:10px; font-weight:800;" id="txtDownlineRoleBadge">QUẢN LÝ</span>
         </div>
-        
+
         <div class="form-grid-2">
           <div class="form-group" style="grid-column: span 2;">
             <label style="font-weight:700; font-size:12px; color:#4c1d95;">Tổng Lot Tuyến Dưới Tự Động Tính (Lot Chuẩn)</label>
@@ -2078,7 +2053,7 @@ body.accounting-modal-open { overflow: hidden; }
         <div style="font-size:12px; font-weight:900; color:#334155; margin-bottom:10px; text-transform:uppercase;">
           2. Sản Lượng Tháng Này & Dự Toán Thu Nhập Cá Nhân
         </div>
-        
+
         <div class="form-grid-3">
           <div class="form-group">
             <label style="font-size:11.5px; font-weight:700;">Lot Tiêu Chuẩn</label>
@@ -2225,7 +2200,7 @@ body.accounting-modal-open { overflow: hidden; }
     </div>
 
     <div class="modal-body" style="max-height:80vh; overflow-y:auto; padding:18px 22px; display:flex; flex-direction:column; gap:14px;">
-      
+
       <!-- PHẦN 1: ĐỊNH MỨC HOA HỒNG LOT SÀN TRẢ VỀ VÀ PHÂN BỔ TUYẾN DƯỚI -->
       <div style="background:#fff7ed; border:1.5px solid #fed7aa; padding:14px; border-radius:10px;">
         <div style="font-size:12px; font-weight:900; color:#c2410c; margin-bottom:10px; text-transform:uppercase; display:flex; justify-content:space-between; align-items:center;">
@@ -2238,7 +2213,7 @@ body.accounting-modal-open { overflow: hidden; }
           <div style="display:flex; justify-content:space-between; align-items:center;">
             <div>
               <label style="font-weight:800; font-size:12.5px; color:#9a3412; display:block;">Mức Sàn Trả Về Hệ Thống Apex (Gốc)</label>
-              <span style="font-size:11px; color:#64748b;">Số tiền sàn giao dịch chi trả cho Apex trên mỗi 1 lot chuẩn (Mặc định 280.000 đ)</span>
+              <span style="font-size:11px; color:#64748b;">Số tiền sàn giao dịch chi trả cho Apex trên mỗi 1 lot chuẩn (Mặc định 0 đ)</span>
             </div>
             <div style="display:flex; align-items:center; gap:6px;">
               <input type="number" id="cfgRateApex" step="10000" value="280000" oninput="updateConfigLotPreview()" style="width:140px; font-weight:900; color:#ea580c; font-size:15px; text-align:right; padding:6px 10px; border:1.5px solid #ea580c; border-radius:6px;">
@@ -2297,7 +2272,7 @@ body.accounting-modal-open { overflow: hidden; }
             </div>
             <div style="display:flex; justify-content:space-between; border-top:1px solid #fed7aa; margin-top:4px; padding-top:4px; font-size:12px;">
               <span style="font-weight:800; color:#ea580c;">★ CÔNG TY APEX GIỮ LẠI (LỢI NHUẬN RÒNG LOT):</span>
-              <strong id="cfgPreviewApexKeep" style="color:#ea580c; font-size:13px;">190k/lot (190.000 đ)</strong>
+              <strong id="cfgPreviewApexKeep" style="color:#ea580c; font-size:13px;">190k/lot (0 đ)</strong>
             </div>
           </div>
         </div>
@@ -2332,7 +2307,7 @@ body.accounting-modal-open { overflow: hidden; }
           </div>
           <div class="form-group" style="display:flex; flex-direction:column; justify-content:flex-end;">
             <button type="button" class="tool-btn" onclick="resetAllProductRateTo10()" style="font-size:11.5px; font-weight:700; background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; padding:7px 10px;">
-              Đặt lại toàn bộ 23 nhân sự về 10%
+              Đặt lại toàn bộ nhân sự CRM về 10%
             </button>
           </div>
         </div>
@@ -2525,25 +2500,25 @@ body.accounting-modal-open { overflow: hidden; }
       </div>
       <button class="modal-close" onclick="closeSendToPersonnelModal()">✕</button>
     </div>
-    
+
     <div class="modal-body" style="padding:16px;">
       <!-- Action & Filter Bar -->
       <div style="display:flex; justify-content:space-between; align-items:center; background:#f8fafc; border:1px solid #e2e8f0; padding:10px 14px; border-radius:8px; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
         <div style="display:flex; align-items:center; gap:10px;">
           <label style="display:flex; align-items:center; gap:6px; font-weight:700; font-size:12.5px; cursor:pointer; color:#0f172a;">
             <input type="checkbox" id="sendSelectAllCheckbox" onchange="toggleSelectAllPersonnel(this.checked)" checked style="width:16px; height:16px; cursor:pointer;">
-            Chọn tất cả (23 nhân sự)
+            Chọn tất cả (nhân sự CRM)
           </label>
           <div style="display:flex; gap:6px; margin-left:10px;">
             <button type="button" class="filter-btn" style="padding:3px 8px; font-size:11px;" onclick="filterSendPersonnelRole('ALL')">Tất cả</button>
-            <button type="button" class="filter-btn" style="padding:3px 8px; font-size:11px;" onclick="filterSendPersonnelRole('LV1')">Chỉ Manager (2)</button>
-            <button type="button" class="filter-btn" style="padding:3px 8px; font-size:11px;" onclick="filterSendPersonnelRole('LV2')">Chỉ Leader (5)</button>
-            <button type="button" class="filter-btn" style="padding:3px 8px; font-size:11px;" onclick="filterSendPersonnelRole('LV3')">Chỉ Sale (16)</button>
+            <button type="button" class="filter-btn" style="padding:3px 8px; font-size:11px;" onclick="filterSendPersonnelRole('LV1')">Chỉ Manager (0)</button>
+            <button type="button" class="filter-btn" style="padding:3px 8px; font-size:11px;" onclick="filterSendPersonnelRole('LV2')">Chỉ Leader (0)</button>
+            <button type="button" class="filter-btn" style="padding:3px 8px; font-size:11px;" onclick="filterSendPersonnelRole('LV3')">Chỉ Sale (0)</button>
           </div>
         </div>
         <div style="font-size:12px; font-weight:700; color:#475569;">
-          Đã chọn: <span id="sendSelectedCount" style="color:#7c3aed; font-size:14px; font-weight:900;">23</span>/23 nhân sự | 
-          Tổng gửi: <span id="sendSelectedTotalMoney" style="color:#059669; font-size:14px; font-weight:900; font-family:'JetBrains Mono';">0 đ</span>
+          Đã chọn: <span id="sendSelectedCount" style="color:#7c3aed; font-size:14px; font-weight:900;">0</span> nhân sự |
+Tổng gửi: <span id="sendSelectedTotalMoney" style="color:#059669; font-size:14px; font-weight:900; font-family:'JetBrains Mono';">0 đ</span>
         </div>
       </div>
 
@@ -2593,7 +2568,7 @@ body.accounting-modal-open { overflow: hidden; }
 
     <div class="modal-body" style="padding:16px;">
       <input type="hidden" id="editingExpenseId" value="">
-      
+
       <div class="form-group" style="margin-bottom:12px;">
         <label style="font-weight:700; color:#334155;">Tên Khoản Mục Chi Phí *</label>
         <input type="text" id="inputExpTitle" placeholder="Ví dụ: Chạy Ads Facebook tháng 9, Tiền thuê văn phòng..." style="width:100%; padding:8px 12px; border-radius:6px; border:1px solid #cbd5e1; font-weight:600;">
@@ -2657,15 +2632,8 @@ body.accounting-modal-open { overflow: hidden; }
   // ====================================================================
   // QUẢN LÝ THÁNG TOÀN CỤC ĐỒNG BỘ CẢ 3 PHÂN HỆ
   // ====================================================================
-  let currentGlobalMonth = '2026-09';
-  const MONTH_FACTORS = {
-    '2026-10': 1.07,
-    '2026-09': 1.00,
-    '2026-08': 0.914,
-    '2026-07': 0.836,
-    '2026-06': 0.75,
-    'ALL': 1.00
-  };
+  let currentGlobalMonth = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' }).slice(0, 7);
+
 
   const GLOBAL_MONTH_LIST = ['2026-10', '2026-09', '2026-08', '2026-07', '2026-06', 'ALL'];
 
@@ -2673,6 +2641,8 @@ body.accounting-modal-open { overflow: hidden; }
     currentGlobalMonth = m;
     if (typeof currentAccountingMonth !== 'undefined') currentAccountingMonth = m;
     if (typeof currentOrderMonth !== 'undefined') currentOrderMonth = m;
+
+    rebuildAccountingRevenueFromCRM();
 
     // Cập nhật select trên cả 3 tab
     const s1 = document.getElementById('reportMonthSelect');
@@ -2710,7 +2680,7 @@ body.accounting-modal-open { overflow: hidden; }
  standardMultiplier: 1.0,
  miniMultiplier: 0.8, // 1 lot MINI = 0.8 lot tiêu chuẩn
  microMultiplier: 0.35, // 1 lot Micro = 0.35 lot tiêu chuẩn
- rateApex: 280000, // MẶC ĐỊNH SÀN TRẢ VỀ APEX: 280k/lot (280.000 đ)
+ rateApex: 280000, // MẶC ĐỊNH SÀN TRẢ VỀ APEX: 280k/lot (0 đ)
  rateLv1: 90000, // Tuyến dưới Manager: 90k/lot (80k - 90k tùy cài đặt)
  rateLv2: 70000, // Tuyến dưới Leader: 70k/lot
  rateLv3: 50000, // Tuyến dưới Sale: 50k/lot
@@ -2726,434 +2696,7 @@ body.accounting-modal-open { overflow: hidden; }
  // - VỊ TRÍ LV2 (5 Người - 60k/lot): Trần Thị Tuyết, Đỗ Mạnh Hùng, Đỗ Việt Cường, Vũ Thị Quỳnh, Đặng Tấn Tử
  // - VỊ TRÍ LV3 (16 Người - 50k/lot): Đặng Hương Thuỷ, Trần Thị Mai, Cáp Trọng Sơn Tùng, Lê Ngân, v.v...
  // ====================================================================
- let APEX_DATA = [
- // ── 2 VỊ TRÍ LV1 (80k/lot, HƯỞNG +20K/LOT TỪ TUYẾN DƯỚI) ──
- {
- id: "08049866",
- name: "Phương Anh",
- phone: "0329093366",
- roleLevel: "LV1",
- roleTitle: "Manager",
- team: "Nhánh Phương Anh",
- directManager: "—",
- parentId: null,
- ratePerLot: 90000,
- customDiffRate: 20000,
- basicLot: 15.0,
- miniLot: 12.0,
- microLot: 14.0,
- indicatorRev: 14000000,
- courseRev: 20000000,
- productRate: 10,
- bonus: 1000000
- },
- {
- id: "08014278",
- name: "Nguyễn Hoàng Khánh",
- phone: "09397724768",
- roleLevel: "LV1",
- roleTitle: "Manager",
- team: "Nhánh Nguyễn Hoàng Khánh",
- directManager: "—",
- parentId: null,
- ratePerLot: 90000,
- customDiffRate: 20000,
- basicLot: 20.0,
- miniLot: 15.0,
- microLot: 18.0,
- indicatorRev: 18000000,
- courseRev: 25000000,
- productRate: 10,
- bonus: 1500000
- },
-
- // ── 5 VỊ TRÍ LV2 (60k/lot, HƯỞNG +10K/LOT TỪ SALE TUYẾN DƯỚI) ──
- {
- id: "08077592",
- name: "Trần Thị Tuyết",
- phone: "0858237687",
- roleLevel: "LV2",
- roleTitle: "Leader",
- team: "Nhóm Trần Thị Tuyết",
- directManager: "Phương Anh - ID: 08049866",
- parentId: "08049866",
- ratePerLot: 70000,
- customDiffRate: 10000,
- basicLot: 12.0,
- miniLot: 8.0,
- microLot: 12.0,
- indicatorRev: 9000000,
- courseRev: 15000000,
- productRate: 10,
- bonus: 600000
- },
- {
- id: "08080804",
- name: "Đỗ Mạnh Hùng",
- phone: "0842278856",
- roleLevel: "LV2",
- roleTitle: "Leader",
- team: "Nhóm Đỗ Mạnh Hùng",
- directManager: "—",
- parentId: null,
- ratePerLot: 70000,
- customDiffRate: 10000,
- basicLot: 15.0,
- miniLot: 10.0,
- microLot: 13.0,
- indicatorRev: 10000000,
- courseRev: 18000000,
- productRate: 10,
- bonus: 1000000
- },
- {
- id: "08020609",
- name: "Đỗ Việt Cường",
- phone: "0849938395",
- roleLevel: "LV2",
- roleTitle: "Leader",
- team: "Nhóm Đỗ Việt Cường",
- directManager: "Phương Anh - ID: 08049866",
- parentId: "08049866",
- ratePerLot: 70000,
- customDiffRate: 10000,
- basicLot: 9.0,
- miniLot: 6.0,
- microLot: 8.0,
- indicatorRev: 6000000,
- courseRev: 10000000,
- productRate: 10,
- bonus: 300000
- },
- {
- id: "08095532",
- name: "Vũ Thị Quỳnh",
- phone: "0975629969",
- roleLevel: "LV2",
- roleTitle: "Leader",
- team: "Nhóm Vũ Thị Quỳnh",
- directManager: "—",
- parentId: null,
- ratePerLot: 70000,
- customDiffRate: 10000,
- basicLot: 16.0,
- miniLot: 11.0,
- microLot: 14.0,
- indicatorRev: 8000000,
- courseRev: 12000000,
- productRate: 10,
- bonus: 1000000
- },
- {
- id: "08035000",
- name: "Đặng Tấn Tử",
- phone: "0356563141",
- roleLevel: "LV2",
- roleTitle: "Leader",
- team: "Nhóm Đặng Tấn Tử",
- directManager: "Nguyễn Hoàng Khánh - ID: 08014278",
- parentId: "08014278",
- ratePerLot: 70000,
- customDiffRate: 10000,
- basicLot: 14.0,
- miniLot: 10.0,
- microLot: 12.0,
- indicatorRev: 9000000,
- courseRev: 15000000,
- productRate: 10,
- bonus: 800000
- },
-
- // ── 16 VỊ TRÍ LV3 (50k/lot, KHÔNG CÓ HH TUYẾN DƯỚI — HIỂN THỊ —) ──
- {
- id: "08062863",
- name: "Lê Ngân",
- phone: "03894386325",
- roleLevel: "LV3",
- roleTitle: "Sale",
- team: "Nhóm Đặng Tấn Tử",
- directManager: "Đặng Tấn Tử - ID: 08035000",
- parentId: "08035000",
- ratePerLot: 50000,
- basicLot: 7.0,
- miniLot: 5.0,
- microLot: 7.0,
- indicatorRev: 0,
- courseRev: 0,
- productRate: 10,
- bonus: 200000
- },
- {
- id: "08029908",
- name: "Lê Trung Kiên",
- phone: "0979998269",
- roleLevel: "LV3",
- roleTitle: "Sale",
- team: "Nhóm Đặng Tấn Tử",
- directManager: "Đặng Tấn Tử - ID: 08035000",
- parentId: "08035000",
- ratePerLot: 50000,
- basicLot: 7.5,
- miniLot: 5.5,
- microLot: 6.0,
- indicatorRev: 2000000,
- courseRev: 5000000,
- productRate: 10,
- bonus: 200000
- },
- {
- id: "08061116",
- name: "Võ Thị Diễm Tiên",
- phone: "0974768804",
- roleLevel: "LV3",
- roleTitle: "Sale",
- team: "Nhóm Vũ Thị Quỳnh",
- directManager: "Vũ Thị Quỳnh - ID: 08095532",
- parentId: "08095532",
- ratePerLot: 50000,
- basicLot: 9.5,
- miniLot: 6.5,
- microLot: 9.0,
- indicatorRev: 3500000,
- courseRev: 10000000,
- productRate: 10,
- bonus: 400000
- },
- {
- id: "08007997",
- name: "Đỗ Mạnh Dũng",
- phone: "0394558544",
- roleLevel: "LV3",
- roleTitle: "Sale",
- team: "Nhóm Đỗ Mạnh Hùng",
- directManager: "Đỗ Mạnh Hùng - ID: 08080804",
- parentId: "08080804",
- ratePerLot: 50000,
- basicLot: 9.0,
- miniLot: 6.0,
- microLot: 8.5,
- indicatorRev: 2000000,
- courseRev: 5000000,
- productRate: 10,
- bonus: 300000
- },
- {
- id: "08088879",
- name: "Đức Thị Ngọc",
- phone: "0982766562",
- roleLevel: "LV3",
- roleTitle: "Sale",
- team: "Nhóm Vũ Thị Quỳnh",
- directManager: "Vũ Thị Quỳnh - ID: 08095532",
- parentId: "08095532",
- ratePerLot: 50000,
- basicLot: 7.0,
- miniLot: 5.0,
- microLot: 7.0,
- indicatorRev: 1000000,
- courseRev: 0,
- productRate: 10,
- bonus: 200000
- },
- {
- id: "08066488",
- name: "Cáp Trọng Sơn Tùng",
- phone: "0982325893",
- roleLevel: "LV3",
- roleTitle: "Sale",
- team: "Nhóm Đỗ Việt Cường",
- directManager: "Đỗ Việt Cường - ID: 08020609",
- parentId: "08020609",
- ratePerLot: 50000,
- basicLot: 10.0,
- miniLot: 7.0,
- microLot: 7.7,
- indicatorRev: 3000000,
- courseRev: 10000000,
- productRate: 10,
- bonus: 400000
- },
- {
- id: "08083609",
- name: "Lê Thanh Ngân",
- phone: "0936133428",
- roleLevel: "LV3",
- roleTitle: "Sale",
- team: "Nhóm Đặng Tấn Tử",
- directManager: "Đặng Tấn Tử - ID: 08035000",
- parentId: "08035000",
- ratePerLot: 50000,
- basicLot: 6.0,
- miniLot: 4.5,
- microLot: 6.4,
- indicatorRev: 1500000,
- courseRev: 0,
- productRate: 10,
- bonus: 150000
- },
- {
- id: "08028282",
- name: "Nguyễn Minh Thế",
- phone: "0333454326",
- roleLevel: "LV3",
- roleTitle: "Sale",
- team: "Nhóm Đặng Tấn Tử",
- directManager: "Đặng Tấn Tử - ID: 08035000",
- parentId: "08035000",
- ratePerLot: 50000,
- basicLot: 8.5,
- miniLot: 6.0,
- microLot: 8.0,
- indicatorRev: 6000000,
- courseRev: 20000000,
- productRate: 10,
- bonus: 300000
- },
- {
- id: "08058577",
- name: "Phạm Hoài Ngọc Đức",
- phone: "0793769272",
- roleLevel: "LV3",
- roleTitle: "Sale",
- team: "Nhóm Đặng Tấn Tử",
- directManager: "Đặng Tấn Tử - ID: 08035000",
- parentId: "08035000",
- ratePerLot: 50000,
- basicLot: 5.5,
- miniLot: 4.0,
- microLot: 6.4,
- indicatorRev: 0,
- courseRev: 0,
- productRate: 10,
- bonus: 100000
- },
- {
- id: "08009687",
- name: "Nguyễn Văn Sung",
- phone: "0963429844",
- roleLevel: "LV3",
- roleTitle: "Sale",
- team: "Nhóm Đỗ Mạnh Hùng",
- directManager: "Đỗ Mạnh Hùng - ID: 08080804",
- parentId: "08080804",
- ratePerLot: 50000,
- basicLot: 8.5,
- miniLot: 6.0,
- microLot: 6.9,
- indicatorRev: 3000000,
- courseRev: 5000000,
- productRate: 10,
- bonus: 300000
- },
- {
- id: "08029280",
- name: "Đinh Hoàng Tuấn Trí",
- phone: "0939743785",
- roleLevel: "LV3",
- roleTitle: "Sale",
- team: "Nhóm Đặng Tấn Tử",
- directManager: "Đặng Tấn Tử - ID: 08035000",
- parentId: "08035000",
- ratePerLot: 50000,
- basicLot: 8.0,
- miniLot: 5.5,
- microLot: 7.5,
- indicatorRev: 4000000,
- courseRev: 10000000,
- productRate: 10,
- bonus: 300000
- },
- {
- id: "08022207",
- name: "Trần Thị Mai",
- phone: "0356275538",
- roleLevel: "LV3",
- roleTitle: "Sale",
- team: "Nhóm Trần Thị Tuyết",
- directManager: "Trần Thị Tuyết - ID: 08077592",
- parentId: "08077592",
- ratePerLot: 50000,
- basicLot: 6.0,
- miniLot: 4.0,
- microLot: 6.0,
- indicatorRev: 4000000,
- courseRev: 20000000,
- productRate: 10,
- bonus: 100000
- },
- {
- id: "08028892",
- name: "Đặng Hương Thuỷ",
- phone: "0768283269",
- roleLevel: "LV3",
- roleTitle: "Sale",
- team: "Nhánh Phương Anh",
- directManager: "Phương Anh - ID: 08049866",
- parentId: "08049866",
- ratePerLot: 50000,
- basicLot: 8.0,
- miniLot: 6.0,
- microLot: 7.7,
- indicatorRev: 2000000,
- courseRev: 0,
- productRate: 10,
- bonus: 400000
- },
- {
- id: "08049721",
- name: "Hồ Tấn Anh Tài",
- phone: "0839492750",
- roleLevel: "LV3",
- roleTitle: "Sale",
- team: "Nhóm Đặng Tấn Tử",
- directManager: "Đặng Tấn Tử - ID: 08035000",
- parentId: "08035000",
- ratePerLot: 50000,
- basicLot: 8.0,
- miniLot: 6.0,
- microLot: 8.0,
- indicatorRev: 1000000,
- courseRev: 0,
- productRate: 10,
- bonus: 250000
- },
- {
- id: "08010668",
- name: "Hoàng Tấn Nguyên",
- phone: "0347892110",
- roleLevel: "LV3",
- roleTitle: "Sale",
- team: "Nhóm Đặng Tấn Tử",
- directManager: "Đặng Tấn Tử - ID: 08035000",
- parentId: "08035000",
- ratePerLot: 50000,
- basicLot: 7.0,
- miniLot: 5.0,
- microLot: 6.5,
- indicatorRev: 0,
- courseRev: 0,
- productRate: 10,
- bonus: 200000
- },
- {
- id: "08042190",
- name: "Nguyễn Thị Vân Huyền",
- phone: "0968341905",
- roleLevel: "LV3",
- roleTitle: "Sale",
- team: "Nhóm Vũ Thị Quỳnh",
- directManager: "Vũ Thị Quỳnh - ID: 08095532",
- parentId: "08095532",
- ratePerLot: 50000,
- basicLot: 8.0,
- miniLot: 5.5,
- microLot: 8.0,
- indicatorRev: 0,
- courseRev: 0,
- productRate: 10,
- bonus: 300000
- }
- ];
+ let APEX_DATA = [];
 
  let currentEditingPersonnelId = null;
  let currentRoleFilter = 'ALL';
@@ -3163,8 +2706,8 @@ body.accounting-modal-open { overflow: hidden; }
  // 3. TÍNH TOÁN LOT QUY ĐỔI & HOA HỒNG CHÊNH LỆCH THEO CÂY HỆ THỐNG
  // ====================================================================
  function getPersonalStdLot(p) {
- const std = p.basicLot * LOT_CONFIG.standardMultiplier + 
- p.miniLot * LOT_CONFIG.miniMultiplier + 
+ const std = p.basicLot * LOT_CONFIG.standardMultiplier +
+ p.miniLot * LOT_CONFIG.miniMultiplier +
  p.microLot * LOT_CONFIG.microMultiplier;
  return Number(std.toFixed(2));
  }
@@ -3180,10 +2723,10 @@ body.accounting-modal-open { overflow: hidden; }
       };
     }
 
-    const currentRate = (tempPersonRate !== null) 
-      ? Number(tempPersonRate) 
-      : ((person.ratePerLot !== undefined && person.ratePerLot !== null) 
-          ? Number(person.ratePerLot) 
+    const currentRate = (tempPersonRate !== null)
+      ? Number(tempPersonRate)
+      : ((person.ratePerLot !== undefined && person.ratePerLot !== null)
+          ? Number(person.ratePerLot)
           : (person.roleLevel === 'LV1' ? 80000 : 60000));
 
     if (person.roleLevel === 'LV2') {
@@ -3271,24 +2814,24 @@ body.accounting-modal-open { overflow: hidden; }
     const stdLot = getPersonalStdLot(item);
     const ratePerLot = item.ratePerLot || (item.roleLevel === 'LV1' ? LOT_CONFIG.rateLv1 : (item.roleLevel === 'LV2' ? LOT_CONFIG.rateLv2 : LOT_CONFIG.rateLv3));
     const hhLot = Math.round(stdLot * ratePerLot);
-    
+
     // Tuyến dưới lot
     const dl = getDownlineDetails(item, APEX_DATA);
-    
+
     // 1. Hoa hồng Sale trực tiếp bán Sản phẩm (Khóa học + Chỉ báo + Nhóm VIP)
     // Tùy chỉnh % riêng cho từng Sale ở từng khóa nếu có cấu hình salesConfig
     const defaultSaleRate = (item.productRate !== undefined && item.productRate !== null) ? Number(item.productRate) : 15;
-    const monthFactor = (typeof MONTH_FACTORS !== 'undefined' && MONTH_FACTORS[currentGlobalMonth]) ? MONTH_FACTORS[currentGlobalMonth] : 1.0;
+    const monthFactor = 1;
     let courseRev = Math.round((item.courseRev || 0) * monthFactor);
     let hhSaleCourse = 0;
 
     // Tính chi tiết hoa hồng khóa học theo từng khóa nếu Sale có cấu hình salesConfig
     let hasCustomCourseSales = false;
     COURSES_DATA.forEach(crs => {
-      if (crs.salesConfig && crs.salesConfig[item.id]) {
+      if (crs.category === 'course' && crs.salesConfig && crs.salesConfig[item.id]) {
         hasCustomCourseSales = true;
         const cfg = crs.salesConfig[item.id];
-        const sRev = (cfg.students || 0) * (crs.price || 5000000);
+        const sRev = Number(cfg.revenue) || 0;
         const sRate = (cfg.rateSale !== undefined && cfg.rateSale !== null) ? Number(cfg.rateSale) : defaultSaleRate;
         hhSaleCourse += Math.round(sRev * (sRate / 100));
       }
@@ -3314,7 +2857,7 @@ body.accounting-modal-open { overflow: hidden; }
 
     // 4. Thưởng KPI
     const bonus = Math.round(Number(item.bonus || 0) * monthFactor);
-    
+
     // TỔNG THỰC NHẬN = HH Lot + HH Lot Tuyến Dưới + HH Sale SP + HH Đào Tạo + HH Leader SP + Thưởng
     const netIncome = hhLot + dl.downlineCommission + hhSaleProducts + hhTrainer + hhLeaderCourse + bonus;
 
@@ -3527,7 +3070,7 @@ body.accounting-modal-open { overflow: hidden; }
     }
   });
 
-  const rootY = rootYList.length > 0 
+  const rootY = rootYList.length > 0
     ? Math.round((rootYList[0] + rootYList[rootYList.length - 1]) / 2)
     : 430;
   nodePositions["ROOT"] = { x: colX[0], y: rootY, isRoot: true };
@@ -3624,8 +3167,8 @@ function renderMindmapTree() {
     const pos = nodePositions[person.id];
     if (!pos) return;
 
-    const fin = (typeof calculatePersonnelFinance === 'function') 
-      ? calculatePersonnelFinance(person) 
+    const fin = (typeof calculatePersonnelFinance === 'function')
+      ? calculatePersonnelFinance(person)
       : { ratePerLot: person.ratePerLot || 50000 };
     const lotRateText = `${(fin.ratePerLot / 1000)}k/lot`;
 
@@ -3684,6 +3227,21 @@ function renderMindmapTree() {
  // 5. RENDER BẢNG BÁO CÁO DOANH THU (LV1 - LV2 - LV3)
  // ====================================================================
  function renderReportTable() {
+  const countEl = document.getElementById('crmReportMemberCount');
+  if (countEl) countEl.textContent = APEX_DATA.length;
+  for (const [level, id, label] of [['LV1','filterBtnLv1','Manager'],['LV2','filterBtnLv2','Leader'],['LV3','filterBtnLv3','Sale']]) {
+    const button = document.getElementById(id);
+    if (button) button.textContent = label + ' (' + APEX_DATA.filter(p => p.roleLevel === level).length + ')';
+  }
+  for (const id of ['reportMonthSelect','accountingMonthSelect','orderMonthSelect']) {
+    const select = document.getElementById(id);
+    if (!select) continue;
+    if (![...select.options].some(option => option.value === currentGlobalMonth)) {
+      select.add(new Option(currentGlobalMonth === 'ALL' ? 'Tất cả' : currentGlobalMonth, currentGlobalMonth));
+    }
+    select.value = currentGlobalMonth;
+  }
+
  const tbody = document.getElementById('reportTableBody');
  tbody.innerHTML = '';
 
@@ -3692,6 +3250,8 @@ function renderMindmapTree() {
  return p.roleLevel === currentRoleFilter;
  });
 
+  const filteredCount = document.getElementById('crmReportFilteredCount');
+  if (filteredCount) filteredCount.textContent = filtered.length;
   let totalBasicLot = 0;
   let totalMicroLot = 0;
   let totalMiniLot = 0;
@@ -3740,7 +3300,7 @@ function renderMindmapTree() {
     }
 
     const tr = document.createElement('tr');
-      const trainerBadge = fin.hhTrainer > 0 
+      const trainerBadge = fin.hhTrainer > 0
         ? `<div style="color:#0f172a; font-weight:700; font-size:11px;">+ ${formatMoney(fin.hhTrainer)} <span style="font-size:10px; color:#64748b; background:#f1f5f9; padding:1px 4px; border-radius:3px;">${fin.trainerCoursesCount} khóa</span></div>`
         : '';
       const leaderBadge = fin.hhLeaderCourse > 0
@@ -3884,7 +3444,7 @@ function renderMindmapTree() {
  // ====================================================================
  // 7. MODAL CHỈNH SỬA CƠ CHẾ VÀ SỐ LOT TỪNG NGƯỜI
  // ====================================================================
-  
+
   // Helper định dạng tiền VNĐ toàn cục
   function formatVND(val) {
     if (val === null || val === undefined || isNaN(val)) return '0 đ';
@@ -3929,11 +3489,11 @@ function renderMindmapTree() {
     }
 
     currentEditingPersonnelId = id;
-    
+
     // Header
     const nameEl = document.getElementById('modalPersonnelName');
     if (nameEl) nameEl.textContent = `Chỉnh sửa: ${person.name}`;
-    
+
     const roleBadge = document.getElementById('roleBadgeInModal');
     if (roleBadge) {
       roleBadge.className = `role-badge role-${(person.roleLevel || 'LV3').toLowerCase()}`;
@@ -3977,10 +3537,10 @@ function renderMindmapTree() {
 
       const dlLotsEl = document.getElementById('displayDownlineLots');
       if (dlLotsEl) dlLotsEl.value = `${fin.downlineLots || 0} lot tiêu chuẩn`;
-      
+
       const subCountEl = document.getElementById('txtSubordinatesCount');
       if (subCountEl) subCountEl.textContent = `${fin.subordinatesCount || 0} nhân sự cấp dưới trực thuộc trong cây`;
-      
+
       const hintEl = document.getElementById('txtDownlineHint');
       if (hintEl) {
         hintEl.textContent = (person.roleLevel === 'LV1')
@@ -4001,10 +3561,10 @@ function renderMindmapTree() {
 
       const txtSaleStdLot = document.getElementById('txtSaleStdLot');
       if (txtSaleStdLot) txtSaleStdLot.textContent = (fin.stdLot || 0).toFixed(2) + ' lot';
-      
+
       const txtSaleLotHh = document.getElementById('txtSaleLotHh');
       if (txtSaleLotHh) txtSaleLotHh.textContent = formatVND(fin.hhLot);
-      
+
       const txtSaleProdHh = document.getElementById('txtSaleProdHh');
       if (txtSaleProdHh) txtSaleProdHh.textContent = formatVND(fin.hhSaleProducts);
     }
@@ -4166,14 +3726,14 @@ function renderMindmapTree() {
     alert(`Đã lưu thành công cơ chế riêng (${(person.ratePerLot/1000)}k/lot) và tính toán lại hệ thống cho: ${person.name}!`);
   }
 
-  
+
   function openDownlineModal(personnelId) {
     const person = APEX_DATA.find(p => p.id === personnelId);
     if (!person) return;
 
     const titleEl = document.getElementById('downlineModalTitle');
     if (titleEl) titleEl.textContent = `Bảng Kê Chi Tiết Tuyến Dưới: ${person.name} (${person.roleTitle})`;
-    
+
     const subEl = document.getElementById('downlineModalSubtitle');
     if (subEl) subEl.textContent = `Định mức cá nhân: ${(person.ratePerLot / 1000)}k/lot • Quản lý trực thuộc: ${person.directManager || '—'}`;
 
@@ -4284,7 +3844,7 @@ function renderMindmapTree() {
     LOT_CONFIG.diffManager = Math.max(0, LOT_CONFIG.rateLv1 - LOT_CONFIG.rateLv2);
     LOT_CONFIG.diffManagerDirectSale = Math.max(0, LOT_CONFIG.rateLv1 - LOT_CONFIG.rateLv3);
 
-    // Cập nhật lại định mức cho 23 nhân sự theo vai trò
+    // Cập nhật lại định mức cho nhân sự CRM theo vai trò
     APEX_DATA.forEach(p => {
       if (p.roleLevel === 'LV1') p.ratePerLot = LOT_CONFIG.rateLv1;
       else if (p.roleLevel === 'LV2') p.ratePerLot = LOT_CONFIG.rateLv2;
@@ -4317,7 +3877,7 @@ function renderMindmapTree() {
       p.productRate = 10;
     });
     renderAllViews();
-    alert('Đã đặt lại tỷ lệ hoa hồng sản phẩm của toàn bộ 23 nhân sự về 10% chuẩn!');
+    alert('Đã đặt lại tỷ lệ hoa hồng sản phẩm của toàn bộ nhân sự CRM về 10% chuẩn!');
   }
 
  // ====================================================================
@@ -4455,7 +4015,7 @@ function renderMindmapTree() {
     zoomAtPoint(factor, centerX, centerY, animate);
   }
 
-  // Tự động căn chỉnh toàn bộ 23 nhân sự và Root lọt trọn vẹn trong khung hình (Mặc định thấy hết)
+  // Tự động căn chỉnh toàn bộ nhân sự CRM và Root lọt trọn vẹn trong khung hình (Mặc định thấy hết)
   function fitMindmapToViewport(animate = true) {
     const viewport = document.getElementById('mindmapViewport');
     if (!viewport) return;
@@ -4701,7 +4261,7 @@ function renderMindmapTree() {
  document.body.removeChild(a);
  }
 
- 
+
   // ====================================================================
   // CẬP NHẬT TRỰC TIẾP NHÂN SỰ
   // ====================================================================
@@ -4721,7 +4281,7 @@ function renderMindmapTree() {
     renderAllViews();
   }
 
-  
+
   // ====================================================================
   // TÙY CHỈNH DOANH SỐ KHÓA HỌC / CHỈ BÁO / VIP TỪNG SALE
   // Cho phép chỉnh: Có Sale bán 4 học viên, có Sale bán 1, có Sale không bán được (0đ)
@@ -4774,7 +4334,7 @@ function renderMindmapTree() {
   let sendSelectedPersonnelIds = new Set();
 
   function openSendToPersonnelModal() {
-    // Mặc định chọn tất cả 23 nhân sự khi mở modal lần đầu
+    // Mặc định chọn tất cả nhân sự CRM khi mở modal lần đầu
     if (sendSelectedPersonnelIds.size === 0) {
       APEX_DATA.forEach(p => sendSelectedPersonnelIds.add(p.id));
     }
@@ -4851,7 +4411,7 @@ function renderMindmapTree() {
       const tr = document.createElement('tr');
       if (isSelected) tr.style.background = '#fcfaff';
 
-      const statusBadge = isSent 
+      const statusBadge = isSent
         ? '<span style="background:#ecfdf5; color:#059669; border:1px solid #a7f3d0; font-size:10.5px; font-weight:800; padding:2px 8px; border-radius:12px;">✓ ' + isSent + '</span>'
         : '<span style="background:#f1f5f9; color:#64748b; font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:12px;">Chưa gửi</span>';
 
@@ -4907,360 +4467,11 @@ function renderMindmapTree() {
   // 1.1 DANH SÁCH KHÓA HỌC, CHỈ BÁO, NHÓM VIP & HOA HỒNG ĐÀO TẠO
   // Tỷ lệ chuẩn: Sale 15%, Leader 5%, Đào tạo 15%, Công ty 65% (Tinh chỉnh được)
   // ====================================================================
-  let COURSES_DATA = [
-    // ── KHÓA HỌC SMC THỰC CHIẾN (CÁC LỚP K01, K02, K03) ──
-    {
-      id: "CRS_SMC_K01",
-      code: "SMC-K01",
-      courseGroup: "Khóa Học SMC Thực Chiến",
-      batchName: "Lớp K01",
-      name: "Khóa Học SMC Thực Chiến (Lớp K01)",
-      category: "course",
-      categoryLabel: "Khóa Học",
-      startDate: "08/2026",
-      studentsCount: 7,
-      price: 5000000,
-      totalRevenue: 35000000,
-      trainerId: "08014278", // Người đào tạo chính: Nguyễn Hoàng Khánh
-      trainers: [
-        { id: "08014278", name: "Nguyễn Hoàng Khánh", rate: 15 } // Tinh chỉnh % cho đào tạo
-      ],
-      // NHIỀU LEADER CHO 1 KHÓA - TÙY CHỈNH % TỪNG LEADER
-      leaders: [
-        { id: "08035000", name: "Đặng Tấn Tử", rate: 5 },
-        { id: "08077592", name: "Trần Thị Tuyết", rate: 5 }
-      ],
-      // TÙY CHỈNH % VÀ SỐ HỌC VIÊN CHO TỪNG SALE Ở KHÓA NÀY
-      salesConfig: {
-        "08028282": { students: 4, rateSale: 15 }, // Minh Thế bán 4 HV
-        "08029908": { students: 2, rateSale: 15 }, // Kiên bán 2 HV
-        "08009687": { students: 1, rateSale: 15 }, // Sung bán 1 HV
-        "08028892": { students: 0, rateSale: 15 }  // Thuỷ không bán được (0 HV)
-      },
-      rateSale: 15,
-      rateLeader: 5,
-      rateTrainer: 15,
-      rateCompany: 65
-    },
-    {
-      id: "CRS_SMC_K02",
-      code: "SMC-K02",
-      courseGroup: "Khóa Học SMC Thực Chiến",
-      batchName: "Lớp K02",
-      name: "Khóa Học SMC Thực Chiến (Lớp K02)",
-      category: "course",
-      categoryLabel: "Khóa Học",
-      startDate: "09/2026",
-      studentsCount: 6,
-      price: 5000000,
-      totalRevenue: 30000000,
-      trainerId: "08014278",
-      trainers: [
-        { id: "08014278", name: "Nguyễn Hoàng Khánh", rate: 15 }
-      ],
-      leaders: [
-        { id: "08035000", name: "Đặng Tấn Tử", rate: 5 },
-        { id: "08080804", name: "Đỗ Mạnh Hùng", rate: 5 }
-      ],
-      salesConfig: {
-        "08022207": { students: 4, rateSale: 15 }, // Mai bán 4 HV
-        "08066488": { students: 2, rateSale: 15 }  // Tùng bán 2 HV
-      },
-      rateSale: 15,
-      rateLeader: 5,
-      rateTrainer: 15,
-      rateCompany: 65
-    },
-    {
-      id: "CRS_SMC_K03",
-      code: "SMC-K03",
-      courseGroup: "Khóa Học SMC Thực Chiến",
-      batchName: "Lớp K03",
-      name: "Khóa Học SMC Thực Chiến (Lớp K03)",
-      category: "course",
-      categoryLabel: "Khóa Học",
-      startDate: "10/2026",
-      studentsCount: 5,
-      price: 5000000,
-      totalRevenue: 25000000,
-      trainerId: "08049866", // Phương Anh đào tạo lớp K03
-      trainers: [
-        { id: "08049866", name: "Phương Anh", rate: 15 }
-      ],
-      leaders: [
-        { id: "08077592", name: "Trần Thị Tuyết", rate: 5 },
-        { id: "08020609", name: "Đỗ Việt Cường", rate: 5 }
-      ],
-      salesConfig: {
-        "08029280": { students: 2, rateSale: 15 },
-        "08061116": { students: 2, rateSale: 15 },
-        "08007997": { students: 1, rateSale: 15 }
-      },
-      rateSale: 15,
-      rateLeader: 5,
-      rateTrainer: 15,
-      rateCompany: 65
-    },
+  let COURSES_DATA = [];
 
-    // ── KHÓA HỌC PRICE ACTION CHUYÊN SÂU ──
-    {
-      id: "CRS_PA_K01",
-      code: "PA-K01",
-      courseGroup: "Khóa Học Price Action Chuyên Sâu",
-      batchName: "Lớp K01",
-      name: "Khóa Học Price Action Chuyên Sâu (Lớp K01)",
-      category: "course",
-      categoryLabel: "Khóa Học",
-      startDate: "08/2026",
-      studentsCount: 6,
-      price: 4500000,
-      totalRevenue: 27000000,
-      trainerId: "08049866",
-      trainers: [
-        { id: "08049866", name: "Phương Anh", rate: 15 }
-      ],
-      leaders: [
-        { id: "08077592", name: "Trần Thị Tuyết", rate: 5 }
-      ],
-      salesConfig: {},
-      rateSale: 15,
-      rateLeader: 5,
-      rateTrainer: 15,
-      rateCompany: 65
-    },
-    {
-      id: "CRS_PA_K02",
-      code: "PA-K02",
-      courseGroup: "Khóa Học Price Action Chuyên Sâu",
-      batchName: "Lớp K02",
-      name: "Khóa Học Price Action Chuyên Sâu (Lớp K02)",
-      category: "course",
-      categoryLabel: "Khóa Học",
-      startDate: "09/2026",
-      studentsCount: 6,
-      price: 4500000,
-      totalRevenue: 28000000,
-      trainerId: "08077592",
-      trainers: [
-        { id: "08077592", name: "Trần Thị Tuyết", rate: 15 }
-      ],
-      leaders: [
-        { id: "08077592", name: "Trần Thị Tuyết", rate: 5 },
-        { id: "08095532", name: "Vũ Thị Quỳnh", rate: 5 }
-      ],
-      salesConfig: {},
-      rateSale: 15,
-      rateLeader: 5,
-      rateTrainer: 15,
-      rateCompany: 65
-    },
-
-    // ── KHÓA HỌC SCALPING VÀNG M1-M5 ──
-    {
-      id: "CRS_GOLD_K01",
-      code: "GOLD-K01",
-      courseGroup: "Khóa Học Scalping Vàng M1-M5 & Order Flow",
-      batchName: "Lớp K01",
-      name: "Khóa Học Scalping Vàng M1-M5 & Order Flow (Lớp K01)",
-      category: "course",
-      categoryLabel: "Khóa Học",
-      startDate: "08/2026",
-      studentsCount: 5,
-      price: 6000000,
-      totalRevenue: 30000000,
-      trainerId: "08080804",
-      trainers: [
-        { id: "08080804", name: "Đỗ Mạnh Hùng", rate: 15 }
-      ],
-      leaders: [
-        { id: "08080804", name: "Đỗ Mạnh Hùng", rate: 5 }
-      ],
-      salesConfig: {},
-      rateSale: 15,
-      rateLeader: 5,
-      rateTrainer: 15,
-      rateCompany: 65
-    },
-    {
-      id: "CRS_GOLD_K02",
-      code: "GOLD-K02",
-      courseGroup: "Khóa Học Scalping Vàng M1-M5 & Order Flow",
-      batchName: "Lớp K02",
-      name: "Khóa Học Scalping Vàng M1-M5 & Order Flow (Lớp K02)",
-      category: "course",
-      categoryLabel: "Khóa Học",
-      startDate: "09/2026",
-      studentsCount: 3,
-      price: 6000000,
-      totalRevenue: 18000000,
-      trainerId: "08080804",
-      trainers: [
-        { id: "08080804", name: "Đỗ Mạnh Hùng", rate: 15 }
-      ],
-      leaders: [
-        { id: "08080804", name: "Đỗ Mạnh Hùng", rate: 5 }
-      ],
-      salesConfig: {},
-      rateSale: 15,
-      rateLeader: 5,
-      rateTrainer: 15,
-      rateCompany: 65
-    },
-
-    // ── KHÓA HỌC PHÁI SINH CRYPTO PRO ──
-    {
-      id: "CRS_CRYPTO_K01",
-      code: "CRYPTO-K01",
-      courseGroup: "Khóa Học Giao Dịch Phái Sinh Crypto Pro",
-      batchName: "Lớp K01",
-      name: "Khóa Học Giao Dịch Phái Sinh Crypto Pro (Lớp K01)",
-      category: "course",
-      categoryLabel: "Khóa Học",
-      startDate: "08/2026",
-      studentsCount: 4,
-      price: 5500000,
-      totalRevenue: 22000000,
-      trainerId: "08095532",
-      trainers: [
-        { id: "08095532", name: "Vũ Thị Quỳnh", rate: 15 }
-      ],
-      leaders: [
-        { id: "08095532", name: "Vũ Thị Quỳnh", rate: 5 },
-        { id: "08035000", name: "Đặng Tấn Tử", rate: 5 }
-      ],
-      salesConfig: {},
-      rateSale: 15,
-      rateLeader: 5,
-      rateTrainer: 15,
-      rateCompany: 65
-    },
-    {
-      id: "CRS_CRYPTO_K02",
-      code: "CRYPTO-K02",
-      courseGroup: "Khóa Học Giao Dịch Phái Sinh Crypto Pro",
-      batchName: "Lớp K02",
-      name: "Khóa Học Giao Dịch Phái Sinh Crypto Pro (Lớp K02)",
-      category: "course",
-      categoryLabel: "Khóa Học",
-      startDate: "09/2026",
-      studentsCount: 3,
-      price: 5500000,
-      totalRevenue: 16500000,
-      trainerId: "08035000",
-      trainers: [
-        { id: "08035000", name: "Đặng Tấn Tử", rate: 15 }
-      ],
-      leaders: [
-        { id: "08035000", name: "Đặng Tấn Tử", rate: 5 }
-      ],
-      salesConfig: {},
-      rateSale: 15,
-      rateLeader: 5,
-      rateTrainer: 15,
-      rateCompany: 65
-    },
-
-    // ── CÁC BỘ CHỈ BÁO GIAO DỊCH ──
-    {
-      id: "IND_APEX_TREND",
-      code: "IND-TREND",
-      courseGroup: "Chỉ Báo Giao Dịch",
-      batchName: "Gói Chuẩn",
-      name: "Bộ Chỉ Báo Độc Quyền Apex Trend & Liquidity Zone",
-      category: "indicator",
-      categoryLabel: "Chỉ Báo",
-      startDate: "Toàn Thời Gian",
-      studentsCount: 24,
-      price: 3000000,
-      totalRevenue: 72000000,
-      trainerId: "08014278",
-      trainers: [{ id: "08014278", name: "Nguyễn Hoàng Khánh", rate: 15 }],
-      leaders: [{ id: "08035000", name: "Đặng Tấn Tử", rate: 5 }],
-      salesConfig: {},
-      rateSale: 15,
-      rateLeader: 5,
-      rateTrainer: 15,
-      rateCompany: 65
-    },
-    {
-      id: "IND_SMC_MATRIX",
-      code: "IND-SMC",
-      courseGroup: "Chỉ Báo Giao Dịch",
-      batchName: "Gói Pro",
-      name: "Chỉ Báo Điểm Vào Lệnh Tự Động SMC Matrix Pro",
-      category: "indicator",
-      categoryLabel: "Chỉ Báo",
-      startDate: "Toàn Thời Gian",
-      studentsCount: 18,
-      price: 2500000,
-      totalRevenue: 45000000,
-      trainerId: "08049866",
-      trainers: [{ id: "08049866", name: "Phương Anh", rate: 15 }],
-      leaders: [{ id: "08077592", name: "Trần Thị Tuyết", rate: 5 }],
-      salesConfig: {},
-      rateSale: 15,
-      rateLeader: 5,
-      rateTrainer: 15,
-      rateCompany: 65
-    },
-
-    // ── CÁC GÓI HỘI VIÊN NHÓM VIP ──
-    {
-      id: "VIP_APEX_SIGNALS",
-      code: "VIP-SIG",
-      courseGroup: "Hội Viên Nhóm VIP",
-      batchName: "Gói Kèo Tháng",
-      name: "Gói Hội Viên Nhóm VIP Apex Signals & Kèo Chuẩn",
-      category: "vip",
-      categoryLabel: "Nhóm VIP",
-      startDate: "Tháng 09/2026",
-      studentsCount: 29,
-      price: 2000000,
-      totalRevenue: 58000000,
-      trainerId: "08014278",
-      trainers: [{ id: "08014278", name: "Nguyễn Hoàng Khánh", rate: 15 }],
-      leaders: [{ id: "08035000", name: "Đặng Tấn Tử", rate: 5 }],
-      salesConfig: {},
-      rateSale: 15,
-      rateLeader: 5,
-      rateTrainer: 15,
-      rateCompany: 65
-    },
-    {
-      id: "VIP_LIVETRADE_ROOM",
-      code: "VIP-LIVE",
-      courseGroup: "Hội Viên Nhóm VIP",
-      batchName: "Room Live",
-      name: "Room Live Trade VIP Thực Chiến Cùng Chuyên Gia",
-      category: "vip",
-      categoryLabel: "Nhóm VIP",
-      startDate: "Tháng 09/2026",
-      studentsCount: 17,
-      price: 2500000,
-      totalRevenue: 42000000,
-      trainerId: "08080804",
-      trainers: [{ id: "08080804", name: "Đỗ Mạnh Hùng", rate: 15 }],
-      leaders: [{ id: "08080804", name: "Đỗ Mạnh Hùng", rate: 5 }],
-      salesConfig: {},
-      rateSale: 15,
-      rateLeader: 5,
-      rateTrainer: 15,
-      rateCompany: 65
-    }
-  ];
-
-  let selectedTrainerStatFilter = 'ALL';
-  let selectedBatchStatFilter = 'ALL';
   let currentTrainingModalCategory = 'ALL';
 
-  // Thêm vipRev mặc định cho 23 nhân sự nếu chưa có
-  APEX_DATA.forEach(p => {
-    if (p.vipRev === undefined) {
-      if (p.roleLevel === 'LV1') p.vipRev = 12000000;
-      else if (p.roleLevel === 'LV2') p.vipRev = 6000000;
-      else p.vipRev = 3500000;
-    }
-  });
+
 
   // Tính toán hoa hồng Đào Tạo (15%) dành cho Trainer
   function calculateTrainerCommission(personId) {
@@ -5398,8 +4609,6 @@ function renderMindmapTree() {
     if (subNetDetailEl) subNetDetailEl.textContent = `Lot: ${formatMoney(totalAllLotComm)} • SP: ${formatMoney(totalAllProductComm)} • Thưởng: ${formatMoney(totalBonusComm)}`;
 
     // 2. Phân hệ 2: Doanh thu Sản phẩm & Đào tạo
-    populateTrainerSelectOptions();
-    populateBatchSelectOptions();
     updateCourseStatBox();
 
     // Doanh thu Chỉ báo
@@ -5408,9 +4617,9 @@ function renderMindmapTree() {
     const statIndEl = document.getElementById('statTotalIndicatorRev');
     if (statIndEl) statIndEl.textContent = formatMoney(totalIndRev);
     const statIndSaleEl = document.getElementById('statIndSaleShare');
-    if (statIndSaleEl) statIndSaleEl.textContent = formatMoney(Math.round(totalIndRev * 0.15));
+    if (statIndSaleEl) statIndSaleEl.textContent = formatMoney(COURSES_DATA.filter(c => c.category === 'indicator').reduce((sum, c) => sum + Math.round(c.totalRevenue * c.rateSale / 100), 0));
     const statIndCompEl = document.getElementById('statIndCompanyShare');
-    if (statIndCompEl) statIndCompEl.textContent = formatMoney(Math.round(totalIndRev * 0.65));
+    if (statIndCompEl) statIndCompEl.textContent = formatMoney(COURSES_DATA.filter(c => c.category === 'indicator').reduce((sum, c) => sum + Math.round(c.totalRevenue * c.rateCompany / 100), 0));
 
     // Doanh thu Nhóm VIP
     let totalVipRev = 0;
@@ -5418,9 +4627,9 @@ function renderMindmapTree() {
     const statVipEl = document.getElementById('statTotalVipRev');
     if (statVipEl) statVipEl.textContent = formatMoney(totalVipRev);
     const statVipSaleEl = document.getElementById('statVipSaleShare');
-    if (statVipSaleEl) statVipSaleEl.textContent = formatMoney(Math.round(totalVipRev * 0.15));
+    if (statVipSaleEl) statVipSaleEl.textContent = formatMoney(COURSES_DATA.filter(c => c.category === 'vip').reduce((sum, c) => sum + Math.round(c.totalRevenue * c.rateSale / 100), 0));
     const statVipCompEl = document.getElementById('statVipCompanyShare');
-    if (statVipCompEl) statVipCompEl.textContent = formatMoney(Math.round(totalVipRev * 0.65));
+    if (statVipCompEl) statVipCompEl.textContent = formatMoney(COURSES_DATA.filter(c => c.category === 'vip').reduce((sum, c) => sum + Math.round(c.totalRevenue * c.rateCompany / 100), 0));
 
     // Ô 2.1: Tổng Doanh Thu Tất Cả Sản Phẩm (Khóa học + Chỉ báo + VIP)
     let totalAllProductRev = 0;
@@ -5428,84 +4637,7 @@ function renderMindmapTree() {
     const statAllProdRevEl = document.getElementById('statTotalAllProductRev');
     if (statAllProdRevEl) statAllProdRevEl.textContent = formatMoney(totalAllProductRev);
     const subCompanyKeepEl = document.getElementById('statSubCompanyKeepShare');
-    if (subCompanyKeepEl) subCompanyKeepEl.textContent = `Công ty giữ lại (65%): ~${formatMoney(Math.round(totalAllProductRev * 0.65))}`;
-  }
-
-  function populateTrainerSelectOptions() {
-    const sel = document.getElementById('statTrainerFilterSelect');
-    if (!sel) return;
-    const currentVal = selectedTrainerStatFilter || sel.value || 'ALL';
-    sel.innerHTML = '<option value="ALL">Tất cả Người Đào Tạo</option>';
-
-    // Thu thập tất cả người đào tạo từ COURSES_DATA (cả trainerId và mảng trainers)
-    const trainerIdsSet = new Set();
-    COURSES_DATA.forEach(c => {
-      if (c.trainerId) trainerIdsSet.add(c.trainerId);
-      if (c.trainers && Array.isArray(c.trainers)) {
-        c.trainers.forEach(t => { if (t.id) trainerIdsSet.add(t.id); });
-      }
-    });
-
-    const trainerList = Array.from(trainerIdsSet).map(tId => {
-      const person = APEX_DATA.find(p => p.id === tId);
-      return {
-        id: tId,
-        name: person ? person.name : tId,
-        roleTitle: person ? person.roleTitle : 'Đào tạo',
-        roleLevel: person ? person.roleLevel : 'LV3'
-      };
-    }).sort((a, b) => a.roleLevel.localeCompare(b.roleLevel) || a.name.localeCompare(b.name));
-
-    trainerList.forEach(t => {
-      const opt = document.createElement('option');
-      opt.value = t.id;
-      opt.textContent = `${t.name} (${t.roleTitle})`;
-      sel.appendChild(opt);
-    });
-
-    const exists = Array.from(sel.options).some(o => o.value === currentVal);
-    sel.value = exists ? currentVal : 'ALL';
-    selectedTrainerStatFilter = sel.value;
-  }
-
-  function populateBatchSelectOptions() {
-    const sel = document.getElementById('statBatchFilterSelect');
-    if (!sel) return;
-    const currentVal = selectedBatchStatFilter || sel.value || 'ALL';
-    sel.innerHTML = '<option value="ALL">Tất cả Lớp</option>';
-
-    let coursesToDisplay = COURSES_DATA.filter(c => c.category === 'course');
-    if (selectedTrainerStatFilter !== 'ALL') {
-      coursesToDisplay = coursesToDisplay.filter(c => {
-        if (c.trainerId === selectedTrainerStatFilter) return true;
-        if (c.trainers && Array.isArray(c.trainers)) {
-          return c.trainers.some(t => t.id === selectedTrainerStatFilter);
-        }
-        return false;
-      });
-    }
-
-    coursesToDisplay.forEach(c => {
-      const opt = document.createElement('option');
-      opt.value = c.id;
-      opt.textContent = c.code ? `${c.code} (${c.batchName || 'Lớp'})` : c.name;
-      sel.appendChild(opt);
-    });
-
-    const exists = Array.from(sel.options).some(o => o.value === currentVal);
-    sel.value = exists ? currentVal : 'ALL';
-    selectedBatchStatFilter = sel.value;
-  }
-
-  function onTrainerStatFilterChange(val) {
-    selectedTrainerStatFilter = val;
-    populateBatchSelectOptions();
-    updateCourseStatBox();
-  }
-
-  function onBatchStatFilterChange(val) {
-    selectedBatchStatFilter = val;
-    updateCourseStatBox();
+    if (subCompanyKeepEl) subCompanyKeepEl.textContent = `Công ty giữ lại: ${formatMoney(COURSES_DATA.reduce((sum, c) => sum + Math.round(c.totalRevenue * c.rateCompany / 100), 0))}`;
   }
 
   function updateCourseStatBox() {
@@ -5515,24 +4647,12 @@ function renderMindmapTree() {
 
     let filteredCourses = COURSES_DATA.filter(c => c.category === 'course');
 
-    if (selectedTrainerStatFilter !== 'ALL') {
-      filteredCourses = filteredCourses.filter(c => {
-        if (c.trainerId === selectedTrainerStatFilter) return true;
-        if (c.trainers && Array.isArray(c.trainers)) {
-          return c.trainers.some(t => t.id === selectedTrainerStatFilter);
-        }
-        return false;
-      });
-    }
-    if (selectedBatchStatFilter !== 'ALL') {
-      filteredCourses = filteredCourses.filter(c => c.id === selectedBatchStatFilter);
-    }
 
     filteredCourses.forEach(c => {
       const rev = (c.totalRevenue || 0);
       courseRev += rev;
-      trainerComm += Math.round(rev * ((c.rateTrainer || 15) / 100));
-      companyShare += Math.round(rev * ((c.rateCompany || 65) / 100));
+      trainerComm += Math.round(rev * ((c.rateTrainer ?? 0) / 100));
+      companyShare += Math.round(rev * ((c.rateCompany ?? 0) / 100));
     });
 
     const statCourseRevEl = document.getElementById('statTotalCourseRev');
@@ -5548,7 +4668,7 @@ function renderMindmapTree() {
   // ====================================================================
   // 1.3 MODAL CẤU HÌNH & TINH CHỈNH KHÓA HỌC & ĐÀO TẠO (CÁC LỚP K01, K02...)
   // ====================================================================
-  
+
   // ====================================================================
   // MODAL CHI TIẾT TỪNG NGƯỜI: CHỌN NHIỀU LEADER, CHỈNH % ĐÀO TẠO, LEADER, SALE
   // ====================================================================
@@ -5786,7 +4906,7 @@ function renderMindmapTree() {
     renderCdmLeadersList();
     updateCdmSummary();
   }
-  
+
   function renderCdmSalesTable() {
     const tbody = document.getElementById('cdmSalesTableBody');
     if (!tbody) return;
@@ -6042,7 +5162,7 @@ function renderMindmapTree() {
 
     const tId = document.getElementById('newBatchTrainerId')?.value || (APEX_DATA[0] ? APEX_DATA[0].id : '');
     const rev = Number(document.getElementById('newBatchRevenue')?.value) || 20000000;
-    
+
     // Thu thập tất cả Leader đã chọn
     const checkedLeaderInputs = document.querySelectorAll('#newBatchLeadersContainer input[type="checkbox"]:checked');
     const chosenLeaders = [];
@@ -6241,50 +5361,13 @@ function renderMindmapTree() {
   // - Kế toán nhập chi phí theo từng tháng
   // - Xem & đối soát linh hoạt từng tháng (Tháng trước ◀, Tháng sau ▶)
   // ====================================================================
-  let currentAccountingMonth = '2026-09'; // Mặc định tháng 09/2026
+  let currentAccountingMonth = currentGlobalMonth;
 
   // Dữ liệu doanh thu & hoa hồng chuẩn theo từng tháng để tính P&L chuẩn xác
-    const MONTHLY_REVENUE_COMMISSION = {
-    '2026-06': { revenue: 340000000, commission: 142000000, label: 'Tháng 06/2026' },
-    '2026-07': { revenue: 375000000, commission: 158000000, label: 'Tháng 07/2026' },
-    '2026-08': { revenue: 410000000, commission: 175500000, label: 'Tháng 08/2026' },
-    '2026-09': { revenue: 448500000, commission: 191307000, label: 'Tháng 09/2026' },
-    '2026-10': { revenue: 480000000, commission: 205000000, label: 'Tháng 10/2026' }
-  };
+
 
   // Danh sách chi phí do Admin nhập theo từng tháng
-    let ADMIN_EXPENSES_DATA = [
-    {"id":"EXP_06_01","month":"2026-06","date":"2026-06-02","title":"Tiền thuê văn phòng Landmark tháng 06","category":"Mặt bằng","amount":22000000,"payer":"Admin Hoàng Phúc","note":"Hóa đơn tiền thuê văn phòng kỳ tháng 6"},
-    {"id":"EXP_06_02","month":"2026-06","date":"2026-06-06","title":"Chi phí Marketing mở lớp Trading Hè 2026","category":"Marketing","amount":11000000,"payer":"Admin Hoàng Phúc","note":"Chạy chiến dịch Facebook Ads khóa cơ bản"},
-    {"id":"EXP_06_03","month":"2026-06","date":"2026-06-12","title":"Gia hạn máy chủ Cloud VPS tín hiệu Bot","category":"Hạ tầng / Server","amount":3500000,"payer":"Admin Hoàng Phúc","note":"Máy chủ đặt tại FPT Data Center"},
-    {"id":"EXP_06_04","month":"2026-06","date":"2026-06-18","title":"Tiếp khách đại lý sàn giao dịch hàng hóa","category":"Tiếp khách","amount":2500000,"payer":"Admin Hoàng Phúc","note":"Ăn trưa trao đổi hợp đồng đại lý"},
-    {"id":"EXP_06_05","month":"2026-06","date":"2026-06-24","title":"Bản quyền phần mềm phân tích kỹ thuật","category":"Công cụ","amount":2000000,"payer":"Admin Hoàng Phúc","note":"Gói TradingView Premium cho bộ phận PTKT"},
-    {"id":"EXP_06_06","month":"2026-06","date":"2026-06-28","title":"Văn phòng phẩm & nước uống tháng 06","category":"Vận hành","amount":1000000,"payer":"Admin Hoàng Phúc","note":"Chi phí vận hành định kỳ tháng 6"},
-    {"id":"EXP_07_01","month":"2026-07","date":"2026-07-02","title":"Tiền thuê văn phòng Landmark tháng 07","category":"Mặt bằng","amount":22000000,"payer":"Admin Hoàng Phúc","note":"Hóa đơn tiền nhà tháng 7"},
-    {"id":"EXP_07_02","month":"2026-07","date":"2026-07-08","title":"Chạy chiến dịch quảng cáo TikTok & Facebook","category":"Marketing","amount":13500000,"payer":"Admin Hoàng Phúc","note":"Thu lead khóa Price Action"},
-    {"id":"EXP_07_03","month":"2026-07","date":"2026-07-15","title":"Cloud VPS & nâng cấp băng thông máy chủ","category":"Hạ tầng / Server","amount":4500000,"payer":"Admin Hoàng Phúc","note":"Gia hạn hạ tầng tháng 7"},
-    {"id":"EXP_07_04","month":"2026-07","date":"2026-07-20","title":"Tiếp đối tác công nghệ chỉ báo Algo","category":"Tiếp khách","amount":4000000,"payer":"Admin Hoàng Phúc","note":"Họp chuyển giao công nghệ bot"},
-    {"id":"EXP_07_05","month":"2026-07","date":"2026-07-25","title":"Phần mềm Zoom Webinar & công cụ đồ thị","category":"Công cụ","amount":2000000,"payer":"Admin Hoàng Phúc","note":"Gói Zoom 300 chỗ"},
-    {"id":"EXP_07_06","month":"2026-07","date":"2026-07-29","title":"In ấn giáo trình & teabreak phòng đào tạo","category":"Vận hành","amount":1000000,"payer":"Admin Hoàng Phúc","note":"Tài liệu học viên khóa tháng 7"},
-    {"id":"EXP_08_01","month":"2026-08","date":"2026-08-02","title":"Tiền thuê mặt bằng văn phòng Landmark tháng 08","category":"Mặt bằng","amount":22000000,"payer":"Admin Hoàng Phúc","note":"Hóa đơn tiền thuê mặt bằng tháng 8"},
-    {"id":"EXP_08_02","month":"2026-08","date":"2026-08-06","title":"Chi phí quảng cáo Google Ads & Facebook khóa hè","category":"Marketing","amount":16000000,"payer":"Admin Hoàng Phúc","note":"Chiến dịch khóa hè SMC 2026"},
-    {"id":"EXP_08_03","month":"2026-08","date":"2026-08-12","title":"Cloud VPS & bảo trì hệ thống bot trading","category":"Hạ tầng / Server","amount":4500000,"payer":"Admin Hoàng Phúc","note":"Chi phí máy chủ tháng 8"},
-    {"id":"EXP_08_04","month":"2026-08","date":"2026-08-18","title":"Tiếp đón đại diện quỹ đầu tư & chiêu đãi nhân sự","category":"Tiếp khách","amount":5000000,"payer":"Admin Hoàng Phúc","note":"Gặp gỡ đối tác quỹ giao dịch"},
-    {"id":"EXP_08_05","month":"2026-08","date":"2026-08-22","title":"Bản quyền phần mềm Zoom & CRM tháng 08","category":"Công cụ","amount":3500000,"payer":"Admin Hoàng Phúc","note":"Gia hạn phần mềm nội bộ"},
-    {"id":"EXP_08_06","month":"2026-08","date":"2026-08-26","title":"In ấn giáo trình & teabreak lớp SMC-K01","category":"Vận hành","amount":1500000,"payer":"Admin Hoàng Phúc","note":"Sách bài tập & nước uống học viên"},
-    {"id":"EXP_09_01","month":"2026-09","date":"2026-09-02","title":"Tiền thuê văn phòng & điện nước tháng 09","category":"Mặt bằng","amount":22000000,"payer":"Admin Hoàng Phúc","note":"Thanh toán cho tòa nhà Landmark"},
-    {"id":"EXP_09_02","month":"2026-09","date":"2026-09-05","title":"Chi phí chạy Ads Facebook & TikTok thu lead","category":"Marketing","amount":18500000,"payer":"Admin Hoàng Phúc","note":"Chiến dịch tuyển sinh khóa K02 SMC"},
-    {"id":"EXP_09_03","month":"2026-09","date":"2026-09-10","title":"Thuê máy chủ Cloud VPS & Bot Signal tín hiệu","category":"Hạ tầng / Server","amount":4500000,"payer":"Admin Hoàng Phúc","note":"Gia hạn máy chủ Singapore 3 tháng"},
-    {"id":"EXP_09_04","month":"2026-09","date":"2026-09-15","title":"Tiếp khách đối tác sàn giao dịch & VIP","category":"Tiếp khách","amount":6000000,"payer":"Admin Hoàng Phúc","note":"Bữa tối thảo luận cơ chế rebate sàn"},
-    {"id":"EXP_09_05","month":"2026-09","date":"2026-09-20","title":"Văn phòng phẩm & teabreak phòng đào tạo","category":"Vận hành","amount":3000000,"payer":"Admin Hoàng Phúc","note":"Hoa quả, cafe, nước suối các lớp K01, K02"},
-    {"id":"EXP_09_06","month":"2026-09","date":"2026-09-22","title":"Chi phí phần mềm Zoom Pro & CRM bản quyền","category":"Công cụ","amount":4000000,"payer":"Admin Hoàng Phúc","note":"Gói Zoom 500 người phục vụ dạy học"},
-    {"id":"EXP_10_01","month":"2026-10","date":"2026-10-02","title":"Tiền thuê văn phòng Landmark tháng 10","category":"Mặt bằng","amount":22000000,"payer":"Admin Hoàng Phúc","note":"Thanh toán cho tòa nhà Landmark kỳ tháng 10"},
-    {"id":"EXP_10_02","month":"2026-10","date":"2026-10-06","title":"Ngân sách Marketing chiến dịch Quý 4","category":"Marketing","amount":20000000,"payer":"Admin Hoàng Phúc","note":"Khởi động chiến dịch cuối năm toàn diện"},
-    {"id":"EXP_10_03","month":"2026-10","date":"2026-10-12","title":"Thuê máy chủ AI Trading Bot Cluster","category":"Hạ tầng / Server","amount":6000000,"payer":"Admin Hoàng Phúc","note":"Cụm máy chủ GPU phục vụ bot tín hiệu"},
-    {"id":"EXP_10_04","month":"2026-10","date":"2026-10-18","title":"Hội nghị đối tác & tri ân Leader sàn Q4","category":"Tiếp khách","amount":7500000,"payer":"Admin Hoàng Phúc","note":"Tiệc giao lưu kết nối đối tác"},
-    {"id":"EXP_10_05","month":"2026-10","date":"2026-10-22","title":"Bản quyền gói doanh nghiệp CRM & Zoom Enterprise","category":"Công cụ","amount":4000000,"payer":"Admin Hoàng Phúc","note":"Nâng cấp hệ sinh thái phần mềm"},
-    {"id":"EXP_10_06","month":"2026-10","date":"2026-10-27","title":"Chi phí teabreak & trang thiết bị phòng lab","category":"Vận hành","amount":2000000,"payer":"Admin Hoàng Phúc","note":"Bảo trì máy chiếu, nước uống học viên"}
-  ];
+    let ADMIN_EXPENSES_DATA = [];
 
   let currentExpenseCategoryFilter = 'ALL';
   let currentExpenseSearchQuery = '';
@@ -6362,23 +5445,8 @@ function _old_navigateAccountingMonth(direction) {
     let totalRevenue = 0;
     let totalCommission = 0;
 
-    if (currentAccountingMonth === 'ALL') {
-      // Tổng lũy kế tất cả các tháng
-      Object.keys(MONTHLY_REVENUE_COMMISSION).forEach(m => {
-        totalRevenue += MONTHLY_REVENUE_COMMISSION[m].revenue;
-        totalCommission += MONTHLY_REVENUE_COMMISSION[m].commission;
-      });
-    } else if (MONTHLY_REVENUE_COMMISSION[currentAccountingMonth]) {
-      totalRevenue = MONTHLY_REVENUE_COMMISSION[currentAccountingMonth].revenue;
-      totalCommission = MONTHLY_REVENUE_COMMISSION[currentAccountingMonth].commission;
-    } else {
-      // Mặc định tính từ dữ liệu hiện tại
-      COURSES_DATA.forEach(c => totalRevenue += (c.totalRevenue || 0));
-      APEX_DATA.forEach(p => {
-        const fin = calculatePersonnelFinance(p);
-        totalCommission += fin.netIncome;
-      });
-    }
+    COURSES_DATA.forEach(c => totalRevenue += Number(c.totalRevenue) || 0);
+    APEX_DATA.forEach(p => totalCommission += calculatePersonnelFinance(p).netIncome);
 
     // 3. Tính tổng chi phí Admin của tháng được chọn
     let totalAdminExpense = expensesForMonth.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
@@ -6395,15 +5463,7 @@ function _old_navigateAccountingMonth(direction) {
 
     const badgeStatus = document.getElementById('accMonthStatusBadge');
     if (badgeStatus) {
-      if (currentAccountingMonth === '2026-10') {
-        badgeStatus.textContent = 'DỰ KIẾN KẾ HOẠCH';
-        badgeStatus.style.background = '#eff6ff';
-        badgeStatus.style.color = '#2563eb';
-      } else {
-        badgeStatus.textContent = 'ĐÃ ĐỐI SOÁT';
-        badgeStatus.style.background = '#ecfdf5';
-        badgeStatus.style.color = '#059669';
-      }
+      badgeStatus.textContent = 'DỮ LIỆU CRM';
     }
 
     // Cập nhật lên 4 thẻ P&L
@@ -6640,13 +5700,13 @@ function _old_navigateAccountingMonth(direction) {
     COURSES_DATA.forEach(c => totalRevenue += (c.totalRevenue || 0));
     let totalCommission = 0;
     APEX_DATA.forEach(p => totalCommission += calculatePersonnelFinance(p).netIncome);
-    let totalAdminExpense = ADMIN_EXPENSES_DATA.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+    let totalAdminExpense = ADMIN_EXPENSES_DATA.filter(e => currentAccountingMonth === 'ALL' || String(e.month || e.date || '').slice(0, 7) === currentAccountingMonth).reduce((s, e) => s + (Number(e.amount) || 0), 0);
     let netProfit = totalRevenue - totalCommission - totalAdminExpense;
 
     csv += "1. TỔNG QUAN TÀI CHÍNH (P&L)\n";
     csv += "Chỉ Tiêu,Số Tiền (VNĐ),Ghi Chú\n";
     csv += `Tổng Doanh Thu Toàn Bộ SP,${totalRevenue},Khóa học + Chỉ báo + VIP\n`;
-    csv += `Chi Phí Hoa Hồng (23 Nhân Sự),${totalCommission},Lot + Sản phẩm + Thưởng\n`;
+    csv += `Chi Phí Hoa Hồng (Nhân Sự CRM),${totalCommission},Lot + Sản phẩm + Thưởng\n`;
     csv += `Chi Phí Hoạt Động (Admin Nhập),${totalAdminExpense},Tổng ${ADMIN_EXPENSES_DATA.length} khoản chi phí\n`;
     csv += `LỢI NHUẬN RÒNG CÔNG TY,${netProfit},Tỷ suất: ${((netProfit/totalRevenue)*100).toFixed(1)}%\n\n`;
 
@@ -6673,8 +5733,6 @@ function _old_navigateAccountingMonth(direction) {
   window.openTrainingConfigModal = openTrainingConfigModal;
   window.closeTrainingConfigModal = closeTrainingConfigModal;
   window.filterTrainingModalCategory = filterTrainingModalCategory;
-  window.onTrainerStatFilterChange = onTrainerStatFilterChange;
-  window.onBatchStatFilterChange = onBatchStatFilterChange;
   window.toggleAddNewBatchForm = toggleAddNewBatchForm;
   window.submitCreateNewBatch = submitCreateNewBatch;
   window.saveTrainingConfig = saveTrainingConfig;
@@ -6750,38 +5808,38 @@ function generateBankBillSvg(bankName, bankColor, amountStr, transCode, senderNa
     <text x="24" y="58" fill="#e2e8f0" font-family="'Plus Jakarta Sans', sans-serif" font-size="11">BIÊN BIÊN LAI CHUYỂN TIỀN THÀNH CÔNG</text>
     <circle cx="345" cy="45" r="22" fill="#22c55e"/>
     <path d="M336 45 L342 51 L355 38" fill="none" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
-    
+
     <!-- Amount Banner -->
     <rect x="20" y="105" width="360" height="85" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
     <text x="200" y="132" fill="#64748b" font-family="'Plus Jakarta Sans', sans-serif" font-size="11" text-anchor="middle" font-weight="700">SỐ TIỀN THANH TOÁN</text>
     <text x="200" y="168" fill="#0f172a" font-family="'JetBrains Mono', monospace" font-size="24" font-weight="900" text-anchor="middle">${amountStr} VND</text>
-    
+
     <!-- Details Box -->
     <rect x="20" y="202" width="360" height="265" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
-    
+
     <text x="36" y="230" fill="#64748b" font-size="11">Thời gian giao dịch</text>
     <text x="364" y="230" fill="#0f172a" font-size="11" font-weight="700" text-anchor="end" font-family="'JetBrains Mono'">${dateStr}</text>
     <line x1="36" y1="242" x2="364" y2="242" stroke="#f1f5f9" stroke-width="1"/>
-    
+
     <text x="36" y="265" fill="#64748b" font-size="11">Mã giao dịch / FT</text>
     <text x="364" y="265" fill="#2563eb" font-size="11" font-weight="800" text-anchor="end" font-family="'JetBrains Mono'">${transCode}</text>
     <line x1="36" y1="277" x2="364" y2="277" stroke="#f1f5f9" stroke-width="1"/>
-    
+
     <text x="36" y="300" fill="#64748b" font-size="11">Người chuyển tiền</text>
     <text x="364" y="300" fill="#0f172a" font-size="11" font-weight="700" text-anchor="end">${senderName}</text>
     <line x1="36" y1="312" x2="364" y2="312" stroke="#f1f5f9" stroke-width="1"/>
-    
+
     <text x="36" y="335" fill="#64748b" font-size="11">Tài khoản nhận</text>
     <text x="364" y="335" fill="#0f172a" font-size="11" font-weight="700" text-anchor="end">1903889988 - TECHCOMBANK</text>
     <line x1="36" y1="347" x2="364" y2="347" stroke="#f1f5f9" stroke-width="1"/>
-    
+
     <text x="36" y="370" fill="#64748b" font-size="11">Người thụ hưởng</text>
     <text x="364" y="370" fill="#059669" font-size="11" font-weight="800" text-anchor="end">CT TNHH DAO TAO & DAU TU NVT</text>
     <line x1="36" y1="382" x2="364" y2="382" stroke="#f1f5f9" stroke-width="1"/>
-    
+
     <text x="36" y="405" fill="#64748b" font-size="11">Nội dung chuyển khoản</text>
     <text x="36" y="425" fill="#0f172a" font-size="11" font-weight="700">${contentText}</text>
-    
+
     <!-- Footer Verified -->
     <rect x="20" y="480" width="360" height="42" rx="8" fill="#f0fdf4" stroke="#bbf7d0" stroke-width="1"/>
     <text x="200" y="506" fill="#15803d" font-size="11" font-weight="800" text-anchor="middle">✓ ĐÃ XÁC THỰC BỞI HỆ THỐNG NVT AGENCY</text>
@@ -6791,1336 +5849,9 @@ function generateBankBillSvg(bankName, bankColor, amountStr, transCode, senderNa
 
 // Danh sách dữ liệu mẫu 12 đơn hàng đối soát kế toán & hóa đơn VAT
 // ĐÃ BỔ SUNG: Số CCCD, Địa chỉ (Sale up thủ công), Option xuất VAT, và Báo đơn thanh toán thành công
-let VAT_ORDERS_DATA = [
-  {
-    id: 'NVT-0601a11',
-    month: '2026-06',
-    type: 'COURSE',
-    typeLabel: 'KHÓA HỌC',
-    customerName: 'Trịnh Quốc Bảo',
-    customerPhone: '0908123456',
-    customerCccd: '001201004561',
-    customerAddress: 'Số 45 Lê Duẩn, Quận 1, TP. HCM',
-    customerEmail: 'quocbao.trinh@gmail.com',
-    productName: 'Khóa học SMC Cơ bản đến Nâng cao - K01',
-    productSku: 'CRS-SMC-K01',
-    term: 'Vĩnh viễn',
-    saleId: '08058577',
-    saleName: 'Phạm Hoài Ngọc Đức',
-    subtotal: 5000000,
-    vatAmount: 500000,
-    total: 5500000,
-    collected: 5500000,
-    remaining: 0,
-    paymentStatus: 'PAID',
-    isSuccessNotified: true,
-    requireVat: true,
-    vatStatus: 'ISSUED',
-    vatInvoiceNo: 'HD-2026/0601',
-    vatIssuedDate: '2026-06-03 16:00',
-    taxCode: '0314567890',
-    companyName: 'Công ty Cổ phần Thương mại Alpha Tech',
-    address: 'Số 45 Lê Duẩn, Quận 1, TP. HCM',
-    invoiceEmail: 'ketoan@alphatech.vn',
-    billImage: generateBankBillSvg('VIETCOMBANK', '#005a3c', '5.500.000', 'FT26060301', 'TRINH QUOC BAO', 'TRINH QUOC BAO CK FULL KHOA HOC SMC K01', '03/06/2026 14:15'),
-    billDate: '2026-06-03 14:15',
-    saleNote: 'Khách thanh toán 100% qua chuyển khoản, đã gửi link lớp học và xuất hóa đơn VAT điện tử.'
-  },
-  {
-    id: 'NVT-0602b22',
-    month: '2026-06',
-    type: 'INDICATOR',
-    typeLabel: 'CHỈ BÁO',
-    customerName: 'Hoàng Minh Tuấn',
-    customerPhone: '0912348899',
-    customerCccd: '036098007788',
-    customerAddress: 'Tòa Keangnam, Mễ Trì, Nam Từ Liêm, Hà Nội',
-    customerEmail: 'minhtuan.trading@yahoo.com',
-    productName: 'Bộ Chỉ Báo Algo SMC & Order Flow 12 Tháng',
-    productSku: 'IND-ALGO-1Y',
-    term: '1 Năm',
-    saleId: '08062863',
-    saleName: 'Lê Ngân',
-    subtotal: 8000000,
-    vatAmount: 800000,
-    total: 8800000,
-    collected: 8800000,
-    remaining: 0,
-    paymentStatus: 'PAID',
-    isSuccessNotified: true,
-    requireVat: true,
-    vatStatus: 'ISSUED',
-    vatInvoiceNo: 'HD-2026/0602',
-    vatIssuedDate: '2026-06-08 11:30',
-    taxCode: '0108991234',
-    companyName: 'Công ty TNHH Giải Pháp Tài Chính Tuấn Minh',
-    address: 'Tòa Keangnam, Mễ Trì, Nam Từ Liêm, Hà Nội',
-    invoiceEmail: 'tax@tuanminhfin.vn',
-    billImage: generateBankBillSvg('TECHCOMBANK', '#e11b22', '8.800.000', 'FT26060802', 'HOANG MINH TUAN', 'HOANG MINH TUAN DONG TIEN BO CHI BAO ALGO', '08/06/2026 10:20'),
-    billDate: '2026-06-08 10:20',
-    saleNote: 'Khách kích hoạt TradingView ID: tuantrader_pro, đã cấp quyền bot tín hiệu.'
-  },
-  {
-    id: 'NVT-0603c33',
-    month: '2026-06',
-    type: 'COURSE',
-    typeLabel: 'KHÓA HỌC',
-    customerName: 'Bùi Thị Thanh Hằng',
-    customerPhone: '0978991122',
-    customerCccd: '025195003344',
-    customerAddress: '88 Trần Phú, Hà Đông, Hà Nội',
-    customerEmail: 'thanhhang.bui@gmail.com',
-    productName: 'Khóa học Price Action Chuyên Sâu 1-1',
-    productSku: 'CRS-PA-1ON1',
-    term: 'Vĩnh viễn',
-    saleId: '08077592',
-    saleName: 'Trần Thị Tuyết',
-    subtotal: 12000000,
-    vatAmount: 1200000,
-    total: 13200000,
-    collected: 6600000,
-    remaining: 6600000,
-    paymentStatus: 'DEPOSIT_50',
-    isSuccessNotified: false,
-    requireVat: true,
-    vatStatus: 'NOT_ISSUED',
-    vatInvoiceNo: '',
-    vatIssuedDate: '',
-    taxCode: '0109988112',
-    companyName: 'Hộ Kinh Doanh Thanh Hằng Fashion',
-    address: '88 Trần Phú, Hà Đông, Hà Nội',
-    invoiceEmail: 'hangbui.tax@gmail.com',
-    billImage: generateBankBillSvg('MBBANK', '#002878', '6.600.000', 'FT26061203', 'BUI THI THANH HANG', 'BUI THI THANH HANG COC 50 PT KHOA PRICE ACTION', '12/06/2026 15:40'),
-    billDate: '2026-06-12 15:40',
-    saleNote: 'Khách cọc 50% giữ lịch coaching 1-1 với Trainer, hẹn hoàn tất 50% còn lại trước ngày 20/06.'
-  },
-  {
-    id: 'NVT-0604d44',
-    month: '2026-06',
-    type: 'VIP_COMMUNITY',
-    typeLabel: 'NHÓM VIP',
-    customerName: 'Nguyễn Văn Đạt',
-    customerPhone: '0934112233',
-    customerCccd: '031089004455',
-    customerAddress: '15 Lê Lợi, TP. Hải Phòng',
-    customerEmail: 'dat.nguyenvan@gmail.com',
-    productName: 'Gói Hội Viên VIP Trading Club 6 Tháng',
-    productSku: 'VIP-CLUB-6M',
-    term: '6 Tháng',
-    saleId: '08020609',
-    saleName: 'Đỗ Việt Cường',
-    subtotal: 6000000,
-    vatAmount: 600000,
-    total: 6600000,
-    collected: 6600000,
-    remaining: 0,
-    paymentStatus: 'PAID',
-    isSuccessNotified: true,
-    requireVat: true,
-    vatStatus: 'ISSUED',
-    vatInvoiceNo: 'HD-2026/0604',
-    vatIssuedDate: '2026-06-17 10:00',
-    taxCode: '0201122334',
-    companyName: 'Công ty Cổ phần Vận Tải Biển Hải Long',
-    address: '15 Lê Lợi, TP. Hải Phòng',
-    invoiceEmail: 'ketoan@hailongshipping.vn',
-    billImage: generateBankBillSvg('ACB', '#004b8d', '6.600.000', 'FT26061704', 'NGUYEN VAN DAT', 'NGUYEN VAN DAT THANH TOAN VIP TRADING CLUB 6T', '17/06/2026 09:15'),
-    billDate: '2026-06-17 09:15',
-    saleNote: 'Khách vào nhóm Telegram VIP, nhận tín hiệu hàng ngày từ ngày 17/06/2026.'
-  },
-  {
-    id: 'NVT-0605e55',
-    month: '2026-06',
-    type: 'COURSE',
-    typeLabel: 'KHÓA HỌC',
-    customerName: 'Vũ Đình Trọng',
-    customerPhone: '0988776655',
-    customerCccd: '001092008899',
-    customerAddress: 'Số 10 Tràng Thi, Hoàn Kiếm, Hà Nội',
-    customerEmail: 'trong.vudinh@fpt.com.vn',
-    productName: 'Khóa học SMC Cơ bản đến Nâng cao - K01',
-    productSku: 'CRS-SMC-K01',
-    term: 'Vĩnh viễn',
-    saleId: '08035000',
-    saleName: 'Đặng Tấn Tử',
-    subtotal: 5000000,
-    vatAmount: 500000,
-    total: 5500000,
-    collected: 5500000,
-    remaining: 0,
-    paymentStatus: 'PAID',
-    isSuccessNotified: true,
-    requireVat: true,
-    vatStatus: 'ISSUED',
-    vatInvoiceNo: 'HD-2026/0605',
-    vatIssuedDate: '2026-06-21 17:30',
-    taxCode: '0100109106',
-    companyName: 'Công ty Cổ phần Phần mềm FPT',
-    address: 'Số 10 Tràng Thi, Hoàn Kiếm, Hà Nội',
-    invoiceEmail: 'einvoice@fpt.com',
-    billImage: generateBankBillSvg('VIETCOMBANK', '#005a3c', '5.500.000', 'FT26062105', 'VU DINH TRONG', 'VU DINH TRONG CK TIEN KHOA HOC SMC K01', '21/06/2026 16:45'),
-    billDate: '2026-06-21 16:45',
-    saleNote: 'Khách kỹ sư phần mềm học chuyển tiếp đầu tư tài chính.'
-  },
-  {
-    id: 'NVT-0606f66',
-    month: '2026-06',
-    type: 'COURSE',
-    typeLabel: 'KHÓA HỌC',
-    customerName: 'Lê Thuỳ Dung',
-    customerPhone: '0945667788',
-    customerCccd: '079198006677',
-    customerAddress: '234 Điện Biên Phủ, Bình Thạnh, TP. HCM',
-    customerEmail: 'thuydung.le@gmail.com',
-    productName: 'Khóa học đầu tư hàng hóa nâng cao - HHDN 01',
-    productSku: 'CRS-HHDN-01',
-    term: 'Vĩnh viễn',
-    saleId: '08061116',
-    saleName: 'Võ Thị Diễm Tiên',
-    subtotal: 5000000,
-    vatAmount: 500000,
-    total: 5500000,
-    collected: 5500000,
-    remaining: 0,
-    paymentStatus: 'PAID',
-    isSuccessNotified: true,
-    requireVat: true,
-    vatStatus: 'ISSUED',
-    vatInvoiceNo: 'HD-2026/0606',
-    vatIssuedDate: '2026-06-25 14:00',
-    taxCode: '0312987654',
-    companyName: 'Công ty TNHH Logistics An Phát',
-    address: '234 Điện Biên Phủ, Bình Thạnh, TP. HCM',
-    invoiceEmail: 'dung.le@anphatlogistics.com',
-    billImage: generateBankBillSvg('BIDV', '#0066b2', '5.500.000', 'FT26062506', 'LE THUY DUNG', 'LE THUY DUNG TT KHOA HOC HHDN 01', '25/06/2026 11:20'),
-    billDate: '2026-06-25 11:20',
-    saleNote: 'Đã hoàn tất thủ tục xuất hóa đơn VAT gửi email công ty.'
-  },
-  {
-    id: 'NVT-0607g77',
-    month: '2026-06',
-    type: 'COURSE',
-    typeLabel: 'KHÓA HỌC',
-    customerName: 'Trần Đình Quang',
-    customerPhone: '0966554433',
-    customerCccd: '040087002211',
-    customerAddress: '78 Bạch Đằng, Hải Châu, Đà Nẵng',
-    customerEmail: 'dinhquang78@danang.gov.vn',
-    productName: 'Khóa học SMC Cơ bản đến Nâng cao - K01',
-    productSku: 'CRS-SMC-K01',
-    term: 'Vĩnh viễn',
-    saleId: '08007997',
-    saleName: 'Đỗ Mạnh Dũng',
-    subtotal: 5000000,
-    vatAmount: 500000,
-    total: 5500000,
-    collected: 2750000,
-    remaining: 2750000,
-    paymentStatus: 'DEPOSIT_50',
-    isSuccessNotified: false,
-    requireVat: true,
-    vatStatus: 'NOT_ISSUED',
-    vatInvoiceNo: '',
-    vatIssuedDate: '',
-    taxCode: '0401122889',
-    companyName: 'Công ty TNHH Bất Động Sản Miền Trung Xanh',
-    address: '78 Bạch Đằng, Hải Châu, Đà Nẵng',
-    invoiceEmail: 'quangtran.mientrung@gmail.com',
-    billImage: generateBankBillSvg('TECHCOMBANK', '#e11b22', '2.750.000', 'FT26062907', 'TRAN DINH QUANG', 'TRAN DINH QUANG COC 50 PT KHOA SMC K01', '29/06/2026 16:30'),
-    billDate: '2026-06-29 16:30',
-    saleNote: 'Khách cọc trước 50%, thỏa thuận chuyển 50% còn lại vào ngày 05/07.'
-  },
-  {
-    id: 'NVT-0701a11',
-    month: '2026-07',
-    type: 'COURSE',
-    typeLabel: 'KHÓA HỌC',
-    customerName: 'Ngô Thế Hùng',
-    customerPhone: '0919223344',
-    customerCccd: '038091005566',
-    customerAddress: '12 Quang Trung, TP. Vinh, Nghệ An',
-    customerEmail: 'thehung.ngo@gmail.com',
-    productName: 'Khóa học SMC Cơ bản đến Nâng cao - K01',
-    productSku: 'CRS-SMC-K01',
-    term: 'Vĩnh viễn',
-    saleId: '08029908',
-    saleName: 'Lê Trung Kiên',
-    subtotal: 5000000,
-    vatAmount: 500000,
-    total: 5500000,
-    collected: 5500000,
-    remaining: 0,
-    paymentStatus: 'PAID',
-    isSuccessNotified: true,
-    requireVat: true,
-    vatStatus: 'ISSUED',
-    vatInvoiceNo: 'HD-2026/0701',
-    vatIssuedDate: '2026-07-04 15:00',
-    taxCode: '2901889900',
-    companyName: 'Công ty Cổ phần Thương mại Vinh Thành',
-    address: '12 Quang Trung, TP. Vinh, Nghệ An',
-    invoiceEmail: 'ketoan@vinhthanhcorp.vn',
-    billImage: generateBankBillSvg('VIETCOMBANK', '#005a3c', '5.500.000', 'FT26070401', 'NGO THE HUNG', 'NGO THE HUNG THANH TOAN KHOA SMC K01', '04/07/2026 14:20'),
-    billDate: '2026-07-04 14:20',
-    saleNote: 'Học viên thanh toán đủ, đã add vào room thảo luận K01.'
-  },
-  {
-    id: 'NVT-0702b22',
-    month: '2026-07',
-    type: 'INDICATOR',
-    typeLabel: 'CHỈ BÁO',
-    customerName: 'Đặng Ngọc Lan',
-    customerPhone: '0977665544',
-    customerCccd: '001194002233',
-    customerAddress: 'Tòa Sky City, 88 Láng Hạ, Đống Đa, Hà Nội',
-    customerEmail: 'ngoclan.invest@gmail.com',
-    productName: 'Bộ Chỉ Báo Algo SMC & Order Flow 12 Tháng',
-    productSku: 'IND-ALGO-1Y',
-    term: '1 Năm',
-    saleId: '08083609',
-    saleName: 'Lê Thanh Ngân',
-    subtotal: 8000000,
-    vatAmount: 800000,
-    total: 8800000,
-    collected: 8800000,
-    remaining: 0,
-    paymentStatus: 'PAID',
-    isSuccessNotified: true,
-    requireVat: true,
-    vatStatus: 'ISSUED',
-    vatInvoiceNo: 'HD-2026/0702',
-    vatIssuedDate: '2026-07-09 11:15',
-    taxCode: '0107766554',
-    companyName: 'Công ty TNHH Quản Lý Quỹ Lan Đặng',
-    address: 'Tòa Sky City, 88 Láng Hạ, Đống Đa, Hà Nội',
-    invoiceEmail: 'lan.invest@landangfund.com',
-    billImage: generateBankBillSvg('TECHCOMBANK', '#e11b22', '8.800.000', 'FT26070902', 'DANG NGOC LAN', 'DANG NGOC LAN MUA BO CHI BAO ALGO SMC 1Y', '09/07/2026 10:05'),
-    billDate: '2026-07-09 10:05',
-    saleNote: 'Khách thanh toán trọn gói 1 năm, đã bàn giao key bản quyền.'
-  },
-  {
-    id: 'NVT-0703c33',
-    month: '2026-07',
-    type: 'VIP_COMMUNITY',
-    typeLabel: 'NHÓM VIP',
-    customerName: 'Dương Văn Toàn',
-    customerPhone: '0903887766',
-    customerCccd: '079085009988',
-    customerAddress: '56 Nguyễn Thị Minh Khai, Quận 3, TP. HCM',
-    customerEmail: 'toanduong.real@gmail.com',
-    productName: 'Gói Hội Viên VIP Trading Club 6 Tháng',
-    productSku: 'VIP-CLUB-6M',
-    term: '6 Tháng',
-    saleId: '08028282',
-    saleName: 'Nguyễn Minh Thế',
-    subtotal: 6000000,
-    vatAmount: 600000,
-    total: 6600000,
-    collected: 6600000,
-    remaining: 0,
-    paymentStatus: 'PAID',
-    isSuccessNotified: true,
-    requireVat: true,
-    vatStatus: 'ISSUED',
-    vatInvoiceNo: 'HD-2026/0703',
-    vatIssuedDate: '2026-07-14 16:45',
-    taxCode: '0315544332',
-    companyName: 'Công ty TNHH Đầu Tư Toàn Phát Thịnh',
-    address: '56 Nguyễn Thị Minh Khai, Quận 3, TP. HCM',
-    invoiceEmail: 'toanphatthinh@gmail.com',
-    billImage: generateBankBillSvg('MBBANK', '#002878', '6.600.000', 'FT26071403', 'DUONG VAN TOAN', 'DUONG VAN TOAN THANH TOAN VIP 6T', '14/07/2026 15:30'),
-    billDate: '2026-07-14 15:30',
-    saleNote: 'Đã xuất hóa đơn VAT theo MST doanh nghiệp.'
-  },
-  {
-    id: 'NVT-98f76543',
-    month: '2026-07',
-    type: 'VIP_COMMUNITY',
-    typeLabel: 'NHÓM VIP',
-    customerName: 'Hoàng Thị Thanh Tâm',
-    customerPhone: '0979888999',
-    customerCccd: '038195007788',
-    customerAddress: 'Số 99 Hùng Vương, TP. Nha Trang, Khánh Hòa',
-    customerEmail: 'thanhtam.nhatrang@gmail.com',
-    productName: 'Gói Hội Viên VIP Trading Club 12 Tháng',
-    productSku: 'VIP-COMM-12M',
-    term: '1 Năm',
-    saleId: '08028892',
-    saleName: 'Đặng Hương Thuỷ',
-    subtotal: 10000000,
-    vatAmount: 1000000,
-    total: 11000000,
-    collected: 11000000,
-    remaining: 0,
-    paymentStatus: 'PAID',
-    isSuccessNotified: true,
-    requireVat: true,
-    vatStatus: 'ISSUED',
-    vatInvoiceNo: 'HD-2026/0718',
-    vatIssuedDate: '2026-07-18 10:45',
-    taxCode: '4201889911',
-    companyName: 'Công ty TNHH Du Lịch Biển Ngọc',
-    address: 'Số 99 Hùng Vương, TP. Nha Trang, Khánh Hòa',
-    invoiceEmail: 'ketoan@bienngoc.vn',
-    billImage: generateBankBillSvg('VIETCOMBANK', '#005a3c', '11.000.000', 'FT98F76543', 'HOANG THI THANH TAM', 'HOANG THI THANH TAM THANH TOAN VIP 12 THANG', '18/07/2026 10:15'),
-    billDate: '2026-07-18 10:15',
-    saleNote: 'Khách hàng VIP đăng ký gói 1 năm, đã cấp quyền VIP Discord và Telegram.'
-  },
-  {
-    id: 'NVT-0705e55',
-    month: '2026-07',
-    type: 'COURSE',
-    typeLabel: 'KHÓA HỌC',
-    customerName: 'Phan Minh Tuấn',
-    customerPhone: '0909554433',
-    customerCccd: '079088001122',
-    customerAddress: '180 Cao Thắng, Phường 12, Quận 10, TP. HCM',
-    customerEmail: 'tuanphan.pm@gmail.com',
-    productName: 'Khóa học SMC Cơ bản đến Nâng cao - K01',
-    productSku: 'CRS-SMC-K01',
-    term: 'Vĩnh viễn',
-    saleId: '08029280',
-    saleName: 'Đinh Hoàng Tuấn Trí',
-    subtotal: 5000000,
-    vatAmount: 500000,
-    total: 5500000,
-    collected: 5500000,
-    remaining: 0,
-    paymentStatus: 'PAID',
-    isSuccessNotified: true,
-    requireVat: true,
-    vatStatus: 'ISSUED',
-    vatInvoiceNo: 'HD-2026/0722',
-    vatIssuedDate: '2026-07-22 14:15',
-    taxCode: '0316655441',
-    companyName: 'Công ty TNHH Dịch Vụ Công Nghệ Sài Gòn Mới',
-    address: '180 Cao Thắng, Phường 12, Quận 10, TP. HCM',
-    invoiceEmail: 'finance@sgmoi.vn',
-    billImage: generateBankBillSvg('ACB', '#004b8d', '5.500.000', 'FT26072205', 'PHAN MINH TUAN', 'PHAN MINH TUAN THANH TOAN KHOA SMC K01', '22/07/2026 13:40'),
-    billDate: '2026-07-22 13:40',
-    saleNote: 'Khách thanh toán đầy đủ, đã nhận tài liệu học tập PDF.'
-  },
-  {
-    id: 'NVT-0706f66',
-    month: '2026-07',
-    type: 'COURSE',
-    typeLabel: 'KHÓA HỌC',
-    customerName: 'Võ Thanh Trúc',
-    customerPhone: '0938114477',
-    customerCccd: '083196005544',
-    customerAddress: '45 Võ Thị Sáu, TP. Biên Hòa, Đồng Nai',
-    customerEmail: 'trucvo.real@gmail.com',
-    productName: 'Khóa học đầu tư hàng hóa nâng cao - HHDN 01',
-    productSku: 'CRS-HHDN-01',
-    term: 'Vĩnh viễn',
-    saleId: '08049721',
-    saleName: 'Hồ Tấn Anh Tài',
-    subtotal: 5000000,
-    vatAmount: 500000,
-    total: 5500000,
-    collected: 2750000,
-    remaining: 2750000,
-    paymentStatus: 'DEPOSIT_50',
-    isSuccessNotified: false,
-    requireVat: true,
-    vatStatus: 'NOT_ISSUED',
-    vatInvoiceNo: '',
-    vatIssuedDate: '',
-    taxCode: '3603344556',
-    companyName: 'Công ty TNHH Nông Sản Đồng Nai Xanh',
-    address: '45 Võ Thị Sáu, TP. Biên Hòa, Đồng Nai',
-    invoiceEmail: 'ketoan@dongnaixanh.vn',
-    billImage: generateBankBillSvg('TECHCOMBANK', '#e11b22', '2.750.000', 'FT26072606', 'VO THANH TRUC', 'VO THANH TRUC COC 50 PT KHOA HHDN 01', '26/07/2026 15:10'),
-    billDate: '2026-07-26 15:10',
-    saleNote: 'Khách cọc 50%, hẹn thanh toán 50% còn lại vào ngày 02/08.'
-  },
-  {
-    id: 'NVT-0707g77',
-    month: '2026-07',
-    type: 'COURSE',
-    typeLabel: 'KHÓA HỌC',
-    customerName: 'Lý Gia Hân',
-    customerPhone: '0912889900',
-    customerCccd: '079199008877',
-    customerAddress: 'Số 12 Mai Chí Thọ, TP. Thủ Đức, TP. HCM',
-    customerEmail: 'giahan.ly@gmail.com',
-    productName: 'Khóa học SMC Cơ bản đến Nâng cao - K01',
-    productSku: 'CRS-SMC-K01',
-    term: 'Vĩnh viễn',
-    saleId: '08010668',
-    saleName: 'Hoàng Tấn Nguyên',
-    subtotal: 5000000,
-    vatAmount: 500000,
-    total: 5500000,
-    collected: 5500000,
-    remaining: 0,
-    paymentStatus: 'PAID',
-    isSuccessNotified: true,
-    requireVat: true,
-    vatStatus: 'ISSUED',
-    vatInvoiceNo: 'HD-2026/0729',
-    vatIssuedDate: '2026-07-29 17:00',
-    taxCode: '0317788990',
-    companyName: 'Công ty Cổ phần Truyền Thông New Vision',
-    address: 'Số 12 Mai Chí Thọ, TP. Thủ Đức, TP. HCM',
-    invoiceEmail: 'accounting@newvision.vn',
-    billImage: generateBankBillSvg('VIETCOMBANK', '#005a3c', '5.500.000', 'FT26072907', 'LY GIA HAN', 'LY GIA HAN DONG TIEN KHOA HOC SMC K01', '29/07/2026 16:20'),
-    billDate: '2026-07-29 16:20',
-    saleNote: 'Học viên thanh toán trọn gói, đã kích hoạt tài khoản học online.'
-  },
-  {
-    id: 'NVT-0708h88',
-    month: '2026-07',
-    type: 'INDICATOR',
-    typeLabel: 'CHỈ BÁO',
-    customerName: 'Trịnh Quốc Khang',
-    customerPhone: '0903332211',
-    customerCccd: '001090001234',
-    customerAddress: 'Số 20 Núi Trúc, Ba Đình, Hà Nội',
-    customerEmail: 'khang.trinh@gmail.com',
-    productName: 'Bộ Chỉ Báo Algo SMC & Order Flow 12 Tháng',
-    productSku: 'IND-ALGO-1Y',
-    term: '1 Năm',
-    saleId: '08058577',
-    saleName: 'Phạm Hoài Ngọc Đức',
-    subtotal: 8000000,
-    vatAmount: 800000,
-    total: 8800000,
-    collected: 8800000,
-    remaining: 0,
-    paymentStatus: 'PAID',
-    isSuccessNotified: true,
-    requireVat: true,
-    vatStatus: 'ISSUED',
-    vatInvoiceNo: 'HD-2026/0731',
-    vatIssuedDate: '2026-07-31 16:30',
-    taxCode: '0108899776',
-    companyName: 'Công ty Cổ phần Tư Vấn Đầu Tư Hoàng Khang',
-    address: 'Số 20 Núi Trúc, Ba Đình, Hà Nội',
-    invoiceEmail: 'tax@hoangkhang.vn',
-    billImage: generateBankBillSvg('BIDV', '#0066b2', '8.800.000', 'FT26073108', 'TRINH QUOC KHANG', 'TRINH QUOC KHANG MUA CHI BAO ALGO TRADING', '31/07/2026 15:45'),
-    billDate: '2026-07-31 15:45',
-    saleNote: 'Đơn hàng cuối tháng 7, hoàn tất thủ tục xuất hóa đơn VAT.'
-  },
-  {
-    id: 'NVT-0801a11',
-    month: '2026-08',
-    type: 'COURSE',
-    typeLabel: 'KHÓA HỌC',
-    customerName: 'Nguyễn Tấn Đạt',
-    customerPhone: '0918776655',
-    customerCccd: '079089004433',
-    customerAddress: 'Số 150 Nguyễn Trãi, Quận 1, TP. HCM',
-    customerEmail: 'tandat.invest@gmail.com',
-    productName: 'Khóa học SMC Cơ bản đến Nâng cao - K02',
-    productSku: 'CRS-SMC-K02',
-    term: 'Vĩnh viễn',
-    saleId: '08058577',
-    saleName: 'Phạm Hoài Ngọc Đức',
-    subtotal: 5000000,
-    vatAmount: 500000,
-    total: 5500000,
-    collected: 5500000,
-    remaining: 0,
-    paymentStatus: 'PAID',
-    isSuccessNotified: true,
-    requireVat: true,
-    vatStatus: 'ISSUED',
-    vatInvoiceNo: 'HD-2026/0801',
-    vatIssuedDate: '2026-08-03 14:30',
-    taxCode: '0316677889',
-    companyName: 'Công ty TNHH Đầu Tư Thương Mại Nam Sài Gòn',
-    address: 'Số 150 Nguyễn Trãi, Quận 1, TP. HCM',
-    invoiceEmail: 'ketoan@namsaigon.vn',
-    billImage: generateBankBillSvg('VIETCOMBANK', '#005a3c', '5.500.000', 'FT26080301', 'NGUYEN TAN DAT', 'NGUYEN TAN DAT DONG TIEN KHOA SMC K02', '03/08/2026 11:20'),
-    billDate: '2026-08-03 11:20',
-    saleNote: 'Học viên đăng ký sớm khóa K02 khai giảng tháng 9.'
-  },
-  {
-    id: 'NVT-0802b22',
-    month: '2026-08',
-    type: 'INDICATOR',
-    typeLabel: 'CHỈ BÁO',
-    customerName: 'Trần Văn Long',
-    customerPhone: '0988112244',
-    customerCccd: '001094005566',
-    customerAddress: 'Tòa Landmark 72, Phạm Hùng, Cầu Giấy, Hà Nội',
-    customerEmail: 'vanlong.trading@gmail.com',
-    productName: 'Bộ Chỉ Báo Algo SMC & Order Flow 12 Tháng',
-    productSku: 'IND-ALGO-1Y',
-    term: '1 Năm',
-    saleId: '08062863',
-    saleName: 'Lê Ngân',
-    subtotal: 8000000,
-    vatAmount: 800000,
-    total: 8800000,
-    collected: 8800000,
-    remaining: 0,
-    paymentStatus: 'PAID',
-    isSuccessNotified: true,
-    requireVat: true,
-    vatStatus: 'ISSUED',
-    vatInvoiceNo: 'HD-2026/0802',
-    vatIssuedDate: '2026-08-07 16:00',
-    taxCode: '0109988334',
-    companyName: 'Công ty Cổ phần Công Nghệ Tài Chính Hà Nội Capital',
-    address: 'Tòa Landmark 72, Phạm Hùng, Cầu Giấy, Hà Nội',
-    invoiceEmail: 'finance@hncapital.vn',
-    billImage: generateBankBillSvg('TECHCOMBANK', '#e11b22', '8.800.000', 'FT26080702', 'TRAN VAN LONG', 'TRAN VAN LONG DONG TIEN CHI BAO ALGO 1Y', '07/08/2026 15:10'),
-    billDate: '2026-08-07 15:10',
-    saleNote: 'Khách hàng tổ chức, đã cấu hình bot tín hiệu trực tiếp vào MT5.'
-  },
-  {
-    id: 'NVT-0803c33',
-    month: '2026-08',
-    type: 'VIP_COMMUNITY',
-    typeLabel: 'NHÓM VIP',
-    customerName: 'Đào Thu Thảo',
-    customerPhone: '0933221199',
-    customerCccd: '031196002233',
-    customerAddress: 'Số 42 Lạch Tray, Ngô Quyền, Hải Phòng',
-    customerEmail: 'thuthao.dao@gmail.com',
-    productName: 'Gói Hội Viên VIP Trading Club 6 Tháng',
-    productSku: 'VIP-CLUB-6M',
-    term: '6 Tháng',
-    saleId: '08077592',
-    saleName: 'Trần Thị Tuyết',
-    subtotal: 6000000,
-    vatAmount: 600000,
-    total: 6600000,
-    collected: 6600000,
-    remaining: 0,
-    paymentStatus: 'PAID',
-    isSuccessNotified: true,
-    requireVat: true,
-    vatStatus: 'ISSUED',
-    vatInvoiceNo: 'HD-2026/0803',
-    vatIssuedDate: '2026-08-12 11:30',
-    taxCode: '0201889901',
-    companyName: 'Công ty TNHH Vận Tải Quốc Tế Á Châu',
-    address: 'Số 42 Lạch Tray, Ngô Quyền, Hải Phòng',
-    invoiceEmail: 'ketoan@achautransport.vn',
-    billImage: generateBankBillSvg('MBBANK', '#002878', '6.600.000', 'FT26081203', 'DAO THU THAO', 'DAO THU THAO CK VIP CLUB 6T', '12/08/2026 10:15'),
-    billDate: '2026-08-12 10:15',
-    saleNote: 'Đã hoàn tất thanh toán và gửi hóa đơn VAT.'
-  },
-  {
-    id: 'NVT-0804d44',
-    month: '2026-08',
-    type: 'COURSE',
-    typeLabel: 'KHÓA HỌC',
-    customerName: 'Vũ Đức Thịnh',
-    customerPhone: '0977889900',
-    customerCccd: '036093006677',
-    customerAddress: '25 Lý Bôn, TP. Thái Bình',
-    customerEmail: 'ducthinh.vu@gmail.com',
-    productName: 'Khóa học SMC Cơ bản đến Nâng cao - K02',
-    productSku: 'CRS-SMC-K02',
-    term: 'Vĩnh viễn',
-    saleId: '08020609',
-    saleName: 'Đỗ Việt Cường',
-    subtotal: 5000000,
-    vatAmount: 500000,
-    total: 5500000,
-    collected: 2750000,
-    remaining: 2750000,
-    paymentStatus: 'DEPOSIT_50',
-    isSuccessNotified: false,
-    requireVat: true,
-    vatStatus: 'NOT_ISSUED',
-    vatInvoiceNo: '',
-    vatIssuedDate: '',
-    taxCode: '1001122334',
-    companyName: 'Hộ Kinh Doanh Đức Thịnh Mobile',
-    address: '25 Lý Bôn, TP. Thái Bình',
-    invoiceEmail: 'thinhvu.tax@gmail.com',
-    billImage: generateBankBillSvg('ACB', '#004b8d', '2.750.000', 'FT26081604', 'VU DUC THINH', 'VU DUC THINH COC 50 PT KHOA SMC K02', '16/08/2026 14:40'),
-    billDate: '2026-08-16 14:40',
-    saleNote: 'Khách cọc 50%, hẹn thanh toán nốt trước ngày 28/08.'
-  },
-  {
-    id: 'NVT-12a34567',
-    month: '2026-08',
-    type: 'COURSE',
-    typeLabel: 'KHÓA HỌC',
-    customerName: 'Trịnh Quốc Thắng',
-    customerPhone: '0912777888',
-    customerCccd: '001090003456',
-    customerAddress: 'Số 80 Trần Hưng Đạo, Hoàn Kiếm, Hà Nội',
-    customerEmail: 'quocthang.trinh@gmail.com',
-    productName: 'Khóa học Price Action Chuyên Sâu 1-1',
-    productSku: 'CRS-PA-1ON1',
-    term: 'Vĩnh viễn',
-    saleId: '08035000',
-    saleName: 'Đặng Tấn Tử',
-    subtotal: 12000000,
-    vatAmount: 1200000,
-    total: 13200000,
-    collected: 13200000,
-    remaining: 0,
-    paymentStatus: 'PAID',
-    isSuccessNotified: true,
-    requireVat: true,
-    vatStatus: 'ISSUED',
-    vatInvoiceNo: 'HD-2026/0819',
-    vatIssuedDate: '2026-08-19 14:15',
-    taxCode: '0106655443',
-    companyName: 'Công ty Cổ phần Đầu Tư Tài Chính Quốc Thắng',
-    address: 'Số 80 Trần Hưng Đạo, Hoàn Kiếm, Hà Nội',
-    invoiceEmail: 'quocthang@gmail.com',
-    billImage: generateBankBillSvg('VIETCOMBANK', '#005a3c', '13.200.000', 'FT12A34567', 'TRINH QUOC THANG', 'TRINH QUOC THANG THANH TOAN KHOA PRICE ACTION 1-1', '19/08/2026 13:50'),
-    billDate: '2026-08-19 13:50',
-    saleNote: 'Khách hàng VIP đăng ký gói kèm 1-1, đã chốt lịch học 10 buổi cùng Giảng viên Hoàng Khánh.'
-  },
-  {
-    id: 'NVT-66e11899',
-    month: '2026-08',
-    type: 'INDICATOR',
-    typeLabel: 'CHỈ BÁO',
-    customerName: 'Lê Hoàng Long',
-    customerPhone: '0903445566',
-    customerCccd: '079088004567',
-    customerAddress: 'Số 15 Lê Duẩn, Bến Nghé, Quận 1, TP. HCM',
-    customerEmail: 'hoanglong.le@gmail.com',
-    productName: 'Bộ Chỉ Báo Algo SMC & Order Flow 12 Tháng',
-    productSku: 'IND-ALGO-1Y',
-    term: '1 Năm',
-    saleId: '08061116',
-    saleName: 'Võ Thị Diễm Tiên',
-    subtotal: 8000000,
-    vatAmount: 800000,
-    total: 8800000,
-    collected: 8800000,
-    remaining: 0,
-    paymentStatus: 'PAID',
-    isSuccessNotified: true,
-    requireVat: true,
-    vatStatus: 'ISSUED',
-    vatInvoiceNo: 'HD-2026/0820',
-    vatIssuedDate: '2026-08-20 14:20',
-    taxCode: '0315544332',
-    companyName: 'Công ty TNHH Đầu Tư Công Nghệ Long Phát',
-    address: 'Số 15 Lê Duẩn, Bến Nghé, Quận 1, TP. HCM',
-    invoiceEmail: 'ketoan@longphat.com',
-    billImage: generateBankBillSvg('BIDV', '#0066b2', '8.800.000', 'FT66E11899', 'LE HOANG LONG', 'LE HOANG LONG THANH TOAN BO CHI BAO ALGO SMC 1Y', '20/08/2026 13:45'),
-    billDate: '2026-08-20 13:45',
-    saleNote: 'Khách hàng gia hạn gói 1 năm bản quyền bot chỉ báo, đã kích hoạt tài khoản TradingView.'
-  },
-  {
-    id: 'NVT-0807g77',
-    month: '2026-08',
-    type: 'COURSE',
-    typeLabel: 'KHÓA HỌC',
-    customerName: 'Hoàng Hải Nam',
-    customerPhone: '0944778899',
-    customerCccd: '038092003322',
-    customerAddress: 'Số 12 Nguyễn Văn Cừ, TP. Hạ Long, Quảng Ninh',
-    customerEmail: 'hainam.invest@gmail.com',
-    productName: 'Khóa học đầu tư hàng hóa nâng cao - HHDN 01',
-    productSku: 'CRS-HHDN-01',
-    term: 'Vĩnh viễn',
-    saleId: '08088879',
-    saleName: 'Đức Thị Ngọc',
-    subtotal: 5000000,
-    vatAmount: 500000,
-    total: 5500000,
-    collected: 5500000,
-    remaining: 0,
-    paymentStatus: 'PAID',
-    isSuccessNotified: true,
-    requireVat: true,
-    vatStatus: 'ISSUED',
-    vatInvoiceNo: 'HD-2026/0823',
-    vatIssuedDate: '2026-08-23 16:10',
-    taxCode: '5701889922',
-    companyName: 'Công ty Cổ phần Thủy Sản Hạ Long Xanh',
-    address: 'Số 12 Nguyễn Văn Cừ, TP. Hạ Long, Quảng Ninh',
-    invoiceEmail: 'nam.hoang@halongxanh.vn',
-    billImage: generateBankBillSvg('TECHCOMBANK', '#e11b22', '5.500.000', 'FT26082307', 'HOANG HAI NAM', 'HOANG HAI NAM TT KHOA HHDN 01', '23/08/2026 15:20'),
-    billDate: '2026-08-23 15:20',
-    saleNote: 'Học viên thanh toán 100%, xuất hóa đơn doanh nghiệp.'
-  },
-  {
-    id: 'NVT-0808h88',
-    month: '2026-08',
-    type: 'COURSE',
-    typeLabel: 'KHÓA HỌC',
-    customerName: 'Phạm Thị Bích',
-    customerPhone: '0966442211',
-    customerCccd: '079195007766',
-    customerAddress: '35 Thảo Điền, TP. Thủ Đức, TP. HCM',
-    customerEmail: 'bichpham.sg@gmail.com',
-    productName: 'Khóa học SMC Cơ bản đến Nâng cao - K02',
-    productSku: 'CRS-SMC-K02',
-    term: 'Vĩnh viễn',
-    saleId: '08007997',
-    saleName: 'Đỗ Mạnh Dũng',
-    subtotal: 5000000,
-    vatAmount: 500000,
-    total: 5500000,
-    collected: 5500000,
-    remaining: 0,
-    paymentStatus: 'PAID',
-    isSuccessNotified: true,
-    requireVat: true,
-    vatStatus: 'ISSUED',
-    vatInvoiceNo: 'HD-2026/0827',
-    vatIssuedDate: '2026-08-27 15:00',
-    taxCode: '0318899112',
-    companyName: 'Công ty TNHH Thời Trang Bích Phạm',
-    address: '35 Thảo Điền, TP. Thủ Đức, TP. HCM',
-    invoiceEmail: 'ketoan@bichpham.vn',
-    billImage: generateBankBillSvg('VIETCOMBANK', '#005a3c', '5.500.000', 'FT26082708', 'PHAM THI BICH', 'PHAM THI BICH THANH TOAN KHOA SMC K02', '27/08/2026 14:15'),
-    billDate: '2026-08-27 14:15',
-    saleNote: 'Học viên nữ đam mê tài chính, vào nhóm hỗ trợ VIP.'
-  },
-  {
-    id: 'NVT-0901a11',
-    month: '2026-09',
-    type: 'COURSE',
-    typeLabel: 'KHÓA HỌC',
-    customerName: 'Nguyễn Đình Trọng',
-    customerPhone: '0908889911',
-    customerCccd: '001093004455',
-    customerAddress: 'Số 50 Nguyễn Chí Thanh, Đống Đa, Hà Nội',
-    customerEmail: 'trong.invest@gmail.com',
-    productName: 'Khóa học SMC Cơ bản đến Nâng cao - K02',
-    productSku: 'CRS-SMC-K02',
-    term: 'Vĩnh viễn',
-    saleId: '08058577',
-    saleName: 'Phạm Hoài Ngọc Đức',
-    subtotal: 5000000,
-    vatAmount: 500000,
-    total: 5500000,
-    collected: 5500000,
-    remaining: 0,
-    paymentStatus: 'PAID',
-    isSuccessNotified: true,
-    requireVat: true,
-    vatStatus: 'ISSUED',
-    vatInvoiceNo: 'HD-2026/0905',
-    vatIssuedDate: '2026-09-05 15:30',
-    taxCode: '0107788991',
-    companyName: 'Công ty Cổ phần Tư Vấn Trọng Nguyễn',
-    address: 'Số 50 Nguyễn Chí Thanh, Đống Đa, Hà Nội',
-    invoiceEmail: 'trongnguyen@gmail.com',
-    billImage: generateBankBillSvg('VIETCOMBANK', '#005a3c', '5.500.000', 'FT26090501', 'NGUYEN DINH TRONG', 'NGUYEN DINH TRONG CK FULL KHOA SMC K02', '05/09/2026 14:10'),
-    billDate: '2026-09-05 14:10',
-    saleNote: 'Học viên đã vào lớp K02, bắt đầu học tuần đầu tháng 9.'
-  },
-  {
-    id: 'NVT-44d99211',
-    month: '2026-09',
-    type: 'VIP_COMMUNITY',
-    typeLabel: 'NHÓM VIP',
-    customerName: 'Đặng Quốc Huy',
-    customerPhone: '0933221100',
-    customerCccd: '031089009876',
-    customerAddress: 'Số 18 Hoàng Hoa Thám, Ba Đình, Hà Nội',
-    customerEmail: 'quochuy.invest@gmail.com',
-    productName: 'Gói Hội Viên VIP Trading Club 6 Tháng',
-    productSku: 'VIP-COMM-6M',
-    term: '6 Tháng',
-    saleId: '08062863',
-    saleName: 'Lê Ngân',
-    subtotal: 6000000,
-    vatAmount: 600000,
-    total: 6600000,
-    collected: 6600000,
-    remaining: 0,
-    paymentStatus: 'PAID',
-    isSuccessNotified: true,
-    requireVat: true,
-    vatStatus: 'ISSUED',
-    vatInvoiceNo: 'HD-2026/0018',
-    vatIssuedDate: '2026-09-21 16:30',
-    taxCode: '0109988776',
-    companyName: 'Công ty TNHH Đầu Tư Thương Mại Test',
-    address: 'Số 12 Duy Tân, Cầu Giấy, Hà Nội',
-    invoiceEmail: 'ketoan.test@gmail.com',
-    billImage: generateBankBillSvg('TECHCOMBANK', '#e11b22', '6.600.000', 'FT44D99211', 'DANG QUOC HUY', 'DANG QUOC HUY THANH TOAN GOI VIP 6 THANG', '21/09/2026 16:00'),
-    billDate: '2026-09-21 16:00',
-    saleNote: 'Khách hàng thanh toán trọn gói 6 tháng hội viên VIP, đã add nhóm tín hiệu Telegram.'
-  },
-  {
-    id: 'NVT-77c88102',
-    month: '2026-09',
-    type: 'INDICATOR',
-    typeLabel: 'CHỈ BÁO',
-    customerName: 'Trần Văn Mạnh',
-    customerPhone: '0988665544',
-    customerCccd: '001094002345',
-    customerAddress: 'Tòa nhà Landmark 81, Bình Thạnh, TP. HCM',
-    customerEmail: 'tranmanh.trade@gmail.com',
-    productName: 'Bộ Chỉ Báo Algo SMC & Order Flow 12 Tháng',
-    productSku: 'IND-ALGO-1Y',
-    term: '1 Năm',
-    saleId: '08035000',
-    saleName: 'Đặng Tấn Tử',
-    subtotal: 8000000,
-    vatAmount: 800000,
-    total: 8800000,
-    collected: 8800000,
-    remaining: 0,
-    paymentStatus: 'PAID',
-    isSuccessNotified: true,
-    requireVat: true,
-    vatStatus: 'ISSUED',
-    vatInvoiceNo: 'HD-2026/0017',
-    vatIssuedDate: '2026-09-22 10:15',
-    taxCode: '0318899001',
-    companyName: 'Công ty Cổ phần Công Nghệ Tài Chính Mạnh Trần',
-    address: 'Tòa Landmark 81, Bình Thạnh, TP. HCM',
-    invoiceEmail: 'ketoan@manhtran.vn',
-    billImage: generateBankBillSvg('MBBANK', '#002878', '8.800.000', 'FT77C88102', 'TRAN VAN MANH', 'TRAN VAN MANH THANH TOAN CHI BAO ALGO 1 NAM', '22/09/2026 09:40'),
-    billDate: '2026-09-22 09:40',
-    saleNote: 'Khách mua chỉ báo gói 1 năm, đã bàn giao key kích hoạt TradingView.'
-  },
-  {
-    id: 'NVT-33b018cf',
-    month: '2026-09',
-    type: 'COURSE',
-    typeLabel: 'KHÓA HỌC',
-    customerName: 'Hoàng Thị Yến',
-    customerPhone: '0977112233',
-    customerCccd: '036197008899',
-    customerAddress: 'Số 45 Lê Duẩn, Quận 1, TP. HCM',
-    customerEmail: 'hoangyen.real@gmail.com',
-    productName: 'Khóa học SMC Cơ bản đến Nâng cao - K02',
-    productSku: 'CRS-SMC-K02',
-    term: 'Vĩnh viễn',
-    saleId: '08077592',
-    saleName: 'Trần Thị Tuyết',
-    subtotal: 5000000,
-    vatAmount: 500000,
-    total: 5500000,
-    collected: 5500000,
-    remaining: 0,
-    paymentStatus: 'PAID',
-    isSuccessNotified: true,
-    requireVat: true,
-    vatStatus: 'ISSUED',
-    vatInvoiceNo: 'HD-2026/0016',
-    vatIssuedDate: '2026-09-22 15:00',
-    taxCode: '0316655443',
-    companyName: 'Công ty TNHH Thời Trang Hoàng Yến',
-    address: 'Số 45 Lê Duẩn, Quận 1, TP. HCM',
-    invoiceEmail: 'ketoan@hoangyen.vn',
-    billImage: generateBankBillSvg('VIETCOMBANK', '#005a3c', '5.500.000', 'FT33B018CF', 'HOANG THI YEN', 'HOANG THI YEN DONG HOC PHI SMC K02', '22/09/2026 14:10'),
-    billDate: '2026-09-22 14:10',
-    saleNote: 'Đã hoàn tất thanh toán 100%, gửi email xác nhận tài khoản học.'
-  },
-  {
-    id: 'NVT-8c01df44',
-    month: '2026-09',
-    type: 'COURSE',
-    typeLabel: 'KHÓA HỌC',
-    customerName: 'Vũ Minh Đức',
-    customerPhone: '0912998877',
-    customerCccd: '025091001122',
-    customerAddress: 'Số 28 Trần Hưng Đạo, Hải Phòng',
-    customerEmail: 'duc.vuminh@gmail.com',
-    productName: 'Khóa học Price Action Chuyên Sâu 1-1',
-    productSku: 'CRS-PA-1ON1',
-    term: 'Vĩnh viễn',
-    saleId: '08020609',
-    saleName: 'Đỗ Việt Cường',
-    subtotal: 12000000,
-    vatAmount: 1200000,
-    total: 13200000,
-    collected: 13200000,
-    remaining: 0,
-    paymentStatus: 'PAID',
-    isSuccessNotified: true,
-    requireVat: true,
-    vatStatus: 'ISSUED',
-    vatInvoiceNo: 'HD-2026/0015',
-    vatIssuedDate: '2026-09-23 09:30',
-    taxCode: '0201998877',
-    companyName: 'Công ty Cổ phần Vận Tải Biển Minh Đức',
-    address: 'Số 28 Trần Hưng Đạo, Hải Phòng',
-    invoiceEmail: 'ketoan@minhducshipping.vn',
-    billImage: generateBankBillSvg('ACB', '#004b8d', '13.200.000', 'FT8C01DF44', 'VU MINH DUC', 'VU MINH DUC THANH TOAN KHOA PRICE ACTION 1-1', '23/09/2026 08:50'),
-    billDate: '2026-09-23 08:50',
-    saleNote: 'Học viên kèm riêng 1-1, đã chốt lịch học buổi đầu vào ngày 27/09.'
-  },
-  {
-    id: 'NVT-55a73e91',
-    month: '2026-09',
-    type: 'COURSE',
-    typeLabel: 'KHÓA HỌC',
-    customerName: 'Bùi Lan Anh',
-    customerPhone: '0966334455',
-    customerCccd: '001198006655',
-    customerAddress: 'Số 88 Cầu Giấy, Hà Nội',
-    customerEmail: 'lananh.bui@gmail.com',
-    productName: 'Khóa học SMC Cơ bản đến Nâng cao - K02',
-    productSku: 'CRS-SMC-K02',
-    term: 'Vĩnh viễn',
-    saleId: '08028892',
-    saleName: 'Đặng Hương Thuỷ',
-    subtotal: 5000000,
-    vatAmount: 500000,
-    total: 5500000,
-    collected: 2750000,
-    remaining: 2750000,
-    paymentStatus: 'DEPOSIT_50',
-    isSuccessNotified: false,
-    requireVat: true,
-    vatStatus: 'NOT_ISSUED',
-    vatInvoiceNo: '',
-    vatIssuedDate: '',
-    taxCode: '0108899221',
-    companyName: 'Công ty TNHH Tư Vấn Giáo Dục Lan Anh',
-    address: 'Số 88 Cầu Giấy, Hà Nội',
-    invoiceEmail: 'ketoan@lananh.edu.vn',
-    billImage: generateBankBillSvg('TECHCOMBANK', '#e11b22', '2.750.000', 'FT55A73E91', 'BUI LAN ANH', 'BUI LAN ANH COC 50 PT KHOA HOC SMC K02', '23/09/2026 17:30'),
-    billDate: '2026-09-23 17:30',
-    saleNote: 'Khách cọc 50%, hẹn thanh toán 50% còn lại trước ngày 28/09.'
-  },
-  {
-    id: 'NVT-f4901ba2',
-    month: '2026-09',
-    type: 'VIP_COMMUNITY',
-    typeLabel: 'NHÓM VIP',
-    customerName: 'Lê Hoàng Phong',
-    customerPhone: '0945889900',
-    customerCccd: '079090001234',
-    customerAddress: 'Số 10 Mai Chí Thọ, TP. Thủ Đức, TP. HCM',
-    customerEmail: 'phong.lehoang@gmail.com',
-    productName: 'Gói Hội Viên VIP Trading Club 12 Tháng',
-    productSku: 'VIP-COMM-12M',
-    term: '1 Năm',
-    saleId: '08029908',
-    saleName: 'Lê Trung Kiên',
-    subtotal: 10000000,
-    vatAmount: 1000000,
-    total: 11000000,
-    collected: 11000000,
-    remaining: 0,
-    paymentStatus: 'PAID',
-    isSuccessNotified: true,
-    requireVat: true,
-    vatStatus: 'ISSUED',
-    vatInvoiceNo: 'HD-2026/0014',
-    vatIssuedDate: '2026-09-24 11:45',
-    taxCode: '0317766554',
-    companyName: 'Công ty Cổ phần Công Nghệ Phong Lê',
-    address: 'Số 10 Mai Chí Thọ, TP. Thủ Đức, TP. HCM',
-    invoiceEmail: 'ketoan@phongle.vn',
-    billImage: generateBankBillSvg('BIDV', '#0066b2', '11.000.000', 'FTF4901BA2', 'LE HOANG PHONG', 'LE HOANG PHONG THANH TOAN VIP 12 THANG', '24/09/2026 11:15'),
-    billDate: '2026-09-24 11:15',
-    saleNote: 'Khách VIP đăng ký gói 1 năm, đã cấp tài khoản Telegram & Discord Bot.'
-  },
-  {
-    id: 'NVT-918ba01c',
-    month: '2026-09',
-    type: 'COURSE',
-    typeLabel: 'KHÓA HỌC',
-    customerName: 'Nguyễn Văn Hải',
-    customerPhone: '0918882345',
-    customerCccd: '038096001245',
-    customerAddress: 'Số 25 Võ Thị Sáu, Phường 2, TP. Vũng Tàu',
-    customerEmail: 'vanhai.vungtau@gmail.com',
-    productName: 'Khóa học SMC Cơ bản đến Nâng cao - K02',
-    productSku: 'CRS-SMC-K02',
-    term: 'Vĩnh viễn',
-    saleId: '08058577',
-    saleName: 'Phạm Hoài Ngọc Đức',
-    subtotal: 5000000,
-    vatAmount: 500000,
-    total: 5500000,
-    collected: 5500000,
-    remaining: 0,
-    paymentStatus: 'PAID',
-    isSuccessNotified: true,
-    requireVat: true,
-    vatStatus: 'ISSUED',
-    vatInvoiceNo: 'HD-2026/0013',
-    vatIssuedDate: '2026-09-24 16:10',
-    taxCode: '3502441988',
-    companyName: 'Công ty Cổ phần Dầu Khí Vũng Tàu',
-    address: 'Số 25 Võ Thị Sáu, Phường 2, TP. Vũng Tàu',
-    invoiceEmail: 'vanhai@vungtauoil.vn',
-    billImage: generateBankBillSvg('MBBANK', '#002878', '5.500.000', 'FT918BA01C', 'NGUYEN VAN HAI', 'NGUYEN VAN HAI DONG TIEN KHOA HOC SMC K02', '24/09/2026 15:45'),
-    billDate: '2026-09-24 15:45',
-    saleNote: 'Khách hàng chuyển khoản đủ 100%, yêu cầu xuất hóa đơn điện tử công ty.'
-  },
-  {
-    id: 'NVT-268cbb67',
-    month: '2026-09',
-    type: 'SALE',
-    typeLabel: 'BÊN BÁN',
-    customerName: 'test',
-    customerPhone: '0901231231',
-    customerCccd: '001201019882',
-    customerAddress: 'Số 12 Duy Tân, Cầu Giấy, Hà Nội',
-    customerEmail: 'khachhang.test@gmail.com',
-    productName: 'Khóa học đầu tư hàng hóa nâng cao - HHDN 01',
-    productSku: 'CRS-HHDN-01',
-    term: 'Vĩnh viễn',
-    saleId: '08058577',
-    saleName: 'Phạm Hoài Ngọc Đức',
-    subtotal: 5000000,
-    vatAmount: 500000,
-    total: 5500000,
-    collected: 2750000,
-    remaining: 2750000,
-    paymentStatus: 'DEPOSIT_50',
-    isSuccessNotified: false,
-    requireVat: true,
-    vatStatus: 'NOT_ISSUED',
-    vatInvoiceNo: '',
-    vatIssuedDate: '',
-    taxCode: '0109988776',
-    companyName: 'Công ty TNHH Đầu Tư Thương Mại Test',
-    address: 'Số 12 Duy Tân, Cầu Giấy, Hà Nội',
-    invoiceEmail: 'ketoan.test@gmail.com',
-    billImage: generateBankBillSvg('VIETCOMBANK', '#005a3c', '2.750.000', 'FT268CBB67', 'NGUYEN VAN TEST', 'TEST COC 50 PHAN TRAM KHOA HOC HHDN', '24/09/2026 14:20'),
-    billDate: '2026-09-24 14:20',
-    saleNote: 'Khách cọc 50% giữ chỗ lớp HHDN 01. Đã đối chiếu CCCD và địa chỉ. Hẹn 28/09 đóng nốt 50% còn lại trước ngày khai giảng.'
-  },
-  {
-    id: 'NVT-88e99001',
-    month: '2026-10',
-    type: 'COURSE',
-    typeLabel: 'KHÓA HỌC',
-    customerName: 'Phan Minh Khang',
-    customerPhone: '0909112233',
-    customerCccd: '079089007788',
-    customerAddress: '102 Nguyễn Đình Chiểu, Quận 3, TP. HCM',
-    customerEmail: 'minhkhang.phan@gmail.com',
-    productName: 'Khóa học SMC Cơ bản đến Nâng cao - K03',
-    productSku: 'CRS-SMC-K03',
-    term: 'Vĩnh viễn',
-    saleId: '08058577',
-    saleName: 'Phạm Hoài Ngọc Đức',
-    subtotal: 5000000,
-    vatAmount: 500000,
-    total: 5500000,
-    collected: 5500000,
-    remaining: 0,
-    paymentStatus: 'PAID',
-    isSuccessNotified: true,
-    requireVat: true,
-    vatStatus: 'ISSUED',
-    vatInvoiceNo: 'HD-2026/0019',
-    vatIssuedDate: '2026-10-02 15:40',
-    taxCode: '0313322110',
-    companyName: 'Công ty TNHH Đầu Tư Khang Phan',
-    address: '102 Nguyễn Đình Chiểu, Quận 3, TP. HCM',
-    invoiceEmail: 'ketoan@khangphan.com',
-    billImage: generateBankBillSvg('VIETCOMBANK', '#005a3c', '5.500.000', 'FT88E99001', 'PHAN MINH KHANG', 'DONG DU TIEN KHOA HOC SMC K03', '02/10/2026 15:10'),
-    billDate: '2026-10-02 15:10',
-    saleNote: 'Đã hoàn tất thanh toán và xuất hóa đơn VAT.'
-  },
-  {
-    id: 'NVT-1002b22',
-    month: '2026-10',
-    type: 'INDICATOR',
-    typeLabel: 'CHỈ BÁO',
-    customerName: 'Trịnh Hoàng Bách',
-    customerPhone: '0912445566',
-    customerCccd: '001095007788',
-    customerAddress: 'Tòa Lotte Center, 54 Liễu Giai, Ba Đình, Hà Nội',
-    customerEmail: 'hoangbach.trinh@gmail.com',
-    productName: 'Bộ Chỉ Báo Algo SMC & Order Flow 12 Tháng',
-    productSku: 'IND-ALGO-1Y',
-    term: '1 Năm',
-    saleId: '08062863',
-    saleName: 'Lê Ngân',
-    subtotal: 8000000,
-    vatAmount: 800000,
-    total: 8800000,
-    collected: 8800000,
-    remaining: 0,
-    paymentStatus: 'PAID',
-    isSuccessNotified: true,
-    requireVat: true,
-    vatStatus: 'ISSUED',
-    vatInvoiceNo: 'HD-2026/1002',
-    vatIssuedDate: '2026-10-06 14:15',
-    taxCode: '0106655998',
-    companyName: 'Công ty Cổ phần Công Nghệ Bách Khoa Đầu Tư',
-    address: 'Tòa Lotte Center, 54 Liễu Giai, Ba Đình, Hà Nội',
-    invoiceEmail: 'bach.trinh@bkcapital.vn',
-    billImage: generateBankBillSvg('TECHCOMBANK', '#e11b22', '8.800.000', 'FT26100602', 'TRINH HOANG BACH', 'TRINH HOANG BACH MUA CHI BAO ALGO 1Y', '06/10/2026 11:20'),
-    billDate: '2026-10-06 11:20',
-    saleNote: 'Đã setup bot tự động báo lệnh vào kênh riêng của khách.'
-  },
-  {
-    id: 'NVT-1003c33',
-    month: '2026-10',
-    type: 'VIP_COMMUNITY',
-    typeLabel: 'NHÓM VIP',
-    customerName: 'Vũ Thị Minh Hà',
-    customerPhone: '0979882233',
-    customerCccd: '038198004455',
-    customerAddress: '88 Lê Hồng Phong, TP. Nam Định',
-    customerEmail: 'minhha.vu@gmail.com',
-    productName: 'Gói Hội Viên VIP Trading Club 6 Tháng',
-    productSku: 'VIP-COMM-6M',
-    term: '6 Tháng',
-    saleId: '08077592',
-    saleName: 'Trần Thị Tuyết',
-    subtotal: 6000000,
-    vatAmount: 600000,
-    total: 6600000,
-    collected: 6600000,
-    remaining: 0,
-    paymentStatus: 'PAID',
-    isSuccessNotified: true,
-    requireVat: true,
-    vatStatus: 'ISSUED',
-    vatInvoiceNo: 'HD-2026/1003',
-    vatIssuedDate: '2026-10-11 16:30',
-    taxCode: '0601122889',
-    companyName: 'Công ty TNHH Dệt May Minh Hà',
-    address: '88 Lê Hồng Phong, TP. Nam Định',
-    invoiceEmail: 'ketoan@minhha.vn',
-    billImage: generateBankBillSvg('MBBANK', '#002878', '6.600.000', 'FT26101103', 'VU THI MINH HA', 'VU THI MINH HA THANH TOAN VIP 6T', '11/10/2026 15:40'),
-    billDate: '2026-10-11 15:40',
-    saleNote: 'Khách VIP, thanh toán 100% qua MB Bank.'
-  },
-  {
-    id: 'NVT-1004d44',
-    month: '2026-10',
-    type: 'COURSE',
-    typeLabel: 'KHÓA HỌC',
-    customerName: 'Đỗ Tuấn Kiệt',
-    customerPhone: '0933119988',
-    customerCccd: '079093006677',
-    customerAddress: '45 Lê Văn Sỹ, Phường 13, Quận 3, TP. HCM',
-    customerEmail: 'tuankiet.do@gmail.com',
-    productName: 'Khóa học SMC Cơ bản đến Nâng cao - K03',
-    productSku: 'CRS-SMC-K03',
-    term: 'Vĩnh viễn',
-    saleId: '08020609',
-    saleName: 'Đỗ Việt Cường',
-    subtotal: 5000000,
-    vatAmount: 500000,
-    total: 5500000,
-    collected: 2750000,
-    remaining: 2750000,
-    paymentStatus: 'DEPOSIT_50',
-    isSuccessNotified: false,
-    requireVat: true,
-    vatStatus: 'NOT_ISSUED',
-    vatInvoiceNo: '',
-    vatIssuedDate: '',
-    taxCode: '0317766112',
-    companyName: 'Công ty Cổ phần Xây Dựng Kiệt Phát',
-    address: '45 Lê Văn Sỹ, Phường 13, Quận 3, TP. HCM',
-    invoiceEmail: 'kietphat.build@gmail.com',
-    billImage: generateBankBillSvg('ACB', '#004b8d', '2.750.000', 'FT26101604', 'DO TUAN KIET', 'DO TUAN KIET COC 50 PT KHOA SMC K03', '16/10/2026 10:25'),
-    billDate: '2026-10-16 10:25',
-    saleNote: 'Khách cọc 50%, hẹn thanh toán 50% còn lại trước ngày 25/10.'
-  },
-  {
-    id: 'NVT-1005e55',
-    month: '2026-10',
-    type: 'COURSE',
-    typeLabel: 'KHÓA HỌC',
-    customerName: 'Nguyễn Hải Đăng',
-    customerPhone: '0908776655',
-    customerCccd: '001091004567',
-    customerAddress: 'Số 15 Tây Sơn, Đống Đa, Hà Nội',
-    customerEmail: 'haidang.trade@gmail.com',
-    productName: 'Khóa học Price Action Chuyên Sâu 1-1',
-    productSku: 'CRS-PA-1ON1',
-    term: 'Vĩnh viễn',
-    saleId: '08035000',
-    saleName: 'Đặng Tấn Tử',
-    subtotal: 12000000,
-    vatAmount: 1200000,
-    total: 13200000,
-    collected: 13200000,
-    remaining: 0,
-    paymentStatus: 'PAID',
-    isSuccessNotified: true,
-    requireVat: true,
-    vatStatus: 'ISSUED',
-    vatInvoiceNo: 'HD-2026/1020',
-    vatIssuedDate: '2026-10-20 17:15',
-    taxCode: '0108899334',
-    companyName: 'Công ty TNHH Tư Vấn Quản Lý Tài Chính Hải Đăng',
-    address: 'Số 15 Tây Sơn, Đống Đa, Hà Nội',
-    invoiceEmail: 'ketoan@haidangfin.vn',
-    billImage: generateBankBillSvg('VIETCOMBANK', '#005a3c', '13.200.000', 'FT26102005', 'NGUYEN HAI DANG', 'NGUYEN HAI DANG THANH TOAN KHOA PRICE ACTION 1-1', '20/10/2026 16:30'),
-    billDate: '2026-10-20 16:30',
-    saleNote: 'Khách học 1-1 trực tiếp, đã lên giáo án phù hợp với công việc kinh doanh.'
-  },
-  {
-    id: 'NVT-1006f66',
-    month: '2026-10',
-    type: 'COURSE',
-    typeLabel: 'KHÓA HỌC',
-    customerName: 'Mai Phương Thuý',
-    customerPhone: '0919554433',
-    customerCccd: '079192008899',
-    customerAddress: 'Số 72 Lê Thánh Tôn, Bến Nghé, Quận 1, TP. HCM',
-    customerEmail: 'phuongthuy.mai@gmail.com',
-    productName: 'Khóa học đầu tư hàng hóa nâng cao - HHDN 01',
-    productSku: 'CRS-HHDN-01',
-    term: 'Vĩnh viễn',
-    saleId: '08061116',
-    saleName: 'Võ Thị Diễm Tiên',
-    subtotal: 5000000,
-    vatAmount: 500000,
-    total: 5500000,
-    collected: 5500000,
-    remaining: 0,
-    paymentStatus: 'PAID',
-    isSuccessNotified: true,
-    requireVat: true,
-    vatStatus: 'ISSUED',
-    vatInvoiceNo: 'HD-2026/1025',
-    vatIssuedDate: '2026-10-25 15:45',
-    taxCode: '0316655889',
-    companyName: 'Công ty Cổ phần Thương Mại Quốc Tế Phương Thúy',
-    address: 'Số 72 Lê Thánh Tôn, Bến Nghé, Quận 1, TP. HCM',
-    invoiceEmail: 'tax@phuongthuygroup.vn',
-    billImage: generateBankBillSvg('BIDV', '#0066b2', '5.500.000', 'FT26102506', 'MAI PHUONG THUY', 'MAI PHUONG THUY TT KHOA HHDN 01', '25/10/2026 14:50'),
-    billDate: '2026-10-25 14:50',
-    saleNote: 'Đã hoàn tất thủ tục xuất hóa đơn VAT điện tử.'
-  },
-  {
-    id: 'NVT-1007g77',
-    month: '2026-10',
-    type: 'VIP_COMMUNITY',
-    typeLabel: 'NHÓM VIP',
-    customerName: 'Lê Minh Tuấn',
-    customerPhone: '0988223311',
-    customerCccd: '038090005544',
-    customerAddress: '90 Trần Phú, Lộc Thọ, TP. Nha Trang',
-    customerEmail: 'minhtuan.nt@gmail.com',
-    productName: 'Gói Hội Viên VIP Trading Club 12 Tháng',
-    productSku: 'VIP-COMM-12M',
-    term: '1 Năm',
-    saleId: '08028892',
-    saleName: 'Đặng Hương Thuỷ',
-    subtotal: 10000000,
-    vatAmount: 1000000,
-    total: 11000000,
-    collected: 11000000,
-    remaining: 0,
-    paymentStatus: 'PAID',
-    isSuccessNotified: true,
-    requireVat: true,
-    vatStatus: 'ISSUED',
-    vatInvoiceNo: 'HD-2026/1029',
-    vatIssuedDate: '2026-10-29 16:20',
-    taxCode: '4201998877',
-    companyName: 'Công ty TNHH Đầu Tư Bất Động Sản Nha Trang Bay',
-    address: '90 Trần Phú, Lộc Thọ, TP. Nha Trang',
-    invoiceEmail: 'tuanketoan@nhatrangbay.vn',
-    billImage: generateBankBillSvg('VIETCOMBANK', '#005a3c', '11.000.000', 'FT26102907', 'LE MINH TUAN', 'LE MINH TUAN THANH TOAN GOI VIP 12 THANG', '29/10/2026 15:30'),
-    billDate: '2026-10-29 15:30',
-    saleNote: 'Gia hạn gói VIP 1 năm cuối tháng 10, gửi hóa đơn VAT hợp lệ.'
-  }
-];
+let VAT_ORDERS_DATA = [];
 
-let currentOrderMonth = '2026-09'; // Mặc định tháng hiện tại 09/2026
+let currentOrderMonth = currentGlobalMonth;
 let currentOrderSearchQuery = '';
 let currentOrderStatusFilter = 'ALL';
 let currentOrderTypeFilter = 'ALL';
@@ -8461,7 +6192,7 @@ function openOrderDetailModal(orderId) {
 
   document.getElementById('modalOrderCode').textContent = order.id;
   document.getElementById('modalOrderTypeBadge').textContent = order.typeLabel;
-  
+
   const isPaid = order.paymentStatus === 'PAID';
   const payBadge = document.getElementById('modalOrderPayStatusBadge');
   payBadge.className = isPaid ? 'chip chip-green' : 'chip chip-yellow';
@@ -8498,7 +6229,7 @@ function openOrderDetailModal(orderId) {
   document.getElementById('editModalSubtotal').value = Number(order.subtotal || 5000000).toLocaleString('vi-VN');
   document.getElementById('editModalCollected').value = Number(order.collected || 0).toLocaleString('vi-VN');
   document.getElementById('editModalPaymentStatusSelect').value = order.paymentStatus || (isPaid ? 'PAID' : 'DEPOSIT_50');
-  
+
   recalcEditModalFinance();
 
   // Option xuất VAT (CHỈNH SỬA ĐƯỢC)
@@ -8731,7 +6462,7 @@ function confirmFullPayment(orderId) {
   order.vatAmount = order.requireVat ? Math.round(order.subtotal * 0.1) : 0;
   order.total = order.subtotal + order.vatAmount;
   const rem = Math.max(0, order.total - order.collected);
-  const msg = rem > 0 
+  const msg = rem > 0
     ? `Xác nhận khách hàng ${order.customerName} đã thanh toán đủ ${formatCurrency(rem)} còn lại (bao gồm cả VAT)?\n\nSau khi xác nhận, nút [Xuất VAT] sẽ được mở khóa ngay lập tức.`
     : `Xác nhận đơn hàng ${order.id} đã hoàn tất thanh toán đủ 100%?`;
 
@@ -8741,7 +6472,7 @@ function confirmFullPayment(orderId) {
     order.paymentStatus = 'PAID';
     order.isSuccessNotified = true;
     order.saleNote = (order.saleNote ? order.saleNote + ' ' : '') + `[Kế toán xác nhận đủ ${formatCurrency(rem)} ngày ${new Date().toLocaleDateString('vi-VN')}].`;
-    
+
     renderVatOrdersView();
     if (currentViewingOrderId === orderId) {
       openOrderDetailModal(orderId);
@@ -9104,7 +6835,7 @@ function handleOrderTypeFilter(val) {
 function exportVatOrdersToCSV() {
   let csv = "\uFEFF"; // UTF-8 BOM
   csv += "Mã Đơn,Phân Loại,Khách Hàng,SĐT KH,Sản Phẩm / Dịch Vụ,Gói,Sale Phụ Trách,Doanh Thu,VAT,Thực Thu (Cọc),Còn Lại,Trạng Thái Thanh Toán,Trạng Thái VAT,Số Hóa Đơn VAT\n";
-  
+
   VAT_ORDERS_DATA.forEach(o => {
     csv += `"${o.id}","${o.typeLabel}","${o.customerName}","${o.customerPhone}","${o.productName}","${o.term}","${o.saleName}",${o.subtotal},${o.vatAmount},${o.collected},${o.remaining},"${o.paymentStatus}","${o.vatStatus}","${o.vatInvoiceNo || ''}"\n`;
   });
@@ -9263,10 +6994,10 @@ window.printOrderInvoice = printOrderInvoice;
 
     document.getElementById('ccmTitle').textContent = title || 'Xác Nhận Hành Động';
     document.getElementById('ccmMessage').textContent = message || 'Bạn có chắc chắn muốn tiếp tục?';
-    
+
     const iconEl = document.getElementById('ccmIcon');
     const confirmBtn = document.getElementById('ccmBtnConfirm');
-    
+
     if (isDanger) {
       iconEl.className = 'custom-confirm-icon danger';
       iconEl.textContent = '🗑️';
@@ -9328,7 +7059,7 @@ window.printOrderInvoice = printOrderInvoice;
 
     // Mặc định thu nốt toàn bộ số còn thiếu
     document.getElementById('cpmInputAmount').value = remaining > 0 ? remaining.toLocaleString('vi-VN') : '0';
-    
+
     // Ngày giờ hiện tại chuẩn YYYY-MM-DDTHH:mm
     const now = new Date();
     const pad = (n) => String(n).padStart(2, '0');
@@ -9523,7 +7254,7 @@ window.printOrderInvoice = printOrderInvoice;
   function handleCurrencyInput(input, type, personId) {
     const raw = input.value.replace(/\D/g, '');
     const num = Number(raw) || 0;
-    
+
     // Tự động thêm dấu chấm (.) ngăn cách hàng nghìn
     input.value = num > 0 ? num.toLocaleString('vi-VN') : '0';
 
@@ -9799,16 +7530,16 @@ window.printOrderInvoice = printOrderInvoice;
           <span id="modalOrderTypeBadge" class="chip chip-warm">BÊN BÁN</span>
           <span id="modalOrderPayStatusBadge" class="chip chip-yellow">Thanh toán 50%</span>
           <span id="modalOrderVatBadge" class="chip chip-gray">Chưa xuất VAT</span>
-          
+
         </div>
-        
+
       </div>
       <button class="modal-close" onclick="closeOrderDetailModal()">✕</button>
     </div>
 
     <div class="modal-body" style="padding:18px;">
       <div style="display:grid; grid-template-columns: 1fr 1fr; gap:18px;">
-        
+
         <!-- CỘT 1: ẢNH BILL CHUYỂN KHOẢN & GHI CHÚ SALE TẢI LÊN -->
         <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:14px; display:flex; flex-direction:column; gap:12px;">
           <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -9821,7 +7552,7 @@ window.printOrderInvoice = printOrderInvoice;
           <!-- Khung ảnh bill chuyển khoản -->
           <div style="position:relative; background:#ffffff; border:1.5px dashed #cbd5e1; border-radius:8px; overflow:hidden; text-align:center; padding:10px; min-height:240px; display:flex; flex-direction:column; align-items:center; justify-content:center;">
             <img id="modalBillImagePreview" src="" alt="Hóa đơn / Bill chuyển khoản" style="max-height:250px; max-width:100%; border-radius:6px; object-fit:contain; box-shadow:0 2px 8px rgba(0,0,0,0.08); cursor:zoom-in;" onclick="zoomCurrentBill()">
-            
+
             <div style="margin-top:10px; display:flex; gap:6px; flex-wrap:wrap; justify-content:center;">
               <button type="button" class="btn-micro" onclick="zoomCurrentBill()" style="background:#eff6ff; color:#2563eb; border:1px solid #bfdbfe; font-weight:700;">Phóng to</button>
               <button type="button" class="btn-micro" onclick="downloadCurrentBill()" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; font-weight:700;">Tải về</button>
@@ -9845,7 +7576,7 @@ window.printOrderInvoice = printOrderInvoice;
             <div style="font-size:11.5px; font-weight:800; color:#1d4ed8; text-transform:uppercase; margin-bottom:8px;">
               Thông Tin CCCD & Địa Chỉ
             </div>
-            
+
             <div class="form-grid-2" style="gap:8px; margin-bottom:8px;">
               <div class="form-group">
                 <label style="font-size:11px; font-weight:700; color:#334155;">Số CCCD / CMND *</label>
@@ -9866,7 +7597,7 @@ window.printOrderInvoice = printOrderInvoice;
 
         <!-- CỘT 2: THÔNG TIN KHÁCH, TIẾN ĐỘ THANH TOÁN & OPTION XUẤT VAT -->
         <div style="display:flex; flex-direction:column; gap:12px;">
-          
+
           <!-- 1. Thông tin Khách Hàng & Dịch Vụ (CHỈNH SỬA ĐƯỢC) -->
           <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:10px; padding:12px;">
             <div style="font-size:12px; font-weight:800; color:#0f172a; margin-bottom:8px; text-transform:uppercase;">
@@ -10057,24 +7788,11 @@ window.printOrderInvoice = printOrderInvoice;
       <div class="form-grid-2" style="gap:10px; margin-bottom:10px;">
         <div class="form-group">
           <label style="font-weight:700;">Sản Phẩm / Dịch Vụ *</label>
-          <select id="newOrderProductSelect" onchange="onNewOrderProductChange(this.value)" style="width:100%; padding:7px 10px; border-radius:6px; border:1px solid #cbd5e1; font-weight:600;">
-            <option value="CRS_SMC_K01" data-price="5000000" data-type="COURSE">Khóa học đầu tư hàng hóa nâng cao - HHDN 01 (5.000.000 đ)</option>
-            <option value="CRS_PA_K01" data-price="5000000" data-type="COURSE">Khóa Học Price Action Chuyên Sâu - PA-K01 (5.000.000 đ)</option>
-            <option value="IND_APEX_2026" data-price="9000000" data-type="RENTAL">NVT Apex Indicator Pro 2026 (9.000.000 đ)</option>
-            <option value="VIP_1Y" data-price="10000000" data-type="SALE">Nhóm Tín Hiệu VIP Trading 1 Năm (10.000.000 đ)</option>
-          </select>
+          <select id="newOrderProductSelect" onchange="onNewOrderProductChange(this.value)" style="width:100%; padding:7px 10px; border-radius:6px; border:1px solid #cbd5e1; font-weight:600;"><option value="">Chờ dữ liệu CRM</option></select>
         </div>
         <div class="form-group">
           <label style="font-weight:700;">Sale Phụ Trách *</label>
-          <select id="newOrderSaleSelect" style="width:100%; padding:7px 10px; border-radius:6px; border:1px solid #cbd5e1; font-weight:600;">
-            <option value="08018228">Phạm Hoài Ngọc Đức</option>
-            <option value="08095532">Vũ Thị Quỳnh</option>
-            <option value="08035000">Đặng Tấn Tử</option>
-            <option value="08080804">Đỗ Mạnh Hùng</option>
-            <option value="08077592">Trần Thị Tuyết</option>
-            <option value="08014278">Nguyễn Hoàng Khánh</option>
-            <option value="08049866">Phương Anh</option>
-          </select>
+          <select id="newOrderSaleSelect" style="width:100%; padding:7px 10px; border-radius:6px; border:1px solid #cbd5e1; font-weight:600;"><option value="">Chờ dữ liệu CRM</option></select>
         </div>
       </div>
 
@@ -10172,23 +7890,79 @@ window.printOrderInvoice = printOrderInvoice;
     members: [],
     products: [],
     orders: [],
+    courseConfigs: [],
+    brokerageMetrics: [],
     expenses: []
   };
 
+  // Chỉ tính doanh thu từ đơn CRM đã thanh toán trong kỳ.
+  function rebuildAccountingRevenueFromCRM() {
+    const state = ACCOUNTING_CRM_STATE;
+    const products = new Map(state.products.map(p => [String(p.id), p]));
+    const configs = new Map(state.courseConfigs.map(c => [String(c.courseKey), c]));
+    const groups = new Map();
+    const revenueBySale = new Map();
+    for (const order of state.orders) {
+      if (!order || order.status !== 'PAID') continue;
+      const month = String(order.paidAt || order.createdAt || '').slice(0, 7);
+      if (currentGlobalMonth !== 'ALL' && month !== currentGlobalMonth) continue;
+      const product = products.get(String(order.productId)) || {};
+      const category = String(product.kind || order.productKind || 'OTHER').toLowerCase();
+      const amount = Number(order.subtotal ?? order.total ?? 0);
+      if (!Number.isFinite(amount)) continue;
+      const key = String(order.productId || order.productName || order.id);
+      if (!groups.has(key)) {
+        const cfg = configs.get(String(product.courseKey || '')) || {};
+        groups.set(key, {
+          ...cfg, id: key, code: product.sku || '', name: product.name || order.productName || 'Sản phẩm',
+          category, categoryLabel: {course:'Khóa học',indicator:'Chỉ báo',vip:'Nhóm VIP'}[category] || 'Sản phẩm khác',
+          courseGroup: product.name || order.productName || '', batchName: '',
+          price: Number(product.price) || 0, studentsCount: 0, totalRevenue: 0, salesConfig: {},
+          trainers: (cfg.trainerIds || []).map(id => ({id, rate: Number(cfg.rateTrainer) || 0})),
+          leaders: (cfg.leaderIds || []).map(id => ({id, rate: Number(cfg.rateLeader) || 0})),
+          rateSale: Number(cfg.rateSale) || 0, rateTrainer: Number(cfg.rateTrainer) || 0,
+          rateLeader: Number(cfg.rateLeader) || 0, rateCompany: Number(cfg.rateCompany) || 0
+        });
+      }
+      const group = groups.get(key);
+      group.totalRevenue += amount;
+      group.studentsCount += 1;
+      if (order.saleId) {
+        const saleConfig = group.salesConfig[String(order.saleId)] ||= { students: 0, revenue: 0, rateSale: group.rateSale };
+        saleConfig.students += 1;
+        saleConfig.revenue += amount;
+      }
+      const saleKey = String(order.saleId || '');
+      if (!revenueBySale.has(saleKey)) revenueBySale.set(saleKey, {courseRev:0,indicatorRev:0,vipRev:0,otherRev:0});
+      const field = {course:'courseRev',indicator:'indicatorRev',vip:'vipRev'}[category] || 'otherRev';
+      revenueBySale.get(saleKey)[field] += amount;
+    }
+    COURSES_DATA = [...groups.values()];
+    for (const person of APEX_DATA) {
+      const metrics = state.brokerageMetrics.filter(m => String(m.memberId) === String(person.id) && (currentGlobalMonth === 'ALL' || m.period === currentGlobalMonth));
+      for (const [field, source] of [['basicLot','basicLots'],['miniLot','miniLots'],['microLot','microLots'],['bonus','bonus']]) {
+        person[field] = metrics.reduce((sum, m) => sum + (Number(m[source] ?? m[field]) || 0), 0);
+      }
+      Object.assign(person, revenueBySale.get(String(person.id)) || {courseRev:0,indicatorRev:0,vipRev:0,otherRev:0});
+    }
+    window.COURSES_DATA = COURSES_DATA;
+    window.APEX_DATA = APEX_DATA;
+  }
+
   function syncTeamMembersFromCRM(membersList, period) {
     if (!Array.isArray(membersList)) return;
-    
+
     // Bỏ qua ADMIN, chỉ lấy MANAGER, LEADER, SALE
-    const activeMembers = membersList.filter(m => m && m.active !== false && m.role !== 'ADMIN');
-    if (activeMembers.length === 0) { APEX_DATA = []; if (typeof renderAllViews === "function") renderAllViews(); return; }
+    const activeMembers = membersList.filter(m => m && m.active !== false && m.active !== 0 && m.active !== '0' && m.role !== 'ADMIN');
+    if (activeMembers.length === 0) { APEX_DATA = []; window.APEX_DATA = APEX_DATA; if (typeof renderAllViews === "function") renderAllViews(); return; }
 
     const mapped = activeMembers.map(m => {
-      const existing = (typeof APEX_DATA !== 'undefined' ? APEX_DATA : []).find(p => String(p.id) === String(m.id) || p.name === m.name) || {};
-      
+      const existing = {};
+
       let roleLevel = m.roleLevel || 'LV3';
       let roleTitle = m.roleTitle || 'Sale';
       let parentId = m.parentId || m.leaderId || m.managerId || null;
-      
+
       if (m.role === 'MANAGER' || roleLevel === 'LV1') {
         roleLevel = 'LV1';
         roleTitle = 'Manager';
@@ -10233,21 +8007,25 @@ window.printOrderInvoice = printOrderInvoice;
         microLot: microLot,
         indicatorRev: indicatorRev,
         courseRev: courseRev,
+        vipRev: Number(m.vipRev) || 0,
+        otherRev: Number(m.otherRev) || 0,
         productRate: m.productRate !== undefined ? Number(m.productRate) : (existing.productRate || 10),
         bonus: bonus
       };
     });
 
     APEX_DATA = mapped;
+    rebuildAccountingRevenueFromCRM();
+    window.APEX_DATA = APEX_DATA;
     if (typeof renderAllViews === 'function') {
       renderAllViews();
     }
   }
 
   function syncAccountingSelects(members, products) {
-    if (Array.isArray(members) && members.length > 0) {
+    if (Array.isArray(members)) {
       const activeSales = members.filter(m => m && m.active !== false && (m.role === 'SALE' || m.roleLevel === 'LV3'));
-      if (activeSales.length > 0) {
+      {
         const saleOptions = activeSales.map(m => `<option value="${m.id}">${m.name || m.accountId || m.id}</option>`).join('');
         const saleSelect = document.getElementById('newOrderSaleSelect');
         if (saleSelect) {
@@ -10257,9 +8035,9 @@ window.printOrderInvoice = printOrderInvoice;
         }
       }
     }
-    if (Array.isArray(products) && products.length > 0) {
+    if (Array.isArray(products)) {
       const activeProducts = products.filter(p => p && p.active !== false);
-      if (activeProducts.length > 0) {
+      {
         const prodOptions = activeProducts.map(p => {
           const price = Number(p.price || 0);
           const type = p.type || 'COURSE';
@@ -10284,6 +8062,7 @@ window.printOrderInvoice = printOrderInvoice;
       month: String(item.month || item.date || '').slice(0, 7)
     }));
     ADMIN_EXPENSES_DATA = ACCOUNTING_CRM_STATE.expenses;
+    window.ADMIN_EXPENSES_DATA = ADMIN_EXPENSES_DATA;
     if (typeof renderAccountingView === 'function') renderAccountingView();
   }
 
@@ -10310,7 +8089,7 @@ window.printOrderInvoice = printOrderInvoice;
       const total = Number(order.total ?? subtotal + vatAmount);
       const collected = Number(order.amountPaid ?? order.depositAmount ?? 0);
       const remaining = Number(order.balanceDue ?? Math.max(0, total - collected));
-      const paid = order.status === 'PAID' || remaining <= 0;
+      const paid = order.status === 'PAID';
       const createdAt = order.createdAt || order.paidAt || new Date().toISOString();
       const billing = order.billing || {};
       const label = String(product.category || product.name || order.productName || '').toLowerCase();
@@ -10351,13 +8130,14 @@ window.printOrderInvoice = printOrderInvoice;
     });
 
     VAT_ORDERS_DATA = mapped;
-    if (message.period) currentOrderMonth = String(message.period).slice(0, 7);
+    rebuildAccountingRevenueFromCRM();
+    window.VAT_ORDERS_DATA = VAT_ORDERS_DATA;
     if (typeof renderAllViews === 'function') renderAllViews();
   }
 
   // Lắng nghe lệnh từ parent CRM
   window.addEventListener('message', function(event) {
-    if (!event.data) return;
+    if (event.source !== window.parent || event.origin !== window.location.origin || !event.data) return;
     const msg = event.data;
 
     if (msg.type === 'SWITCH_APEX_VIEW') {
@@ -10370,6 +8150,8 @@ window.printOrderInvoice = printOrderInvoice;
     } else if (msg.type === 'SYNC_ORDERS_DATA') {
       window.__CRM_PRODUCTS = msg.products || [];
       ACCOUNTING_CRM_STATE.orders = Array.isArray(msg.orders) ? msg.orders : [];
+      ACCOUNTING_CRM_STATE.courseConfigs = Array.isArray(msg.courseConfigs) ? msg.courseConfigs : [];
+      ACCOUNTING_CRM_STATE.brokerageMetrics = Array.isArray(msg.brokerageMetrics) ? msg.brokerageMetrics : [];
       ACCOUNTING_CRM_STATE.members = msg.members || [];
       ACCOUNTING_CRM_STATE.products = msg.products || [];
       ACCOUNTING_CRM_STATE.expenses = Array.isArray(msg.expenses) ? msg.expenses : [];
