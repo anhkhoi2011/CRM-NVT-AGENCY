@@ -1048,8 +1048,8 @@
           : data.customers;
         const rows=source.filter(c=>{
           if(['ARCHIVED','LOST','PAID'].includes(c.status))return false;
-          const hasPendingOffer=pendingOffers.some(o=>o.customerId===c.id);
-          return !c.leaderId||!c.saleId||!c.saleAcceptedAt||hasPendingOffer||c.status==='NEW';
+          // Chỉ báo khách mà nhân viên chưa chọn Level khách hàng ở Khách hàng tổng.
+          return c.levelChosen!==true;
         }).sort((a,b)=>String(a.teamId||'').localeCompare(String(b.teamId||''),'vi')||String(a.createdAt||'').localeCompare(String(b.createdAt||''))||a.id.localeCompare(b.id));
         const groupKey=c=>c.teamId||'Chưa phân Team';
         const teams=[...new Set(rows.map(groupKey))];
@@ -1059,11 +1059,11 @@
           const groupHeader=(role==='ADMIN'||role==='MANAGER')?'<tr class="pending-team-row"><td colspan="6"><b>'+esc(team)+'</b><span>'+teamRows.length+' data chưa xử lý</span></td></tr>':'';
           return groupHeader+teamRows.map(c=>{
             const offer=pendingOffers.find(o=>o.customerId===c.id),saleId=c.saleId||offer?.saleId;
-            const state=!c.leaderId?'Chưa phân Team / Leader':offer?'Chờ Sale nhận':!c.saleId?'Chưa phân Sale':!c.saleAcceptedAt?'Chờ nhận data':'Chưa cập nhật xử lý';
+            const state=!c.leaderId?'Chưa phân Team / Leader':offer?'Chờ Sale nhận':!c.saleId?'Chưa phân Sale':!c.saleAcceptedAt?'Chờ nhận data':'Chưa chọn Level';
             return '<tr><td><b>'+esc(c.name)+'</b><small>'+esc(fmtDate(c.createdAt))+'</small></td><td>'+esc(groupKey(c))+'</td><td>'+esc(c.leaderId?person(c.leaderId):'Chưa phân Leader')+'</td><td>'+esc(saleId?person(saleId):'Chưa phân Sale')+'</td><td><span class="chip chip-warm">'+esc(state)+'</span></td><td><button class="btn-action btn-secondary" data-pending-customer="'+esc(c.id)+'">Xem</button></td></tr>';
           }).join('');
         }).join('');
-        goal.innerHTML='<div class="pending-data-head"><div><b>Data chưa xử lý</b><small>'+esc(scopeLabel)+' · theo Team và người phụ trách</small></div><span class="chip">'+rows.length+' khách</span></div><div class="table-responsive pending-data-table-wrap"><table class="modern-table pending-data-table"><thead><tr><th>Khách hàng</th><th>Team</th><th>Leader</th><th>Sale phụ trách</th><th>Tình trạng</th><th></th></tr></thead><tbody id="pendingDataBody">'+(body||'<tr><td colspan="6"><div class="pending-data-empty"><b>Không có data chưa xử lý</b><span>Tất cả khách trong phạm vi đã được tiếp nhận hoặc hoàn tất.</span></div></td></tr>')+'</tbody></table></div>';
+        goal.innerHTML='<div class="pending-data-head"><div><b>Data chưa xử lý</b><small>'+esc(scopeLabel)+' · khách chưa được chọn Level</small></div><span class="chip">'+rows.length+' khách</span></div><div class="table-responsive pending-data-table-wrap"><table class="modern-table pending-data-table"><thead><tr><th>Khách hàng</th><th>Team</th><th>Leader</th><th>Sale phụ trách</th><th>Tình trạng</th><th></th></tr></thead><tbody id="pendingDataBody">'+(body||'<tr><td colspan="6"><div class="pending-data-empty"><b>Không có data chưa xử lý</b><span>Tất cả khách trong phạm vi đã được tiếp nhận hoặc hoàn tất.</span></div></td></tr>')+'</tbody></table></div>';
         renderPendingHierarchyV2(goal, source, rows, pendingOffers);
         goal.querySelectorAll('.pending-root-toggle b').forEach(label=>{const value=label.textContent.trim();if(value.startsWith('Manager: '))label.textContent='Team '+value.slice(9)+' (manager)';else if(value.startsWith('Team ')&&!value.endsWith('(leader)'))label.textContent=value+' (leader)';});
       }
@@ -1150,7 +1150,7 @@
   // Cây data theo đúng cấp: Manager -> Leader -> Sale. Leader chưa có Manager
   // được hiển thị cùng cấp Manager dưới tên Team của chính Leader.
   function renderPendingHierarchyV2(goal, source, rows, pendingOffers) {
-    const members=data.members.filter(m=>m.active!==false),byId=id=>members.find(m=>m.id===id),stateFor=c=>pendingOffers.some(o=>o.customerId===c.id)?'Chờ Sale nhận':!c.leaderId?'Chưa phân Leader':!c.saleId?'Chưa phân Sale':!c.saleAcceptedAt?'Chờ nhận data':'Chưa cập nhật xử lý';
+    const members=data.members.filter(m=>m.active!==false),byId=id=>members.find(m=>m.id===id),stateFor=c=>pendingOffers.some(o=>o.customerId===c.id)?'Chờ Sale nhận':!c.leaderId?'Chưa phân Leader':!c.saleId?'Chưa phân Sale':!c.saleAcceptedAt?'Chờ nhận data':'Chưa chọn Level';
     const saleIdFor=c=>c.saleId||pendingOffers.find(o=>o.customerId===c.id)?.saleId||'UNASSIGNED';
     const rowsForLeader=leader=>rows.filter(c=>c.leaderId===leader?.id);
     const saleGroups=leaderRows=>[...new Set(leaderRows.map(saleIdFor))].map(id=>({id,sale:byId(id),rows:leaderRows.filter(c=>saleIdFor(c)===id)}));
@@ -1369,38 +1369,73 @@
   function passwordEditor(id){editor('Đặt lại mật khẩu',formField('Mật khẩu mới','<input id="refPassword" type="password" required minlength="8" autocomplete="new-password">')+formField('Nhập lại mật khẩu','<input id="refPasswordConfirm" type="password" required autocomplete="new-password">'),()=>api.resetPassword(id,q('#refPassword').value,q('#refPasswordConfirm').value));}
   // Render cay doi ngu theo thu tu Manager -> Leader -> Sale.
   // Khoi nay chi thay phan hien thi, khong thay doi du lieu hay quyen truy cap.
+  // Trạng thái mở/đóng của cây đội ngũ, giữ lại qua mỗi lần refresh 15s. Mặc định thu gọn.
+  const teamTreeState={open:new Map()};
   function renderTeamHierarchyV6(){
     const host=q('#teamHierarchyOverview');if(!host||!data?.user)return;
-    if(!q('#teamHierarchyV6Styles')){const style=document.createElement('style');style.id='teamHierarchyV6Styles';style.textContent='.team-tree-root{display:grid;gap:12px}.team-tree-manager{border:1px solid #cbd5e1;border-radius:12px;background:#fff;overflow:hidden;box-shadow:0 3px 12px rgba(15,23,42,.05)}.team-tree-manager-head{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:14px 16px;border:0;border-left:4px solid #2563eb;background:#f8fafc;color:#0f172a;text-align:left;cursor:pointer}.team-tree-manager-head:hover{background:#eff6ff}.team-tree-manager-head[aria-expanded=true]{border-bottom:1px solid #bfdbfe;background:#eff6ff}.team-tree-body{display:grid;gap:10px;padding:12px;background:#f8fafc}.team-tree-member{border:1px solid #dbe3ec;border-radius:9px;background:#fff;overflow:hidden}.team-tree-member-head{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:11px 12px;border:0;background:#fff;color:#0f172a;text-align:left;cursor:pointer}.team-tree-member-head:hover{background:#f8fafc}.team-tree-member-body{padding:8px 10px;border-top:1px solid #e2e8f0;background:#fff}.team-tree-avatar{display:grid;place-items:center;width:34px;height:34px;flex:0 0 auto;border-radius:9px;font-size:11px;font-weight:900}.team-tree-avatar.manager{background:#dbeafe;color:#1d4ed8}.team-tree-avatar.leader{background:#ede9fe;color:#6d28d9}.team-tree-avatar.sale{background:#dcfce7;color:#15803d}.team-tree-person{display:flex;align-items:center;gap:9px;min-width:0}.team-tree-person-copy{display:grid;gap:3px;min-width:0}.team-tree-person-copy b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}.team-tree-person-copy small{color:#64748b;font-size:10.5px}.team-tree-count{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto;color:#475569;font-size:10.5px;font-weight:800}.team-tree-chevron{font-size:18px;font-weight:800;color:#2563eb}.team-tree-data{display:grid;gap:5px;margin:0 0 8px}.team-tree-data:last-child{margin-bottom:0}.team-tree-data-title{color:#64748b;font-size:10px;font-weight:800;text-transform:uppercase}.team-tree-data-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 8px;border:1px solid #e2e8f0;border-radius:7px;background:#f8fafc;color:#0f172a;text-align:left;cursor:pointer}.team-tree-data-row:hover{border-color:#93c5fd;background:#eff6ff}.team-tree-data-row b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}.team-tree-data-row small{color:#64748b;font-size:10px;white-space:nowrap}.team-tree-empty{padding:14px 8px;color:#64748b;text-align:center;font-size:11px}.team-tree-orphan{border-color:#f59e0b}.team-tree-orphan .team-tree-manager-head{border-left-color:#f59e0b;background:#fffbeb}.team-tree-orphan .team-tree-manager-head[aria-expanded=true]{background:#fef3c7}@media(max-width:640px){.team-tree-manager-head,.team-tree-member-head{padding:11px 10px}.team-tree-body{padding:9px}.team-tree-person-copy b{font-size:11.5px}}';document.head.appendChild(style);}
     const role=data.user.actualRole||data.user.role,all=(data.managerHierarchy?.members||data.members||[]).filter(m=>m&&m.active!==false&&['MANAGER','LEADER','SALE'].includes(m.role)),current=(all.find(m=>String(m.id)===String(data.user.id))||data.user),byId=id=>all.find(m=>String(m.id)===String(id)),members=all,visibleCustomers=data.managerHierarchy?.customers||data.customers||[];
+    const same=(a,b)=>String(a??'')===String(b??'');
     const leaderOf=member=>member?.role==='LEADER'?member:(member?.leaderId?byId(member.leaderId):null);
     const managerOf=member=>{if(!member)return null;if(member.role==='MANAGER')return member;const leader=leaderOf(member);return member.managerId?byId(member.managerId):(leader?.managerId?byId(leader.managerId):null);};
     const managerLeaders=manager=>members.filter(m=>m.role==='LEADER'&&managerOf(m)?.id===manager.id);
     const leaderSales=leader=>members.filter(m=>m.role==='SALE'&&leaderOf(m)?.id===leader.id&&(!leader.teamId||!m.teamId||String(m.teamId)===String(leader.teamId)));
     const directManagerSales=manager=>members.filter(m=>m.role==='SALE'&&managerOf(m)?.id===manager.id&&!leaderOf(m));
-    const ownCustomers=(member,kind)=>visibleCustomers.filter(customer=>kind==='sale'
-      ?String(customer.saleId||'')===String(member.id)
-      :kind==='leader'
-        ?String(customer.saleId||'')===String(member.id)||(String(customer.leaderId||'')===String(member.id)&&!customer.saleId)
-        :String(customer.saleId||'')===String(member.id)||(String(customer.managerId||'')===String(member.id)&&!customer.leaderId&&!customer.saleId));
-    const initials=name=>String(name||'?').trim().split(/\s+/).slice(-2).map(part=>part[0]||'').join('').toUpperCase()||'?';
-    const dataRows=(member,kind,customRows)=>{const rows=(customRows||ownCustomers(member,kind)).slice().sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||'')));return '<div class="team-tree-data"><span class="team-tree-data-title">Data phu trach ('+rows.length+')</span>'+(rows.length?rows.map(customer=>'<button type="button" class="team-tree-data-row" data-team-customer="'+esc(customer.id)+'"><b>'+esc(customer.name||'Chua dat ten')+'</b><small>'+esc(customer.phone||'')+'</small></button>').join(''):'<div class="team-tree-empty">Chua co data</div>')+'</div>';};
-    const memberCard=(member,kind,children,countRows)=>{const nested=children||'';const rows=countRows||ownCustomers(member,kind);return '<article class="team-tree-member"><button type="button" class="team-tree-member-head" data-team-member-toggle="'+esc(member.id)+'"><span class="team-tree-person"><span class="team-tree-avatar '+kind+'">'+esc(initials(member.name))+'</span><span class="team-tree-person-copy"><b>'+esc(kind==='manager'?'Manager: ':kind==='leader'?'Leader: ':'Sale: ')+esc(member.name||'Chua dat ten')+'</b><small>'+esc(kind==='leader'?'Team '+(member.teamId||'Chua gan Team'):kind==='sale'?'Sale truc thuoc':'Data nhan truc tiep')+'</small></span></span><span class="team-tree-count"><span>'+rows.length+' data</span><span class="team-tree-chevron">+</span></span></button><div class="team-tree-member-body" data-team-member-body="'+esc(member.id)+'" hidden>'+dataRows(member,kind)+nested+'</div></article>';};
-    const managerRoots=role==='ADMIN'?members.filter(m=>m.role==='MANAGER'):role==='MANAGER'?[current].filter(m=>m?.role==='MANAGER'):[ ];
+    const saleCustomers=sale=>visibleCustomers.filter(c=>same(c.saleId,sale.id));
+    const managerOwn=manager=>visibleCustomers.filter(c=>same(c.saleId,manager.id)||(same(c.managerId,manager.id)&&!c.leaderId&&!c.saleId));
     const visibleLeaders=role==='ADMIN'?members.filter(m=>m.role==='LEADER'):role==='MANAGER'?managerLeaders(current):role==='LEADER'?[current]:current?.leaderId?[byId(current.leaderId)].filter(Boolean):[];
     const visibleSales=role==='ADMIN'?members.filter(m=>m.role==='SALE'):role==='MANAGER'?members.filter(m=>m.role==='SALE'&&managerOf(m)?.id===current.id):role==='LEADER'?leaderSales(current):[current].filter(m=>m.role==='SALE');
-    const leaderCustomers=leader=>{const salesIds=new Set(leaderSales(leader).map(sale=>String(sale.id)));return visibleCustomers.filter(customer=>String(customer.leaderId||'')===String(leader.id)||salesIds.has(String(customer.saleId||'')));};
-    const leaderCard=leader=>{const sales=leaderSales(leader).filter(s=>visibleSales.some(v=>v.id===s.id)),rows=leaderCustomers(leader);return memberCard(leader,'leader',sales.map(s=>memberCard(s,'sale','')).join(''),rows);};
-    const managerCard=manager=>{const leaders=managerLeaders(manager).filter(l=>visibleLeaders.some(v=>v.id===l.id)),direct=directManagerSales(manager).filter(s=>visibleSales.some(v=>v.id===s.id)),nested=dataRows(manager,'manager')+direct.map(s=>memberCard(s,'sale','')).join('')+leaders.map(leaderCard).join('');return '<section class="team-tree-manager"><button type="button" class="team-tree-manager-head" data-team-root-toggle="'+esc(manager.id)+'" aria-expanded="true"><span class="team-tree-person"><span class="team-tree-avatar manager">M</span><span class="team-tree-person-copy"><b>Manager: '+esc(manager.name||'Chua dat ten')+'</b><small>'+esc([...new Set(leaders.map(l=>l.teamId).filter(Boolean))].join(', ')||'Chua gan Team')+' · '+leaders.length+' Leader · '+(direct.length+leaders.reduce((sum,l)=>sum+leaderSales(l).filter(s=>visibleSales.some(v=>v.id===s.id)).length,0))+' Sale</small></span></span><span class="team-tree-chevron">−</span></button><div class="team-tree-body" data-team-root-body="'+esc(manager.id)+'">'+nested+'</div></section>';};
-    const roots=managerRoots.map(managerCard),assignedLeaderIds=new Set(managerRoots.flatMap(manager=>managerLeaders(manager).map(leader=>leader.id))),orphanLeaders=visibleLeaders.filter(leader=>!assignedLeaderIds.has(leader.id));
-    if(orphanLeaders.length)roots.push('<section class="team-tree-manager team-tree-orphan"><button type="button" class="team-tree-manager-head" data-team-root-toggle="orphan-leaders" aria-expanded="false"><span class="team-tree-person"><span class="team-tree-avatar leader">L</span><span class="team-tree-person-copy"><b>Chua gan Manager</b><small>'+orphanLeaders.length+' Leader · '+orphanLeaders.reduce((sum,l)=>sum+leaderSales(l).length,0)+' Sale</small></span></span><span class="team-tree-chevron">+</span></button><div class="team-tree-body" data-team-root-body="orphan-leaders" hidden>'+orphanLeaders.map(leaderCard).join('')+'</div></section>');
-    const shownSales=new Set([...managerRoots.flatMap(manager=>directManagerSales(manager)),...visibleLeaders.flatMap(leader=>leaderSales(leader))].map(member=>member.id)),orphanSales=visibleSales.filter(sale=>!shownSales.has(sale.id));
-    if(orphanSales.length)roots.push('<section class="team-tree-manager team-tree-orphan"><button type="button" class="team-tree-manager-head" data-team-root-toggle="orphan-sales" aria-expanded="false"><span class="team-tree-person"><span class="team-tree-avatar sale">S</span><span class="team-tree-person-copy"><b>Chua gan Leader</b><small>'+orphanSales.length+' Sale</small></span></span><span class="team-tree-chevron">+</span></button><div class="team-tree-body" data-team-root-body="orphan-sales" hidden>'+orphanSales.map(sale=>memberCard(sale,'sale','')).join('')+'</div></section>');
-    host.innerHTML='<div class="team-hierarchy-head"><div><div class="team-hierarchy-title">Cay doi ngu</div><div class="team-hierarchy-subtitle">Thu tu quan ly: Manager → Leader → Sale</div></div></div><div class="team-tree-root">'+(roots.join('')||'<div class="team-tree-empty">Chua co du lieu doi ngu</div>')+'</div>';
-    host.querySelectorAll('[data-team-root-toggle]').forEach(button=>button.onclick=()=>{const body=host.querySelector('[data-team-root-body="'+CSS.escape(button.dataset.teamRootToggle)+'"]');if(!body)return;const open=body.hidden;body.hidden=!open;button.setAttribute('aria-expanded',String(open));button.querySelector('.team-tree-chevron').textContent=open?'−':'+';});
-    host.querySelectorAll('[data-team-member-toggle]').forEach(button=>button.onclick=()=>{const body=host.querySelector('[data-team-member-body="'+CSS.escape(button.dataset.teamMemberToggle)+'"]');if(!body)return;const open=body.hidden;body.hidden=!open;button.setAttribute('aria-expanded',String(open));button.querySelector('.team-tree-chevron').textContent=open?'−':'+';});
-    host.querySelectorAll('[data-team-customer]').forEach(button=>button.onclick=()=>workflow('customer',button.dataset.teamCustomer));
-    const memberCardKpi=qa('#tab-team .kpi-bento-card')[0];if(memberCardKpi){primaryText(memberCardKpi.querySelector('.kpi-hero-num'),members.length);memberCardKpi.querySelectorAll('.kpi-foot-stat .value').forEach((node,index)=>{node.textContent=index===0?members.filter(m=>m.role==='LEADER').length+' nguoi':index===1?members.filter(m=>m.role==='SALE').length+' nguoi':members.length?'100%':'0%';});const online=memberCardKpi.querySelector('.kpi-trend-pill');if(online)online.textContent=members.length+' hoat dong';}
+    const visibleSaleIds=new Set(visibleSales.map(s=>String(s.id)));
+    const shownLeaderSales=leader=>leaderSales(leader).filter(s=>visibleSaleIds.has(String(s.id)));
+    // Khách riêng của Leader: Leader tự phụ trách, hoặc gắn Leader mà chưa thuộc Sale nào đang hiển thị trong nhóm.
+    const leaderOwn=leader=>{const saleIds=new Set(shownLeaderSales(leader).map(s=>String(s.id)));return visibleCustomers.filter(c=>same(c.saleId,leader.id)||(same(c.leaderId,leader.id)&&!saleIds.has(String(c.saleId||''))));};
+    const leaderTotal=leader=>{const ids=new Set(leaderOwn(leader).map(c=>c.id));shownLeaderSales(leader).forEach(s=>saleCustomers(s).forEach(c=>ids.add(c.id)));return ids.size;};
+    const initials=name=>String(name||'?').trim().split(/\s+/).slice(-2).map(part=>part[0]||'').join('').toUpperCase()||'?';
+    const isOpen=key=>teamTreeState.open.get(key)===true;
+    const pill=kind=>'<span class="tt-pill '+kind+'">'+kind.toUpperCase()+'</span>';
+    const count=n=>'<span class="tt-count">'+n+' khách</span>';
+    const avatar=(kind,label)=>'<span class="tt-avatar '+kind+'" aria-hidden="true">'+esc(label)+'</span>';
+    const copy=(title,kind,subtitle)=>'<span class="tt-copy"><span class="tt-title"><b>'+esc(title)+'</b>'+(kind?pill(kind):'')+'</span><small>'+esc(subtitle)+'</small></span>';
+    // Cả hàng đầu mục là một nút mở/thu gọn.
+    const head=(key,open,inner)=>'<button type="button" class="tt-head" data-tt-toggle="'+esc(key)+'" aria-expanded="'+open+'">'+inner+'<span class="tt-chevron" aria-hidden="true">'+(open?'−':'+')+'</span></button>';
+    // Một người: chỉ tên, vai trò và số khách đang phụ trách.
+    const personRow=(member,kind,n,subtitle)=>'<div class="tt-card tt-person"><div class="tt-head">'+avatar(kind,initials(member.name))+copy(member.name||'Chưa đặt tên',kind,subtitle)+count(n)+'</div></div>';
+    const saleRow=(sale,parentName)=>personRow(sale,'sale',saleCustomers(sale).length,parentName?'Trực thuộc '+parentName:'Sale');
+    const leaderGroup=leader=>{
+      const key='g:'+leader.id,open=isOpen(key),sales=shownLeaderSales(leader),own=leaderOwn(leader);
+      const body=open?'<div class="tt-branch">'+personRow(leader,'leader',own.length,'Leader · khách tự phụ trách')+sales.map(s=>saleRow(s,leader.name)).join('')+'</div>':'';
+      return '<section class="tt-card tt-group">'+head(key,open,avatar('leader',initials(leader.name))+copy('Team '+(leader.name||'Chưa đặt tên'),'leader','1 Leader · '+sales.length+' Sale')+count(leaderTotal(leader)))+body+'</section>';
+    };
+    const managerTeam=manager=>{
+      const key='t:'+manager.id,open=isOpen(key),leaders=managerLeaders(manager).filter(l=>visibleLeaders.some(v=>v.id===l.id)),direct=directManagerSales(manager).filter(s=>visibleSaleIds.has(String(s.id))),own=managerOwn(manager);
+      const ids=new Set(own.map(c=>c.id));direct.forEach(s=>saleCustomers(s).forEach(c=>ids.add(c.id)));leaders.forEach(l=>{leaderOwn(l).forEach(c=>ids.add(c.id));shownLeaderSales(l).forEach(s=>saleCustomers(s).forEach(c=>ids.add(c.id)));});
+      const saleCount=direct.length+leaders.reduce((sum,l)=>sum+shownLeaderSales(l).length,0);
+      const body=open?'<div class="tt-branch">'+personRow(manager,'manager',own.length,'Manager · khách tự phụ trách')+direct.map(s=>saleRow(s,manager.name)).join('')+leaders.map(leaderGroup).join('')+'</div>':'';
+      return '<section class="tt-team">'+head(key,open,avatar('manager',initials(manager.name))+copy('Team '+(manager.name||'Chưa đặt tên'),'manager',leaders.length+' Leader · '+saleCount+' Sale')+count(ids.size))+body+'</section>';
+    };
+    const salesTeam=sales=>{const key='o:sales',open=isOpen(key),total=new Set(sales.flatMap(s=>saleCustomers(s).map(c=>c.id))).size;return '<section class="tt-team">'+head(key,open,avatar('sale','S')+copy('Sale chưa gắn Leader','',sales.length+' Sale')+count(total))+(open?'<div class="tt-branch">'+sales.map(s=>saleRow(s,'')).join('')+'</div>':'')+'</section>';};
+    const roots=[];
+    if(role==='ADMIN'||role==='MANAGER'){
+      const managerRoots=role==='ADMIN'?members.filter(m=>m.role==='MANAGER'):[current].filter(m=>m?.role==='MANAGER');
+      roots.push(...managerRoots.map(managerTeam));
+      // Leader chưa có Manager vẫn hiện như một Team riêng mang tên Leader.
+      const assigned=new Set(managerRoots.flatMap(m=>managerLeaders(m).map(l=>l.id)));
+      roots.push(...visibleLeaders.filter(l=>!assigned.has(l.id)).map(leaderGroup));
+      const shown=new Set([...managerRoots.flatMap(directManagerSales),...visibleLeaders.flatMap(leaderSales)].map(m=>m.id)),orphanSales=visibleSales.filter(s=>!shown.has(s.id));
+      if(orphanSales.length)roots.push(salesTeam(orphanSales));
+    }else{
+      roots.push(...visibleLeaders.map(leaderGroup));
+      const shown=new Set(visibleLeaders.flatMap(leaderSales).map(m=>m.id));
+      roots.push(...visibleSales.filter(s=>!shown.has(s.id)).map(s=>saleRow(s,'')));
+    }
+    const focusKey=document.activeElement?.closest?.('#teamHierarchyOverview')?document.activeElement.dataset?.ttToggle:null;
+    host.innerHTML='<div class="team-hierarchy-head"><div><div class="team-hierarchy-title">Sơ đồ phân cấp đội ngũ</div><div class="team-hierarchy-subtitle">Manager → Leader → Sale · Bấm vào từng Team để xem thành viên và số khách</div></div></div><div class="tt-root">'+(roots.join('')||'<div class="tt-empty">Chưa có dữ liệu đội ngũ</div>')+'</div>';
+    if(focusKey)host.querySelector('[data-tt-toggle="'+CSS.escape(focusKey)+'"]')?.focus();
+    host.onclick=event=>{
+      const t=event.target.closest('[data-tt-toggle]');if(!t||!host.contains(t))return;
+      teamTreeState.open.set(t.dataset.ttToggle,t.getAttribute('aria-expanded')!=='true');
+      renderTeamHierarchyV6();
+    };
+    const memberCardKpi=qa('#tab-team .kpi-bento-card')[0];if(memberCardKpi){primaryText(memberCardKpi.querySelector('.kpi-hero-num'),members.length);memberCardKpi.querySelectorAll('.kpi-foot-stat .value').forEach((node,index)=>{node.textContent=index===0?members.filter(m=>m.role==='LEADER').length+' người':index===1?members.filter(m=>m.role==='SALE').length+' người':members.length?'100%':'0%';});const online=memberCardKpi.querySelector('.kpi-trend-pill');if(online)online.textContent=members.length+' hoạt động';}
   }
   function team(){
     const bodies=qa('#tab-team tbody'),role=data.user.actualRole||data.user.role;
@@ -1434,7 +1469,7 @@
     const teamColumnName=m=>m.role==='MANAGER'?'Team '+managerTeamLabel(m)+' (manager)':(data.members.find(x=>x.role==='LEADER'&&(m.role==='LEADER'?x.id===m.id:x.id===m.leaderId))?('Team '+(data.members.find(x=>x.role==='LEADER'&&(m.role==='LEADER'?x.id===m.id:x.id===m.leaderId)).name||'Chua phan')+' (leader)'):(m.teamId?'Team '+m.teamId:'Chua phan Team'));
     table(bodies[1],members.map(m=>[m.name+(m.phone?' · '+m.phone:''),m.role,teamColumnName(m),m.managerId?person(m.managerId):m.leaderId?person(m.leaderId):'—',customers(m),money(revenue(m)),'']));
     Array.from(bodies[1]?.rows||[]).forEach((r,i)=>{const m=members[i],buttons=r.querySelectorAll('button');buttons.forEach(b=>{b.removeAttribute('onclick');b.disabled=data.user.role!=='ADMIN';});if(buttons[0])buttons[0].onclick=()=>memberEditor(m.id);if(buttons[1]){buttons[1].onclick=()=>passwordEditor(m.id);buttons[1].disabled=data.user.role!=='ADMIN'||!m.loginEnabled;}if(buttons[2]){buttons[2].disabled=data.user.role!=='ADMIN'||!['SALE','LEADER'].includes(m.role)||m.id===data.user.id;buttons[2].onclick=()=>{if(confirm('Xóa thành viên khỏi đội ngũ và thu hồi khách theo quy trình hiện có?'))run(()=>api.removeMember(m.id));};}});
-    const add=q('#tab-team .headline-row button');add.removeAttribute('onclick');add.onclick=()=>memberEditor();add.disabled=data.user.role!=='ADMIN';
+    const add=q('#tab-team .headline-row button');if(add){add.removeAttribute('onclick');add.onclick=()=>memberEditor();add.disabled=data.user.role!=='ADMIN';}
     const description=bodies[0]?.closest('.table-container')?.querySelector('.table-head-bar > div > div');if(description)description.textContent='Admin phân chức vụ trước khi tài khoản được sử dụng.';
     const cards=qa('#tab-team .kpi-bento-card');
     const scopedCustomers=data.managerHierarchy?.customers||data.customers||[];
@@ -1956,6 +1991,7 @@
   }
   async function workflow(kind,id){
     if(working||workflowBusy)return;
+    if(kind==='newOrder'){openAccountingOrderForm(id||'');return;}
     try{const result=await api.openWorkflow(kind,id);q('#referenceWorkflow')?.remove();const modal=document.createElement('div');modal.id='referenceWorkflow';modal.className='modal-overlay open';modal.style.zIndex='11000';modal.innerHTML=`<div class="modal-card" role="dialog" aria-modal="true" aria-label="${esc(result.title)}" style="width:min(1080px,calc(100vw - 24px));max-height:92dvh"><div class="modal-header"><h3>${esc(result.title)}</h3><button type="button" class="modal-close-btn" data-workflow-close aria-label="Đóng">×</button></div><div class="modal-body" data-workflow-body></div><div class="modal-footer" style="flex-wrap:wrap"><span role="status" data-workflow-notice style="flex:1;overflow-wrap:anywhere"></span><button type="button" class="btn-action btn-secondary" data-workflow-close>Đóng</button>${kind==='profile'?'<button type="submit" class="btn-action btn-primary" data-workflow-profile-save>Lưu hồ sơ</button>':''}</div></div>`;document.body.appendChild(modal);workflowModal=modal;workflowModal.dataset.workflowKind=kind;if(kind==='profile'){modal.querySelector('.modal-card').style.width='min(760px,calc(100vw - 24px))';}drawWorkflow();
       if(kind==='profile')modal.querySelector('.modal-card')?.classList.add('profile-modal-card');
       modal.querySelectorAll('[data-workflow-close]').forEach(b=>b.onclick=async()=>{if(workflowBusy)return;try{await api.closeWorkflow(true);modal.remove();workflowModal=null;refresh(true);}catch(e){modal.querySelector('[data-workflow-notice]').textContent=e.message;}});
@@ -2403,13 +2439,25 @@
       'tab-settings':[bindReferenceSettings,[data.settings,data.fonts]]
     };
     const job=jobs[id];if(!job)return;const key=JSON.stringify([data.user.id,...job[1]]);
-    if(force||renderedTabs.get(id)!==key){job[0]();renderedTabs.set(id,key);}
+    if(force||renderedTabs.get(id)!==key){
+      // Lỗi vẽ một tab không được chặn cả CRM: trước đây team() lỗi làm F5 kẹt ở màn hình tải.
+      try{job[0]();renderedTabs.set(id,key);}catch(error){renderedTabs.delete(id);console.error('Không vẽ được '+id,error);}
+    }
+  }
+  // Ô nhập/ghi chú đang focus thì không vẽ đè. Select giữ focus sau khi chọn xong nên chỉ
+  // chặn khi vừa thao tác; nếu không màn Leader/Manager/Admin đứng yên, không thấy Sale cập nhật.
+  let lastUserInteraction=0;
+  ['pointerdown','keydown','input','change'].forEach(type=>document.addEventListener(type,()=>{lastUserInteraction=Date.now();},true));
+  function userEditingNow(){
+    const tag=document.activeElement?.tagName;
+    if(tag==='INPUT'||tag==='TEXTAREA')return true;
+    return tag==='SELECT'&&Date.now()-lastUserInteraction<4000;
   }
   function refresh(force=false,suppliedSnapshot=null) {
     const signedOut=frame.contentWindow?.crmRuntimeBooted===true&&frame.contentWindow?.crmRuntimeAuthState==='unauthenticated';
     if(customerSaveQueue.pending&&!signedOut)return;
     normalizeAccountingMenu();
-    if(!signedOut&&!force&&(document.hidden||working||workflowBusy||q('.modal-overlay.open')||['INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName)))return;
+    if(!signedOut&&!force&&(document.hidden||working||workflowBusy||q('.modal-overlay.open')||userEditingNow()))return;
     const runtime=frame.contentWindow;
     if(runtime?.crmApi)api=runtime.crmApi;
     const fromCache=Boolean(suppliedSnapshot);
@@ -2538,7 +2586,142 @@
   }
   // Ghi đè callback cũ để dùng form thành công trong giao diện, không dùng alert().
   submitOrder=()=>run(()=>api.createOrder({customerId:q('#modalCustomerSelect').value,productId:q('#prodSelect').value,paymentMode:q('#modalPaymentType').value,paymentMethod:qa('#orderModal select')[3]?.selectedIndex===1?'CASH':'VietQR'}),result=>{closeOrderModal();showOrderSuccess(result);});
-  openOrderModal=()=>workflow('newOrder');
+  // Form tạo đơn theo mẫu "Tạo Đơn Hàng Mới (Sale / Kế Toán)". Dùng cùng luồng
+  // createOrder(source:'accounting-iframe') với mục Kiểm tra đơn & Xuất VAT để
+  // CCCD, địa chỉ, cọc/còn lại, bill, ghi chú và MST/công ty khớp hai phía.
+  const ORDER_BANKS=['Vietcombank','Techcombank','MB Bank','ACB','BIDV','VietinBank','Agribank','Ngân hàng khác'];
+  const orderSalesInScope=()=>{
+    const role=data.user?.role,sales=(data.members||[]).filter(m=>m.role==='SALE'&&m.active!==false);
+    if(role==='SALE'){const own=String(data.user.saleId||data.user.id||'');return sales.filter(m=>String(m.id)===own);}
+    if(role==='LEADER'){const lead=String(data.user.leaderId||data.user.id||'');return sales.filter(m=>String(m.leaderId||'')===lead);}
+    if(role==='MANAGER'){const ids=new Set((data.managerHierarchy?.members||[]).map(m=>String(m.id)));return sales.filter(m=>ids.has(String(m.id)));}
+    return sales;
+  };
+  const phoneKey=v=>String(v||'').replace(/\D/g,'').replace(/^84/,'0');
+  // Nén ảnh bill về JPEG để vừa giới hạn lưu trữ của đơn hàng.
+  const compressBill=file=>new Promise((resolve,reject)=>{
+    if(!file||!/^image\//.test(file.type))return reject(Error('Bill đính kèm phải là ảnh.'));
+    const reader=new FileReader();reader.onerror=()=>reject(Error('Không đọc được ảnh bill.'));
+    reader.onload=()=>{const img=new Image();img.onerror=()=>reject(Error('Ảnh bill không hợp lệ.'));img.onload=()=>{
+      const scale=Math.min(1,1400/Math.max(img.width,img.height)),canvas=document.createElement('canvas');
+      canvas.width=Math.max(1,Math.round(img.width*scale));canvas.height=Math.max(1,Math.round(img.height*scale));
+      canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+      let quality=.82,out=canvas.toDataURL('image/jpeg',quality);while(out.length>2700000&&quality>.4){quality-=.12;out=canvas.toDataURL('image/jpeg',quality);}
+      if(out.length>2700000)reject(Error('Ảnh bill quá lớn, hãy chọn ảnh nhỏ hơn.'));else resolve(out);};img.src=reader.result;};
+    reader.readAsDataURL(file);
+  });
+  function openAccountingOrderForm(customerId){
+    const products=(data.products||[]).filter(p=>p.active!==false),sales=orderSalesInScope();
+    if(!products.length){alert('Chưa có sản phẩm đang bán.');return;}
+    if(!sales.length){alert('Chưa có Sale đang hoạt động trong phạm vi của bạn.');return;}
+    const customers=data.customers||[],picked=customers.find(c=>c.id===customerId)||null;
+    const preSale=sales.find(s=>String(s.id)===String(picked?.saleId))||sales[0];
+    const body=`<p class="ao-lead">Nhập thông tin khách, chọn hình thức thanh toán (Đủ hoặc Cọc) và đính kèm bill chuyển khoản.</p>
+      <datalist id="aoCustomerList">${customers.map(c=>`<option value="${esc(c.phone||'')}">${esc(c.name||'')}</option>`).join('')}</datalist>
+      <div class="crm-form-grid">
+        <label class="crm-field"><span>Tên Khách Hàng <em>*</em></span><input id="aoName" maxlength="160" required placeholder="Ví dụ: Nguyễn Văn Hải" value="${esc(picked?.name||'')}"></label>
+        <label class="crm-field"><span>Số Điện Thoại KH <em>*</em></span><input id="aoPhone" class="ao-mono" list="aoCustomerList" inputmode="tel" maxlength="15" required placeholder="Ví dụ: 0918882345" value="${esc(picked?.phone||'')}"></label>
+        <label class="crm-field ao-manual"><span>Số CCCD / CMND <small>Sale up thủ công</small><em>*</em></span><input id="aoCccd" class="ao-mono" inputmode="numeric" maxlength="12" required placeholder="Nhập số CCCD (12 số)" value="${esc(picked?.cccd||'')}"></label>
+        <label class="crm-field ao-manual"><span>Địa Chỉ Khách Hàng <small>Sale up thủ công</small><em>*</em></span><input id="aoAddress" maxlength="240" required placeholder="Ví dụ: Số 12 Duy Tân, Cầu Giấy, Hà Nội" value="${esc(picked?.address||'')}"></label>
+        <label class="crm-field"><span>Sản Phẩm / Dịch Vụ <em>*</em></span><select id="aoProduct">${products.map(p=>`<option value="${esc(p.id)}" data-price="${Number(p.price)||0}">${esc(p.name)} (${esc(money(p.price))})</option>`).join('')}</select></label>
+        <label class="crm-field"><span>Sale Phụ Trách <em>*</em></span><select id="aoSale" ${sales.length===1?'disabled':''}>${sales.map(s=>`<option value="${esc(s.id)}" ${s===preSale?'selected':''}>${esc(s.name||s.accountId||s.id)}</option>`).join('')}</select></label>
+      </div>
+      <div class="ao-grid-3">
+        <label class="crm-field"><span>Doanh Thu (VNĐ) <em>*</em></span><input id="aoSubtotal" class="ao-mono" type="number" min="1" step="1" required></label>
+        <label class="crm-field"><span>Hình Thức Thu <em>*</em></span><select id="aoPayType" class="ao-paytype"><option value="FULL">Thanh toán đủ 100%</option><option value="50">Đặt cọc 50%</option><option value="30">Đặt cọc 30%</option><option value="CUSTOM">Cọc số tiền tùy chọn</option></select></label>
+        <label class="crm-field"><span class="ao-green">Thực Thu (Cọc) <em>*</em></span><input id="aoCollected" class="ao-mono ao-collected" type="number" min="1" step="1" required></label>
+      </div>
+      <div class="ao-remaining" role="status" aria-live="polite"><span>Số tiền còn lại khách phải thanh toán:</span><b id="aoRemaining">0 VND</b></div>
+      <div class="ao-bill">
+        <span class="ao-bill-title">Hóa Đơn / Bill Chuyển Khoản Ngân Hàng Đính Kèm <em>*</em></span>
+        <div class="ao-bill-row"><select id="aoBank" aria-label="Ngân hàng chuyển khoản">${ORDER_BANKS.map(b=>opt(b,'Bill '+b)).join('')}</select>
+          <input id="aoBillFile" type="file" accept="image/*" class="ao-file"><label class="crm-file-button" for="aoBillFile">📁 Tải ảnh bill</label></div>
+        <span class="crm-file-name" id="aoBillName">Chưa chọn ảnh bill</span><div class="crm-image-preview" id="aoBillPreview"></div>
+      </div>
+      <label class="crm-field crm-field-full"><span>Ghi Chú Của Sale Khi Tạo Đơn</span><input id="aoNote" maxlength="1000" placeholder="Ví dụ: Khách cọc 50%, hẹn 28/09 đóng nốt..."></label>
+      <label class="ao-vat-check"><input type="checkbox" id="aoRequireVat"> Khách hàng yêu cầu xuất hóa đơn VAT (Nhập MST &amp; Công ty)</label>
+      <div class="crm-form-grid ao-vat" id="aoVatInputs" hidden>
+        <label class="crm-field"><span>Mã số thuế (MST) <em>*</em></span><input id="aoTaxCode" class="ao-mono" inputmode="numeric" maxlength="13" placeholder="10 - 13 chữ số"></label>
+        <label class="crm-field"><span>Tên công ty / Đơn vị <em>*</em></span><input id="aoCompany" maxlength="200" placeholder="Tên công ty xuất hóa đơn"></label>
+      </div>
+      <p class="ao-summary" id="aoSummary"></p>`;
+    let bill='';
+    const amounts=()=>{const subtotal=Math.floor(Number(q('#aoSubtotal').value)||0),vatAmount=q('#aoRequireVat').checked?Math.round(subtotal*0.1):0,total=subtotal+vatAmount,collected=Math.floor(Number(q('#aoCollected').value)||0);return {subtotal,vatAmount,total,collected,remaining:Math.max(0,total-collected)};};
+    const modal=editor('➕ Tạo Đơn Hàng Mới (Sale / Kế Toán)',body,async()=>{
+      const v=id=>q('#'+id).value.trim(),phone=v('aoPhone').replace(/[^0-9+]/g,''),digits=phone.replace(/\D/g,''),cccd=v('aoCccd').replace(/\D/g,''),a=amounts(),vat=q('#aoRequireVat').checked;
+      const taxCode=vat?v('aoTaxCode').replace(/\D/g,''):'',companyName=vat?v('aoCompany'):'';
+      if(!v('aoName'))throw Error('Nhập tên khách hàng.');
+      if(digits.length<9||digits.length>13)throw Error('Số điện thoại khách hàng không hợp lệ.');
+      if(cccd.length!==12)throw Error('CCCD phải đủ 12 chữ số.');
+      if(!v('aoAddress'))throw Error('Nhập địa chỉ khách hàng.');
+      if(!(a.subtotal>0))throw Error('Doanh thu phải lớn hơn 0.');
+      if(!(a.collected>0)||a.collected>a.total)throw Error('Thực thu phải lớn hơn 0 và không vượt tổng đơn '+money(a.total)+'.');
+      if(!bill)throw Error('Đính kèm ảnh bill chuyển khoản.');
+      if(vat&&!/^\d{10,13}$/.test(taxCode))throw Error('MST phải có 10 đến 13 chữ số.');
+      if(vat&&!companyName)throw Error('Nhập tên công ty xuất hóa đơn VAT.');
+      const existing=customers.find(c=>phoneKey(c.phone)===phoneKey(phone)),email=existing?.email||'';
+      const payload={customerName:v('aoName'),phone,email,cccd,address:v('aoAddress'),productId:q('#aoProduct').value,saleId:q('#aoSale').value,subtotal:a.subtotal,vatRate:vat?0.1:0,amountPaid:a.collected,paymentMethod:'BANK_TRANSFER',bankReference:q('#aoBank').value,requireVat:vat,taxCode,companyName,saleNote:v('aoNote'),billImage:bill,billing:{name:v('aoName'),phone,email,cccd,address:v('aoAddress'),taxId:taxCode}};
+      const result=await api.createOrder({...payload,source:'accounting-iframe'});
+      showOrderSuccess(result);
+      const note=q('#referenceOrderSuccess .order-success-note'),order=result?.order;
+      if(note&&order)note.textContent=order.status==='PAID'?'Đã thu đủ 100%, đơn đã chuyển Kế toán đối soát và xuất VAT.':'Đã cọc '+money(order.amountPaid)+', còn lại '+money(order.balanceDue)+'. Xuất VAT mở khi thu đủ 100%.';
+    });
+    modal.querySelector('.modal-card').classList.add('ao-card');
+    const submit=modal.querySelector('.modal-footer [type=submit]');if(submit)submit.textContent='✓ Tạo Đơn Hàng & Gửi Kế Toán';
+    const close=modal.querySelector('.modal-footer [data-editor-close]');if(close)close.textContent='Hủy Bỏ';
+    const recalc=()=>{const a=amounts(),box=modal.querySelector('.ao-remaining');box.classList.toggle('is-paid',a.remaining<=0&&a.collected>0);
+      q('#aoRemaining').textContent=a.remaining<=0?'0 VND (Đủ 100%)':money(a.remaining)+' (Còn thiếu '+Math.round(a.remaining/Math.max(1,a.total)*100)+'%)';
+      q('#aoSummary').textContent='Doanh thu '+money(a.subtotal)+(a.vatAmount?' · VAT 10% '+money(a.vatAmount):' · Không VAT')+' · Tổng đơn '+money(a.total);};
+    const applyPayType=()=>{const type=q('#aoPayType').value,a=amounts();if(type==='FULL')q('#aoCollected').value=a.total;else if(type!=='CUSTOM')q('#aoCollected').value=Math.round(a.total*Number(type)/100);recalc();};
+    const setProductPrice=()=>{q('#aoSubtotal').value=Number(q('#aoProduct').selectedOptions[0]?.dataset.price)||0;applyPayType();};
+    q('#aoProduct').onchange=setProductPrice;
+    q('#aoSubtotal').oninput=applyPayType;q('#aoPayType').onchange=applyPayType;
+    q('#aoCollected').oninput=()=>{const a=amounts();q('#aoPayType').value=a.collected===a.total?'FULL':'CUSTOM';recalc();};
+    q('#aoRequireVat').onchange=e=>{q('#aoVatInputs').hidden=!e.target.checked;q('#aoTaxCode').required=q('#aoCompany').required=e.target.checked;applyPayType();};
+    // Chọn SĐT khách có sẵn thì điền tên, CCCD, địa chỉ và Sale đang phụ trách.
+    q('#aoPhone').onchange=()=>{const c=customers.find(item=>phoneKey(item.phone)===phoneKey(q('#aoPhone').value));if(!c)return;
+      q('#aoName').value=c.name||q('#aoName').value;if(c.cccd)q('#aoCccd').value=c.cccd;if(c.address)q('#aoAddress').value=c.address;
+      if(c.saleId&&sales.some(s=>String(s.id)===String(c.saleId)))q('#aoSale').value=c.saleId;};
+    q('#aoBillFile').onchange=async e=>{const file=e.target.files[0],err=modal.querySelector('[data-editor-error]');err.textContent='';
+      try{bill=await compressBill(file);q('#aoBillName').textContent=file.name;q('#aoBillPreview').innerHTML='<img alt="Bill chuyển khoản đã chọn" src="'+bill+'">';}
+      catch(error){bill='';e.target.value='';q('#aoBillName').textContent='Chưa chọn ảnh bill';q('#aoBillPreview').innerHTML='';err.textContent=error.message;}};
+    ensureAccountingOrderStyles();setProductPrice();q('#aoName').focus();
+  }
+  function ensureAccountingOrderStyles(){
+    if(q('#accountingOrderStyles'))return;
+    const style=document.createElement('style');style.id='accountingOrderStyles';style.textContent=`
+      .ao-card{width:min(680px,calc(100vw - 28px))!important;max-height:min(880px,94dvh)!important}
+      .ao-card .modal-header{background:var(--accent-soft,#eff6ff)!important;border-bottom-color:#bfdbfe!important}
+      .ao-card .modal-header h3{color:var(--accent-dark,#1d4ed8)!important}
+      .ao-card,.ao-card .crm-field input:not([type=file]),.ao-card .crm-field select{font-family:var(--font-sans)!important}
+      .ao-card .reference-editor-body{display:grid!important;gap:14px}
+      .ao-lead{margin:0;color:var(--text-muted);font-size:12px}
+      .ao-card .ao-mono{font-family:var(--font-mono)!important;font-weight:700}
+      .ao-manual input{border-color:#93c5fd!important;background:#eff6ff!important}
+      .ao-manual>span{color:var(--accent-dark,#1d4ed8)!important}
+      .ao-grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+      .ao-card .ao-paytype{color:#c2410c;font-weight:700}
+      .ao-green{color:#047857!important}.ao-card .ao-collected{border-color:#86efac;color:#047857}
+      .ao-remaining{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 14px;border:1px solid #fecaca;border-radius:var(--radius-sm,8px);background:#fef2f2;color:#b91c1c;font-size:12px;font-weight:700}
+      .ao-remaining b{font-family:var(--font-mono);font-size:14px;color:#dc2626;white-space:nowrap}
+      .ao-remaining.is-paid{border-color:#bbf7d0;background:#f0fdf4;color:#15803d}.ao-remaining.is-paid b{color:#15803d}
+      .ao-bill{display:grid;gap:8px;padding:12px;border:1px solid var(--border,#e2e8f0);border-radius:var(--radius-md,10px);background:var(--bg-subtle,#f8fafc)}
+      .ao-bill-title{color:#334155;font-size:12px;font-weight:800}.ao-bill-title em,.ao-vat em{color:#dc2626;font-style:normal}
+      .ao-bill-row{display:flex;gap:10px;align-items:center}
+      .ao-bill-row select{flex:1;min-width:0;min-height:38px;padding:7px 10px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;color:var(--text-main);font:500 13px var(--font-sans)}
+      .ao-bill-row .crm-file-button{min-height:38px;border:1px solid #cbd5e1;background:#fff}
+      .ao-file{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+      .ao-file:focus-visible+label{outline:2px solid var(--accent,#2563eb);outline-offset:2px}
+      .ao-card [hidden]{display:none!important}
+      .ao-vat-check{display:flex;align-items:center;gap:8px;color:#6d28d9;font-size:12px;font-weight:700;cursor:pointer}
+      .ao-vat-check input{width:16px;height:16px;accent-color:#6d28d9}
+      .ao-summary{margin:0;color:var(--text-muted);font-size:11.5px}
+      @media(max-width:600px){.ao-grid-3{grid-template-columns:1fr;gap:13px}.ao-remaining{flex-direction:column;align-items:flex-start}.ao-bill-row{flex-direction:column;align-items:stretch}}
+    `;document.head.appendChild(style);
+  }
+  // Nút tạo đơn ở tab Đơn hàng mở form trống; nút trong hồ sơ khách điền sẵn khách đang xem.
+  openOrderModal=()=>openAccountingOrderForm('');
+  openOrderModalFromDrawer=()=>{const id=selectedCustomer;closeDrawer();openAccountingOrderForm(id);};
   markAllNotificationsRead=()=>run(()=>api.readNotifications());
   // Khi bat tu dong, mac dinh dung che do ty trong cho data moi.
   toggleAutoDist=enabled=>run(()=>api.distribution(enabled,enabled?'BALANCED':data.settings.assignmentMode));
@@ -3277,6 +3460,7 @@
     if(!data&&!bootScreen.hidden)bootFallbackTimer=setTimeout(revealLoginFallback,500);
   };
   window.addEventListener('crm:session-changed',()=>refresh(true));
+  window.addEventListener('crm:state-changed',()=>refresh());
   const cachedSnapshot=readCachedSnapshot();
   if(cachedSnapshot){
     try{refresh(true,cachedSnapshot);}catch(error){

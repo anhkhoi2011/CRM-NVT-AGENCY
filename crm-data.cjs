@@ -785,7 +785,8 @@ async function writeFastCustomerNotes(user, requestId, changes, enabled = false)
    const old = coreRow('customers', row);
    if (!noteOnlyCustomerChange(old, change.value)) { await c.rollback().catch(() => {}); return null; }
    if (!fastNoteScope(user, row, memberRows)) error(403, 'Bạn không có quyền sửa ghi chú khách này.');
-   if (change.base && revision(old) !== change.base) error(409, 'Ghi chú đã được cập nhật bởi người khác. Hãy tải lại rồi thử lại.');
+   // Bản ghi đã đổi ở máy khác: chuyển sang đường ghi đầy đủ để gộp theo trường thay vì báo 409.
+   if (change.base && revision(old) !== change.base) { await c.rollback().catch(() => {}); return null; }
    const next = change.value;
    const note = String(next.note || '').slice(0, 2000);
    const updatedAt = String(next.updatedAt || new Date().toLocaleString('sv-SE',{timeZone:'Asia/Ho_Chi_Minh'}).slice(0,19)).slice(0,19);
@@ -810,6 +811,24 @@ async function writeFastCustomerNotes(user, requestId, changes, enabled = false)
  finally { c.release(); }
 }
 
+// Gộp theo trường: nhiều người cùng sửa một khách (khác cột) không còn bị 409 khóa cả phiên lưu.
+// Cột trùng nhau thì lượt lưu sau thắng; các cột người khác vừa sửa được giữ nguyên.
+const BLOCKED_FIELDS=new Set(['__proto__','constructor','prototype','id']);
+function mergeCustomerFields(old,next,fields){
+ const merged=JSON.parse(JSON.stringify(old));
+ for(const path of fields){
+  if(typeof path!=='string'||!path||path.length>200)error(400,'Trường khách không hợp lệ');
+  if(path.startsWith('customFields.')){
+   const field=path.slice(13);if(!field||BLOCKED_FIELDS.has(field))error(400,'Trường khách không hợp lệ');
+   merged.customFields={...(merged.customFields||{})};
+   if(next.customFields&&Object.hasOwn(next.customFields,field))merged.customFields[field]=next.customFields[field];else delete merged.customFields[field];
+   continue;
+  }
+  if(BLOCKED_FIELDS.has(path))error(400,'Trường khách không hợp lệ');
+  if(Object.hasOwn(next,path))merged[path]=next[path];else delete merged[path];
+ }
+ return merged;
+}
 async function writeLocked(user,requestId,changes,options={}){
  if(typeof requestId!=='string'||!/^[-\w]{1,96}$/.test(requestId)||!Array.isArray(changes)||changes.length>2000)error(400,'Gói lưu không hợp lệ');
  const fastResult = await writeFastCustomerNotes(user, requestId, changes, options.fastNote === true);
@@ -830,11 +849,15 @@ async function writeLocked(user,requestId,changes,options={}){
   const prospective={...data,customers:new Map(data.customers)};
   // Kiểm tra toàn bộ xung đột/quyền trước khi ghi bất kỳ bảng nào.
   for(const change of changes){
-   const {key,id,base,value}=change;
+   const {key,id}=change;let {base,value}=change;
    if(!data[key]||typeof id!=='string'||!/^[-\w.$:]{1,96}$/.test(id)||seen.has(`${key}/${id}`))error(400,'Mã bản ghi không hợp lệ/trùng');
    if(OBJECTS.includes(key)&&id!=='$')error(400,'Khóa cấu hình không hợp lệ');
    seen.add(`${key}/${id}`);
    const old=data[key].get(id);
+   if(key==='customers'&&old&&value&&Array.isArray(change.fields)&&change.fields.length<=200){
+    const current=revision(publicValue(user,key,old,data));
+    if(current!==base){change.value=value=mergeCustomerFields(old,value,change.fields);change.base=base=current;}
+   }
    if(key==='customers'&&user.role==='SALE'&&old&&pendingOffer(data,user,old.id)&&value){
      change.value={...old,saleId:user.id,saleAcceptedAt:value.saleAcceptedAt||new Date().toLocaleString('sv-SE',{timeZone:'Asia/Ho_Chi_Minh'}).slice(0,19),updatedAt:value.updatedAt||new Date().toLocaleString('sv-SE',{timeZone:'Asia/Ho_Chi_Minh'}).slice(0,19),status:value.status||old.status,note:value.note!==undefined?value.note:old.note};
    }
@@ -875,4 +898,4 @@ async function writeLocked(user,requestId,changes,options={}){
 }
 // Mọi lượt ghi qua CRM làm mới bộ đệm snapshot dùng chung (kể cả khi lỗi giữa chừng).
 async function write(user,requestId,changes,options={}){try{return await writeLocked(user,requestId,changes,options);}finally{invalidateSnapshotCache();}}
-module.exports={invalidateSnapshotCache,queueTelegramNotice,snapshot,distributeAutomatic,prepare,seedProductCatalog,read,write,writeFastCustomerNotes,revision,canonical,coreRow,userRow,authorize,readable,validate,LISTS,OBJECTS,SCHEMA};
+module.exports={mergeCustomerFields,invalidateSnapshotCache,queueTelegramNotice,snapshot,distributeAutomatic,prepare,seedProductCatalog,read,write,writeFastCustomerNotes,revision,canonical,coreRow,userRow,authorize,readable,validate,LISTS,OBJECTS,SCHEMA};

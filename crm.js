@@ -1036,16 +1036,21 @@ function pendingChanges() {
   const now=serverRecords(), changes=[];
   for(const key of new Set([...now.keys(),...serverBaseline.keys()])) {
     if(stableJson(now.get(key))===stableJson(serverBaseline.get(key)))continue;
-    const slash=key.indexOf('/');let value=now.get(key)??null;
+    const slash=key.indexOf('/');let value=now.get(key)??null,fields=null;
     // Chỉ gửi các trường thực sự được sửa; thông tin bổ sung để hiển thị không được coi là thay đổi nguồn khách.
     if(key.startsWith('customers/')&&value&&serverSourceBaseline.has(key)&&serverBaseline.has(key)){
-      const displayBase=serverBaseline.get(key), edited=value;value=structuredClone(serverSourceBaseline.get(key));
+      const displayBase=serverBaseline.get(key), edited=value;value=structuredClone(serverSourceBaseline.get(key));fields=[];
       for(const field of new Set([...Object.keys(displayBase),...Object.keys(edited)])){
         if(stableJson(displayBase[field])===stableJson(edited[field]))continue;
         if(Object.hasOwn(edited,field))value[field]=structuredClone(edited[field]);else delete value[field];
+        // customFields gửi theo từng cột để máy chủ gộp với cột người khác vừa sửa cùng lúc.
+        if(field==='customFields'){const a=displayBase.customFields||{},b=edited.customFields||{};for(const id of new Set([...Object.keys(a),...Object.keys(b)]))if(stableJson(a[id])!==stableJson(b[id]))fields.push('customFields.'+id);}
+        else fields.push(field);
       }
     }
-    changes.push({key:key.slice(0,slash),id:key.slice(slash+1),base:serverVersions[key]??null,value});
+    const change={key:key.slice(0,slash),id:key.slice(slash+1),base:serverVersions[key]??null,value};
+    if(fields)change.fields=fields;
+    changes.push(change);
   }
   return changes;
 }
@@ -1160,8 +1165,22 @@ async function flushServerPersistence(requestOptions = {}) {
   })();
   try{return await serverSavePromise;}finally{serverSavePromise=null;}
 }
-function startServerSyncPolling(){stopServerSyncPolling();serverSyncTimer=setInterval(()=>{if(!document.hidden&&currentAccount&&serverSyncToken){syncServerState();refreshNavigationCounts();}},15000);}
-function stopServerSyncPolling(){if(serverSyncTimer)clearInterval(serverSyncTimer);serverSyncTimer=null;}
+function startServerSyncPolling(){stopServerSyncPolling();serverSyncTimer=setInterval(()=>{if(!document.hidden&&currentAccount&&serverSyncToken){syncServerState();refreshNavigationCounts();}},15000);serverVersionTimer=setInterval(checkServerVersion,5000);}
+function stopServerSyncPolling(){if(serverSyncTimer)clearInterval(serverSyncTimer);serverSyncTimer=null;if(serverVersionTimer)clearInterval(serverVersionTimer);serverVersionTimer=null;serverVersionSeen='';}
+// Vòng 15 giây vẫn giữ làm lưới an toàn (webhook, chia tự động...). Vòng 5 giây chỉ hỏi số phiên bản:
+// Sale đổi trạng thái thì Leader/Manager/Admin thấy sau vài giây thay vì 15–30 giây.
+let serverVersionTimer=null,serverVersionSeen='',serverVersionReading=false;
+async function checkServerVersion(){
+  if(document.hidden||!currentAccount||!serverSyncToken||!serverStateLoaded||serverVersionReading)return;
+  serverVersionReading=true;
+  try{
+    const response=await fetch(webhookApiBase()+'/api/state/version',{headers:{Authorization:'Bearer '+serverSyncToken},cache:'no-store'});
+    if(!response.ok)return;
+    const {version}=await response.json();
+    const changed=serverVersionSeen&&version!==serverVersionSeen;serverVersionSeen=version;
+    if(changed&&await syncServerState()){try{if(window.parent&&window.parent!==window)window.parent.dispatchEvent(new Event('crm:state-changed'));}catch{}}
+  }catch(error){}finally{serverVersionReading=false;}
+}
 async function refreshNavigationCounts() {
   if(!serverSyncToken||currentAccount?.role!=='ADMIN'||navigationCountsReading)return false;
   navigationCountsReading=true;

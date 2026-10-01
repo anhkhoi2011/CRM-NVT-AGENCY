@@ -314,3 +314,49 @@
   color: #475569;
   font-weight: 600;
 }
+
+/* Cây đội ngũ v8: mặc định thu gọn, chỉ hiện người + số khách. Dùng biến giao diện chung của CRM. */
+#teamHierarchyOverview{font-family:var(--font-sans)}
+#teamHierarchyOverview .team-hierarchy-title{font-size:15px;font-weight:800;color:var(--text-main);text-transform:none;letter-spacing:0}
+#teamHierarchyOverview .team-hierarchy-subtitle{margin-top:4px;font-size:12px;font-weight:500;color:var(--text-muted)}
+#teamHierarchyOverview .tt-root{display:grid;gap:10px;margin-top:14px}
+#teamHierarchyOverview .tt-team,#teamHierarchyOverview .tt-group{border:1px solid var(--border);border-radius:var(--radius-md);background:var(--bg-surface);box-shadow:var(--shadow-card)}
+#teamHierarchyOverview .tt-person{border:1px solid var(--border-light);border-radius:var(--radius-sm);background:var(--bg-surface)}
+#teamHierarchyOverview .tt-head{display:flex;align-items:center;gap:12px;min-width:0;width:100%;padding:12px 14px;border:0;background:transparent;color:inherit;font:inherit;text-align:left}
+#teamHierarchyOverview .tt-person>.tt-head{padding:8px 12px}
+#teamHierarchyOverview button.tt-head{cursor:pointer;border-radius:var(--radius-md)}
+#teamHierarchyOverview button.tt-head:hover{background:var(--bg-subtle)}
+#teamHierarchyOverview button.tt-head:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+#teamHierarchyOverview button.tt-head[aria-expanded="true"]{border-bottom:1px solid var(--border-light);border-radius:var(--radius-md) var(--radius-md) 0 0}
+#teamHierarchyOverview .tt-copy{display:grid;gap:2px;min-width:0;flex:1}
+#teamHierarchyOverview .tt-title{display:flex;align-items:center;gap:8px;min-width:0;flex-wrap:wrap}
+#teamHierarchyOverview .tt-title b{font-size:13px;font-weight:700;color:var(--text-main);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#teamHierarchyOverview .tt-team>.tt-head .tt-title b,#teamHierarchyOverview .tt-group>.tt-head .tt-title b{font-size:14px;font-weight:800}
+#teamHierarchyOverview .tt-copy small{font-size:12px;font-weight:500;color:var(--text-muted)}
+#teamHierarchyOverview .tt-count{flex:0 0 auto;padding:3px 10px;border-radius:var(--radius-pill);background:var(--bg-subtle);color:var(--text-main);font-size:12px;font-weight:700;white-space:nowrap}
+#teamHierarchyOverview .tt-chevron{display:grid;place-items:center;flex:0 0 auto;width:26px;height:26px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-surface);color:var(--text-muted);font-size:15px;font-weight:700;line-height:1}
+#teamHierarchyOverview .tt-avatar{display:grid;place-items:center;flex:0 0 auto;width:32px;height:32px;border-radius:50%;border:1px solid;font-size:11.5px;font-weight:700}
+#teamHierarchyOverview .tt-person .tt-avatar{width:28px;height:28px;font-size:10.5px}
+#teamHierarchyOverview .tt-avatar.manager{background:var(--accent-soft);border-color:#bfdbfe;color:var(--accent-dark)}
+#teamHierarchyOverview .tt-avatar.leader{background:#eef2ff;border-color:#c7d2fe;color:#4338ca}
+#teamHierarchyOverview .tt-avatar.sale{background:#f0fdf4;border-color:#bbf7d0;color:#15803d}
+#teamHierarchyOverview .tt-pill{padding:2px 8px;border:1px solid;border-radius:var(--radius-pill);font-size:10px;font-weight:700;letter-spacing:.02em}
+#teamHierarchyOverview .tt-pill.manager{background:var(--accent-soft);border-color:#bfdbfe;color:var(--accent-dark)}
+#teamHierarchyOverview .tt-pill.leader{background:#eef2ff;border-color:#c7d2fe;color:#4338ca}
+#teamHierarchyOverview .tt-pill.sale{background:#f0fdf4;border-color:#bbf7d0;color:#15803d}
+/* Đường nối cây: mỗi con tự vẽ đoạn ngang + đoạn dọc, con cuối dừng tại chính nó. */
+#teamHierarchyOverview .tt-branch{position:relative;display:grid;gap:8px;padding:10px 14px 12px 44px}
+#teamHierarchyOverview .tt-branch>.tt-card{position:relative}
+#teamHierarchyOverview .tt-branch>.tt-card::before{content:"";position:absolute;left:-20px;top:22px;width:20px;border-top:1.5px solid var(--text-faint)}
+#teamHierarchyOverview .tt-branch>.tt-card::after{content:"";position:absolute;left:-20px;top:-10px;bottom:0;border-left:1.5px solid var(--text-faint)}
+#teamHierarchyOverview .tt-branch>.tt-card:last-child::after{bottom:auto;height:32px}
+#teamHierarchyOverview .tt-branch>.tt-group::before{top:28px}
+#teamHierarchyOverview .tt-branch>.tt-group:last-child::after{height:38px}
+#teamHierarchyOverview .tt-empty{padding:12px;color:var(--text-muted);font-size:12px;text-align:center}
+@media(max-width:720px){
+  #teamHierarchyOverview .tt-branch{padding:8px 8px 10px 26px}
+  #teamHierarchyOverview .tt-branch>.tt-card::before{left:-14px;width:14px}
+  #teamHierarchyOverview .tt-branch>.tt-card::after{left:-14px}
+  #teamHierarchyOverview .tt-head{gap:8px;padding:10px}
+  #teamHierarchyOverview .tt-copy small{font-size:11px}
+}

@@ -1634,3 +1634,18 @@ test('External invalidation refreshes the shared snapshot cache',async()=>{
  const next=await f.api.read(admin,{passive:true});
  assert.equal(next.state.customers[0].name,'Đổi từ Telegram');
 });
+
+test('Nhiều người cùng sửa một khách khác cột: gộp theo trường, không 409, không mất dữ liệu',async()=>{
+ const f=fixture(),first=await f.api.write(admin,'seed',[change('customers',customer)]);
+ const stale=first.state.customers[0],base=first.versions['customers/c1'];
+ // Admin đổi Level trước; Sale vẫn cầm bản cũ rồi đổi trạng thái gọi.
+ await f.api.write(admin,'admin-level',[{...change('customers',{...stale,customFields:{...stale.customFields,level:'L5'}},base),fields:['customFields.level']}]);
+ await f.api.write(sale,'sale-call',[{...change('customers',{...stale,customFields:{...stale.customFields,callStatus:'CALLED'}},base),fields:['customFields.callStatus']}]);
+ for(const viewer of [admin,sale]){const c=(await f.api.read(viewer)).state.customers[0];assert.equal(c.customFields.level,'L5');assert.equal(c.customFields.callStatus,'CALLED');}
+ // Cùng một cột: lượt lưu sau thắng.
+ await f.api.write(admin,'admin-call',[{...change('customers',{...stale,customFields:{...stale.customFields,callStatus:'MISSED'}},base),fields:['customFields.callStatus']}]);
+ assert.equal((await f.api.read(sale)).state.customers[0].customFields.callStatus,'MISSED');
+ // Gộp vẫn kiểm tra quyền: Sale không được đổi đội qua danh sách trường.
+ await assert.rejects(f.api.write(sale,'sale-team',[{...change('customers',{...stale,teamId:'X'},base),fields:['teamId']}]),e=>e.status===403);
+ await assert.rejects(f.api.write(admin,'proto',[{...change('customers',stale,base),fields:['__proto__']}]),e=>e.status===400);
+});

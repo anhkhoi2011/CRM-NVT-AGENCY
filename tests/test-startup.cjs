@@ -34,12 +34,12 @@ function bootFixture(){
  const element=()=>({children:[],style:{},querySelector(){return null;},setAttribute(){},appendChild(n){this.children.push(n);},replaceChildren(n){this.children=[n];}});
  const boot=element();boot.hidden=false;
  let observerCallback;
- const context={document:{getElementById:()=>boot,createElement:element},window:{addEventListener:(event,fn)=>{listeners[event]=fn;}},location:{reload(){reloaded=true;}},setTimeout:(fn,ms)=>{const timer={fn,ms};timers.push(timer);return timer;},clearTimeout:timer=>{timer.cleared=true;},MutationObserver:class{constructor(fn){observerCallback=fn;}observe(){}disconnect(){disconnected=true;}}};
+ const context={document:{getElementById:()=>boot,createElement:element},window:{addEventListener:(event,fn)=>{listeners[event]=fn;}},URL,location:{href:'https://crm.test/?tab=team',reload(){reloaded=true;},replace(url){reloaded=url;}},setTimeout:(fn,ms)=>{const timer={fn,ms};timers.push(timer);return timer;},clearTimeout:timer=>{timer.cleared=true;},MutationObserver:class{constructor(fn){observerCallback=fn;}observe(){}disconnect(){disconnected=true;}}};
  const html=fs.readFileSync(ROOT+'/index.html','utf8');const code=html.match(/<script id="crm-boot-watchdog">([\s\S]*?)<\/script>/)[1];vm.runInNewContext(code,context);
  return {boot,timers,listeners,observer:()=>observerCallback(),get reloaded(){return reloaded;},get disconnected(){return disconnected;}};
 }
 test('Missing startup script offers reload without touching pending storage',()=>{
- const f=bootFixture();f.listeners.error({target:{tagName:'SCRIPT'}});assert.equal(f.boot.children.length,1);const retry=f.boot.children[0].children[0];retry.onclick();assert.equal(f.reloaded,true);
+ const f=bootFixture();f.listeners.error({target:{tagName:'SCRIPT'}});assert.equal(f.boot.children.length,1);const retry=f.boot.children[0].children[0];retry.onclick();assert.match(String(f.reloaded),/^https:\/\/crm\.test\/\?tab=team&r=[0-9a-z]+$/);
 });
 test('Stalled boot has a bounded timeout and no automatic reload loop',()=>{
  const f=bootFixture();assert.equal(f.timers[0].ms,45000);f.timers[0].fn();assert.equal(f.boot.children.length,1);assert.equal(f.reloaded,false);

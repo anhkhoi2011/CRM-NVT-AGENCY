@@ -42,7 +42,8 @@ try { nodemailer = require('nodemailer'); } catch { /* email optional until npm 
 const PORT = Number(process.env.PORT || 4173);
 const HOST = process.env.HOST || '0.0.0.0';
 const SERVER_INSTANCE = crypto.randomUUID();
-const BUILD_VERSION = '20261001-shared-snapshot-cache';
+let demoStateVersion = 1;
+const BUILD_VERSION = '20261001-sync-merge-1';
 const REPO_ROOT = path.resolve(__dirname);
 const DEFAULT_WEBHOOK_DATA_DIR = process.env.WEBHOOK_DATA_DIR
   ? path.resolve(process.env.WEBHOOK_DATA_DIR)
@@ -419,6 +420,7 @@ async function handleDemoApi(request, response, pathname) {
       return dbJson(request,response,200,{...demoPayload(user),ok:true,customerId:customer.id});
     }catch(error){return dbJson(request,response,error.status||400,{error:error.message});}
   }
+  if (pathname === '/api/state/version' && request.method === 'GET') return dbJson(request, response, 200, { version: String(demoStateVersion) });
   if (pathname === '/api/state' && request.method === 'GET') return dbJson(request, response, 200, demoPayload(user));
   if (pathname === '/api/state' && request.method === 'POST') {
     const body = await readDbBody(request);
@@ -428,6 +430,8 @@ async function handleDemoApi(request, response, pathname) {
       for(const change of changes.slice().sort((a,b)=>(a.key==='customers'?0:1)-(b.key==='customers'?0:1))){
         const {key,id}=change;let {value}=change;if(!original[key])throw Object.assign(Error('Collection không hợp lệ'),{status:400});
         const old=original[key].get(id);
+        // Giống MySQL: khách sửa theo danh sách trường thì gộp vào bản mới nhất.
+        if(key==='customers'&&old&&value&&Array.isArray(change.fields)&&change.fields.length<=200)value=crmData.mergeCustomerFields(old,value,change.fields);
         // Sale nhan ban ghi da che thong tin: giu thong tin goc nhu luong MySQL.
         const pending=key==='customers'&&user.role==='SALE'&&old&&demoState.dataOffers.some(o=>o.customerId===id&&o.saleId===user.id&&o.status==='PENDING');
         if(pending&&value)value={...old,saleId:user.id,saleAcceptedAt:value.saleAcceptedAt,updatedAt:value.updatedAt,status:value.status||old.status,note:value.note!==undefined?value.note:old.note};
@@ -437,6 +441,7 @@ async function handleDemoApi(request, response, pathname) {
       }
       Object.assign(demoState,next);
     }catch(e){return dbJson(request,response,e.status||400,{error:e.message});}
+    demoStateVersion++;
     return dbJson(request, response, 200, { ...demoPayload(user), ok: true });
   }
   return dbJson(request, response, 404, { error: 'Demo API không hỗ trợ endpoint này' });
@@ -575,6 +580,12 @@ async function handleDbApi(request, response, pathname) {
       await dbQuery('UPDATE users SET password_hash=? WHERE id=?',[await hashPassword(password),id]);
       await dbQuery('DELETE FROM crm_sessions WHERE user_id=?',[id]);
       return dbJson(request,response,200,{ok:true});
+    }
+    // Máy khác vừa ghi gì chưa: chỉ đọc id lớn nhất của crm_changes để các vai trò đồng bộ sau vài giây
+    // mà không phải tải lại toàn bộ snapshot (SSE tắt trên shared hosting).
+    if(pathname==='/api/state/version'&&request.method==='GET'){
+      const rows=await dbQuery('SELECT MAX(id) AS version FROM crm_changes');
+      return dbJson(request,response,200,{version:String(rows[0]?.version||0)});
     }
     if(pathname==='/api/state'){
       if(request.method==='GET'){
@@ -1453,7 +1464,17 @@ async function serveStatic(request, response, urlPathname) {
 /* ------------------------------------------------------------------ router */
 
 const server = http.createServer(async (request, response) => {
-  const url = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
+  let url;
+  try {
+    const rawUrl = String(request.url || '/');
+    const host = String(request.headers.host || 'localhost').replace(/[\r\n]/g, '').trim() || 'localhost';
+    url = new URL(rawUrl, `http://${host}`);
+  } catch (error) {
+    response.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' });
+    response.end(JSON.stringify({ error: 'URL không hợp lệ' }));
+    console.warn('[http] Bỏ qua request có URL không hợp lệ:', error.code || error.message);
+    return;
+  }
   const pathname = url.pathname;
   // Mọi request ghi (webhook, đăng nhập, CRM) làm mới cache snapshot dùng chung để lượt
   // đồng bộ kế tiếp của người khác thấy dữ liệu mới, không phải chờ hết TTL.
@@ -1561,7 +1582,7 @@ const server = http.createServer(async (request, response) => {
       await dbQuery('UPDATE customer_appointments SET status = ?, note = COALESCE(?, note) WHERE id = ?', [status, body.note || null, id]);
       return sendJson(response, 200, { ok: true }, corsHeaders(request));
     }
-    if (pathname === '/api/db/health' || pathname === '/api/navigation-counts' || pathname === '/api/user-activity' || pathname === '/api/admin/user-activity' || pathname.startsWith('/api/auth/') || pathname.startsWith('/api/telegram/') || pathname.startsWith('/api/support/') || pathname.startsWith('/api/users') || pathname.startsWith('/api/customers') || pathname.startsWith('/api/orders') || pathname.startsWith('/api/products') || pathname.startsWith('/api/settings') || pathname === '/api/state') return await handleDbApi(request, response, pathname);
+    if (pathname === '/api/db/health' || pathname === '/api/navigation-counts' || pathname === '/api/user-activity' || pathname === '/api/admin/user-activity' || pathname.startsWith('/api/auth/') || pathname.startsWith('/api/telegram/') || pathname.startsWith('/api/support/') || pathname.startsWith('/api/users') || pathname.startsWith('/api/customers') || pathname.startsWith('/api/orders') || pathname.startsWith('/api/products') || pathname.startsWith('/api/settings') || pathname === '/api/state' || pathname === '/api/state/version') return await handleDbApi(request, response, pathname);
     if (pathname === '/api/health/live') {
       return sendJson(response, 200, { ok: true, live: true, telegramWorker: telegramWorker?.status() || (inlineTelegramScheduler ? 'inline' : 'disabled'), instance: SERVER_INSTANCE, build: BUILD_VERSION, authPool: authPool.stats(), password: passwordService.stats() });
     }
