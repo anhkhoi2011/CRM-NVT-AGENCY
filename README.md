@@ -1,30 +1,44 @@
 # NVT AGENCY CRM
 
-## Files used in production
+## Cấu trúc thư mục
 
-- `app.js`, `webhook-server.cjs`, `webhook-store.cjs`, `db.js`, `support-chat.cjs`, `telegram-bot.cjs`: Node.js API, MySQL access, landing webhook, internal support chat, Telegram integration, and static file server.
-- `index.html`, `crm-runtime.html`, `crm-runtime-api.js`, `crm.js`, `crm.css`, `crm-modern.css`, `nvt-mobile-auth.css`, `care-ui.js`, `reference-view.js`, `reference-crm.js`, `support-chat-widget.js`: CRM interface and its runtime bridge.
-- `crm-data.cjs`, `crm-defaults.json`, `product-catalog.json`, `system-accounts.cjs`, `system-accounts.json`: server-side business rules and safe one-time seed data.
-- `database/`: MySQL schema and incremental migrations. Do not delete, rename, or overwrite these files during a normal frontend update.
+```
+.                      Mã chạy production (cPanel chép đúng các file ở gốc, xem .cpanel.yml)
+├── app.js             File khởi động Passenger → webhook-server.cjs
+├── *.cjs, db.js       Server Node: API, MySQL, webhook landing, Telegram, hỗ trợ nội bộ
+├── *.html, *.css, *.js  Giao diện CRM (index.html, crm-runtime.html, reference-crm.js, crm.js…)
+├── *.json             Dữ liệu mặc định / seed an toàn (crm-defaults, product-catalog, system-accounts…)
+├── assets/            Ảnh tĩnh dùng trong giao diện
+├── database/          Schema + migration MySQL (không xóa, đổi tên hay ghi đè khi cập nhật)
+├── docs/              Tài liệu: architecture/, deployment/, operations/, reference-ui/
+├── tests/             Test tự động (node --test), chạy từ thư mục gốc
+└── tools/             Công cụ dev (demo-server.cjs)
+```
 
-## Development and verification
+File runtime giữ ở gốc vì server phục vụ tĩnh theo danh sách đường dẫn cố định và `.cpanel.yml` chép theo tên file. Khi thêm file mới cần chạy production, nhớ thêm vào cả `.cpanel.yml` và danh sách static trong `webhook-server.cjs`.
 
-- `npm start`: starts the production-style local server on port 4173.
-- `npm run demo`: starts a local in-memory demo server. It does not write MySQL and its data is lost after restart.
-- `npm test`: runs persistence, permissions, webhook, and UI integration tests.
+## Cập nhật code
 
-## Documentation
+1. `npm test`: phải qua hết trước khi đẩy.
+2. Sửa JS/CSS phía trình duyệt: tăng `?v=` tương ứng trong `index.html` / `crm-runtime.html` để trình duyệt tải bản mới.
+3. Sửa server: tăng `BUILD_VERSION` trong `webhook-server.cjs`; sau deploy mở `/api/health` để xác nhận bản mới đang chạy.
+4. Deploy trên cPanel (Git Version Control → Update + Deploy), Node app tự restart qua `tmp/restart.txt`.
 
-Operational, deployment, UI, data persistence, and role notes are grouped under `docs/`. Reference screenshots are in `docs/reference-ui/`; they are not loaded by the CRM.
+## Lệnh
 
-## Local-only files
+- `npm start`: chạy server kiểu production ở cổng 4173.
+- `npm run demo`: server demo dữ liệu trong RAM, không ghi MySQL.
+- `npm test`: chạy toàn bộ test trong `tests/`.
 
-- `node_modules/`: installed dependencies; recreate with `npm ci`.
-- `.chrome-layout-check/`: browser QA cache; ignored by Git and safe to remove.
-- `.env`: hosting credentials; never commit it.
+## File chỉ có ở máy
+
+- `node_modules/`: tạo lại bằng `npm ci`.
+- `.env`: thông tin hosting, không bao giờ commit. Mẫu ở `.env.example`.
 
 ## Telegram bots
 
-The system bot uses `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME` and `TELEGRAM_ADMIN_CHAT_ID` for account linking, data notifications, attendance, reminders and agency announcements. The support bot uses `TELEGRAM_SUPPORT_BOT_TOKEN`, `TELEGRAM_SUPPORT_BOT_USERNAME` and `TELEGRAM_SUPPORT_ADMIN_CHAT_ID` only for Sale messages sent from the CRM internal support inbox.
+Bot hệ thống dùng `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, `TELEGRAM_ADMIN_CHAT_ID` cho liên kết tài khoản, báo data, điểm danh, nhắc lịch và thông báo. Bot hỗ trợ dùng `TELEGRAM_SUPPORT_BOT_TOKEN`, `TELEGRAM_SUPPORT_BOT_USERNAME`, `TELEGRAM_SUPPORT_ADMIN_CHAT_ID` chỉ cho tin nhắn hỗ trợ nội bộ.
 
-Register separate HTTPS webhooks: `TELEGRAM_WEBHOOK_URL` must end in `/api/telegram/webhook`, while `TELEGRAM_SUPPORT_WEBHOOK_URL` must end in `/api/telegram/support-webhook`. Use a different random `TELEGRAM_WEBHOOK_SECRET` and `TELEGRAM_SUPPORT_WEBHOOK_SECRET` for each bot; neither secret is a bot token. Support images are stored outside the public web directory and are served only through authenticated CRM sessions.
+Webhook HTTPS riêng: `TELEGRAM_WEBHOOK_URL` kết thúc bằng `/api/telegram/webhook`, `TELEGRAM_SUPPORT_WEBHOOK_URL` kết thúc bằng `/api/telegram/support-webhook`, mỗi bot một `*_WEBHOOK_SECRET` ngẫu nhiên khác nhau (không phải token). Server đăng ký lại webhook khi khởi động; bot hệ thống phải nhận `callback_query` thì nút ĐIỂM DANH / Nhận data mới hoạt động.
+
+Worker Telegram và watchdog: xem `docs/deployment/TELEGRAM-WORKER-WATCHDOG.md`.

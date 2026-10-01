@@ -1014,7 +1014,7 @@ const WEBHOOK_PENDING_CAP = 200;
 // cPanel/Passenger thường cần vài giây để đánh thức Node và pool MySQL sau khi idle.
 const WEBHOOK_FETCH_TIMEOUT_MS = 15000;
 const WEBHOOK_POLL_LIVE_MS = 30000;
-const WEBHOOK_POLL_IDLE_MS = 5000;
+const WEBHOOK_POLL_IDLE_MS = 15000;
 
 const WEBHOOK_TRANSPORT_META = {
   idle: ['Chưa bật đồng bộ', 'pending'],

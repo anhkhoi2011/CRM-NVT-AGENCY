@@ -6,7 +6,7 @@ async function provisionSystemAccounts(pool) {
   const c = await pool.getConnection();
   let locked = false;
   try {
-    // Ch? m?c ??ng nh?p ph?i ???c b?o ??m ? m?i l?n kh?i ??ng, k? c? khi seed t?i kho?n ?? ch?y tr??c ??.
+    // Chỉ mục đăng nhập phải được bảo đảm ở mỗi lần khởi động, kể cả khi seed tài khoản đã chạy trước đó.
     const [userIndexes] = await c.query('SHOW INDEX FROM users');
     const indexNames = new Set(userIndexes.map(index => String(index.Key_name)));
     if (!indexNames.has('idx_users_email_active')) await c.query('CREATE INDEX idx_users_email_active ON users(email, active)');

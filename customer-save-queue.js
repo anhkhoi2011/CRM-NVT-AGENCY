@@ -53,9 +53,17 @@
       emit();void drain();
     },
     restore(records,makeAction){
-      if(running||jobs.length)throw Error('Queue already contains edits');
-      for(const {key,payload} of records)jobs.push({key,payload,action:makeAction(payload)});
-      if(jobs.length){
+      // Gộp bản nháp cũ với thay đổi mới: ô nào người dùng vừa sửa (đã có trong
+      // hàng đợi) thì giữ bản mới, các ô còn lại lấy từ bản nháp đã lưu.
+      const queued=new Set(jobs.map(job=>job.key));
+      const restored=[];
+      for(const {key,payload} of records){
+        if(!key||queued.has(key))continue;
+        queued.add(key);restored.push({key,payload,action:makeAction(payload)});
+      }
+      // Không chen vào trước job đang chạy; đặt bản nháp cũ trước các job mới chưa chạy.
+      jobs.splice(running&&jobs.length?1:0,0,...restored);
+      if(restored.length){
         // Ghi checkpoint trước khi gửi request. Nếu người dùng F5 tiếp
         // trong lúc khôi phục, bản nháp vẫn còn để lần sau gửi lại.
         checkpoint();

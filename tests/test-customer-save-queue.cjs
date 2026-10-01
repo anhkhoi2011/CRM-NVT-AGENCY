@@ -1,4 +1,7 @@
 'use strict';
+// Test chạy theo thư mục gốc dự án: fs đọc file và require module từ gốc.
+const ROOT=require('node:path').resolve(__dirname,'..');process.chdir(ROOT);
+require=require('node:module').createRequire(ROOT+'/');
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const createQueue=require('./customer-save-queue.js');
@@ -81,4 +84,24 @@ test('Cached snapshot waits for matching runtime identity before restoring draft
  const start=source.indexOf('  function restoreCustomerSelections()'),end=source.indexOf('  const customerSaveQueue=',start);
  const c={api:null,data:{user:{id:'sale'}},customerDraftOwner:null};vm.createContext(c);vm.runInContext(source.slice(start,end),c);
  c.restoreCustomerSelections();assert.equal(c.customerDraftOwner,null);c.api={sessionIdentity:()=>({id:'other'})};c.restoreCustomerSelections();assert.equal(c.customerDraftOwner,null);
+});
+
+test('Restoring drafts after an edit merges instead of discarding the stored notes',async()=>{
+ const writes=[],records=[];let release;
+ const q=createQueue({isBusy:()=>false,setBusy(){},onChange(){},persist:items=>{records.splice(0,records.length,...items);}});
+ q.enqueue('field:c:note',async()=>{writes.push('new-note');await new Promise(resolve=>{release=resolve;});},{id:'c',value:'new-note'});
+ q.restore([{key:'field:c:note',payload:{id:'c',value:'old-note'}},{key:'field:d:note',payload:{id:'d',value:'kept'}}],payload=>async()=>{writes.push(payload.value);});
+ assert.deepEqual(records.map(r=>r.key),['field:c:note','field:d:note']);
+ release();await tick();await tick();
+ assert.deepEqual(writes,['new-note','kept']);assert.deepEqual(records,[]);
+});
+test('Draft restore uses its own marker so an early keystroke cannot skip it',()=>{
+ const source=require('node:fs').readFileSync('reference-crm.js','utf8');
+ const body=source.slice(source.indexOf('  function restoreCustomerSelections()'),source.indexOf('  const customerSaveQueue='));
+ assert.ok(body.includes('customerDraftsRestoredFor===data.user.id'));
+ assert.ok(!body.includes('if(customerDraftOwner===data.user.id)return;'));
+ for(const name of ['function saveCustomerSelection(','function stageCustomerNoteSelection(']){
+  const fn=source.slice(source.indexOf(name),source.indexOf('\n  }\n',source.indexOf(name)));
+  assert.ok(fn.indexOf('restoreCustomerSelections()')<fn.indexOf('customerDraftOwner=data.user.id'),name);
+ }
 });

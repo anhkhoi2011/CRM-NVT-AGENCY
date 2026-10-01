@@ -114,7 +114,14 @@ async function answerCallbackQuery(callbackQueryId, text = '', showAlert = false
 }
 
 async function setWebhook(webhookUrl, secretToken = '', bot = 'system') {
-  const body = { url: webhookUrl };
+  // Telegram giữ allowed_updates cũ nếu không gửi lại. Bot hệ thống bắt buộc nhận
+  // callback_query, nếu không nút "ĐIỂM DANH"/"Nhận data" sẽ không bao giờ tới server.
+  // max_connections nhỏ để webhook không chiếm hết slot kết nối của hosting.
+  const body = {
+    url: webhookUrl,
+    allowed_updates: bot === 'support' ? ['message'] : ['message', 'callback_query'],
+    max_connections: 5
+  };
   if (secretToken) body.secret_token = secretToken;
   const res = await callTelegram('setWebhook', body, bot);
   console.log(`[Telegram ${bot} Bot] Webhook setup result:`, res);

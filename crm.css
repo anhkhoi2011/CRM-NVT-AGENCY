@@ -1685,7 +1685,7 @@ section[data-accounting-panel="mindmap"]{padding:14px}
 @media(max-width:900px){.accounting-kpis,.accounting-profit{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.accounting-kpis,.accounting-profit{grid-template-columns:1fr}.accounting-tabs .btn-action{flex:1 1 calc(50% - 8px)}}
 
-/* Nh?m K? to?n & Hoa h?ng thu g?n; ch? m? danh s?ch khi ng??i d?ng b?m ti?u ??. */
+/* Nhóm Kế toán & Hoa hồng thu gọn; chỉ mở danh sách khi người dùng bấm tiêu đề. */
 #accountingNavGroup .accounting-nav-toggle{display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:pointer;user-select:none}
 #accountingNavGroup .accounting-nav-toggle:focus-visible{outline:2px solid rgba(249,87,33,.85);outline-offset:2px;border-radius:6px}
 #accountingNavGroup .accounting-nav-chevron{font-size:13px;line-height:1;color:#91a5ba;transition:transform .16s ease}

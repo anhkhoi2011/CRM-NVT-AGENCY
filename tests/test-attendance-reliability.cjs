@@ -1,4 +1,7 @@
 'use strict';
+// Test chạy theo thư mục gốc dự án: fs đọc file và require module từ gốc.
+const ROOT=require('node:path').resolve(__dirname,'..');process.chdir(ROOT);
+require=require('node:module').createRequire(ROOT+'/');
 const test=require('node:test'),assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
 function fixture(shared={claims:new Set(),attendance:new Map()}) {
  const events=[],sent=[],user={id:'sale-1',name:'Nhân viên',team_id:'TEAM',role:'SALE',telegram_chat_id:'123'};

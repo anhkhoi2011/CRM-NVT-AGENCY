@@ -1,4 +1,7 @@
 'use strict';
+// Test chạy theo thư mục gốc dự án: fs đọc file và require module từ gốc.
+const ROOT=require('node:path').resolve(__dirname,'..');process.chdir(ROOT);
+require=require('node:module').createRequire(ROOT+'/');
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os'),http=require('node:http'),{EventEmitter}=require('node:events');
 const {createTelegramLoop}=require('./telegram-worker.cjs'),{startTelegramWorker}=require('./telegram-worker-supervisor.cjs'),{runWatchdog,probeLive}=require('./watchdog.cjs');
 const tick=()=>new Promise(r=>setImmediate(r));

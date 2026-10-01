@@ -1,10 +1,13 @@
 'use strict';
+// Test chạy theo thư mục gốc dự án: fs đọc file và require module từ gốc.
+const ROOT=require('node:path').resolve(__dirname,'..');process.chdir(ROOT);
+require=require('node:module').createRequire(ROOT+'/');
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
-const html=fs.readFileSync(__dirname+'/index.html','utf8');
-const source=fs.readFileSync(__dirname+'/reference-crm.js','utf8');
+const html=fs.readFileSync(ROOT+'/index.html','utf8');
+const source=fs.readFileSync(ROOT+'/reference-crm.js','utf8');
 
 test('F5: HTML mẫu được che ngay cả khi CSS ngoài chưa tải',()=>{
  const guard=html.match(/<style id="crm-startup-guard">([\s\S]*?)<\/style>/)[1];
@@ -43,7 +46,7 @@ test('F5: chỉ runtime xác nhận unauthenticated mới được hiện login'
 });
 
 function restoreHarness(responses){
- const runtime=fs.readFileSync(__dirname+'/crm.js','utf8');
+ const runtime=fs.readFileSync(ROOT+'/crm.js','utf8');
  const code=runtime.slice(runtime.indexOf('let runtimeRestorePromise='),runtime.indexOf('async function initialize()'));
  const timers=[],removed=[],seen=[],nodes={};let session={token:'t'};
  const storage={getItem:()=>JSON.stringify(session)};
@@ -69,7 +72,7 @@ test('F5: bấm thử lại liên tiếp chỉ có một request khôi phục đ
  release({ok:true,status:200,json:async()=>({user:{id:'u'},state:{}})});await a;
 });
 test('HTML runtime có version vẫn phải kiểm tra lại cache khi deploy',()=>{
- const server=fs.readFileSync(__dirname+'/webhook-server.cjs','utf8');
+ const server=fs.readFileSync(ROOT+'/webhook-server.cjs','utf8');
  assert.match(server,/'Cache-Control':extension==='\.html' \? 'no-cache'/);
  assert.match(html,/crm-runtime\.html\?v=20261001-worker-swr-1/);
 });

@@ -1174,6 +1174,21 @@
   }
 }
 
+/* Hộp thoại Kế toán: ẩn mặc định, chỉ hiện khi mở */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 1000;
+}
+.modal-overlay.active { display: flex; }
+.modal-overlay .custom-confirm-card { max-height: calc(100vh - 32px); overflow-y: auto; }
+body.accounting-modal-open { overflow: hidden; }
+
 /* Custom Confirm Dialog Modal */
 .custom-confirm-card {
   background: #ffffff;
@@ -9209,6 +9224,34 @@ window.printOrderInvoice = printOrderInvoice;
     showToast(msg, 'info', 'Hệ Thống CRM');
   };
 
+  // Mở/đóng hộp thoại Kế toán: khóa cuộn nền, cập nhật aria và trả focus về chỗ cũ.
+  let accountingModalReturnFocus = null;
+  function setAccountingModalOpen(modalId, open) {
+    const modal = document.getElementById(modalId);
+    if (!modal) return;
+    if (open) {
+      accountingModalReturnFocus = document.activeElement;
+      modal.classList.add('active');
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('accounting-modal-open');
+      const focusTarget = modal.querySelector('input, select, textarea, button');
+      if (focusTarget) focusTarget.focus();
+    } else {
+      modal.classList.remove('active');
+      modal.setAttribute('aria-hidden', 'true');
+      if (!document.querySelector('.modal-overlay.active')) document.body.classList.remove('accounting-modal-open');
+      if (accountingModalReturnFocus && typeof accountingModalReturnFocus.focus === 'function') accountingModalReturnFocus.focus();
+      accountingModalReturnFocus = null;
+    }
+  }
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') {
+      if (document.getElementById('customConfirmModal')?.classList.contains('active')) closeCustomConfirmModal();
+      else if (document.getElementById('collectPaymentModal')?.classList.contains('active')) closeCollectPaymentModal();
+      else if (document.getElementById('issueVatDirectModal')?.classList.contains('active')) closeIssueVatDirectModal();
+    }
+  });
+
   // Custom Confirm Dialog
   let customConfirmCallback = null;
   function showConfirmDialog({ title, message, confirmText = 'Xác Nhận', isDanger = true, onConfirm }) {
@@ -9244,12 +9287,11 @@ window.printOrderInvoice = printOrderInvoice;
       if (customConfirmCallback) customConfirmCallback();
     };
 
-    modal.classList.add('active');
+    setAccountingModalOpen('customConfirmModal', true);
   }
 
   function closeCustomConfirmModal() {
-    const modal = document.getElementById('customConfirmModal');
-    if (modal) modal.classList.remove('active');
+    setAccountingModalOpen('customConfirmModal', false);
     customConfirmCallback = null;
   }
 
@@ -9298,12 +9340,11 @@ window.printOrderInvoice = printOrderInvoice;
     document.getElementById('cpmTransCode').value = ftRand;
     document.getElementById('cpmNote').value = `Khách ${order.customerName} thanh toán nốt tiền còn lại`;
 
-    document.getElementById('collectPaymentModal').classList.add('active');
+    setAccountingModalOpen('collectPaymentModal', true);
   }
 
   function closeCollectPaymentModal() {
-    const m = document.getElementById('collectPaymentModal');
-    if (m) m.classList.remove('active');
+    setAccountingModalOpen('collectPaymentModal', false);
     currentCollectingOrderId = null;
   }
 
@@ -9378,12 +9419,11 @@ window.printOrderInvoice = printOrderInvoice;
     document.getElementById('ivmEmail').value = order.invoiceEmail || order.customerEmail || 'ketoan.khachhang@gmail.com';
     document.getElementById('ivmIssuedDate').value = new Date().toLocaleString('vi-VN');
 
-    document.getElementById('issueVatDirectModal').classList.add('active');
+    setAccountingModalOpen('issueVatDirectModal', true);
   }
 
   function closeIssueVatDirectModal() {
-    const m = document.getElementById('issueVatDirectModal');
-    if (m) m.classList.remove('active');
+    setAccountingModalOpen('issueVatDirectModal', false);
     currentVatOrderId = null;
   }
 
@@ -9526,7 +9566,7 @@ window.printOrderInvoice = printOrderInvoice;
 <!-- ====================================================================
      MODAL 1: FORM XÁC NHẬN THU TIỀN / THU NỐT ĐƠN HÀNG (THAY THẾ CONFIRM POPUP)
      ==================================================================== -->
-<div id="collectPaymentModal" class="modal-overlay">
+<div id="collectPaymentModal" class="modal-overlay" role="dialog" aria-modal="true" aria-hidden="true">
   <div class="custom-confirm-card" style="max-width:540px;">
     <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px; border-bottom:1px solid #f1f5f9; padding-bottom:12px;">
       <div style="display:flex; align-items:center; gap:10px;">
@@ -9626,7 +9666,7 @@ window.printOrderInvoice = printOrderInvoice;
 <!-- ====================================================================
      MODAL 2: FORM XUẤT HÓA ĐƠN VAT TRỰC TIẾP
      ==================================================================== -->
-<div id="issueVatDirectModal" class="modal-overlay">
+<div id="issueVatDirectModal" class="modal-overlay" role="dialog" aria-modal="true" aria-hidden="true">
   <div class="custom-confirm-card" style="max-width:540px;">
     <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px; border-bottom:1px solid #f1f5f9; padding-bottom:12px;">
       <div style="display:flex; align-items:center; gap:10px;">
@@ -9720,7 +9760,7 @@ window.printOrderInvoice = printOrderInvoice;
 <!-- ====================================================================
      MODAL 3: CUSTOM CONFIRM DIALOG (THAY THẾ CONFIRM POPUP KHI XÓA)
      ==================================================================== -->
-<div id="customConfirmModal" class="modal-overlay">
+<div id="customConfirmModal" class="modal-overlay" role="dialog" aria-modal="true" aria-hidden="true">
   <div class="custom-confirm-card">
     <div class="custom-confirm-header">
       <div class="custom-confirm-icon danger" id="ccmIcon">⚠️</div>

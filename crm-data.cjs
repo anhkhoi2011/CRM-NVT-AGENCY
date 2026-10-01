@@ -119,16 +119,15 @@ async function allData(c, options={}){
  const data=Object.fromEntries([...LISTS,...OBJECTS].map(k=>[k,new Map()]));
  const collections=[...LISTS,...OBJECTS];
  const placeholders=collections.map(()=>'?').join(',');
- // These reads are independent. Keeping them in one Promise.all avoids making
- // the state snapshot wait through a long chain of unrelated queries.
- const [docsResult,customersResult,ordersResult,productsResult,usersResult,settingsResult]=await Promise.all([
-  c.execute('SELECT * FROM crm_documents WHERE collection IN ('+placeholders+')',collections),
-  c.query('SELECT * FROM customers'),
-  c.query('SELECT * FROM orders'),
-  c.query('SELECT * FROM products'),
-  c.query('SELECT id,account_code,phone,email,name,role,team_id,leader_id,telegram_chat_id,telegram_username,active,created_at FROM users'),
-  c.query('SELECT setting_key,setting_value FROM system_settings')
- ]);
+ // Một kết nối MySQL chỉ chạy lần lượt từng câu. Promise.all làm đồng hồ timeout
+ // của mọi câu bắt đầu cùng lúc, nên câu xếp sau bị DB_QUERY_TIMEOUT oan và hủy
+ // cả kết nối (lỗi "Chưa tải được dữ liệu máy chủ"). Chạy tuần tự: mỗi câu đủ hạn riêng.
+ const docsResult=await c.execute('SELECT * FROM crm_documents WHERE collection IN ('+placeholders+')',collections);
+ const customersResult=await c.query('SELECT * FROM customers');
+ const ordersResult=await c.query('SELECT * FROM orders');
+ const productsResult=await c.query('SELECT * FROM products');
+ const usersResult=await c.query('SELECT id,account_code,phone,email,name,role,team_id,leader_id,telegram_chat_id,telegram_username,active,created_at FROM users');
+ const settingsResult=await c.query('SELECT setting_key,setting_value FROM system_settings');
  const [docs]=docsResult;
  const deleted=new Set();
  for(const d of docs){if(!data[d.collection])continue;if(d.deleted)deleted.add(`${d.collection}/${d.id}`);else data[d.collection].set(d.id,parsed(d.body));}
@@ -704,7 +703,7 @@ async function writeFastCustomerNotes(user, requestId, changes, enabled = false)
  const c = await pool.getConnection();
  try {
   const [done] = await c.query('SELECT actor_id FROM crm_changes WHERE request_id=? LIMIT 1', [requestId]);
-  if (done.length) { if (String(done[0].actor_id) !== String(user.id)) error(409, 'M? y?u c?u ?? t?n t?i.'); await c.rollback().catch(() => {}); return {...await read(user,{passive:true}),ok:true,replayed:true}; }
+  if (done.length) { if (String(done[0].actor_id) !== String(user.id)) error(409, 'Mã yêu cầu đã tồn tại.'); await c.rollback().catch(() => {}); return {...await read(user,{passive:true}),ok:true,replayed:true}; }
   const [rows] = await c.query('SELECT * FROM customers WHERE id IN (' + ids.map(() => '?').join(',') + ')', ids);
   const byId = new Map(rows.map(row => [String(row.id), row]));
   const [members] = await c.query('SELECT id,role,team_id,leader_id,active FROM users WHERE active=1');
@@ -718,11 +717,11 @@ async function writeFastCustomerNotes(user, requestId, changes, enabled = false)
   const history = [];
   for (const change of customerChanges) {
    const row = byId.get(String(change.id));
-   if (!row) error(409, 'Kh?ch h?ng kh?ng c?n t?n t?i.');
+   if (!row) error(409, 'Khách hàng không còn tồn tại.');
    const old = coreRow('customers', row);
    if (!noteOnlyCustomerChange(old, change.value)) { await c.rollback().catch(() => {}); return null; }
-   if (!fastNoteScope(user, row, memberRows)) error(403, 'B?n kh?ng c? quy?n s?a ghi ch? kh?ch n?y.');
-   if (change.base && revision(old) !== change.base) error(409, 'Ghi ch? ?? ???c c?p nh?t b?i ng??i kh?c. H?y t?i l?i r?i th? l?i.');
+   if (!fastNoteScope(user, row, memberRows)) error(403, 'Bạn không có quyền sửa ghi chú khách này.');
+   if (change.base && revision(old) !== change.base) error(409, 'Ghi chú đã được cập nhật bởi người khác. Hãy tải lại rồi thử lại.');
    const next = change.value;
    const note = String(next.note || '').slice(0, 2000);
    const updatedAt = String(next.updatedAt || new Date().toLocaleString('sv-SE',{timeZone:'Asia/Ho_Chi_Minh'}).slice(0,19)).slice(0,19);
@@ -748,7 +747,7 @@ async function writeFastCustomerNotes(user, requestId, changes, enabled = false)
 }
 
 async function write(user,requestId,changes,options={}){
- if(typeof requestId!=='string'||!/^[-\w]{1,96}$/.test(requestId)||!Array.isArray(changes)||changes.length>2000)error(400,'G?i l?u kh?ng h?p l?');
+ if(typeof requestId!=='string'||!/^[-\w]{1,96}$/.test(requestId)||!Array.isArray(changes)||changes.length>2000)error(400,'Gói lưu không hợp lệ');
  const fastResult = await writeFastCustomerNotes(user, requestId, changes, options.fastNote === true);
  if (fastResult) return fastResult;
  if(typeof requestId!=='string'||!/^[-\w]{1,96}$/.test(requestId)||!Array.isArray(changes)||changes.length>2000)error(400,'Gói lưu không hợp lệ');

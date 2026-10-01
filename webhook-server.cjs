@@ -42,7 +42,7 @@ try { nodemailer = require('nodemailer'); } catch { /* email optional until npm 
 const PORT = Number(process.env.PORT || 4173);
 const HOST = process.env.HOST || '0.0.0.0';
 const SERVER_INSTANCE = crypto.randomUUID();
-const BUILD_VERSION = '20260930-auth-workers';
+const BUILD_VERSION = '20261001-no-sse-notes-fix';
 const REPO_ROOT = path.resolve(__dirname);
 const DEFAULT_WEBHOOK_DATA_DIR = process.env.WEBHOOK_DATA_DIR
   ? path.resolve(process.env.WEBHOOK_DATA_DIR)
@@ -153,7 +153,7 @@ async function authUser(request) {
   } catch (error) {
     const cached = sessionUserCache.get(hash);
     if (cached && Date.now() - cached.at < SESSION_CACHE_TTL) {
-      console.warn('[auth-session-cache] D?ng phi?n cache t?m th?i:', error.code || error.message);
+      console.warn('[auth-session-cache] Dùng phiên cache tạm thời:', error.code || error.message);
       return cached.user;
     }
     throw error;
@@ -519,7 +519,7 @@ async function handleDbApi(request, response, pathname) {
     void touchUserSession(request).catch(error => console.warn('[session-touch]', error.code || error.message));
     if(pathname.startsWith('/api/support/'))return await handleSupportApi(request,response,pathname,user);
     if(pathname==='/api/auth/me')return dbJson(request,response,200,{user});
-    if(pathname==='/api/auth/logout' && request.method==='POST'){void recordUserActivity(user,request,'LOGOUT','Dang xuat CRM');const hash=tokenHash(request);sessionUserCache.delete(hash);await authQuery('DELETE FROM crm_sessions WHERE token_hash=?',[hash]);return dbJson(request,response,200,{ok:true});}
+    if(pathname==='/api/auth/logout' && request.method==='POST'){void recordUserActivity(user,request,'LOGOUT','Đăng xuất CRM');const hash=tokenHash(request);sessionUserCache.delete(hash);await authQuery('DELETE FROM crm_sessions WHERE token_hash=?',[hash]);return dbJson(request,response,200,{ok:true});}
     if(pathname==='/api/user-activity' && request.method==='POST'){
       const body=await readDbBody(request),activity=await setUserActivity(request,body.view);
       if(activity.changed)await recordUserActivity(user,request,'OPEN_SCREEN',activity.detail);
@@ -585,8 +585,13 @@ async function handleDbApi(request, response, pathname) {
       }
       if(request.method==='POST'){
         const body=await readDbBody(request);
-        if(body.skipAutomatic===true&&user.role!=='ADMIN')return dbJson(request,response,403,{error:'Admin only'});
-        const result=await crmData.write(user,body.requestId,body.changes,{skipAutomatic:body.skipAutomatic===true,fastNote:body.fastNote===true});
+        // Client gửi skipAutomatic cho mọi lần sửa chỉ gồm khách/ghi chú/audit (kể cả Sale).
+        // Trước đây non-Admin bị 403 → client đánh dấu xung đột, ghi chú không bao giờ lưu
+        // và mất khi F5. Non-Admin chỉ được bỏ qua chia tự động với gói nền như vậy;
+        // gói khác vẫn chạy chia tự động thay vì bị từ chối.
+        const backgroundOnly=Array.isArray(body.changes)&&body.changes.length>0&&body.changes.every(change=>['customers','notes','audit'].includes(change?.key));
+        const skipAutomatic=body.skipAutomatic===true&&(user.role==='ADMIN'||backgroundOnly);
+        const result=await crmData.write(user,body.requestId,body.changes,{skipAutomatic,fastNote:body.fastNote===true});
         notifyInboxListeners({id:body.requestId,kind:'state',receivedAt:stamp()});
 
         wakeTelegramOutbox();
@@ -1055,40 +1060,40 @@ function maskEmail(value) {
 
 function handleEmailStatus(request, response) {
   const cors = emailCorsHeaders(request);
-  if (cors === null) return sendJson(response, 403, { configured: false, error: 'Ngu?n g?i kh?ng h?p l?' });
-  if (request.method !== 'GET') return sendJson(response, 405, { configured: false, error: 'Ch? ch?p nh?n GET' }, { Allow: 'GET', ...cors });
+  if (cors === null) return sendJson(response, 403, { configured: false, error: 'Nguồn gửi không hợp lệ' });
+  if (request.method !== 'GET') return sendJson(response, 405, { configured: false, error: 'Chỉ chấp nhận GET' }, { Allow: 'GET', ...cors });
   sendJson(response, 200, { configured: SMTP_ENABLED, sender: maskEmail(SMTP_FROM), host: SMTP_HOST, port: SMTP_PORT }, cors);
 }
 
 async function handleEmailNotify(request, response) {
   const cors = emailCorsHeaders(request);
-  if (cors === null) return sendJson(response, 403, { sent: false, error: 'Ngu?n g?i kh?ng h?p l?' });
+  if (cors === null) return sendJson(response, 403, { sent: false, error: 'Nguồn gửi không hợp lệ' });
   if (request.method === 'OPTIONS') {
     response.writeHead(204, { ...cors, 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, X-CRM-Email-Token', 'Access-Control-Max-Age': '600' });
     response.end();
     return;
   }
-  if (request.method !== 'POST') return sendJson(response, 405, { sent: false, error: 'Ch? ch?p nh?n POST' }, { Allow: 'POST, OPTIONS', ...cors });
-  if (!checkEmailToken(request)) return sendJson(response, 401, { sent: false, error: 'Thi?u ho?c sai m? b?o v? email' }, cors);
-  if (!mailTransporter) return sendJson(response, 503, { sent: false, configured: false, error: 'Server ch?a c?u h?nh Gmail SMTP' }, cors);
+  if (request.method !== 'POST') return sendJson(response, 405, { sent: false, error: 'Chỉ chấp nhận POST' }, { Allow: 'POST, OPTIONS', ...cors });
+  if (!checkEmailToken(request)) return sendJson(response, 401, { sent: false, error: 'Thiếu hoặc sai mã bảo vệ email' }, cors);
+  if (!mailTransporter) return sendJson(response, 503, { sent: false, configured: false, error: 'Server chưa cấu hình Gmail SMTP' }, cors);
 
   let payload;
   try {
     const buffer = await readBody(request);
     payload = JSON.parse(buffer.toString('utf8'));
   } catch {
-    return sendJson(response, 400, { sent: false, error: 'Body JSON kh?ng h?p l?' }, cors);
+    return sendJson(response, 400, { sent: false, error: 'Body JSON không hợp lệ' }, cors);
   }
   const recipients = [...new Set((Array.isArray(payload?.recipients) ? payload.recipients : [payload?.to]).map(value => String(value || '').trim().toLowerCase()).filter(validEmail))].slice(0, 20);
   const subject = String(payload?.subject || '').trim().slice(0, 180);
   const text = String(payload?.text || '').trim().slice(0, 10000);
-  if (!recipients.length || !subject || !text) return sendJson(response, 422, { sent: false, error: 'Thi?u ng??i nh?n, ti?u ?? ho?c n?i dung' }, cors);
+  if (!recipients.length || !subject || !text) return sendJson(response, 422, { sent: false, error: 'Thiếu người nhận, tiêu đề hoặc nội dung' }, cors);
   try {
     const result = await mailTransporter.sendMail({ from: SMTP_FROM, to: recipients.join(', '), subject, text });
     sendJson(response, 200, { sent: true, messageId: result.messageId, recipients }, cors);
   } catch (error) {
     console.error('[email] send failed:', error.message);
-    sendJson(response, 502, { sent: false, error: 'G?i Gmail th?t b?i' }, cors);
+    sendJson(response, 502, { sent: false, error: 'Gửi Gmail thất bại' }, cors);
   }
 }
 
@@ -1320,7 +1325,17 @@ async function handleInbox(request, response, url) {
   }, corsHeaders(request));
 }
 
+// Trên shared hosting (LiteSpeed/CloudLinux) mỗi kết nối SSE giữ một slot xử lý
+// vĩnh viễn; vài tab mở là đủ làm các request khác xếp hàng tới khi timeout.
+// Mặc định tắt: trả 204 để EventSource ngừng tự nối lại, client dùng polling.
+const SSE_ENABLED = process.env.ENABLE_SSE === '1';
+function rejectStream(response, request) {
+  response.writeHead(204, { 'Cache-Control': 'no-store', ...corsHeaders(request) });
+  response.end();
+}
+
 function handleInboxStream(request, response) {
+  if (!SSE_ENABLED) return rejectStream(response, request);
   response.writeHead(200, {
     'Content-Type': 'text/event-stream; charset=utf-8',
     'Cache-Control': 'no-store',
@@ -1339,6 +1354,7 @@ function handleInboxStream(request, response) {
 }
 
 function handleSupportStream(request, response, user) {
+  if (!SSE_ENABLED) return rejectStream(response, request);
   response.writeHead(200, {
     'Content-Type': 'text/event-stream; charset=utf-8',
     'Cache-Control': 'no-store',
@@ -1461,9 +1477,13 @@ const server = http.createServer(async (request, response) => {
         try {
           const buffer = await readBody(request);
           const update = JSON.parse(buffer.toString('utf8') || '{}');
-          const handled = await telegramBot.handleTelegramUpdate(update, supportWebhook ? 'support' : 'system');
-          if (handled?.support?.matched && handled.support.requesterUserId) notifySupportListeners(handled.support);
-          return sendJson(response, 200, { ok: true });
+          // Trả 200 ngay: Telegram chờ tối đa vài giây rồi báo "Read timeout" và gửi lại
+          // cùng update. Điểm danh và nhận data đều idempotent nên xử lý nền là an toàn.
+          sendJson(response, 200, { ok: true });
+          void telegramBot.handleTelegramUpdate(update, supportWebhook ? 'support' : 'system')
+            .then(handled => { if (handled?.support?.matched && handled.support.requesterUserId) notifySupportListeners(handled.support); })
+            .catch(err => console.warn('[Telegram Webhook] error:', err.code || err.message));
+          return;
         } catch (err) {
           console.warn('[Telegram Webhook] error:', err.message);
           return sendJson(response, 200, { ok: false, error: err.message });

@@ -188,14 +188,17 @@
   }
 
   function startRealtime() {
-    if (state.streamController || !state.user || !window.fetch || !window.TextDecoder) return;
+    if (state.streamDisabled || state.streamController || !state.user || !window.fetch || !window.TextDecoder) return;
     const auth = token();
     if (!auth) return;
     const controller = new AbortController();
     state.streamController = controller;
     (async () => {
+      let retry = true;
       try {
         const response = await fetch('/api/support/stream', { headers: { Authorization: `Bearer ${auth}`, Accept: 'text/event-stream' }, signal: controller.signal });
+        // 204: server tắt realtime để không giữ kết nối; chỉ dùng polling 15 giây.
+        if (response.status === 204) { retry = false; state.streamDisabled = true; return; }
         if (!response.ok || !response.body) throw Object.assign(new Error('SSE unavailable'), { status: response.status });
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
@@ -213,7 +216,7 @@
       } catch { /* Polling remains active when a proxy does not keep SSE open. */ }
       finally {
         if (state.streamController === controller) state.streamController = null;
-        if (state.user && token()) state.streamRetry = setTimeout(startRealtime, 3000);
+        if (retry && state.user && token()) state.streamRetry = setTimeout(startRealtime, 3000);
       }
     })();
   }

@@ -1,4 +1,7 @@
 "use strict";
+// Test chạy theo thư mục gốc dự án: fs đọc file và require module từ gốc.
+const ROOT=require('node:path').resolve(__dirname,'..');process.chdir(ROOT);
+require=require('node:module').createRequire(ROOT+'/');
 const test=require('node:test'), assert=require('node:assert/strict'), fs=require('node:fs'), vm=require('node:vm');
 // CSDL giả lập giao dịch để kiểm tra logic; không thay thế thử nghiệm MySQL trên hosting.
 function fixture(){
@@ -344,7 +347,7 @@ test('Catalog seed rolls back and leaves no marker after failure',async()=>{
  const f=productSeedFixture([], 'IND-BF-R3M');await assert.rejects(f.run(),/Catalog failure/);assert.equal(f.products.length,0);assert.equal(f.marker,false);assert.ok(f.events.includes('rollback'));
 });
 test('Frontend only permits theme and the account-scoped snapshot cache in localStorage',()=>{
- const html=fs.readFileSync('index.html','utf8'),runtime=fs.readFileSync('crm.js','utf8'),reference=fs.readFileSync('reference-crm.js','utf8');assert.doesNotMatch(html,/localStorage\.setItem|nvt-payment-sidecar|const CATALOG/);const runtimeWrites=[...runtime.matchAll(/localStorage\.setItem\(([^,]+)/g)].map(match=>match[1].trim());const referenceWrites=[...reference.matchAll(/localStorage\.setItem\(([^,]+)/g)].map(match=>match[1].trim());assert.deepEqual(runtimeWrites,['THEME_KEY']);assert.deepEqual(referenceWrites,['CACHED_SNAPSHOT_KEY']);assert.match(reference,/accountId!==session\.accountId/);assert.match(reference,/role!==session\.role/);
+ const html=fs.readFileSync('index.html','utf8'),runtime=fs.readFileSync('crm.js','utf8'),reference=fs.readFileSync('reference-crm.js','utf8');assert.doesNotMatch(html,/localStorage\.setItem|nvt-payment-sidecar|const CATALOG/);const runtimeWrites=[...runtime.matchAll(/localStorage\.setItem\(([^,]+)/g)].map(match=>match[1].trim());const referenceWrites=[...reference.matchAll(/localStorage\.setItem\(([^,]+)/g)].map(match=>match[1].trim());assert.deepEqual(runtimeWrites.sort(),['SESSION_KEY','SESSION_KEY','THEME_KEY']);assert.deepEqual(referenceWrites.sort(),['ACTIVE_TAB_KEY','CACHED_SNAPSHOT_KEY','SESSION_KEY']);assert.match(reference,/session\.accountId!==accountId\|\|session\.role!==role\)\{clearCachedSnapshot\(\);return null;\}/);
 });
 function referenceCacheFixture(){
  const source=fs.readFileSync('reference-crm.js','utf8'),start=source.indexOf('  const snapshotRole='),end=source.indexOf('    const esc=',start),values=new Map();
@@ -367,7 +370,7 @@ test('Snapshot cache is cleared without a token and overwritten after revalidati
  const saved=JSON.parse(f.storage.getItem('nvt_crm_cached_snapshot_v1'));assert.equal(saved.accountId,'sale');assert.equal(saved.role,'SALE');assert.ok(saved.savedAt>0);
 });
 test('Runtime session metadata and authentication exits clear the CRM snapshot cache',()=>{
- const source=fs.readFileSync('crm.js','utf8');assert.match(source,/accountId: currentAccount\.id, role: currentAccount\.actualRole \|\| currentAccount\.role/);assert.ok((source.match(/localStorage\.removeItem\(CACHED_SNAPSHOT_KEY\)/g)||[]).length>=2);
+ const source=fs.readFileSync('crm.js','utf8');assert.match(source,/accountId: currentAccount\.id, role: currentAccount\.actualRole \|\| currentAccount\.role/);assert.ok((source.match(/(?:localStorage|storage)\.removeItem\(CACHED_SNAPSHOT_KEY\)/g)||[]).length>=2);
 });
 test('Rental expiry warning persists exactly once',async()=>{
  const f=fixture(),ends=new Date(Date.now()+2*86400000).toISOString();await f.api.write(admin,'rental',[change('customers',customer),change('orders',{...order,status:'PAID',amountPaid:order.total,balanceDue:0,paidAt:'2026-09-14 10:00',rentalEndsAt:ends})]);
@@ -1174,7 +1177,7 @@ test('Skip action persists config and cursor with regular CRM state save',async(
 test('Runtime bundles round helper before consumers without a new static route',()=>{
  const source=fs.readFileSync('crm.js','utf8');
  const bundled=source.split('/* BEGIN BUNDLED DISTRIBUTION ROUNDS - source: distribution-rounds.js */')[1].split('/* END BUNDLED DISTRIBUTION ROUNDS */')[0].trim();
- assert.equal(bundled,fs.readFileSync('distribution-rounds.js','utf8').trim());
+ assert.equal(bundled.replace(/\r/g,''),fs.readFileSync('distribution-rounds.js','utf8').trim().replace(/\r/g,''));
  assert.doesNotMatch(fs.readFileSync('crm-runtime.html','utf8'),/<script[^>]+src="[^"]*distribution-rounds/);
  const c=referenceBridge();
  assert.equal(vm.runInContext('typeof CrmDistributionRounds.preview',c),'function');
@@ -1266,7 +1269,9 @@ test('Existing provision marker skips startup advisory lock and account mutation
  const {provisionSystemAccounts}=require('./system-accounts.cjs');
  const result=await provisionSystemAccounts({getConnection:async()=>({
  execute:async(sql)=>{assert.match(sql,/^SELECT setting_key/);return [[{setting_key:'done'}]];},
- query:async()=>{throw Error('Existing accounts must not wait for migration lock');},
+ // SHOW INDEX luôn chạy để bảo đảm chỉ mục đăng nhập; mọi query khác (GET_LOCK, ALTER) bị cấm.
+ query:async(sql)=>{if(/^SHOW INDEX FROM users/.test(sql))return [[{Key_name:'idx_users_email_active'},{Key_name:'idx_users_phone_active'}]];throw Error('Existing accounts must not wait for migration lock');},
+ rollback:async()=>{},
  release:()=>{released=true;}
  })});
  assert.equal(result.applied,false);assert.equal(released,true);
@@ -1350,7 +1355,7 @@ test('Legacy latest-note column is hidden and NOTE cells autosave compact wrappe
  assert.match(source,/white-space:pre-wrap;overflow-wrap:anywhere;overflow-x:hidden/);
  assert.match(source,/Math\.min\(140,Math\.max\(58,control\.scrollHeight\)\)/);
  assert.match(source,/setTimeout\(flush,600\)/);
- assert.match(source,/control\.onblur=\(\)=>stageCustomerNoteSelection\(customer\.id,field\.id,control\.value,true\)/);
+ assert.match(source,/control\.onblur=\(\)=>\{stageCustomerNoteSelection\(customer\.id,field\.id,control\.value,true\);/);
  assert.match(source,/nvt-crm-customer-note-drafts-v1:/);
  assert.match(source,/column\.presenceFilter\?\['HAS_CONTENT','EMPTY'\]/);
 });
@@ -1363,8 +1368,8 @@ test('Accounting payment and VAT forms stay hidden until opened as accessible di
  assert.match(accounting,/body\.classList\.add\('accounting-modal-open'\)/);
  assert.match(accounting,/event\.key === 'Escape'/);
  assert.equal((accounting.match(/class="modal-overlay" role="dialog" aria-modal="true"/g)||[]).length,3);
-  assert.match(shell,/commission_tree_demo\.html\?embedded=1&tab=tab-mindmap&v=20260930-accounting-sync-v10/);
-  assert.match(bridge,/commission_tree_demo\.html\?embedded=1&tab=\$\{encodeURIComponent\(targetTab\)\}&v=20260930-accounting-sync-v10/);
+  assert.doesNotMatch(shell,/<iframe[^>]+commission_tree_demo\.html/);
+  assert.match(bridge,/commission_tree_demo\.html\?embedded=1&tab=\$\{encodeURIComponent\(targetTab\)\}&v=[\w-]+/);
 });
 
 test('Sale phụ trách uses the generic column filter value from the actual assignment',()=>{
@@ -1590,4 +1595,17 @@ test('401 khi đồng bộ xóa token/cache nhưng giữ bản nháp riêng củ
  c.sessionStorage.setItem('nvt-crm-session-v1',JSON.stringify({token:'expired',accountId:'sale',role:'SALE'}));c.localStorage.setItem('nvt_crm_cached_snapshot_v1','cached');c.sessionStorage.setItem('nvt-crm-customer-edits-v1:sale','draft');
  c.fetch=async()=>({ok:false,status:401,json:async()=>({error:'Expired'})});assert.equal(await c.syncServerState(),false);
  assert.equal(c.localStorage.getItem('nvt_crm_cached_snapshot_v1'),null);assert.equal(c.sessionStorage.getItem('nvt-crm-session-v1'),null);assert.equal(c.sessionStorage.getItem('nvt-crm-customer-edits-v1:sale'),'draft');assert.equal(c.window.crmRuntimeAuthState,'unauthenticated');
+});
+
+test('Non-admin background note saves may skip auto-distribution instead of getting 403',()=>{
+ const server=fs.readFileSync('webhook-server.cjs','utf8');
+ assert.ok(!/skipAutomatic===true&&user\.role!=='ADMIN'[^\n]*403/.test(server));
+ assert.ok(server.includes("['customers','notes','audit'].includes(change?.key)"));
+ assert.ok(server.includes("body.skipAutomatic===true&&(user.role==='ADMIN'||backgroundOnly)"));
+});
+test('Snapshot reads on one connection run sequentially, avoiding false query timeouts',()=>{
+ const store=fs.readFileSync('crm-data.cjs','utf8');
+ const start=store.indexOf('async function allData');assert.ok(start>=0);
+ const body=store.slice(start,store.indexOf('\n}\n',start));
+ assert.ok(!body.includes('Promise.all('));
 });

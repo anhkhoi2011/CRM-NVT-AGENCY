@@ -1,4 +1,7 @@
 'use strict';
+// Test chạy theo thư mục gốc dự án: fs đọc file và require module từ gốc.
+const ROOT=require('node:path').resolve(__dirname,'..');process.chdir(ROOT);
+require=require('node:module').createRequire(ROOT+'/');
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
 const now=()=>new Date().toLocaleString('sv-SE',{timeZone:'Asia/Ho_Chi_Minh'}).slice(0,19);
 function fixture(){
@@ -104,4 +107,16 @@ test('Duplicate outbox notifies Admin and preserves an active pending Sale owner
  assert.match(f.sent[0].text,/landing\.example\.test\/duplicate/);
  assert.equal(f.sent[1].chat_id,'1');
  assert.match(f.sent[1].text,/DATA TRUNG/);
+});
+test('System webhook subscribes to button callbacks so check-in and accept-data reach the server',async()=>{
+ const f=fixture();await f.api.setWebhook('https://crm.example.test/api/telegram/webhook','secret');
+ const call=f.sent.at(-1);assert.equal(call.method,'setWebhook');assert.deepEqual(call.allowed_updates,['message','callback_query']);assert.equal(call.secret_token,'secret');assert.ok(call.max_connections<=10);
+ await f.api.setSupportWebhook('https://crm.example.test/api/telegram/support-webhook','s2');assert.deepEqual(f.sent.at(-1).allowed_updates,['message']);
+});
+test('Telegram webhook answers before processing and SSE is off unless explicitly enabled',()=>{
+ const server=fs.readFileSync('webhook-server.cjs','utf8'),block=server.slice(server.indexOf("const update = JSON.parse(buffer"),server.indexOf("console.warn('[Telegram Webhook] error:', err.message)"));
+ assert.ok(block.indexOf('sendJson(response, 200')<block.indexOf('handleTelegramUpdate'),'200 must be sent before handling');
+ assert.match(server,/SSE_ENABLED = process\.env\.ENABLE_SSE === '1'/);
+ for(const name of ['handleInboxStream','handleSupportStream'])assert.match(server.slice(server.indexOf('function '+name)).split('\n').slice(0,3).join('\n'),/if \(!SSE_ENABLED\) return rejectStream/);
+ const widget=fs.readFileSync('support-chat-widget.js','utf8');assert.match(widget,/response\.status === 204\) \{ retry = false; state\.streamDisabled = true/);
 });

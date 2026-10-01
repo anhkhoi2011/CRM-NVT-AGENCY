@@ -350,6 +350,7 @@
   const fromDay=days=>{const d=new Date(data.today+'T00:00:00Z');d.setUTCDate(d.getUTCDate()-days+1);return d.toISOString().slice(0,10);};
   const renders={customers:renderCustomerTable,care:renderCareView,queue:renderDataQueue,orders:renderOrdersTable,drawer:openDrawerForCust,careOpen:openCareGroupModal,careOptions:updateCareGroupOptions,switchTab};
   let customerDraftOwner='';
+  let customerDraftsRestoredFor='';
   const customerDraftValues=new Map();
   const customerNoteDrafts=new Map();
   const customerNoteSaveTimers=new Map();
@@ -379,9 +380,12 @@
   };}
   function restoreCustomerSelections(){
     if(!api?.sessionIdentity()||api.sessionIdentity().id!==data.user.id)return;
-    if(customerDraftOwner===data.user.id)return;
-    customerNoteSaveTimers.forEach(timer=>clearTimeout(timer));customerNoteSaveTimers.clear();customerNoteDrafts.clear();
-    customerDraftOwner=data.user.id;customerDraftValues.clear();
+    // Cờ riêng: trước đây gõ phím trước khi khôi phục đã gán customerDraftOwner nên
+    // hàm thoát sớm, rồi checkpoint mới ghi đè bản nháp cũ → mất ghi chú sau F5.
+    if(customerDraftsRestoredFor===data.user.id)return;
+    customerDraftsRestoredFor=data.user.id;
+    if(customerDraftOwner!==data.user.id){customerNoteSaveTimers.forEach(timer=>clearTimeout(timer));customerNoteSaveTimers.clear();customerNoteDrafts.clear();customerDraftValues.clear();}
+    customerDraftOwner=data.user.id;
     try{
       const records=JSON.parse(sessionStorage.getItem(draftStorageKey())||'[]');
       if(!Array.isArray(records)||records.some(r=>!r.payload||r.payload.accountId!==customerDraftOwner||!['field','leader','sale'].includes(r.payload.kind)))throw Error('Bản nháp không hợp lệ.');
@@ -427,6 +431,7 @@
   });
   function saveCustomerSelection(kind,id,value,fieldId){
     if(!data?.user?.id)return;
+    restoreCustomerSelections();
     const payload={kind,id,fieldId,value:structuredClone(value),accountId:data.user.id};
     customerDraftOwner=data.user.id;
     const key=selectionKey(payload);
@@ -436,6 +441,7 @@
   }
   function stageCustomerNoteSelection(id,fieldId,value,immediate=false){
     if(!data?.user?.id)return;
+    restoreCustomerSelections();
     customerDraftOwner=data.user.id;
     const payload={kind:'field',id,fieldId,value:String(value||'').slice(0,4000),accountId:data.user.id};
     const key=selectionKey(payload),existing=customerNoteDrafts.get(key);
@@ -1790,7 +1796,7 @@
       return payload;
     }catch(error){
       renderUserLog();
-      const status=q('#userActivityStatus');if(status)status.textContent=error.message||'Kh?ng t?i ???c User log.';
+      const status=q('#userActivityStatus');if(status)status.textContent=error.message||'Không tải được User log.';
       return null;
     }
     finally{userActivityLoading=false;}
@@ -2283,7 +2289,7 @@
 
     let iframe = host.querySelector('#accountingIframe');
     if (!iframe) {
-      host.innerHTML = `<iframe id="accountingIframe" src="commission_tree_demo.html?embedded=1&tab=${encodeURIComponent(targetTab)}&v=20260930-accounting-sync-v13" title="Kế toán & Hoa hồng APEX" loading="eager"></iframe>`;
+      host.innerHTML = `<iframe id="accountingIframe" src="commission_tree_demo.html?embedded=1&tab=${encodeURIComponent(targetTab)}&v=20260930-accounting-sync-v14" title="Kế toán & Hoa hồng APEX" loading="eager"></iframe>`;
       iframe = host.querySelector('#accountingIframe');
       iframe?.addEventListener('load',()=>{host.classList.add('is-ready');syncMembersToAccountingMindmap();},{once:true});
     } else {
@@ -2787,7 +2793,7 @@
   if(logoutButton){logoutButton.removeAttribute('onclick');logoutButton.type='button';logoutButton.onclick=event=>{event.preventDefault();event.stopPropagation();void performReferenceLogout();};}
   document.addEventListener('click',event=>{const button=event.target.closest('button');if(!button)return;const text=String(button.textContent||'').trim();const code=button.getAttribute('onclick')||'';
     if(button.closest('.topbar')&&/(logout|xu.t|xuat)/i.test(text)){event.preventDefault();event.stopImmediatePropagation();void performReferenceLogout();return;}
-    if(code.startsWith('alert(')){event.preventDefault();event.stopImmediatePropagation();if(/dang xuat|logout/i.test(code)||/\u0111\u0103ng xu\u1ea5t/i.test(code)){void performReferenceLogout();}else if(/danh dau|da doc/i.test(code)||/\u0111\u00e1nh d\u1ea5u|\u0111\u00e3 \u0111\u0111\u1ecdc/i.test(code))markAllNotificationsRead();else alert('Ch?c n?ng n?y ch?a c? form k?t n?i trong giao di?n m?u.');}
+    if(code.startsWith('alert(')){event.preventDefault();event.stopImmediatePropagation();if(/dang xuat|logout/i.test(code)||/\u0111\u0103ng xu\u1ea5t/i.test(code)){void performReferenceLogout();}else if(/danh dau|da doc/i.test(code)||/\u0111\u00e1nh d\u1ea5u|\u0111\u00e3 \u0111\u0111\u1ecdc/i.test(code))markAllNotificationsRead();else alert('Chức năng này chưa có form kết nối trong giao diện mẫu.');}
   },true);
   qa('#tab-customers button').filter(b=>b.textContent.trim()==='Quản lý cột').forEach(b=>b.onclick=fieldManager);
   function renderDistributionWeights(){
@@ -3138,7 +3144,7 @@
     const role=data?.user?.actualRole||data?.user?.role, tab=q('#tab-data');
     if(!tab)return;
     if(!q('#referenceScopedDataStyles')){const style=document.createElement('style');style.id='referenceScopedDataStyles';style.textContent=`
-      /* Giờ b?ng data v? b? l?c, ch? ?n nh?n h?ng ??i c? ?? giao di?n g?n h?n. */
+      /* Giữ bảng data và bộ lọc, chỉ ẩn nhãn hàng đợi cũ để giao diện gọn hơn. */
       #tab-data.data-scope-limited #dataTabQueueBtn,#tab-data.data-scope-limited #dataSubViewQueue>.table-container>.table-head-bar{display:none!important}
       #tab-data.data-scope-limited #dataSubViewQueue{display:block!important}
       #tab-data.data-scope-limited #dataSubViewQueue>.table-container{width:100%;border-radius:10px}
@@ -3286,8 +3292,8 @@
     if(role!=='SALE')ordinaryQueue();
     if(role==='SALE'){
       const search=String(q('#dataQueueSearch')?.value||'').trim().toLowerCase();
-      // Hi?n th? to?n b? data c?n hi?u l?c ?ang ch? Sale nh?n, kh?ng gi?i h?n theo ng?y l?ch.
-      // Badge ??m t?t c? offer n?n b?ng c?ng ph?i d?ng c?ng t?p d? li?u ?? kh?ng b? l?ch s?.
+      // Hiển thị toàn bộ data còn hiệu lực đang chờ Sale nhận, không giới hạn theo ngày lịch.
+      // Badge đếm tất cả offer nên bảng cũng phải dùng cùng tập dữ liệu để không bị lệch số.
       const items=(data.pendingOffers||[])
         .filter(o=>String(o.name||'').toLowerCase().includes(search))
         .sort((a,b)=>String(a.offeredAt||'').localeCompare(String(b.offeredAt||'')));

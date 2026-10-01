@@ -313,7 +313,7 @@
           const visibleSaleIds = role === 'ADMIN' ? new Set(state.members.filter(member => member.active !== false && ['MANAGER','LEADER','SALE'].includes(member.role)).map(member => String(member.id))) : new Set(scopedCustomers().map(customer => String(customer.saleId)).filter(Boolean));
           if (!visibleSaleIds.has(String(sale.id)) && role !== 'ADMIN') throw Error('Sale ph\u1ee5 tr\u00e1ch n\u1eb1m ngo\u00e0i ph\u1ea1m vi c\u1ee7a b\u1ea1n.');
           let customer = state.customers.find(item => { const a=String(item.phone||'').replace(/\D/g,''); const b=phone.replace(/\D/g,''); return a&&b&&(a===b||a.replace(/^84/,'0')===b.replace(/^84/,'0')); });
-          if (customer && customer.saleId && String(customer.saleId) !== String(sale.id)) throw Error(`S? ?i?n tho?i ?? thu?c kh?ch h?ng ${customer.name || ''} c?a Sale kh?c.`.trim());
+          if (customer && customer.saleId && String(customer.saleId) !== String(sale.id)) throw Error(`Số điện thoại đã thuộc khách hàng ${customer.name || ''} của Sale khác.`.trim());
           const leader = sale.leaderId ? state.members.find(member => String(member.id) === String(sale.leaderId)) : null;
           const manager = sale.managerId ? state.members.find(member => String(member.id) === String(sale.managerId)) : leader?.managerId ? state.members.find(member => String(member.id) === String(leader.managerId)) : null;
           const product = state.products.find(item => String(item.id) === String(payload.productId) && item.active !== false);

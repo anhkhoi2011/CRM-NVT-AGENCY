@@ -1,10 +1,13 @@
 'use strict';
+// Test chạy theo thư mục gốc dự án: fs đọc file và require module từ gốc.
+const ROOT=require('node:path').resolve(__dirname,'..');process.chdir(ROOT);
+require=require('node:module').createRequire(ROOT+'/');
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
 const net=require('node:net');
-const source=fs.readFileSync(__dirname+'/webhook-server.cjs','utf8');
+const source=fs.readFileSync(ROOT+'/webhook-server.cjs','utf8');
 const healthCode=source.slice(source.indexOf('async function selfCheckHealth()'));
 async function probe(address,fetchImpl){
  const calls=[],warnings=[];
@@ -32,7 +35,7 @@ function bootFixture(){
  const boot=element();boot.hidden=false;
  let observerCallback;
  const context={document:{getElementById:()=>boot,createElement:element},window:{addEventListener:(event,fn)=>{listeners[event]=fn;}},location:{reload(){reloaded=true;}},setTimeout:(fn,ms)=>{const timer={fn,ms};timers.push(timer);return timer;},clearTimeout:timer=>{timer.cleared=true;},MutationObserver:class{constructor(fn){observerCallback=fn;}observe(){}disconnect(){disconnected=true;}}};
- const html=fs.readFileSync(__dirname+'/index.html','utf8');const code=html.match(/<script id="crm-boot-watchdog">([\s\S]*?)<\/script>/)[1];vm.runInNewContext(code,context);
+ const html=fs.readFileSync(ROOT+'/index.html','utf8');const code=html.match(/<script id="crm-boot-watchdog">([\s\S]*?)<\/script>/)[1];vm.runInNewContext(code,context);
  return {boot,timers,listeners,observer:()=>observerCallback(),get reloaded(){return reloaded;},get disconnected(){return disconnected;}};
 }
 test('Missing startup script offers reload without touching pending storage',()=>{
