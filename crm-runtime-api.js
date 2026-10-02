@@ -190,6 +190,7 @@
       if(!await flushServerPersistence())throw Error('Hoàn tất lưu trước khi đổi Team.');
       managerTeamSelection=leaderId;currentAccount=hydrateSessionAccount({...currentAccount,role:'MANAGER'});closeModal();closeDrawer();return {ok:true};
     },
+    resolveConflict(){return resolveServerConflict();},
     sessionIdentity(){return currentAccount&&serverStateLoaded&&!serverRecoveryPending?{id:currentAccount.id,conflict:serverConflict}:null;},
     customerSelection(id,kind,fieldId){
       const customer=customerById(id);

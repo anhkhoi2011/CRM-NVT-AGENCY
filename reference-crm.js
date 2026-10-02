@@ -370,11 +370,13 @@
     payload=currentPayload;
     const session=api?.sessionIdentity();
     if(!session||session.id!==payload.accountId)throw Error('Phiên đăng nhập đã thay đổi. Bản nháp vẫn được giữ theo tài khoản.');
-    if(session.conflict)throw Error('Lần lưu trước đang xung đột. Bản nháp được giữ lại để kiểm tra.');
+    // Xung đột cũ: tải bản mới và gộp lại phần mình sửa, không khóa hàng đợi đến khi F5.
+    if(session.conflict&&!await api.resolveConflict?.())throw Error('Lần lưu trước đang xung đột. Bản nháp được giữ lại để kiểm tra.');
     if(restored){
+      // Ô đã có đúng giá trị thì bỏ qua. Ô người khác vừa đổi: lượt lưu sau thắng như máy chủ,
+      // thay vì báo lỗi mãi và chặn mọi lựa chọn phía sau trong hàng đợi.
       const value=api.customerSelection(payload.id,payload.kind,payload.fieldId);
       if(JSON.stringify(value)===JSON.stringify(payload.value))return;
-      if(JSON.stringify(value)!==JSON.stringify(payload.base))throw Error('Ô này đã được cập nhật từ nơi khác. Bản nháp được giữ lại, chưa ghi đè.');
     }
     return payload.kind==='field'?api.updateField(payload.id,payload.fieldId,payload.value):payload.kind==='leader'?api.assignLeader(payload.id,payload.value):api.assign(payload.id,payload.value);
   };}
@@ -407,7 +409,7 @@
       else sessionStorage.removeItem(draftStorageKey());
     },
     setBusy:value=>{working=value;},
-    onChange:({pending,error,running})=>{
+    onChange:({pending,error,running,retrying})=>{
       if(!error&&!pending&&!running){
         q('#customerSaveStatus')?.remove();
         if(!pending&&!running){customerDraftValues.clear();customerNoteDrafts.forEach(record=>customerDraftValues.set(record.key,record.payload.value));refresh();}
@@ -421,7 +423,7 @@
       }
       status.hidden=false;status.replaceChildren();
       const label=document.createElement('span');
-      label.textContent=error?'Chưa lưu được. Lựa chọn đang được giữ lại.':'Đang lưu thay đổi lên máy chủ…';status.appendChild(label);
+      label.textContent=error?(retrying?'Máy chủ đang bận, đang tự lưu lại… Lựa chọn vẫn được giữ.':'Chưa lưu được. Lựa chọn đang được giữ lại.'):'Đang lưu thay đổi lên máy chủ…';status.appendChild(label);
       if(error){
         status.title=error.message||'Không kết nối được máy chủ';
         const retry=document.createElement('button');retry.type='button';retry.textContent='Thử lưu lại';retry.style.cssText='margin-left:10px;cursor:pointer;';retry.onclick=()=>customerSaveQueue.retry();status.appendChild(retry);

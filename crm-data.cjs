@@ -813,6 +813,8 @@ async function writeFastCustomerNotes(user, requestId, changes, enabled = false)
   }
   await c.execute('INSERT INTO crm_changes(request_id,actor_id,changes_json) VALUES (?,?,?)', [requestId, user.id, JSON.stringify(history)]);
   await c.commit();
+  // Bỏ cache trước khi đọc: nếu không, snapshot trả về là bản cũ và ô vừa ghi nhảy về giá trị trước.
+  invalidateSnapshotCache();
   const result = await read(user, {passive:true});
   return {...result, ok:true, fastPath:'customer-note'};
  } catch (error) { await c.rollback().catch(() => {}); throw error; }
@@ -901,7 +903,13 @@ async function writeLocked(user,requestId,changes,options={}){
    await c.execute('INSERT INTO crm_documents(collection,id,body,deleted) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE body=VALUES(body),deleted=VALUES(deleted)',[key,id,JSON.stringify(value===null?data[key].get(id)||{}:value),value===null?1:0]);
   }
   await c.execute('INSERT INTO crm_changes(request_id,actor_id,changes_json) VALUES (?,?,?)',[requestId,user.id,JSON.stringify(history)]);
-  const updated=await allData(c);const assigned=options.skipAutomatic===true?0:await distributeAutomatic(c,updated);const result=snapshot(user,assigned?await allData(c):updated);await c.commit();return {...result,ok:true};
+  if(options.skipAutomatic===true){
+   // Lượt lưu nền (Level, cột, ghi chú): nhả khóa ghi ngay sau commit, dựng snapshot từ bộ đệm dùng chung.
+   // Trước đây còn quét lại toàn bộ dữ liệu khi vẫn giữ khóa, 20 người lưu cùng lúc phải xếp hàng tới timeout.
+   await c.commit();invalidateSnapshotCache();
+   return {...snapshot(user,await sharedData()),ok:true};
+  }
+  const updated=await allData(c);const assigned=await distributeAutomatic(c,updated);const result=snapshot(user,assigned?await allData(c):updated);await c.commit();return {...result,ok:true};
  }catch(e){await c.rollback().catch(()=>{});throw e;}finally{c.release();}
 }
 // Mọi lượt ghi qua CRM làm mới bộ đệm snapshot dùng chung (kể cả khi lỗi giữa chừng).

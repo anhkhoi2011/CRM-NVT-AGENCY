@@ -2,9 +2,16 @@
 (function(root,factory){
   if(typeof module==='object'&&module.exports)module.exports=factory();
   else root.createCustomerSaveQueue=factory();
-})(typeof globalThis!=='undefined'?globalThis:this,()=>function createCustomerSaveQueue({isBusy,setBusy,onChange,persist=()=>{},schedule=fn=>setTimeout(fn,50)}){
-  const jobs=[];let running=false,error=null,scheduled=false;
-  const emit=()=>onChange({pending:jobs.length,error,running});
+})(typeof globalThis!=='undefined'?globalThis:this,()=>function createCustomerSaveQueue({isBusy,setBusy,onChange,persist=()=>{},schedule=fn=>setTimeout(fn,50),wait=(fn,ms)=>setTimeout(fn,ms),cancelWait=timer=>clearTimeout(timer),retryDelays=[1000,2000,4000,8000,15000]}){
+  const jobs=[];let running=false,error=null,scheduled=false,attempts=0,retryTimer=null;
+  const emit=()=>onChange({pending:jobs.length,error,running,retrying:Boolean(retryTimer)});
+  // Nhiều người cùng lưu: máy chủ bận/mạng chập chờn chỉ là lỗi tạm thời.
+  // Tự thử lại với thời gian chờ tăng dần; hết lượt mới chờ người dùng bấm "Thử lưu lại".
+  function autoRetry(){
+    if(retryTimer||attempts>=retryDelays.length)return;
+    const delay=retryDelays[attempts++];
+    retryTimer=wait(()=>{retryTimer=null;error=null;emit();void drain();},delay);
+  }
   const checkpoint=()=>persist(jobs.map(({key,payload})=>({key,payload})));
   async function drain(){
     if(running||error||!jobs.length)return;
@@ -16,10 +23,10 @@
     try{
       checkpoint();
       while(jobs.length){
-        try{await jobs[0].action(jobs[0].payload);jobs.shift();checkpoint();emit();}
+        try{await jobs[0].action(jobs[0].payload);jobs.shift();attempts=0;checkpoint();emit();}
         catch(cause){error=cause;break;}
       }
-    }catch(cause){error=cause;}finally{running=false;setBusy(false);emit();}
+    }catch(cause){error=cause;}finally{running=false;setBusy(false);if(error)autoRetry();emit();}
   }
   function flush({timeout=12000}={}){
     if(!jobs.length&&!running)return Promise.resolve(true);
@@ -27,7 +34,7 @@
       const started=Date.now();
       const check=()=>{
         if(!jobs.length&&!running){resolve(true);return;}
-        if(error){reject(error);return;}
+        if(error&&!retryTimer){reject(error);return;}
         if(Date.now()-started>=timeout){reject(Error('Chưa lưu xong các thay đổi khách hàng trong thời gian cho phép.'));return;}
         void drain();setTimeout(check,50);
       };
@@ -70,9 +77,9 @@
         emit();void drain();
       }
     },
-    retry(){error=null;emit();void drain();},
+    retry(){if(retryTimer){cancelWait(retryTimer);retryTimer=null;}attempts=0;error=null;emit();void drain();},
     flush,
-    cancel(){if(running)return false;jobs.length=0;error=null;emit();return true},
+    cancel(){if(running)return false;if(retryTimer){cancelWait(retryTimer);retryTimer=null;}jobs.length=0;error=null;attempts=0;emit();return true},
     get running(){return running}
   };
 });

@@ -1600,7 +1600,7 @@ test('401 khi đồng bộ xóa token/cache nhưng giữ bản nháp riêng củ
 test('Non-admin background note saves may skip auto-distribution instead of getting 403',()=>{
  const server=fs.readFileSync('webhook-server.cjs','utf8');
  assert.ok(!/skipAutomatic===true&&user\.role!=='ADMIN'[^\n]*403/.test(server));
- assert.ok(server.includes("['customers','notes','audit'].includes(change?.key)"));
+ assert.ok(server.includes("['customers','notes','audit','customerFieldHistory'].includes(change?.key)"));
  assert.ok(server.includes("body.skipAutomatic===true&&(user.role==='ADMIN'||backgroundOnly)"));
 });
 test('Snapshot reads on one connection run sequentially, avoiding false query timeouts',()=>{
@@ -1648,4 +1648,40 @@ test('Nhiều người cùng sửa một khách khác cột: gộp theo trườn
  // Gộp vẫn kiểm tra quyền: Sale không được đổi đội qua danh sách trường.
  await assert.rejects(f.api.write(sale,'sale-team',[{...change('customers',{...stale,teamId:'X'},base),fields:['teamId']}]),e=>e.status===403);
  await assert.rejects(f.api.write(admin,'proto',[{...change('customers',stale,base),fields:['__proto__']}]),e=>e.status===400);
+});
+test('409 khi lưu: tự tải bản mới, gộp cột mình sửa và gửi lại, không khóa phiên lưu',async()=>{
+ const c=frontend();
+ vm.runInContext("currentAccount={id:'sale',role:'SALE'};serverSyncToken='token';applyServerSnapshot({state:{...initialState(),customers:[{id:'c1',name:'K',saleId:'sale',customFields:{level:'L1',call:''}}]},versions:{'customers/c1':'v1'}});state.customers[0].customFields.call='CALLED';",c);
+ const posts=[],initialState=()=>vm.runInContext('initialState()',c);
+ c.fetch=async(url,options)=>{
+  if(options?.method==='POST'){const body=JSON.parse(options.body);posts.push(body);
+   if(posts.length===1)return {ok:false,status:409,json:async()=>({error:'Đã đổi ở máy khác'})};
+   const value=body.changes[0].value;return {ok:true,status:200,json:async()=>({state:{...initialState(),customers:[value]},versions:{'customers/c1':'v3'}})};}
+  // Máy khác vừa đổi Level sang L4.
+  return {ok:true,status:200,json:async()=>({state:{...initialState(),customers:[{id:'c1',name:'K',saleId:'sale',customFields:{level:'L4',call:''}}]},versions:{'customers/c1':'v2'}})};
+ };
+ assert.equal(await c.flushServerPersistence(),true);
+ assert.equal(posts.length,2);assert.equal(posts[1].changes[0].base,'v2');assert.notEqual(posts[1].requestId,posts[0].requestId);
+ assert.equal(vm.runInContext('serverConflict',c),false);
+ assert.equal(vm.runInContext('state.customers[0].customFields.level',c),'L4');assert.equal(vm.runInContext('state.customers[0].customFields.call',c),'CALLED');
+});
+test('Xung đột cũ được gỡ bằng nút Thử lưu lại thay vì phải F5',async()=>{
+ const c=frontend();
+ vm.runInContext("currentAccount={id:'sale',role:'SALE'};serverSyncToken='token';applyServerSnapshot({state:{...initialState(),notes:[]},versions:{}});state.notes.push({id:'n1',text:'giữ'});serverConflict=true;",c);
+ const initialState=()=>vm.runInContext('initialState()',c);
+ c.fetch=async()=>({ok:true,status:200,json:async()=>({state:initialState(),versions:{}})});
+ assert.equal(await c.resolveServerConflict(),true);assert.equal(vm.runInContext('serverConflict',c),false);
+ assert.equal(vm.runInContext('state.notes[0].text',c),'giữ');
+});
+test('Lịch sử cột dùng mã ngẫu nhiên, nhiều máy cùng ghi không trùng khóa',()=>{
+ const source=fs.readFileSync('crm.js','utf8');
+ const body=source.slice(source.indexOf('function recordFieldChange('),source.indexOf('function setCustomerCustomFields('));
+ assert.ok(body.includes("makeRecordId('FLD')"));assert.ok(!body.includes('customerFieldHistory.length}'));
+});
+test('Lượt lưu nền trả về dữ liệu vừa ghi, không chạy chia tự động',async()=>{
+ const f=fixture();await f.api.write(admin,'seed-bg',[change('customers',customer)]);
+ const before=await f.api.read(admin);const c1=before.state.customers[0];
+ const result=await f.api.write(sale,'bg',[{...change('customers',{...c1,customFields:{...c1.customFields,level:'L5'}},before.versions['customers/c1']),fields:['customFields.level']}],{skipAutomatic:true});
+ assert.equal(result.state.customers[0].customFields.level,'L5');
+ assert.equal((await f.api.read(admin,{passive:true})).state.customers[0].customFields.level,'L5');
 });

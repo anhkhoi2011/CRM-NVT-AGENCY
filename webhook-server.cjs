@@ -621,7 +621,7 @@ async function handleDbApi(request, response, pathname) {
         // Trước đây non-Admin bị 403 → client đánh dấu xung đột, ghi chú không bao giờ lưu
         // và mất khi F5. Non-Admin chỉ được bỏ qua chia tự động với gói nền như vậy;
         // gói khác vẫn chạy chia tự động thay vì bị từ chối.
-        const backgroundOnly=Array.isArray(body.changes)&&body.changes.length>0&&body.changes.every(change=>['customers','notes','audit'].includes(change?.key));
+        const backgroundOnly=Array.isArray(body.changes)&&body.changes.length>0&&body.changes.every(change=>['customers','notes','audit','customerFieldHistory'].includes(change?.key));
         const skipAutomatic=body.skipAutomatic===true&&(user.role==='ADMIN'||backgroundOnly);
         const result=await crmData.write(user,body.requestId,body.changes,{skipAutomatic,fastNote:body.fastNote===true});
         notifyInboxListeners({id:body.requestId,kind:'state',receivedAt:stamp()});

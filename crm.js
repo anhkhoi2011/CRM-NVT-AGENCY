@@ -1055,7 +1055,48 @@ function pendingChanges() {
   }
   return changes;
 }
-function applyServerSnapshot(payload, keepEdits=null) {
+function rebaseRecord(before, edited, latest) {
+  const merged=structuredClone(latest);
+  for(const field of new Set([...Object.keys(before),...Object.keys(edited)])){
+    if(stableJson(before[field])===stableJson(edited[field]))continue;
+    const a=before[field],b=edited[field];
+    if(field==='customFields'&&a&&b&&typeof a==='object'&&typeof b==='object'){
+      merged.customFields={...(merged.customFields||{})};
+      for(const id of new Set([...Object.keys(a),...Object.keys(b)])){
+        if(stableJson(a[id])===stableJson(b[id]))continue;
+        if(Object.hasOwn(b,id))merged.customFields[id]=structuredClone(b[id]);else delete merged.customFields[id];
+      }
+      continue;
+    }
+    if(Object.hasOwn(edited,field))merged[field]=structuredClone(b);else delete merged[field];
+  }
+  return merged;
+}
+// Máy chủ báo bản ghi đã đổi ở máy khác (409): tải bản mới rồi gộp lại phần mình sửa để gửi tiếp.
+async function rebaseOnServer(token) {
+  const base=serverBaseline;
+  const controller=typeof AbortController==='function'?new AbortController():null;
+  const timer=controller?setTimeout(()=>controller.abort(),WEBHOOK_FETCH_TIMEOUT_MS):null;
+  let response,payload;
+  try{
+    response=await fetch(webhookApiBase()+'/api/state?passive=1',{headers:{Authorization:'Bearer '+token},cache:'no-store',signal:controller?controller.signal:undefined});
+    payload=await response.json();
+  }finally{if(timer)clearTimeout(timer);}
+  if(token!==serverSyncToken||!response.ok||!payload?.state)return false;
+  applyServerSnapshot(payload,base,true);
+  return true;
+}
+// Nút "Thử lưu lại": gỡ xung đột cũ bằng cách tải bản mới và gộp lại phần mình đã sửa.
+async function resolveServerConflict() {
+  if(!serverConflict)return true;
+  if(!serverSyncToken||!serverStateLoaded||serverSaveRunning)return false;
+  try{
+    if(!await rebaseOnServer(serverSyncToken))return false;
+    serverConflict=false;serverPendingRequest=null;sessionStorage.removeItem(pendingWriteStorageKey());
+    return true;
+  }catch(error){return false;}
+}
+function applyServerSnapshot(payload, keepEdits=null, rebase=false) {
   serverAutomationStatus = payload.automation || null;
   const defaults=initialState();
   const remote={...defaults,...payload.state,security:{twoFactorEnabled:false,loginHistory:[]}};
@@ -1074,7 +1115,18 @@ function applyServerSnapshot(payload, keepEdits=null) {
     const current=serverRecords();
     for(const key of new Set([...current.keys(),...keepEdits.keys()])) {
       if(stableJson(current.get(key))===stableJson(keepEdits.get(key)))continue;
-      const slash=key.indexOf('/'), collection=key.slice(0,slash), id=key.slice(slash+1), value=current.get(key);
+      const slash=key.indexOf('/'), collection=key.slice(0,slash), id=key.slice(slash+1);
+      let value=current.get(key);
+      if(rebase){
+        const before=keepEdits.get(key),latest=remoteRecords.get(key);
+        // Khách đã chuyển khỏi phạm vi của mình: không thể lưu nữa, bỏ bản sửa thay vì kẹt cả hàng đợi.
+        if(collection==='customers'&&before&&!latest)continue;
+        // Lịch sử/ghi chú của khách vừa rời phạm vi cũng bỏ theo, tránh 403 lặp lại.
+        const owner=value?.customerId&&collection!=='customers'?'customers/'+value.customerId:'';
+        if(owner&&keepEdits.has(owner)&&!remoteRecords.has(owner))continue;
+        // Gộp 3 chiều: chỉ áp các trường mình đã sửa lên bản mới nhất, giữ trường người khác vừa đổi.
+        if(before&&latest&&value)value=rebaseRecord(before,value,latest);
+      }
       if(SERVER_OBJECTS.includes(collection)){remote[collection]=value;continue;}
       remote[collection]=(remote[collection]||[]).filter(r=>r.id!==id);
       if(value)remote[collection].push(value);
@@ -1130,13 +1182,15 @@ async function flushServerPersistence(requestOptions = {}) {
   if(serverSavePromise)return serverSavePromise;
   if(!serverSyncToken||!serverStateLoaded||serverConflict)return false;
   serverSavePromise=(async()=>{
-    serverSaveRunning=true;
+    serverSaveRunning=true;let rebaseAttempts=0;
     try {
       do {
         if(!serverPendingRequest) {
           const changes=pendingChanges();if(!changes.length){setSaveStatus('Đã lưu MySQL');return true;}
-          const backgroundOnly=changes.length>0&&changes.every(change=>['customers','notes','audit'].includes(change.key));
-          serverPendingRequest={requestId:makeRecordId('SAVE'),changes,snapshot:serverRecords(),skipAutomatic:Boolean(requestOptions.skipAutomatic||backgroundOnly),fastNote:backgroundOnly};
+          // Chọn Level/cột chỉ gồm khách + lịch sử cột: không cần quét chia data dưới khóa ghi chung.
+          const backgroundOnly=changes.length>0&&changes.every(change=>['customers','notes','audit','customerFieldHistory'].includes(change.key));
+          const fastNote=changes.length>0&&changes.every(change=>['customers','notes','audit'].includes(change.key));
+          serverPendingRequest={requestId:makeRecordId('SAVE'),changes,snapshot:serverRecords(),skipAutomatic:Boolean(requestOptions.skipAutomatic||backgroundOnly),fastNote};
         }
         const request=serverPendingRequest,token=serverSyncToken;
         rememberPendingWrite(request);
@@ -1153,6 +1207,13 @@ async function flushServerPersistence(requestOptions = {}) {
         }
         if(token!==serverSyncToken)return false;
         if(!response.ok){
+          // 20 người cùng sửa: 409/403 thường chỉ do bản ghi vừa đổi ở máy khác (hoặc khách vừa chuyển người).
+          // Tải bản mới, gộp lại các ô mình sửa rồi gửi lại thay vì khóa cả phiên lưu đến khi F5.
+          if([403,409].includes(response.status)&&rebaseAttempts<3){
+            rebaseAttempts++;serverPendingRequest=null;sessionStorage.removeItem(pendingWriteStorageKey());
+            if(await rebaseOnServer(token))continue;
+            throw new Error(payload.error||`HTTP ${response.status}`);
+          }
           if([400,403,409,413].includes(response.status)){serverConflict=true;serverPendingRequest=null;}
           if(response.status===401){await endSession(true);setSaveStatus('Phiên hết hạn. Bản nháp vẫn được giữ theo tài khoản.',true);}
           throw new Error(payload.error||`HTTP ${response.status}`);
@@ -2116,7 +2177,8 @@ function customFieldInput(field, value) {
 
 function recordFieldChange(customer, field, from, to, source = 'MANUAL') {
   state.customerFieldHistory.unshift({
-    id: `FLD-${Date.now()}-${state.customerFieldHistory.length}`,
+    // Mã ngẫu nhiên: nhiều máy cùng ghi trong một mili-giây không bị trùng khóa (409 giả).
+    id: makeRecordId('FLD'),
     customerId: customer.id,
     fieldId: field.id,
     fieldLabel: field.label,
