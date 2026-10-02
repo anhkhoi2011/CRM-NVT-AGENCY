@@ -2159,7 +2159,11 @@ function setCustomerCustomFields(customerId, values, source = 'MANUAL') {
 
 async function updateCustomerCustomFields(customerId) {
   const values = {};
+  const form = $('#customerCustomFieldsForm');
   activeCustomFields().forEach(field => {
+    // Chỉ đọc cột có ô nhập trong form; cột vắng mặt (vd. Level) giữ nguyên giá trị cũ.
+    const present = field.type === 'MULTI_SELECT' ? form?.querySelector(`[data-customer-field-multi="${CSS.escape(field.id)}"]`) : form?.querySelector(`#${CSS.escape(`customerField-${field.id}`)}`);
+    if (!present) return;
     if (field.type === 'MULTI_SELECT') values[field.id] = $$(`[data-customer-field-multi="${field.id}"]:checked`).map(input => input.value);
     else if (field.type === 'CHECKBOX') values[field.id] = $(`#customerField-${field.id}`)?.checked === true;
     else values[field.id] = $(`#customerField-${field.id}`)?.value ?? '';

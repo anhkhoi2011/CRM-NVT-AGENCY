@@ -2051,7 +2051,9 @@
       modal.addEventListener('input',e=>{syncWorkflowControls();const pair=workflowPairs[Number(e.target.dataset.workflowNode)];if(pair)pair[0].dispatchEvent(new frame.contentWindow.Event('input',{bubbles:true}));});
     }catch(e){alert(e.message);}
   }
-  setInterval(()=>{if(workflowModal&&!workflowBusy&&!workflowModal.contains(document.activeElement)){const source=api?.workflowRoot();if(!source||source.innerHTML!==workflowMarkup)drawWorkflow();}},500);
+  // Không vẽ lại khi người dùng còn sửa dở (giá trị clone khác nguồn), tránh mất Level/Ghi chú chưa lưu.
+  const workflowDirty=()=>workflowPairs.some(([source,clone])=>source.matches?.('input,select,textarea')&&source.type!=='file'&&(source.value!==clone.value||('checked'in source&&source.checked!==clone.checked)));
+  setInterval(()=>{if(workflowModal&&!workflowBusy&&!workflowModal.contains(document.activeElement)&&!workflowDirty()){const source=api?.workflowRoot();if(!source||source.innerHTML!==workflowMarkup)drawWorkflow();}},500);
   // Các tác vụ chuyên sâu gom vào Cài đặt, không thêm dropdown trên từng tab.
   const featureActions=new Map();
   const roleTools={
