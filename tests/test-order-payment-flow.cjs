@@ -79,6 +79,16 @@ test('Order detail renders MST, company, sale note and accounting note',()=>{
  for(const value of ['0123456789','Example Company','Khách cần hóa đơn','Giao dịch đã khớp','Thông tin xuất hóa đơn'])assert.ok(markup.includes(value),value);
 });
 
+test('Reconciliation action is hidden in Orders and shown only in accounting context',()=>{
+ const source=fs.readFileSync(require('node:path').join(__dirname,'../reference-crm.js'),'utf8');let markup='';
+ const item={...order(),status:'PAID',paymentMode:'FULL',amountPaid:5500000,depositAmount:5500000,balanceDue:0};
+ const modal={style:{},querySelector:()=>null};
+ const ctx=vm.createContext({OrderPayments:payments,data:{orders:[item],user:{role:'ADMIN'}},esc:String,money:String,fmtDate:String,person:String,shortOrderCode:String,ensureAccountingOrderStyles(){},canChangeReceiptOrder:()=>false,receiptHistoryMarkup:()=>'',bindReceiptImages(){},editor:(title,body)=>{markup=body;return modal;}});
+ vm.runInContext(source.slice(source.indexOf('  function openReceiptOrderDetail('),source.indexOf('  function openReceiptPaymentForm(')),ctx);
+ ctx.openReceiptOrderDetail(item.id);assert.doesNotMatch(markup,/receiptReconcile|Kế toán kiểm tra & Đối soát đủ/);
+ ctx.openReceiptOrderDetail(item.id,false,true);assert.match(markup,/receiptReconcile/);assert.match(markup,/Kế toán kiểm tra & Đối soát đủ/);
+});
+
 test('Inclusive VAT keeps every entered dong and allocates receipts consistently',()=>{for(const total of [1,6,16,1000000,5500000,5500006]){const a=payments.amounts({total});assert.equal(a.total,total);assert.equal(a.subtotal+a.vatAmount,total);assert.equal(a.vatAmount,Math.round(total/11));}assert.equal(payments.amounts({subtotal:5000000}).total,5500000);assert.throws(()=>payments.amounts({total:1.5}));});
 test('Inclusive rounding is accepted by server for sale orders',()=>{const o={...order(),...payments.amounts({total:5500006})};o.balanceDue=o.total-o.amountPaid;crm.authorize(sale,'orders',null,o,data);crm.validate('orders',o,o.id);});
 test('QR and saved transfer content use customer full name and phone',async()=>{const f=form();f.node('#aoName').value='Nguyễn Văn An';f.node('#aoTotal').value='1000000';f.node('#aoTotal').oninput();await f.save();assert.match(f.node('#aoInvoice').innerHTML,new RegExp('des='+encodeURIComponent('Nguyễn Văn An 0901234567')));f.node('#aoConfirmed').checked=true;await f.node('#aoBillFile').onchange({target:{files:[{name:'bill.jpg'}]}});await f.save();assert.equal(f.created[0].total,1000000);assert.equal(f.created[0].subtotal,909091);assert.equal(f.created[0].amountPaid,1000000);assert.equal(f.created[0].paymentReference,'Nguyễn Văn An 0901234567');});

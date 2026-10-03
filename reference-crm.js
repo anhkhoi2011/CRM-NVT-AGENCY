@@ -2355,7 +2355,7 @@
   });
 
   window.addEventListener('message', function(event) {
-    if(event.data?.type==='OPEN_CRM_ORDER'&&event.origin===location.origin&&event.source===q('#accountingIframe')?.contentWindow){if(event.data.create){openAccountingOrderForm('');return;}const id=String(event.data.orderId||'');if(event.data.reconcile)openOrderReconciliation(id);else if(event.data.collect)openReceiptPaymentForm(id,event.data.full===true);else openReceiptOrderDetail(id);return;}
+    if(event.data?.type==='OPEN_CRM_ORDER'&&event.origin===location.origin&&event.source===q('#accountingIframe')?.contentWindow){if(event.data.create){openAccountingOrderForm('');return;}const id=String(event.data.orderId||'');if(event.data.reconcile)openOrderReconciliation(id);else if(event.data.collect)openReceiptPaymentForm(id,event.data.full===true);else openReceiptOrderDetail(id,false,true);return;}
     if (event.data && event.data.type === 'CREATE_ACCOUNTING_ORDER') {
       createAccountingOrderFromIframe(event.data.payload || {}, event.source).catch(error => {
         (event.source || q('#accountingIframe')?.contentWindow)?.postMessage({type:'ACCOUNTING_ORDER_RESULT',ok:false,error:error.message||'Không tạo được đơn hàng.'},'*');
@@ -2684,25 +2684,25 @@
   function receiptHistoryMarkup(order,editable=false){
     return '<div class="ao-receipt-list">'+(OrderPayments.receipts(order).map((receipt,index)=>'<article class="ao-receipt"><div><b>'+esc(OrderPayments.billLabel(receipt.kind))+' · '+money(receipt.amount)+'</b><p>Lần '+(index+1)+' · '+esc(fmtDate(receipt.at))+'</p><small>'+esc(receipt.bankReference||'Chuyển khoản')+'</small>'+(receipt.note?'<p>Ghi chú lần thu: '+esc(receipt.note)+'</p>':'')+(editable?'<p><button type="button" class="btn-action btn-secondary" data-receipt-manage="'+index+'">Thêm bill / Sửa bill</button></p>':'')+'</div><div class="receipt-images">'+(OrderPayments.images(receipt).map((image,imageIndex)=>'<div><button class="ao-bill-zoom" type="button" data-receipt-image="'+index+':'+imageIndex+'"><img src="'+esc(image.imageData)+'" alt="Bill lần '+(index+1)+' ảnh '+(imageIndex+1)+'"><span>Xem ảnh đầy đủ</span></button><p>'+esc(image.note||OrderPayments.billLabel(receipt.kind))+'</p>'+(editable?'<button type="button" class="btn-action btn-danger" data-receipt-delete="'+index+':'+imageIndex+'">Xóa bill</button>':'')+'</div>').join('')||'<p>Chưa có ảnh bill.</p>')+'</div>'+(receipt.imageRevisions?.length?'<details style="grid-column:1/-1"><summary>Lịch sử sửa ảnh ('+receipt.imageRevisions.length+')</summary>'+receipt.imageRevisions.map(revision=>'<p>'+esc(fmtDate(revision.at))+' · '+esc(person(revision.by))+' · '+(revision.images||[]).length+' ảnh trước khi sửa</p>').join('')+'</details>':'')+'</article>').join('')||'<p>Chưa có thanh toán.</p>')+'</div>';
   }
-  function bindReceiptImages(modal,order){
-    modal.querySelectorAll('[data-receipt-manage]').forEach(button=>button.onclick=()=>openReceiptImageEditor(order.id,OrderPayments.receipts(order)[Number(button.dataset.receiptManage)].id));
+  function bindReceiptImages(modal,order,accountingContext=false){
+    modal.querySelectorAll('[data-receipt-manage]').forEach(button=>button.onclick=()=>openReceiptImageEditor(order.id,OrderPayments.receipts(order)[Number(button.dataset.receiptManage)].id,accountingContext));
     modal.querySelectorAll('[data-receipt-delete]').forEach(button=>button.onclick=()=>{
       const [receiptIndex,imageIndex]=button.dataset.receiptDelete.split(':').map(Number),receipt=OrderPayments.receipts(order)[receiptIndex],images=OrderPayments.images(receipt);
       if(!confirm('Xóa ảnh bill '+(imageIndex+1)+' của lần thu '+money(receipt.amount)+'? Số tiền đã thu giữ nguyên.'))return;
-      images.splice(imageIndex,1);run(()=>api.updateOrderAccounting(order.id,{action:'SAVE_RECEIPT_IMAGES',receiptId:receipt.id,images}),result=>{Object.assign(order,result?.order||{});openReceiptOrderDetail(order.id,true);});
+      images.splice(imageIndex,1);run(()=>api.updateOrderAccounting(order.id,{action:'SAVE_RECEIPT_IMAGES',receiptId:receipt.id,images}),result=>{Object.assign(order,result?.order||{});openReceiptOrderDetail(order.id,true,accountingContext);});
     });
     modal.querySelectorAll('[data-receipt-image]').forEach(button=>button.onclick=()=>{
       const [receiptIndex,imageIndex]=button.dataset.receiptImage.split(':').map(Number),receipt=OrderPayments.receipts(order)[receiptIndex],image=OrderPayments.images(receipt)[imageIndex];
       const viewer=document.createElement('div');viewer.className='modal-overlay open';viewer.style.zIndex='15000';viewer.innerHTML='<div class="modal-card" style="max-width:960px;width:95vw;max-height:95vh"><div class="modal-header"><h3>Bill '+money(receipt.amount)+'</h3><button type="button" class="modal-close-btn">×</button></div><div class="modal-body"><p>'+esc(image.note||OrderPayments.billLabel(receipt.kind))+'</p><img src="'+esc(image.imageData)+'" alt="Bill chuyển khoản đầy đủ" style="max-width:100%;display:block;margin:auto"></div></div>';document.body.appendChild(viewer);viewer.querySelector('button').onclick=()=>viewer.remove();viewer.onclick=e=>{if(e.target===viewer)viewer.remove();};
     });
   }
-  function openReceiptImageEditor(orderId,receiptId){
+  function openReceiptImageEditor(orderId,receiptId,accountingContext=false){
     const order=data.orders.find(o=>o.id===orderId);if(!order||!canChangeReceiptOrder(order))return;
     const receipt=OrderPayments.receipts(order).find(r=>r.id===receiptId);if(!receipt)return;
     const images=OrderPayments.images(receipt).map(image=>({...image,note:image.note||OrderPayments.billLabel(receipt.kind)})),originals=new Map(images.map(image=>[image.id,image.imageData]));let uploading=0;
     const modal=editor('Quản lý ảnh bill','<div class="ao-help"><b>'+esc(order.customerName)+' · Đã thu '+money(receipt.amount)+'</b><p>Ảnh bên dưới thuộc cùng một lần chuyển khoản. Thêm hoặc thay ảnh không ghi nhận thêm tiền.</p></div><label class="crm-field"><span>Loại bill cho ảnh thêm mới</span><select id="receiptImageType"><option value="FULL" '+(receipt.kind==='FULL'?'selected':'')+'>Bill chuyển khoản đủ</option><option value="DEPOSIT" '+(receipt.kind!=='FULL'?'selected':'')+'>Bill cọc</option></select></label><div id="receiptImageRows" class="ao-image-editor"></div><div class="ao-image-upload"><label for="receiptImageAdd" class="crm-file-button">+ Thêm ảnh cho lần thu này</label><input id="receiptImageAdd" class="ao-file" type="file" accept="image/*" multiple><p>Có thể chọn nhiều ảnh, tối đa 10 ảnh. Viết ghi chú dưới từng ảnh, rồi bấm Lưu ảnh &amp; ghi chú.</p></div><p id="receiptImageError" role="status" aria-live="polite"></p>',async()=>{
       if(uploading)throw Error('Đang xử lý ảnh, vui lòng chờ.');
-      const result=await api.updateOrderAccounting(orderId,{action:'SAVE_RECEIPT_IMAGES',receiptId,images});Object.assign(order,result.order||{});referenceNotice('Đã lưu ảnh và ghi chú. Số tiền đã thu giữ nguyên.');setTimeout(()=>openReceiptOrderDetail(orderId,true),0);
+      const result=await api.updateOrderAccounting(orderId,{action:'SAVE_RECEIPT_IMAGES',receiptId,images});Object.assign(order,result.order||{});referenceNotice('Đã lưu ảnh và ghi chú. Số tiền đã thu giữ nguyên.');setTimeout(()=>openReceiptOrderDetail(orderId,true,accountingContext),0);
     });modal.style.zIndex='12000';modal.querySelector('.modal-card').classList.add('ao-card');modal.querySelector('.modal-footer [type=submit]').textContent='Lưu ảnh & ghi chú';
     const draw=()=>{
       q('#receiptImageRows').innerHTML=images.map((image,index)=>'<article class="ao-image-edit"><div class="ao-image-edit-head"><b>Ảnh '+(index+1)+'</b><small>'+(!originals.has(image.id)?'Ảnh mới · chưa lưu':originals.get(image.id)!==image.imageData?'Đã thay ảnh · chưa lưu':'Ảnh đã lưu')+'</small></div><img src="'+esc(image.imageData)+'" alt="Ảnh bill '+(index+1)+'"><label class="crm-field"><span>Loại bill</span><select data-image-type="'+index+'"><option value="FULL" '+((image.note||OrderPayments.billLabel(receipt.kind))==='Bill chuyển khoản đủ'?'selected':'')+'>Bill chuyển khoản đủ</option><option value="DEPOSIT" '+((image.note||OrderPayments.billLabel(receipt.kind))!=='Bill chuyển khoản đủ'?'selected':'')+'>Bill cọc</option></select></label><label class="crm-field"><span>Ghi chú ảnh</span><textarea data-image-note="'+index+'" maxlength="500" placeholder="Ví dụ: Bill cọc 500.000đ, khách chuyển ngày 03/10">'+esc(image.note||'')+'</textarea></label><label for="receiptReplace'+index+'" class="crm-file-button">Thay ảnh '+(index+1)+'</label><input id="receiptReplace'+index+'" class="ao-file" type="file" accept="image/*" data-image-replace="'+index+'">'+('<button type="button" class="btn-action btn-danger" data-image-discard="'+index+'">Xóa bill này</button>')+'</article>').join('')||'<p>Chưa có ảnh. Bấm Thêm ảnh cho lần thu này để chọn bill.</p>';
@@ -2718,17 +2718,17 @@
       await api.updateOrderAccounting(id,{action:'RECONCILE',confirmed:q('#reconcileConfirm').checked,note:q('#reconcileNote').value});referenceNotice('Đã đối soát đủ. Tổng thực thu và doanh thu giữ nguyên.');
     });modal.style.zIndex='12000';bindReceiptImages(modal,order);modal.querySelector('.modal-footer [type=submit]').textContent='Kế toán xác nhận đối soát đủ';
   }
-  function openReceiptOrderDetail(id,editing=false){
+  function openReceiptOrderDetail(id,editing=false,accountingContext=false){
     const order=data.orders.find(o=>o.id===id);if(!order)return;ensureAccountingOrderStyles();
     const balance=OrderPayments.balance(order),paid=OrderPayments.paid(order),canEdit=canChangeReceiptOrder(order),billing=order.billing||{};
     const modal=editor((editing?'Sửa đơn · ':'Chi tiết đơn · ')+shortOrderCode(order.code||order.id),
       '<div class="ao-detail-summary"><h3>'+esc(OrderPayments.status(order,money))+'</h3><div class="crm-form-grid"><p>Tiền cần thu trước VAT<br><b>'+money(order.subtotal)+'</b></p><p>VAT 10%<br><b>'+money(order.vatAmount)+'</b></p><p>Tổng thanh toán<br><b>'+money(order.total)+'</b></p><p>Đã thu<br><b style="color:#059669">'+money(paid)+'</b></p><p>Còn cần thu<br><b style="color:#dc2626">'+money(balance)+'</b></p><p>Đối soát<br><b>'+(order.paymentReconciled?'Đã đối soát':'Chờ kế toán đối soát')+'</b></p></div></div>'+
       '<div class="crm-form-grid"><p>Khách hàng<br><b>'+esc(order.customerName)+'</b><br>'+esc(order.customerPhone||billing.phone||'')+'</p><p>Sản phẩm<br><b>'+esc(order.productName)+'</b><br><small>Mã sản phẩm: '+esc(order.sku||'—')+'</small></p><p>Sale phụ trách<br><b>'+esc(person(order.saleId))+'</b></p><p>Nội dung chuyển khoản<br><b>'+esc(order.paymentReference||order.code)+'</b></p><p>CCCD: '+esc(billing.cccd||'—')+'</p><p>Địa chỉ: '+esc(billing.address||'—')+'</p></div><div class="ao-detail-summary"><h3>Thông tin xuất hóa đơn</h3><p>Yêu cầu xuất hóa đơn: <b>'+(order.requireVat?'Có':'Không')+'</b></p><p>Mã số thuế: <b>'+esc(order.taxCode||billing.taxId||'—')+'</b></p><p>Tên công ty: <b>'+esc(order.companyName||'—')+'</b></p><p>Email: '+esc(billing.email||'—')+'</p></div><p>Ghi chú đơn: '+esc(order.saleNote||'—')+'</p><p>Ghi chú kế toán: '+esc(order.reconciliationNote||'—')+'</p>'+
       (canEdit?'<div class="ao-detail-actions"><button type="button" class="btn-action btn-secondary" id="receiptEditInfo">Sửa thông tin đơn</button>'+(balance>0?'<button type="button" class="btn-action btn-primary" id="receiptAdd">Ghi nhận tiền thu thêm</button><button type="button" class="btn-action btn-primary" id="receiptFull">Thu hết phần còn lại '+money(balance)+'</button>':'<b style="color:#059669">Đã thanh toán đủ</b>')+'</div>':'<p>Đơn đã khóa sửa sau đối soát hoặc kết thúc.</p>')+
-      (['ADMIN','ACCOUNTING'].includes(data.user.actualRole||data.user.role)&&['PAID','COURSE_GRANTED'].includes(order.status)&&paid===Number(order.total)&&balance===0&&!order.paymentReconciled?'<p><button type="button" class="btn-action btn-primary" id="receiptReconcile">Kế toán kiểm tra & Đối soát đủ</button></p>':'')+
+      (accountingContext&&['ADMIN','ACCOUNTING'].includes(data.user.actualRole||data.user.role)&&['PAID','COURSE_GRANTED'].includes(order.status)&&paid===Number(order.total)&&balance===0&&!order.paymentReconciled?'<p><button type="button" class="btn-action btn-primary" id="receiptReconcile">Kế toán kiểm tra & Đối soát đủ</button></p>':'')+
       '<h3>Lịch sử thanh toán &amp; bill ('+OrderPayments.receipts(order).length+')</h3><p class="ao-help">Khách chuyển thêm tiền: chọn <b>Ghi nhận tiền thu thêm</b>. Chỉ bổ sung hoặc thay ảnh cho khoản đã thu: chọn <b>Thêm bill / Sửa bill</b> bên dưới.</p>'+receiptHistoryMarkup(order,canEdit));
-    modal.style.zIndex='12000';bindReceiptImages(modal,order);
-    modal.querySelector('#receiptEditInfo')?.addEventListener('click',()=>openAccountingOrderForm(order.customerId,order));
+    modal.style.zIndex='12000';bindReceiptImages(modal,order,accountingContext);
+    modal.querySelector('#receiptEditInfo')?.addEventListener('click',()=>openAccountingOrderForm(order.customerId,order,accountingContext));
     modal.querySelector('#receiptAdd')?.addEventListener('click',()=>openReceiptPaymentForm(id,false));
     modal.querySelector('#receiptReconcile')?.addEventListener('click',()=>openOrderReconciliation(id));
     modal.querySelector('#receiptFull')?.addEventListener('click',()=>openReceiptPaymentForm(id,true));
@@ -2762,7 +2762,7 @@
     modal.style.zIndex='12000';modal.querySelector('.modal-footer [type=submit]').textContent=full?'Xác nhận đủ & Lưu bill':'Lưu thanh toán';
     picker=bindBillPicker(modal,'receiptFile','receiptPreview','receiptFileStatus',images,'receiptBillType');
   }
-  function openAccountingOrderForm(customerId, editing=null){
+  function openAccountingOrderForm(customerId, editing=null,accountingContext=false){
     const products=(data.products||[]).filter(p=>p.active!==false),sales=orderSalesInScope();
     if(!products.length){alert('Chưa có sản phẩm đang bán.');return;}
     if(!sales.length){alert('Chưa có Sale đang hoạt động trong phạm vi của bạn.');return;}
@@ -2820,7 +2820,7 @@
       payload.paymentReference=paymentReference;
       if(editing){
         const result=await api.updateOrderAccounting(editing.id,{...payload,action:'UPDATE',customerPhone:phone,customerCccd:cccd,customerAddress:payload.address,customerEmail:email,amountPaid:OrderPayments.paid(editing)});
-        Object.assign(editing,result.order||{});referenceNotice('Đã cập nhật thông tin đơn. Lịch sử bill được giữ nguyên.');if(manageBillsAfterSave)setTimeout(()=>openReceiptOrderDetail(editing.id,true),0);return;
+        Object.assign(editing,result.order||{});referenceNotice('Đã cập nhật thông tin đơn. Lịch sử bill được giữ nguyên.');if(manageBillsAfterSave)setTimeout(()=>openReceiptOrderDetail(editing.id,true,accountingContext),0);return;
       }
       if(step===1){
         const qr='https://qr.sepay.vn/img?acc=75725888888&bank=MBBank&amount='+a.collected+'&des='+encodeURIComponent(paymentReference);
