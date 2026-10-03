@@ -1705,3 +1705,17 @@ test('Mindmap lưu lot/định mức cho cả Manager, Leader, Sale và giữ sa
  assert.equal(lead.lotCommissionRate,80000);assert.equal(lead.miniLots,2);
  assert.ok((await f.api.read({id:'lead',role:'LEADER',teamId:'T'})).state.brokerageMetrics.some(x=>x.memberId==='lead'));
 });
+test('Chọn Level L0 cho khách chưa có Level vẫn được lưu và ghi lịch sử', () => {
+ const c=frontend();
+ vm.runInContext(`currentAccount={id:'admin',role:'ADMIN',scope:'ALL'};state=initialState();state.members=[];state.customers=[{id:'k1',name:'Khach',phone:'0912345678',status:'NEW',createdAt:'2026-10-01 10:00',updatedAt:'2026-10-01 10:00',customFields:{}},{id:'k2',name:'Khach 2',phone:'0912345679',status:'NEW',createdAt:'2026-10-01 10:00',updatedAt:'2026-10-01 10:00'}];STAFF=state.members;`,c);
+ for(const id of ['k1','k2']){
+  const result=vm.runInContext(`setCustomerCustomFields('${id}',{customerLevel:'L0'})`,c);
+  assert.equal(result.updated,true);
+  assert.equal(vm.runInContext(`customerById('${id}').customFields.customerLevel`,c),'L0');
+  assert.ok(vm.runInContext(`state.customerFieldHistory.some(h=>h.customerId==='${id}'&&h.fieldId==='customerLevel'&&h.to==='L0')`,c));
+  // Chọn lại cùng giá trị thì không tạo thêm thay đổi.
+  assert.equal(vm.runInContext(`setCustomerCustomFields('${id}',{customerLevel:'L0'})`,c).updated,false);
+ }
+ assert.equal(vm.runInContext(`setCustomerCustomFields('k1',{customerLevel:'L1'})`,c).updated,true);
+ assert.equal(vm.runInContext(`customerById('k1').customFields.customerLevel`,c),'L1');
+});

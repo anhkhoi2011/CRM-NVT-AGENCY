@@ -2204,10 +2204,16 @@ function setCustomerCustomFields(customerId, values, source = 'MANUAL') {
     nextValues[field.id] = next;
   }
   let changes = 0;
+  customer.customFields ||= {};
   Object.entries(nextValues).forEach(([fieldId, next]) => {
     const field = state.customFieldDefinitions.find(item => item.id === fieldId);
-    const previous = customer.customFields?.[fieldId] ?? defaultCustomFieldValue(field);
-    if (JSON.stringify(previous) === JSON.stringify(next)) return;
+    // Ô chưa từng lưu giá trị (bảng hiện "— Chưa chọn —") thì luôn ghi lại.
+    // Trước đây so với giá trị mặc định (Level = L0) nên chọn L0 bị coi là
+    // "không đổi", không gửi lên máy chủ và F5 lại mất lựa chọn.
+    const stored = Object.hasOwn(customer.customFields, fieldId) && customer.customFields[fieldId] != null;
+    const previous = stored ? customer.customFields[fieldId] : defaultCustomFieldValue(field);
+    if (stored && JSON.stringify(previous) === JSON.stringify(next)) return;
+    if (!stored && (next === '' || (Array.isArray(next) && !next.length))) return;
     recordFieldChange(customer, field, previous, next, source);
     customer.customFields[fieldId] = next;
     changes += 1;
