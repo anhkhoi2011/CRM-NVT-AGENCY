@@ -356,13 +356,20 @@
   const customerNoteSaveTimers=new Map();
   const draftStorageKey=()=> 'nvt-crm-customer-edits-v1:'+customerDraftOwner;
   const noteDraftStorageKey=()=> 'nvt-crm-customer-note-drafts-v1:'+customerDraftOwner;
+  // Bản nháp ghi cả sessionStorage (theo tab) lẫn localStorage: đóng tab, trình duyệt treo
+  // hay mất mạng rồi mở lại vẫn còn để gửi tiếp. Đọc ưu tiên bản của tab hiện tại.
+  const draftStore={
+    get(key){let raw=null;try{raw=sessionStorage.getItem(key);}catch{}if(raw===null)try{raw=localStorage.getItem(key);}catch{}return raw;},
+    set(key,value){sessionStorage.setItem(key,value);try{localStorage.setItem(key,value);}catch{}},
+    remove(key){try{sessionStorage.removeItem(key);}catch{}try{localStorage.removeItem(key);}catch{}}
+  };
   const selectionKey=p=>p.kind+':'+p.id+(p.kind==='field'?':'+p.fieldId:'');
   function persistCustomerNoteDrafts(){
     if(!customerDraftOwner)return;
     try{
       const records=Array.from(customerNoteDrafts.values());
-      if(records.length)sessionStorage.setItem(noteDraftStorageKey(),JSON.stringify(records));
-      else sessionStorage.removeItem(noteDraftStorageKey());
+      if(records.length)draftStore.set(noteDraftStorageKey(),JSON.stringify(records));
+      else draftStore.remove(noteDraftStorageKey());
     }catch(error){referenceNotice('Khong the luu ban nhap ghi chu tren trinh duyet.','error');}
   }
   let customerEditReady=false;
@@ -389,14 +396,14 @@
     if(customerDraftOwner!==data.user.id){customerNoteSaveTimers.forEach(timer=>clearTimeout(timer));customerNoteSaveTimers.clear();customerNoteDrafts.clear();customerDraftValues.clear();}
     customerDraftOwner=data.user.id;
     try{
-      const records=JSON.parse(sessionStorage.getItem(draftStorageKey())||'[]');
+      const records=JSON.parse(draftStore.get(draftStorageKey())||'[]');
       if(!Array.isArray(records)||records.some(r=>!r.payload||r.payload.accountId!==customerDraftOwner||!['field','leader','sale'].includes(r.payload.kind)))throw Error('Bản nháp không hợp lệ.');
-      const noteRecords=JSON.parse(sessionStorage.getItem(noteDraftStorageKey())||'[]');
+      const noteRecords=JSON.parse(draftStore.get(noteDraftStorageKey())||'[]');
       if(!Array.isArray(noteRecords)||noteRecords.some(r=>!r.payload||r.payload.accountId!==customerDraftOwner||r.payload.kind!=='field'))throw Error('Bản nháp ghi chú không hợp lệ.');
       const combined=[...records,...noteRecords];
       for(const {payload} of combined)customerDraftValues.set(selectionKey(payload),payload.value);
       customerSaveQueue.restore(combined,payload=>selectionAction(payload,true));
-      if(noteRecords.length)sessionStorage.removeItem(noteDraftStorageKey());
+      if(noteRecords.length)draftStore.remove(noteDraftStorageKey());
       if(combined.length&&q('#tab-customers.active'))fillCustomerOptions();
     }catch(error){referenceNotice(error.message,'error');}
   }
@@ -405,8 +412,8 @@
     isBusy:()=>working||workflowBusy,
     persist:records=>{
       if(!customerDraftOwner)return;
-      if(records.length)sessionStorage.setItem(draftStorageKey(),JSON.stringify(records));
-      else sessionStorage.removeItem(draftStorageKey());
+      if(records.length)draftStore.set(draftStorageKey(),JSON.stringify(records));
+      else draftStore.remove(draftStorageKey());
     },
     setBusy:value=>{working=value;},
     onChange:({pending,error,running,retrying})=>{
@@ -462,6 +469,8 @@
     if(immediate)flush();else customerNoteSaveTimers.set(key,setTimeout(flush,600));
   }
   window.addEventListener('beforeunload',event=>{if(customerSaveQueue.pending||customerNoteDrafts.size){event.preventDefault();event.returnValue='';}});
+  // Có mạng lại: gửi ngay phần đang chờ, không đợi hết lượt chờ thử lại.
+  window.addEventListener('online',()=>{if(customerSaveQueue.pending)customerSaveQueue.retry();});
   // Không cho hai lần bấm tạo cùng lúc. Runtime giữ requestId nếu mất phản hồi server.
   async function run(action,done) {
     if(working||customerSaveQueue.pending){referenceNotice('Đang lưu lựa chọn. Bạn có thể tiếp tục chọn trong bảng.');return null;} if(!api||!data||!api.sessionIdentity())return;

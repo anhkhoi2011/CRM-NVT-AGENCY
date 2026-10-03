@@ -1092,7 +1092,7 @@ async function resolveServerConflict() {
   if(!serverSyncToken||!serverStateLoaded||serverSaveRunning)return false;
   try{
     if(!await rebaseOnServer(serverSyncToken))return false;
-    serverConflict=false;serverPendingRequest=null;sessionStorage.removeItem(pendingWriteStorageKey());
+    serverConflict=false;serverPendingRequest=null;forgetPendingWrite();
     return true;
   }catch(error){return false;}
 }
@@ -1159,11 +1159,21 @@ function saveState() {
   setSaveStatus('Đang chờ lưu MySQL…');scheduleServerPersistence();
 }
 function pendingWriteStorageKey(accountId=currentAccount?.id){return 'nvt-crm-pending-write-v1:'+accountId;}
+// Bản nháp lưu ở cả sessionStorage (theo tab) và localStorage (còn sau khi đóng tab/trình duyệt treo).
+// Gửi lại cùng requestId là an toàn: máy chủ chỉ ghi một lần cho mỗi mã yêu cầu.
+function forgetPendingWrite(accountId=currentAccount?.id){
+  const key=pendingWriteStorageKey(accountId);
+  try{sessionStorage.removeItem(key);}catch{}
+  try{localStorage.removeItem(key);}catch{}
+}
 function rememberPendingWrite(request){
-  sessionStorage.setItem(pendingWriteStorageKey(),JSON.stringify({actorId:currentAccount.id,requestId:request.requestId,changes:request.changes,skipAutomatic:request.skipAutomatic===true,fastNote:request.fastNote===true}));
+  const raw=JSON.stringify({actorId:currentAccount.id,requestId:request.requestId,changes:request.changes,skipAutomatic:request.skipAutomatic===true,fastNote:request.fastNote===true});
+  sessionStorage.setItem(pendingWriteStorageKey(),raw);
+  try{localStorage.setItem(pendingWriteStorageKey(),raw);}catch{}
 }
 async function recoverPendingWrite(account){
-  const raw=sessionStorage.getItem(pendingWriteStorageKey(account.id));
+  let raw=sessionStorage.getItem(pendingWriteStorageKey(account.id));
+  if(!raw)try{raw=localStorage.getItem(pendingWriteStorageKey(account.id));}catch{}
   if(!raw)return null;
   const request=JSON.parse(raw);
   if(request.actorId!==account.id)throw Error('Bản nháp thuộc tài khoản khác.');
@@ -1173,7 +1183,7 @@ async function recoverPendingWrite(account){
     const response=await fetch(webhookApiBase()+'/api/state',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+serverSyncToken},body:JSON.stringify({requestId:request.requestId,changes:request.changes,skipAutomatic:request.skipAutomatic,fastNote:request.fastNote===true}),signal:controller?.signal});
     const payload=await response.json();
     if(!response.ok)throw Object.assign(Error(payload.error||'Chưa khôi phục được lần lưu trước. Bản nháp vẫn được giữ.'),{status:response.status});
-    sessionStorage.removeItem(pendingWriteStorageKey(account.id));
+    forgetPendingWrite(account.id);
     return payload;
   }finally{if(timer)clearTimeout(timer);}
 }
@@ -1210,7 +1220,7 @@ async function flushServerPersistence(requestOptions = {}) {
           // 20 người cùng sửa: 409/403 thường chỉ do bản ghi vừa đổi ở máy khác (hoặc khách vừa chuyển người).
           // Tải bản mới, gộp lại các ô mình sửa rồi gửi lại thay vì khóa cả phiên lưu đến khi F5.
           if([403,409].includes(response.status)&&rebaseAttempts<3){
-            rebaseAttempts++;serverPendingRequest=null;sessionStorage.removeItem(pendingWriteStorageKey());
+            rebaseAttempts++;serverPendingRequest=null;forgetPendingWrite();
             if(await rebaseOnServer(token))continue;
             throw new Error(payload.error||`HTTP ${response.status}`);
           }
@@ -1219,7 +1229,7 @@ async function flushServerPersistence(requestOptions = {}) {
           throw new Error(payload.error||`HTTP ${response.status}`);
         }
         applyServerSnapshot(payload,request.snapshot);serverPendingRequest=null;
-        sessionStorage.removeItem(pendingWriteStorageKey());
+        forgetPendingWrite();
       }while(hasServerChanges());
       setSaveStatus('Đã lưu MySQL');return true;
     }catch(error){setSaveStatus(error.message+' — chưa lưu, giữ trang mở',true);return false;}
@@ -5667,6 +5677,8 @@ function bindGlobalActions() {
   $('#loginPhone').oninput = updateLoginTwoFactorField;
   $('#logoutButton').onclick = async () => { if (serverStateLoaded && hasServerChanges() && !await flushServerPersistence()) return; endSession(); };
   window.addEventListener('beforeunload', event => { if (serverSaveRunning || (serverStateLoaded && hasServerChanges())) { event.preventDefault(); event.returnValue = ''; } });
+  // Có mạng lại: lưu ngay phần còn chờ thay vì đợi vòng đồng bộ 15 giây.
+  window.addEventListener('online', () => { if (serverStateLoaded && !serverSaveRunning && (serverPendingRequest || hasServerChanges())) scheduleServerPersistence(); });
   $('#notificationButton').onclick = () => navigate('notifications');
   $('#menuButton').onclick = () => $('#sidebar').classList.toggle('open');
   $('#themeButton').onclick = () => {

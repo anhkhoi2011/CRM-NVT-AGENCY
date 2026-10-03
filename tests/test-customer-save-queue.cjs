@@ -108,7 +108,7 @@ test('Draft restore uses its own marker so an early keystroke cannot skip it',()
 
 test('Transient server errors retry automatically with backoff, then wait for manual retry',async()=>{
  const timers=[],states=[];let fails=2,calls=0;
- const q=createQueue({isBusy:()=>false,setBusy(){},onChange:s=>states.push(s),wait:(fn,ms)=>{timers.push({fn,ms});return timers.length;},cancelWait(){},retryDelays:[10,20]});
+ const q=createQueue({isBusy:()=>false,setBusy(){},onChange:s=>states.push(s),wait:(fn,ms)=>{timers.push({fn,ms});return timers.length;},cancelWait(){},retryDelays:[10,20],maxRetries:2});
  q.enqueue('a',async()=>{calls++;if(fails-->0)throw Error('503 busy');});
  await tick();assert.equal(calls,1);assert.equal(timers.length,1);assert.equal(timers[0].ms,10);assert.equal(states.at(-1).retrying,true);
  timers.shift().fn();await tick();assert.equal(calls,2);assert.equal(timers[0].ms,20);
@@ -116,4 +116,14 @@ test('Transient server errors retry automatically with backoff, then wait for ma
  // Hết lượt tự thử: dừng và giữ bản nháp chờ bấm "Thử lưu lại".
  q.enqueue('b',async()=>{throw Error('down');});await tick();timers.shift().fn();await tick();timers.shift().fn();await tick();
  assert.equal(timers.length,0);assert.equal(q.pending,1);assert.equal(states.at(-1).retrying,false);assert.match(states.at(-1).error.message,/down/);
+});
+
+test('Long outages keep retrying at the last backoff step until the save succeeds',async()=>{
+ const timers=[];let calls=0;
+ const q=createQueue({isBusy:()=>false,setBusy(){},onChange(){},wait:(fn,ms)=>{timers.push({fn,ms});return timers.length;},cancelWait(){},retryDelays:[10,20]});
+ q.enqueue('a',async()=>{calls++;if(calls<6)throw Error('offline');});
+ await tick();
+ const delays=[];
+ while(timers.length){const t=timers.shift();delays.push(t.ms);t.fn();await tick();}
+ assert.deepEqual(delays,[10,20,20,20,20]);assert.equal(calls,6);assert.equal(q.pending,0);
 });

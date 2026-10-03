@@ -347,7 +347,7 @@ test('Catalog seed rolls back and leaves no marker after failure',async()=>{
  const f=productSeedFixture([], 'IND-BF-R3M');await assert.rejects(f.run(),/Catalog failure/);assert.equal(f.products.length,0);assert.equal(f.marker,false);assert.ok(f.events.includes('rollback'));
 });
 test('Frontend only permits theme and the account-scoped snapshot cache in localStorage',()=>{
- const html=fs.readFileSync('index.html','utf8'),runtime=fs.readFileSync('crm.js','utf8'),reference=fs.readFileSync('reference-crm.js','utf8');assert.doesNotMatch(html,/localStorage\.setItem|nvt-payment-sidecar|const CATALOG/);const runtimeWrites=[...runtime.matchAll(/localStorage\.setItem\(([^,]+)/g)].map(match=>match[1].trim());const referenceWrites=[...reference.matchAll(/localStorage\.setItem\(([^,]+)/g)].map(match=>match[1].trim());assert.deepEqual(runtimeWrites.sort(),['SESSION_KEY','SESSION_KEY','THEME_KEY']);assert.deepEqual(referenceWrites.sort(),['ACTIVE_TAB_KEY','CACHED_SNAPSHOT_KEY','SESSION_KEY']);assert.match(reference,/session\.accountId!==accountId\|\|session\.role!==role\)\{clearCachedSnapshot\(\);return null;\}/);
+ const html=fs.readFileSync('index.html','utf8'),runtime=fs.readFileSync('crm.js','utf8'),reference=fs.readFileSync('reference-crm.js','utf8');assert.doesNotMatch(html,/localStorage\.setItem|nvt-payment-sidecar|const CATALOG/);const runtimeWrites=[...runtime.matchAll(/localStorage\.setItem\(([^,]+)/g)].map(match=>match[1].trim());const referenceWrites=[...reference.matchAll(/localStorage\.setItem\(([^,]+)/g)].map(match=>match[1].trim());assert.deepEqual(runtimeWrites.sort(),['SESSION_KEY','SESSION_KEY','THEME_KEY','pendingWriteStorageKey()']);assert.deepEqual(referenceWrites.sort(),['ACTIVE_TAB_KEY','CACHED_SNAPSHOT_KEY','SESSION_KEY','key']);assert.match(reference,/const draftStore={/);assert.match(reference,/session\.accountId!==accountId\|\|session\.role!==role\)\{clearCachedSnapshot\(\);return null;\}/);
 });
 function referenceCacheFixture(){
  const source=fs.readFileSync('reference-crm.js','utf8'),start=source.indexOf('  const snapshotRole='),end=source.indexOf('    const esc=',start),values=new Map();
@@ -1728,4 +1728,26 @@ test('Chọn Level L0 cho khách chưa có Level vẫn được lưu và ghi l�
  }
  assert.equal(vm.runInContext(`setCustomerCustomFields('k1',{customerLevel:'L1'})`,c).updated,true);
  assert.equal(vm.runInContext(`customerById('k1').customFields.customerLevel`,c),'L1');
+});
+
+test('Pending SQL write survives a closed tab via localStorage and is cleared from both stores on acknowledgement',async()=>{
+ const c=frontend();
+ const mk=()=>{const v=new Map();return {v,getItem:k=>v.has(k)?v.get(k):null,setItem:(k,x)=>v.set(k,String(x)),removeItem:k=>v.delete(k)};};
+ const tab=mk(),disk=mk();c.sessionStorage=tab;c.localStorage=disk;
+ vm.runInContext("currentAccount={id:'sale',role:'SALE'};serverSyncToken='token';rememberPendingWrite({requestId:'SAVE-local',changes:[{key:'notes',id:'n',base:null,value:{id:'n'}}]});",c);
+ assert.ok(disk.getItem('nvt-crm-pending-write-v1:sale'));
+ tab.v.clear(); // đóng tab: sessionStorage mất, localStorage còn
+ const calls=[];c.fetch=async(url,options)=>{calls.push(JSON.parse(options.body));return {ok:true,json:async()=>({ok:true,state:vm.runInContext('initialState()',c),versions:{}})};};
+ await vm.runInContext("recoverPendingWrite({id:'sale'})",c);
+ assert.equal(calls[0].requestId,'SAVE-local');
+ assert.equal(disk.getItem('nvt-crm-pending-write-v1:sale'),null);assert.equal(tab.getItem('nvt-crm-pending-write-v1:sale'),null);
+});
+
+test('Customer cell drafts are mirrored to localStorage and reconnecting retries pending saves',()=>{
+ const source=fs.readFileSync('reference-crm.js','utf8'),crm=fs.readFileSync('crm.js','utf8');
+ assert.match(source,/set\(key,value\)\{sessionStorage\.setItem\(key,value\);try\{localStorage\.setItem\(key,value\);\}catch\{\}\}/);
+ assert.match(source,/JSON\.parse\(draftStore\.get\(draftStorageKey\(\)\)\|\|'\[\]'\)/);
+ assert.doesNotMatch(source,/sessionStorage\.(get|set|remove)Item\((noteD|d)raftStorageKey\(\)/);
+ assert.match(source,/addEventListener\('online',\(\)=>\{if\(customerSaveQueue\.pending\)customerSaveQueue\.retry\(\);\}\)/);
+ assert.match(crm,/addEventListener\('online'/);
 });

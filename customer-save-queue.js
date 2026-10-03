@@ -2,14 +2,15 @@
 (function(root,factory){
   if(typeof module==='object'&&module.exports)module.exports=factory();
   else root.createCustomerSaveQueue=factory();
-})(typeof globalThis!=='undefined'?globalThis:this,()=>function createCustomerSaveQueue({isBusy,setBusy,onChange,persist=()=>{},schedule=fn=>setTimeout(fn,50),wait=(fn,ms)=>setTimeout(fn,ms),cancelWait=timer=>clearTimeout(timer),retryDelays=[1000,2000,4000,8000,15000]}){
+})(typeof globalThis!=='undefined'?globalThis:this,()=>function createCustomerSaveQueue({isBusy,setBusy,onChange,persist=()=>{},schedule=fn=>setTimeout(fn,50),wait=(fn,ms)=>setTimeout(fn,ms),cancelWait=timer=>clearTimeout(timer),retryDelays=[1000,2000,4000,8000,15000],maxRetries=Infinity}){
   const jobs=[];let running=false,error=null,scheduled=false,attempts=0,retryTimer=null;
   const emit=()=>onChange({pending:jobs.length,error,running,retrying:Boolean(retryTimer)});
   // Nhiều người cùng lưu: máy chủ bận/mạng chập chờn chỉ là lỗi tạm thời.
-  // Tự thử lại với thời gian chờ tăng dần; hết lượt mới chờ người dùng bấm "Thử lưu lại".
+  // Tự thử lại với thời gian chờ tăng dần. Hết danh sách thì tiếp tục thử theo mốc cuối
+  // (mất mạng lâu vẫn tự lưu khi có mạng lại); maxRetries chỉ để giới hạn khi cần.
   function autoRetry(){
-    if(retryTimer||attempts>=retryDelays.length)return;
-    const delay=retryDelays[attempts++];
+    if(retryTimer||!retryDelays.length||attempts>=maxRetries)return;
+    const delay=retryDelays[Math.min(attempts++,retryDelays.length-1)];
     retryTimer=wait(()=>{retryTimer=null;error=null;emit();void drain();},delay);
   }
   const checkpoint=()=>persist(jobs.map(({key,payload})=>({key,payload})));
