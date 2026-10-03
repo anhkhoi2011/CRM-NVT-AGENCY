@@ -1756,9 +1756,9 @@ test('Receipt orders apply VAT independently of invoice request and support own 
  const c=referenceBridge(),api=c.window.crmApi;
  vm.runInContext(`currentAccount={id:'sale',saleId:'sale',name:'Sale',role:'SALE',scope:'OWN',leaderId:'lead',teamId:'T'};state.members=[{id:'sale',role:'SALE',active:true,leaderId:'lead',teamId:'T'}];state.products=[{id:'p',name:'Product',price:5000000,active:true,type:'SALE'}];state.customers=[];`,c);
  const result=await api.createOrder({source:'accounting-iframe',customerName:'Test',phone:'0901234567',saleId:'sale',productId:'p',subtotal:5000000,amountPaid:500000,vatRate:0,requireVat:false,cccd:'',address:'',paymentReference:'NVTTEST',billImage:'data:image/jpeg;base64,AA=='});
- assert.equal(result.order.total,5500000);assert.equal(result.order.balanceDue,5000000);assert.equal(result.order.requireVat,false);
+ assert.equal(result.order.total,5500000);assert.equal(result.order.balanceDue,5000000);assert.equal(result.order.requireVat,false);assert.equal(result.order.paymentReceipts[0].images[0].note,'Bill cọc');
  const updated=await api.updateOrderAccounting(result.id,{action:'COLLECT',amount:5000000,confirmed:true,billImage:'data:image/jpeg;base64,AA=='});
- assert.equal(updated.order.status,'PAID');assert.equal(updated.order.paymentMode,'FULL');assert.equal(updated.order.vatAmount,500000);assert.equal(vm.runInContext('state.customers[0].name',c),'Test');
+ assert.equal(updated.order.status,'PAID');assert.equal(updated.order.paymentMode,'FULL');assert.equal(updated.order.paymentReceipts.at(-1).images[0].note,'Bill chuyển khoản đủ');assert.equal(updated.order.vatAmount,500000);assert.equal(vm.runInContext('state.customers[0].name',c),'Test');
  const before=JSON.stringify(updated.order);
  await assert.rejects(()=>api.updateOrderAccounting(result.id,{action:'UPDATE',customerName:'Invalid',customerPhone:'0901234567',subtotal:5000000,amountPaid:99999999}),/Thêm thanh toán/);
  assert.equal(JSON.stringify(vm.runInContext('state.orders[0]',c)),before);

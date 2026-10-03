@@ -19,6 +19,7 @@
   return out;
  }
  function status(order,format=String){return order.status==='REFUNDED'?'Đã hoàn tiền':order.status==='CANCELLED'?'Đã hủy':balance(order)===0&&paid(order)>0?'Thanh toán đủ':paid(order)>0?'Cọc '+format(paid(order)):'Chờ thanh toán';}
+ function billLabel(kind){return kind==='FULL'?'Bill chuyển khoản đủ':'Bill cọc';}
  function images(receipt){return Array.isArray(receipt.images)?receipt.images.map(i=>({...i})):receipt.billImage?[{id:receipt.id+'-image',imageData:receipt.billImage,note:receipt.note||''}]:[];}
  function amounts(input){
   const inclusive=input.total!==undefined,base=Number(inclusive?input.total:input.subtotal);
@@ -32,5 +33,5 @@
   if(!result.length||result.length>10||new Set(result.map(i=>i.id)).size!==result.length||result.some(i=>!/^data:image\/(jpeg|png|webp);base64,/.test(i.imageData))||JSON.stringify(result).length>2800000)throw Error('Chọn từ 1 đến 10 ảnh bill, tổng dung lượng tối đa 2,8 MB.');
   return result;
  }
- return {receipts,paid,balance,events,status,images,amounts,billImages};
+ return {receipts,paid,balance,events,status,images,amounts,billImages,billLabel};
 });

@@ -1287,7 +1287,7 @@ body.accounting-modal-open { overflow: hidden; }
     document.documentElement.classList.add('is-embedded');
   }
 </script>
-<script src="order-payments.js?v=20261003-accounting-sql-5"></script>
+<script src="order-payments.js?v=20261003-bill-types-6"></script>
 </head>
 <body>
 
@@ -6746,15 +6746,9 @@ function submitCreateNewOrder() {
     const randomHex = Math.random().toString(16).substring(2, 8).toUpperCase();
     const newOrderId = 'NVT-' + randomHex;
 
-    const preset = document.getElementById('newOrderBillPresetSelect')?.value || 'vcb';
-    let bankName = 'VIETCOMBANK';
-    let bankColor = '#005a3c';
-    if (preset === 'tcb') { bankName = 'TECHCOMBANK'; bankColor = '#e11b22'; }
-    else if (preset === 'mbb') { bankName = 'MB BANK'; bankColor = '#002878'; }
-    else if (preset === 'acb') { bankName = 'ACB'; bankColor = '#004f9e'; }
-
-    const formattedCollected = formatCurrency(collected);
-    const billImg = customNewOrderBill || generateBankBillSvg(bankName, bankColor, formattedCollected, newOrderId.replace(/-/g, ''), custName.toUpperCase(), 'THANH TOAN ' + prodName.toUpperCase(), new Date().toLocaleDateString('vi-VN'));
+    const billNote = OrderPayments.billLabel(document.getElementById('newOrderBillPresetSelect')?.value);
+    const billImg = customNewOrderBill;
+    if(!billImg){alert('Vui lòng tải ảnh bill chuyển khoản.');return;}
 
     const taxCode = reqVat ? (document.getElementById('newOrderTaxCode')?.value.trim() || '') : '';
     const compName = reqVat ? (document.getElementById('newOrderCompanyName')?.value.trim() || '') : '';
@@ -6790,6 +6784,7 @@ function submitCreateNewOrder() {
       address: custAddress,
       invoiceEmail: 'ketoan.' + custPhone + '@gmail.com',
       billImage: billImg,
+      billNote,
       billDate: new Date().toLocaleString('vi-VN'),
       saleNote: document.getElementById('newOrderSaleNote')?.value.trim() || (isPaid ? 'Khách thanh toán đủ 100% kèm ảnh bill và CCCD.' : 'Khách cọc ' + formattedCollected + ', còn lại ' + formatCurrency(remaining) + '.')
     };
@@ -6800,7 +6795,7 @@ function submitCreateNewOrder() {
       cccd: custCccd, address: custAddress, productId: prodSel ? prodSel.value : '',
       saleId, subtotal, vatRate: reqVat ? 0.1 : 0, amountPaid: collected,
       paymentMethod: 'BANK_TRANSFER', taxCode, companyName: compName,
-      saleNote: newOrder.saleNote, billImage: billImg,
+      saleNote: newOrder.saleNote, billImage: billImg, images:[{id:'bill-1',imageData:billImg,note:billNote}],
       billing: { name: custName, phone: custPhone, email: newOrder.customerEmail, cccd: custCccd, address: custAddress, taxId: taxCode }
     }});
     closeCreateOrderModal();
@@ -7838,10 +7833,8 @@ window.printOrderInvoice = printOrderInvoice;
         <label style="font-weight:700; font-size:12px; margin-bottom:6px; display:block;">Hóa Đơn / Bill Chuyển Khoản Ngân Hàng Đính Kèm *</label>
         <div style="display:flex; gap:10px; align-items:center;">
           <select id="newOrderBillPresetSelect" onchange="onNewOrderBillPresetChange(this.value)" style="flex:1; padding:6px 10px; border-radius:6px; border:1px solid #cbd5e1; font-size:12px;">
-            <option value="vcb">Bill Vietcombank (Ủy nhiệm chi 2.5tr / 5tr)</option>
-            <option value="tcb">Bill Techcombank (Chuyển khoản nhanh 24/7)</option>
-            <option value="mbb">Bill MB Bank (Giao dịch thành công)</option>
-            <option value="acb">Bill ACB (Sao kê chuyển khoản)</option>
+            <option value="FULL">Bill chuyển khoản đủ</option>
+            <option value="DEPOSIT">Bill cọc</option>
           </select>
           <label class="btn-micro" style="background:#ffffff; border:1px solid #cbd5e1; padding:6px 10px; cursor:pointer;">
             📁 Tải ảnh khác
