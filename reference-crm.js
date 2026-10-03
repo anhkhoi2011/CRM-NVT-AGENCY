@@ -2270,7 +2270,8 @@
     };
     const periodOrders=orders.filter(order=>order&&order.status==='PAID'&&String(order.paidAt||order.createdAt||'').slice(0,7)===selectedPeriod);
     const parentFor=member=>member.role==='LEADER'?member.managerId||null:member.role==='SALE'?(member.leaderId||member.managerId||null):null;
-    const roleMeta={MANAGER:{level:'LV1',title:'Manager',rate:90000},LEADER:{level:'LV2',title:'Leader',rate:70000},SALE:{level:'LV3',title:'Sale',rate:50000}};
+    const lotConfig=data.settings?.accountingLotConfig||{};
+    const roleMeta={MANAGER:{level:'LV1',title:'Manager',rate:Number(lotConfig.rateLv1)||90000},LEADER:{level:'LV2',title:'Leader',rate:Number(lotConfig.rateLv2)||70000},SALE:{level:'LV3',title:'Sale',rate:Number(lotConfig.rateLv3)||50000}};
     const apexFormattedList=members.map(member=>{
       const meta=roleMeta[member.role]||roleMeta.SALE,parentId=parentFor(member),parent=members.find(item=>String(item.id)===String(parentId));
       const metric=metrics.find(item=>String(item.memberId)===String(member.id)&&String(item.period||'')===selectedPeriod)||{};
@@ -2281,9 +2282,9 @@
       const rate=Number(metric.lotCommissionRate||metric.ratePerLot||meta.rate)||meta.rate;
       const displayId=String(member.accountId||'').trim()||'—';
       const parentDisplayId=String(parent?.accountId||'').trim();
-      return {id:String(member.id),displayId,name:member.name||member.accountId||member.id,phone:member.phone||'',roleLevel:meta.level,roleTitle:meta.title,team:member.teamId||'',teamId:member.teamId||'',directManager:parent?((parent.name||parent.accountId||'Quản lý')+(parentDisplayId?' - ID: '+parentDisplayId:'')):'—',parentId:parentId?String(parentId):null,managerId:member.managerId||null,leaderId:member.leaderId||null,ratePerLot:rate,customDiffRate:Math.max(0,rate-(meta.level==='LV1'?70000:meta.level==='LV2'?50000:0)),basicLot:Number(metric.basicLots??metric.basicLot??0),miniLot:Number(metric.miniLots??metric.miniLot??0),microLot:Number(metric.microLots??metric.microLot??0),indicatorRev,courseRev,vipRev,otherRev,productRate:Number(metric.productRate??10),bonus:Number(metric.bonus||0)};
+      return {id:String(member.id),displayId,name:member.name||member.accountId||member.id,phone:member.phone||'',roleLevel:meta.level,roleTitle:meta.title,team:member.teamId||'',teamId:member.teamId||'',directManager:parent?((parent.name||parent.accountId||'Quản lý')+(parentDisplayId?' - ID: '+parentDisplayId:'')):'—',parentId:parentId?String(parentId):null,managerId:member.managerId||null,leaderId:member.leaderId||null,ratePerLot:rate,customDiffRate:Math.max(0,rate-(meta.level==='LV1'?70000:meta.level==='LV2'?50000:0)),basicLot:Number(metric.basicLots??metric.basicLot??0),miniLot:Number(metric.miniLots??metric.miniLot??0),microLot:Number(metric.microLots??metric.microLot??0),indicatorRev,courseRev,vipRev,otherRev,productRate:Number(metric.productRate??lotConfig.defaultProductRate??10),bonus:Number(metric.bonus||0)};
     });
-    iframe.contentWindow.postMessage({type:'SYNC_MEMBERS_DATA',members:apexFormattedList,period:selectedPeriod},'*');
+    iframe.contentWindow.postMessage({type:'SYNC_MEMBERS_DATA',members:apexFormattedList,period:selectedPeriod,lotConfig},'*');
     const field=courseField();
     iframe.contentWindow.postMessage({type:'SYNC_ORDERS_DATA',brokerageMetrics:metrics,orders:orders,customers:data.customers||[],products:products.map(product=>({...product,kind:productKind(product)})),members:data.members||[],expenses:data.expenses||[],courseField:field?{id:field.id,label:field.label,options:field.options||[]}:null,courseKeys:courseKeys(),courseConfigs:data.courseConfigs||[],period:selectedPeriod},'*');
   }
@@ -2318,7 +2319,7 @@
 
     let iframe = host.querySelector('#accountingIframe');
     if (!iframe) {
-      host.innerHTML = `<iframe id="accountingIframe" src="commission_tree_demo.html?embedded=1&tab=${encodeURIComponent(targetTab)}&v=20260930-accounting-sync-v14" title="Kế toán & Hoa hồng APEX" loading="eager"></iframe>`;
+      host.innerHTML = `<iframe id="accountingIframe" src="commission_tree_demo.html?embedded=1&tab=${encodeURIComponent(targetTab)}&v=20261003-mindmap-save-1" title="Kế toán & Hoa hồng APEX" loading="eager"></iframe>`;
       iframe = host.querySelector('#accountingIframe');
       iframe?.addEventListener('load',()=>{host.classList.add('is-ready');syncMembersToAccountingMindmap();},{once:true});
     } else {
@@ -2390,6 +2391,18 @@
         refresh(true);
         (event.source || q('#accountingIframe')?.contentWindow)?.postMessage({type:'ACCOUNTING_BROKERAGE_RESULT',ok:true,result},'*');
       })().catch(error=>(event.source || q('#accountingIframe')?.contentWindow)?.postMessage({type:'ACCOUNTING_BROKERAGE_RESULT',ok:false,error:error.message||'Không lưu được cấu hình hoa hồng.'},'*'));
+      return;
+    }
+    if (event.data && event.data.type === 'ACCOUNTING_LOT_CONFIG_SAVE') {
+      (async()=>{
+        if(!api) throw Error('CRM chưa sẵn sàng.');
+        const input=event.data.payload||{},clean={};
+        for(const key of ['rateApex','rateLv1','rateLv2','rateLv3','miniMultiplier','microMultiplier','defaultProductRate']){const value=Number(input[key]);if(!Number.isFinite(value)||value<0)throw Error('Biến số lot hoặc định mức không hợp lệ.');clean[key]=value;}
+        if(clean.defaultProductRate>100)throw Error('Tỷ lệ sản phẩm phải từ 0 đến 100%.');
+        const result=await api.settings({accountingLotConfig:clean});
+        refresh(true);
+        (event.source || q('#accountingIframe')?.contentWindow)?.postMessage({type:'ACCOUNTING_LOT_CONFIG_RESULT',ok:true,result},'*');
+      })().catch(error=>(event.source || q('#accountingIframe')?.contentWindow)?.postMessage({type:'ACCOUNTING_LOT_CONFIG_RESULT',ok:false,error:error.message||'Không lưu được biến số lot.'},'*'));
       return;
     }
     if (event.data && event.data.type === 'ACCOUNTING_COURSE_CONFIG_SAVE') {

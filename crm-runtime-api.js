@@ -96,14 +96,17 @@
     async saveBrokerageMetric(metric){
       requireRole(['ADMIN']);
       return persist(()=>{
-        const member=state.members.find(item=>item.id===metric.memberId&&item.role==='SALE'&&item.active!==false);
-        if(!member)throw Error('Sale không còn hoạt động.');
+        const member=state.members.find(item=>item.id===metric.memberId&&['MANAGER','LEADER','SALE'].includes(item.role)&&item.active!==false);
+        if(!member)throw Error('Nhân sự không còn hoạt động.');
         const period=String(metric.period||'');if(!/^\d{4}-\d{2}$/.test(period))throw Error('Kỳ báo cáo không hợp lệ.');
         const numberValue=(value,max=1e12)=>{const result=Number(value);if(!Number.isFinite(result)||result<0||result>max)throw Error('Dữ liệu lot hoặc tỷ lệ không hợp lệ.');return result;};
         const id='BRK-'+period+'-'+member.id;
-        const next={id,memberId:member.id,leaderId:member.leaderId,teamId:member.teamId,period,basicLots:numberValue(metric.basicLots),microLots:numberValue(metric.microLots),nanoLots:numberValue(metric.nanoLots),lotCommissionRate:numberValue(metric.lotCommissionRate),indicatorCommissionRate:numberValue(metric.indicatorCommissionRate,1),courseCommissionRate:numberValue(metric.courseCommissionRate,1),bonus:numberValue(metric.bonus),vatRate:numberValue(metric.vatRate,1),updatedAt:stamp()};
+        const index=state.brokerageMetrics.findIndex(item=>item.id===id),previous=index>=0?state.brokerageMetrics[index]:{};
+        // Trường không gửi lên (vd. Mindmap không có nano lot) giữ nguyên giá trị đã lưu.
+        const keep=(field,max)=>numberValue(metric[field]??previous[field]??0,max);
+        const next={...previous,id,memberId:member.id,leaderId:member.role==='SALE'?member.leaderId:member.id,teamId:member.teamId||'',memberRole:member.role,period,basicLots:keep('basicLots'),miniLots:keep('miniLots'),microLots:keep('microLots'),nanoLots:keep('nanoLots'),productRate:keep('productRate',100),lotCommissionRate:keep('lotCommissionRate'),indicatorCommissionRate:keep('indicatorCommissionRate',1),courseCommissionRate:keep('courseCommissionRate',1),bonus:keep('bonus'),vatRate:keep('vatRate',1),updatedAt:stamp()};
         if(next.vatRate>1)throw Error('Thuế suất không hợp lệ.');
-        const index=state.brokerageMetrics.findIndex(item=>item.id===id);if(index>=0)state.brokerageMetrics[index]=next;else state.brokerageMetrics.unshift(next);
+        if(index>=0)state.brokerageMetrics[index]=next;else state.brokerageMetrics.unshift(next);
         audit('SAVE_BROKERAGE_METRIC',id,member.name+' · '+period);return {ok:true};
       },'brokerage-metric');
     },

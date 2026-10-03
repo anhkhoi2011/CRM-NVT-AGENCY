@@ -3705,25 +3705,33 @@ function renderMindmapTree() {
     const bon = document.getElementById('inputBonus');
     if (bon) person.bonus = Number(bon.value) || 0;
 
-    if (person.roleLevel === 'LV3') {
-      postAccountingMessage('ACCOUNTING_BROKERAGE_SAVE', { payload: {
-        memberId: person.id,
-        leaderId: person.leaderId || person.managerId || '',
-        teamId: person.teamId || person.team || '',
-        period: currentAccountingMonth || new Date().toISOString().slice(0, 7),
-        basicLots: person.basicLot,
-        microLots: person.miniLot,
-        nanoLots: person.microLot,
-        lotCommissionRate: person.ratePerLot,
-        indicatorCommissionRate: Number(person.indicatorCommissionRate || 0),
-        courseCommissionRate: Number(person.courseCommissionRate || 0),
-        bonus: person.bonus,
-        vatRate: Number(person.vatRate || 0)
-      }});
-    }
     closeEditModal();
     renderAllViews();
-    alert(`Đã lưu thành công cơ chế riêng (${(person.ratePerLot/1000)}k/lot) và tính toán lại hệ thống cho: ${person.name}!`);
+    persistPersonnelMetric(person, `Đã lưu cơ chế riêng (${(person.ratePerLot/1000)}k/lot) cho: ${person.name}.`);
+  }
+
+  // Kỳ lưu lot luôn là YYYY-MM; khi đang xem "Tất cả" thì ghi vào tháng hiện tại.
+  function accountingSavePeriod() {
+    const month = String(currentGlobalMonth || '');
+    return /^d{4}-d{2}$/.test(month) ? month : new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' }).slice(0, 7);
+  }
+
+  // Lưu chỉ số của một nhân sự (mọi cấp LV1-LV3) vào CRM; báo kết quả khi server xác nhận.
+  function persistPersonnelMetric(person, successMessage) {
+    if (!person) return false;
+    const payload = {
+      memberId: person.id,
+      period: accountingSavePeriod(),
+      basicLots: Number(person.basicLot) || 0,
+      miniLots: Number(person.miniLot) || 0,
+      microLots: Number(person.microLot) || 0,
+      lotCommissionRate: Number(person.ratePerLot) || 0,
+      productRate: Number(person.productRate) || 0,
+      bonus: Number(person.bonus) || 0
+    };
+    if (!postAccountingMessage('ACCOUNTING_BROKERAGE_SAVE', { payload })) return false;
+    window.__PENDING_BROKERAGE_SUCCESS = successMessage || '';
+    return true;
   }
 
 
@@ -3866,6 +3874,11 @@ function renderMindmapTree() {
 
     closeConfigModal();
     renderAllViews();
+    postAccountingMessage('ACCOUNTING_LOT_CONFIG_SAVE', { payload: {
+      rateApex: LOT_CONFIG.rateApex, rateLv1: LOT_CONFIG.rateLv1, rateLv2: LOT_CONFIG.rateLv2, rateLv3: LOT_CONFIG.rateLv3,
+      miniMultiplier: LOT_CONFIG.miniMultiplier, microMultiplier: LOT_CONFIG.microMultiplier, defaultProductRate: LOT_CONFIG.defaultProductRate || 10
+    }});
+    if (window.parent && window.parent !== window) return; // kết quả lưu hiện qua ACCOUNTING_LOT_CONFIG_RESULT
     alert(`✓ Đã cập nhật thành công: Sàn trả về Apex ${(LOT_CONFIG.rateApex/1000)}k/lot! Tuyến dưới chia: Manager ${(LOT_CONFIG.rateLv1/1000)}k, Leader ${(LOT_CONFIG.rateLv2/1000)}k, Sale ${(LOT_CONFIG.rateLv3/1000)}k. Công ty Apex giữ lại ${((LOT_CONFIG.rateApex - LOT_CONFIG.rateLv1)/1000)}k/lot!`);
   }
 
@@ -4272,6 +4285,7 @@ function renderMindmapTree() {
     person.ratePerLot = val;
     person.hasCustomRate = true;
     renderAllViews();
+    persistPersonnelMetric(person);
   }
 
   function updatePersonnelProductRate(id, newRate) {
@@ -7943,10 +7957,25 @@ window.printOrderInvoice = printOrderInvoice;
       for (const [field, source] of [['basicLot','basicLots'],['miniLot','miniLots'],['microLot','microLots'],['bonus','bonus']]) {
         person[field] = metrics.reduce((sum, m) => sum + (Number(m[source] ?? m[field]) || 0), 0);
       }
+      const saved = currentGlobalMonth === 'ALL' ? null : metrics[0];
+      if (saved && Number(saved.lotCommissionRate) > 0) person.ratePerLot = Number(saved.lotCommissionRate);
+      if (saved && saved.productRate !== undefined && Number.isFinite(Number(saved.productRate))) person.productRate = Number(saved.productRate);
       Object.assign(person, revenueBySale.get(String(person.id)) || {courseRev:0,indicatorRev:0,vipRev:0,otherRev:0});
     }
     window.COURSES_DATA = COURSES_DATA;
     window.APEX_DATA = APEX_DATA;
+  }
+
+  // Nạp biến số lot đã lưu trong CRM để F5 không quay về mặc định.
+  function applyLotConfigFromCRM(config) {
+    if (!config || typeof config !== 'object') return;
+    for (const key of ['rateApex','rateLv1','rateLv2','rateLv3','miniMultiplier','microMultiplier','defaultProductRate']) {
+      const value = Number(config[key]);
+      if (Number.isFinite(value) && value >= 0) LOT_CONFIG[key] = value;
+    }
+    LOT_CONFIG.diffLeader = Math.max(0, LOT_CONFIG.rateLv2 - LOT_CONFIG.rateLv3);
+    LOT_CONFIG.diffManager = Math.max(0, LOT_CONFIG.rateLv1 - LOT_CONFIG.rateLv2);
+    LOT_CONFIG.diffManagerDirectSale = Math.max(0, LOT_CONFIG.rateLv1 - LOT_CONFIG.rateLv3);
   }
 
   function syncTeamMembersFromCRM(membersList, period) {
@@ -7985,7 +8014,7 @@ window.printOrderInvoice = printOrderInvoice;
       const courseRev = m.courseRev !== undefined && m.courseRev !== null ? Number(m.courseRev) : (existing.courseRev !== undefined ? existing.courseRev : 0);
       const bonus = m.bonus !== undefined && m.bonus !== null ? Number(m.bonus) : (existing.bonus !== undefined ? existing.bonus : 0);
 
-      const ratePerLot = Number(m.ratePerLot) || existing.ratePerLot || (roleLevel === 'LV1' ? 90000 : (roleLevel === 'LV2' ? 70000 : 50000));
+      const ratePerLot = Number(m.ratePerLot) || existing.ratePerLot || (roleLevel === 'LV1' ? LOT_CONFIG.rateLv1 : (roleLevel === 'LV2' ? LOT_CONFIG.rateLv2 : LOT_CONFIG.rateLv3));
       const customDiffRate = Number(m.customDiffRate) || existing.customDiffRate || 20000;
 
       return {
@@ -8145,6 +8174,7 @@ window.printOrderInvoice = printOrderInvoice;
         switchView(msg.view);
       }
     } else if (msg.type === 'SYNC_MEMBERS_DATA' || msg.type === 'SYNC_TEAM_MEMBERS') {
+      applyLotConfigFromCRM(msg.lotConfig);
       syncTeamMembersFromCRM(msg.members, msg.period);
       syncAccountingSelects(msg.members, window.__CRM_PRODUCTS || []);
     } else if (msg.type === 'SYNC_ORDERS_DATA') {
@@ -8173,8 +8203,15 @@ window.printOrderInvoice = printOrderInvoice;
       if (!msg.ok && typeof showToast === 'function') showToast(msg.error || 'Không thể lưu thao tác kế toán.', 'warning', 'Lỗi Kế Toán');
       else if (msg.ok && typeof showToast === 'function') showToast('Thao tác kế toán đã được lưu vào CRM.', 'success', 'Đã Lưu SQL');
     } else if (msg.type === 'ACCOUNTING_BROKERAGE_RESULT') {
+      const successMessage = window.__PENDING_BROKERAGE_SUCCESS;
+      window.__PENDING_BROKERAGE_SUCCESS = '';
       if (!msg.ok && typeof showToast === 'function') showToast(msg.error || 'Không thể lưu cấu hình hoa hồng.', 'warning', 'Lỗi Hoa Hồng');
-      else if (msg.ok && typeof showToast === 'function') showToast('Cấu hình hoa hồng đã được lưu vào CRM.', 'success', 'Đã Lưu SQL');
+      else if (!msg.ok) alert(msg.error || 'Không thể lưu cấu hình hoa hồng.');
+      else if (typeof showToast === 'function') showToast(successMessage || 'Cấu hình hoa hồng đã được lưu vào CRM.', 'success', 'Đã Lưu SQL');
+    } else if (msg.type === 'ACCOUNTING_LOT_CONFIG_RESULT') {
+      if (!msg.ok && typeof showToast === 'function') showToast(msg.error || 'Không thể lưu biến số lot.', 'warning', 'Lỗi Biến Số Lot');
+      else if (!msg.ok) alert(msg.error || 'Không thể lưu biến số lot.');
+      else if (typeof showToast === 'function') showToast('Đã lưu biến số Lot & định mức vào CRM.', 'success', 'Đã Lưu SQL');
     }
   });
 

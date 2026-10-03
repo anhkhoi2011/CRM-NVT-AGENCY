@@ -63,3 +63,13 @@ test('Demo startup never creates paid sample orders or accounting configuration'
  assert.equal(demoState.orders.length,1);
  assert.equal(demoState.orders[0].id,'user-created-order');
 });
+
+test('Mindmap đọc lại đúng mini/micro lot, định mức và biến số lot đã lưu', () => {
+ const ctx=model();
+ ctx.ACCOUNTING_CRM_STATE.brokerageMetrics=[{memberId:'sale-1',period:'2026-10',basicLots:3,miniLots:2,microLots:1,lotCommissionRate:55000,productRate:12}];
+ ctx.rebuildAccountingRevenueFromCRM();
+ const p=vm.runInContext('APEX_DATA[0]',ctx);
+ assert.equal(p.basicLot,3);assert.equal(p.miniLot,2);assert.equal(p.microLot,1);assert.equal(p.ratePerLot,55000);assert.equal(p.productRate,12);
+ assert.match(html,/ACCOUNTING_LOT_CONFIG_SAVE/);assert.match(html,/applyLotConfigFromCRM\(msg\.lotConfig\)/);
+ assert.doesNotMatch(html,/if \(person\.roleLevel === 'LV3'\) \{\s*postAccountingMessage\('ACCOUNTING_BROKERAGE_SAVE'/);
+});

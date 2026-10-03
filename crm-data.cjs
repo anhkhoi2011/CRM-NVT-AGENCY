@@ -223,7 +223,7 @@ function managerReadable(user,key,r,data){
  if(['products','customFieldDefinitions','productCategories','websites','settings','saleDistributionByLeader','careGroups','leaderDistribution'].includes(key))return true;
  const inScope=m=>!!m&&(ids.has(m.id)||m.role==='SALE'&&ids.has(m.leaderId));
  if(key==='attendance')return r.accountId===user.id||inScope(memberById(data,r.accountId));
- if(key==='brokerageMetrics')return ids.has(r.leaderId);
+ if(key==='brokerageMetrics')return r.memberId===user.id||ids.has(r.leaderId);
  if(key==='notifications')return r.role==='ALL'||r.saleId===user.id||managerSales(user,data).some(m=>m.id===r.saleId)||ids.has(r.leaderId)||inScope(memberById(data,r.saleId));
  if(key==='audit')return r.actorId===user.id;
  if(key==='dataOffers')return (ids.has(r.leaderId)||r.leaderId===user.id||managerSales(user,data).some(m=>m.id===r.saleId))&&managerOwns(user,data.customers.get(r.customerId),data);
@@ -472,7 +472,9 @@ function validate(key,value,id){
  }
  if(key==='brokerageMetrics'){
   if(!/^[0-9]{4}-[0-9]{2}$/.test(String(value.period||'')))error(400,'Kỳ báo cáo lot không hợp lệ');
-  if(!value.memberId||!value.leaderId||!value.teamId)error(400,'Thiếu nhân sự hoặc Team cho báo cáo lot');
+  // Manager/Leader không thuộc Team nào nên chỉ Sale bắt buộc teamId.
+  if(!value.memberId||!value.leaderId||(!['MANAGER','LEADER'].includes(value.memberRole)&&!value.teamId))error(400,'Thiếu nhân sự hoặc Team cho báo cáo lot');
+  for(const field of ['miniLots','productRate'])if(Object.hasOwn(value,field)&&(!Number.isFinite(Number(value[field]))||Number(value[field])<0))error(400,'Dữ liệu lot hoặc tỷ lệ hoa hồng không hợp lệ');
   for(const field of ['basicLots','microLots','nanoLots','lotCommissionRate','indicatorCommissionRate','courseCommissionRate','vatRate'])if(!Number.isFinite(Number(value[field]))||Number(value[field])<0)error(400,'Dữ liệu lot hoặc tỷ lệ hoa hồng không hợp lệ');if(Object.hasOwn(value,'bonus')&&(!Number.isFinite(Number(value.bonus))||Number(value.bonus)<0))error(400,'Tiền thưởng không hợp lệ');
   if(Number(value.vatRate)>1)error(400,'Thuế suất báo cáo không hợp lệ');
  }

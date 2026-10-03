@@ -1685,3 +1685,23 @@ test('Lượt lưu nền trả về dữ liệu vừa ghi, không chạy chia t�
  assert.equal(result.state.customers[0].customFields.level,'L5');
  assert.equal((await f.api.read(admin,{passive:true})).state.customers[0].customFields.level,'L5');
 });
+
+test('Mindmap lưu lot/định mức cho cả Manager, Leader, Sale và giữ sau F5',async()=>{
+ const f=await managerFixture();
+ const c=frontend();vm.runInContext(fs.readFileSync('crm-runtime-api.js','utf8'),c);
+ c.snapshot=await f.api.read(admin,{passive:true});c.u={id:'admin',name:'Admin',role:'ADMIN'};
+ c.fetch=async(url,o)=>{try{const res=o?.method==='POST'?await (()=>{const b=JSON.parse(o.body);return f.api.write(admin,b.requestId,b.changes,{skipAutomatic:b.skipAutomatic});})():await f.api.read(admin,{passive:true});return {ok:true,status:200,json:async()=>res};}catch(e){return {ok:false,status:e.status||500,json:async()=>({error:e.message})};}};
+ vm.runInContext("currentAccount=hydrateSessionAccount(u);serverSyncToken='t';applyServerSnapshot(snapshot);",c);
+ for(const [memberId,rate] of [['mgr',95000],['lead',75000],['sale',55000]])
+  await c.window.crmApi.saveBrokerageMetric({memberId,period:'2026-10',basicLots:3,miniLots:2,microLots:1,lotCommissionRate:rate,productRate:12,bonus:100});
+ const after=(await f.api.read(admin)).state.brokerageMetrics;
+ for(const [memberId,rate] of [['mgr',95000],['lead',75000],['sale',55000]]){
+  const m=after.find(x=>x.id==='BRK-2026-10-'+memberId);assert.ok(m,memberId);
+  assert.equal(m.basicLots,3);assert.equal(m.miniLots,2);assert.equal(m.microLots,1);assert.equal(m.lotCommissionRate,rate);assert.equal(m.productRate,12);assert.equal(m.bonus,100);
+ }
+ // Lưu lại chỉ đổi định mức: các lot cũ vẫn được giữ.
+ await c.window.crmApi.saveBrokerageMetric({memberId:'lead',period:'2026-10',lotCommissionRate:80000});
+ const lead=(await f.api.read(admin)).state.brokerageMetrics.find(x=>x.id==='BRK-2026-10-lead');
+ assert.equal(lead.lotCommissionRate,80000);assert.equal(lead.miniLots,2);
+ assert.ok((await f.api.read({id:'lead',role:'LEADER',teamId:'T'})).state.brokerageMetrics.some(x=>x.memberId==='lead'));
+});
