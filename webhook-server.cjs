@@ -43,7 +43,7 @@ const PORT = Number(process.env.PORT || 4173);
 const HOST = process.env.HOST || '0.0.0.0';
 const SERVER_INSTANCE = crypto.randomUUID();
 let demoStateVersion = 1;
-const BUILD_VERSION = '20261001-sync-merge-1';
+const BUILD_VERSION = '20261003-accounting-sql-5';
 const REPO_ROOT = path.resolve(__dirname);
 const DEFAULT_WEBHOOK_DATA_DIR = process.env.WEBHOOK_DATA_DIR
   ? path.resolve(process.env.WEBHOOK_DATA_DIR)
@@ -220,12 +220,14 @@ function needsPasswordRehash(stored) {
 // Chế độ demo chỉ được bật chủ động bằng DEMO_MODE=1. npm start/cPanel không bật cờ này.
 const DEMO_MODE = typeof process !== 'undefined' && process.env?.DEMO_MODE === '1';
 const demoUsers = [
+  { id: 'demo-accounting', accountId: 'ACCOUNTING-DEMO', phone: '0900000005', email: 'accounting.demo@local.test', name: 'Kế Toán Demo', role: 'ACCOUNTING', teamId: '', leaderId: null, active: true },
   { id: 'demo-admin', accountId: 'ADMIN-DEMO', phone: '0900000001', email: 'admin.demo@local.test', name: 'Admin Demo', role: 'ADMIN', teamId: '', leaderId: null, active: true },
   { id: 'demo-manager', accountId: 'MANAGER-DEMO', phone: '0900000004', email: 'manager.demo@local.test', name: 'Manager Demo', role: 'MANAGER', teamId: '', leaderId: null, active: true },
   { id: 'demo-leader', accountId: 'LEADER-DEMO', phone: '0900000002', email: 'leader.demo@local.test', name: 'Leader Demo', role: 'LEADER', teamId: 'DEMO', leaderId: null, managerId: 'demo-manager', active: true },
   { id: 'demo-sale', accountId: 'SALE-DEMO', phone: '0900000003', email: 'sale.demo@local.test', name: 'Sale Demo', role: 'SALE', teamId: 'DEMO', leaderId: 'demo-leader', active: true }
 ];
 const demoPasswords = {
+  'accounting.demo@local.test': 'AccountingDemo2026!',
   'admin.demo@local.test': 'AdminDemo2026!',
   'manager.demo@local.test': 'ManagerDemo2026!',
   'leader.demo@local.test': 'LeaderDemo2026!',
@@ -392,7 +394,7 @@ function expireDemoOffers() {
 }
 function demoPayload(user) {
   expireDemoOffers();
-  return {...crmData.snapshot(user,demoData()),user};
+  return {...crmData.snapshot(user,demoData()),user,storage:{mode:'demo',durable:false}};
 }
 async function handleDemoApi(request, response, pathname) {
   if (pathname === '/api/db/health') return dbJson(request, response, 200, { configured: false, demo: true });
@@ -457,7 +459,7 @@ async function handleDemoApi(request, response, pathname) {
         const pending=key==='customers'&&user.role==='SALE'&&old&&demoState.dataOffers.some(o=>o.customerId===id&&o.saleId===user.id&&o.status==='PENDING');
         if(pending&&value)value={...old,saleId:user.id,saleAcceptedAt:value.saleAcceptedAt,updatedAt:value.updatedAt,status:value.status||old.status,note:value.note!==undefined?value.note:old.note};
         crmData.validate(key,value,id);crmData.authorize(user,key,old,value,demoData(next));
-        if(crmData.OBJECTS.includes(key)){next[key]=user.role==='MANAGER'&&['settings','saleDistributionByLeader'].includes(key)?{...next[key],...value}:value;}
+        if(crmData.OBJECTS.includes(key)){next[key]=(user.role==='MANAGER'&&['settings','saleDistributionByLeader'].includes(key)||user.role==='ACCOUNTING'&&key==='settings')?{...next[key],...value}:value;}
         else{next[key]=(next[key]||[]).filter(r=>r.id!==id);if(value)next[key].push(value);}
       }
       Object.assign(demoState,next);
@@ -1444,7 +1446,7 @@ async function serveStatic(request, response, urlPathname) {
     }
     return;
   }
-  if (!['/','/index.html','/crm.js','/crm.css','/crm-modern.css','/crm-boot.css','/logo.jpg','/login-background.jpg','/customer-journey.svg','/care-ui.js','/crm-runtime.html','/crm-runtime-api.js','/reference-view.js','/reference-crm.js','/customer-save-queue.js','/support-chat-widget.js','/nvt-mobile-auth.css','/team-tree-hierarchy.css','/commission_tree_demo.html','/commission-apex-mindmap.svg','/assets/livechat-employee.png'].includes(decoded)) return sendJson(response,404,{error:'Không tìm thấy tài nguyên'});
+  if (!['/','/index.html','/crm.js','/crm.css','/crm-modern.css','/crm-boot.css','/logo.jpg','/login-background.jpg','/customer-journey.svg','/care-ui.js','/crm-runtime.html','/crm-runtime-api.js','/reference-view.js','/reference-crm.js','/order-payments.js','/customer-save-queue.js','/support-chat-widget.js','/nvt-mobile-auth.css','/team-tree-hierarchy.css','/commission_tree_demo.html','/commission-apex-mindmap.svg','/assets/livechat-employee.png'].includes(decoded)) return sendJson(response,404,{error:'Không tìm thấy tài nguyên'});
 
   let relative = decoded === '/' ? '/index.html' : decoded;
   const absolute = path.resolve(REPO_ROOT, `.${path.posix.normalize(relative)}`);

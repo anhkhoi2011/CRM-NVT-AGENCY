@@ -216,12 +216,14 @@
   }
   function applyRoleVisibility() {
     const role=data?.user?.actualRole||data?.user?.role||'';
-    const isAdmin=role==='ADMIN';
+    const isAdmin=role==='ADMIN',isAccountant=role==='ACCOUNTING',canAccount=isAdmin||isAccountant;
+    document.documentElement.classList.toggle('role-accounting',isAccountant);
+    if(!q('#accountingWorkspaceStyles')){const style=document.createElement('style');style.id='accountingWorkspaceStyles';style.textContent='.role-accounting .nav-group:not(#accountingNavGroup),.role-accounting .nav-link[data-tab],.role-accounting section.tab-section:not(#tab-accounting){display:none!important}.role-accounting #accountingNavGroup{display:block!important}';document.head.appendChild(style);}
     const accountingGroup=q('#accountingNavGroup');
     if(accountingGroup){
-      accountingGroup.hidden=!isAdmin;
-      accountingGroup.setAttribute('aria-hidden',String(!isAdmin));
-      accountingGroup.style.setProperty('display',isAdmin?'':'none','important');
+      accountingGroup.hidden=!canAccount;
+      accountingGroup.setAttribute('aria-hidden',String(!canAccount));
+      accountingGroup.style.setProperty('display',canAccount?'':'none','important');
     }
 
     const restrictedOperations=['SALE','LEADER','MANAGER'].includes(role);
@@ -271,7 +273,7 @@
       ];
       qa(selectors.join(',')).forEach(node=>{
         const target=node.matches(`#tab-${tab}`)?node:(node.closest('li')||node);
-        if(!isAdmin){
+        if(!isAdmin&&!(tab==='accounting'&&isAccountant)){
           if(!target.hidden)target.hidden=true;
           if(target.getAttribute('aria-hidden')!=='true')target.setAttribute('aria-hidden','true');
           if(target.style.getPropertyValue('display')!=='none')target.style.setProperty('display','none','important');
@@ -295,7 +297,8 @@
     });
 
     const active=q('section.active[id^="tab-"]')?.id?.replace('tab-','');
-    if(!isAdmin&&restrictedAdminTabs.has(active)) renders.switchTab('tab-customers');
+    if(isAccountant&&active!=='accounting')renders.switchTab('tab-accounting');
+    else if(!isAdmin&&!isAccountant&&restrictedAdminTabs.has(active)) renders.switchTab('tab-customers');
 
     // Admin xem tong quan data theo pham vi; Sale xem rieng data dang cho nhan.
     const pendingOverview=q('#tab-dashboard .goal-progress-box');
@@ -500,7 +503,7 @@
     document.body.appendChild(modal);modal.querySelectorAll('[data-editor-close]').forEach(n=>n.onclick=()=>{if(background||!working){modal.remove();refresh(true);}});
     modal.querySelector('form').onsubmit=async e=>{e.preventDefault();if(!onSave||(!background&&working))return;if(!background)working=true;const controls=Array.from(e.currentTarget.elements),disabled=controls.map(n=>n.disabled);modal.querySelector('[data-editor-error]').textContent='';
       let saved=false;
-      try{const operation=onSave();controls.forEach(n=>n.disabled=true);await operation;modal.remove();saved=true;}catch(error){modal.querySelector('[data-editor-error]').textContent=error.message;}finally{if(!background)working=false;controls.forEach((n,i)=>n.disabled=disabled[i]);}
+      try{const operation=onSave();controls.forEach(n=>n.disabled=true);const result=await operation;if(result!==false){modal.remove();saved=true;}}catch(error){modal.querySelector('[data-editor-error]').textContent=error.message;}finally{if(!background)working=false;controls.forEach((n,i)=>n.disabled=disabled[i]);}
       // Vẽ lại sau khi đã nhả cờ working, nếu không refresh() bỏ qua lượt này.
       if(saved)refresh(true);
     };return modal;
@@ -1094,7 +1097,7 @@
         table.classList.remove('landing-performance-table');
         table.classList.add('recent-orders-table');
         const row=table.querySelector('thead tr');
-        if(row)row.innerHTML='<th>MÃ ĐƠN</th><th>PHÂN LOẠI</th><th>KHÁCH HÀNG</th><th>SẢN PHẨM / DỊCH VỤ</th><th>GÓI / THỜI HẠN</th><th>SALE PHỤ TRÁCH</th><th>DOANH THU</th><th>VAT</th><th>THỰC THU</th><th>TRẠNG THÁI</th>';
+        if(row)row.innerHTML='<th>MÃ ĐƠN</th><th>PHÂN LOẠI</th><th>KHÁCH HÀNG</th><th>SẢN PHẨM / DỊCH VỤ</th><th>GÓI / THỜI HẠN</th><th>SALE PHỤ TRÁCH</th><th>TIỀN CẦN THU (TRƯỚC VAT)</th><th>VAT</th><th>THỰC THU</th><th>TRẠNG THÁI</th>';
       }
       const orders=(data.orders||[]).slice().sort((a,b)=>String(b.createdAt||'').localeCompare(String(a.createdAt||''))||String(b.id||'').localeCompare(String(a.id||''))).slice(0,10);
       if(body){
@@ -1110,7 +1113,7 @@
           const revenue=Number(order.subtotal??order.total??0);
           const vat=Number(order.vatAmount??0);
           const totalAmount=Math.max(0,Number(order.total||0)),paid=Number(order.amountPaid),subtotalAmount=Math.max(0,Number(order.subtotal||0)),vatAmountForReceipt=Math.max(0,Number(order.vatAmount||0)); const grossCollected=order.status==='DEPOSIT'?Math.min(totalAmount,Math.max(0,Number(order.depositAmount||0))):Number.isFinite(paid)&&paid>0?Math.min(totalAmount,paid+(['PAID','COURSE_GRANTED','REFUNDED'].includes(order.status)&&!order.depositAt&&subtotalAmount>0&&paid<subtotalAmount?vatAmountForReceipt:0)):['PAID','COURSE_GRANTED','REFUNDED'].includes(order.status)?Math.min(totalAmount,Math.max(0,Number(order.refund||0))||totalAmount):0; const received=Math.max(0,grossCollected-Math.max(0,Number(order.refund||0)));
-           const status=['PAID','COURSE_GRANTED'].includes(order.status)?'Thanh toán đủ':'Thanh toán 50%';
+           const status=OrderPayments.status(order,money);
           return '<tr><td><b class="recent-order-code">'+esc(order.code||order.id||'—')+'</b></td><td><span class="chip '+(isRental?'chip-warm':'chip-orange')+'">'+classification+'</span></td><td><b>'+esc(order.customerName||customer?.name||'—')+'</b><div class="recent-order-sub">'+esc(customer?.phone||'')+'</div></td><td><b>'+esc(order.productName||product?.name||'—')+'</b><div class="recent-order-sub">'+esc(order.sku||product?.sku||'')+'</div></td><td><span class="chip chip-warm">'+esc(term)+'</span></td><td>'+esc(sale?.name||'Chưa phân Sale')+'</td><td><b class="recent-order-money">'+money(revenue)+'</b></td><td><b class="recent-order-vat">'+money(vat)+'</b></td><td><b class="recent-order-received">'+money(received)+'</b></td><td><span class="chip '+(statusClass[order.status]||'chip-cold')+'">'+esc(status)+'</span></td></tr>';
         }).join('')||'<tr><td colspan="10"><div class="pending-data-empty"><b>Chưa có đơn hàng</b><span>Đơn mới sẽ xuất hiện tại đây sau khi được tạo trong mục Đơn hàng.</span></div></td></tr>';
       }
@@ -1207,12 +1210,12 @@
     return Number.isFinite(created)&&Date.now()-created<3*24*60*60*1000;
   }
   function drawOrders() {
-    const grossCollected=o=>{const total=Math.max(0,Number(o.total||0)),paid=Number(o.amountPaid);if(o.status==='DEPOSIT')return Math.min(total,Math.max(0,Number(o.depositAmount||0)));if(Number.isFinite(paid)&&paid>0){const subtotal=Math.max(0,Number(o.subtotal||0)),vat=Math.max(0,Number(o.vatAmount||0)),legacyNetPayment=['PAID','COURSE_GRANTED','REFUNDED'].includes(o.status)&&!o.depositAt&&subtotal>0&&paid<subtotal;return Math.min(total,paid+(legacyNetPayment?vat:0));}if(['PAID','COURSE_GRANTED','REFUNDED'].includes(o.status)){const refund=Math.max(0,Number(o.refund||0));return Math.min(total,refund||total);}return 0;};
+    const grossCollected=o=>OrderPayments.paid(o);
     const netCollected=o=>Math.max(0,grossCollected(o)-Math.max(0,Number(o.refund||0)));
-    const paymentStatus=o=>['PAID','COURSE_GRANTED'].includes(o.status)?'Thanh toán đủ':'Thanh toán 50%';
+    const paymentStatus=o=>['PAID','COURSE_GRANTED'].includes(o.status)?'Thanh toán đủ':o.status==='DEPOSIT'?'Đã đặt cọc':o.status==='REFUNDED'?'Đã hoàn tiền':o.status==='CANCELLED'?'Đã hủy':'Chờ thanh toán';
     const isRental=o=>Boolean(o.rentalMonths)||(data.products||[]).find(product=>product.id===o.productId)?.type==='RENTAL';
     const statusFilter=q('#orderStatusFilterSelect');
-    if(statusFilter)statusFilter.innerHTML='<option value="all">Tất cả trạng thái</option><option value="Thanh toán đủ">Thanh toán đủ</option><option value="Thanh toán 50%">Thanh toán 50%</option>';
+    if(statusFilter)statusFilter.innerHTML='<option value="all">Tất cả trạng thái</option><option value="Thanh toán đủ">Thanh toán đủ</option><option value="Đã đặt cọc">Đã đặt cọc</option><option value="Chờ thanh toán">Chờ thanh toán</option><option value="Đã hoàn tiền">Đã hoàn tiền</option><option value="Đã hủy">Đã hủy</option>';
     const saleTab=q('#btnOrderTabSale'),rentTab=q('#btnOrderTabRent');
     if(saleTab)saleTab.textContent='Bên Bán (Khóa học & SP)';
     if(rentTab)rentTab.textContent='Cho thuê chỉ báo';
@@ -1233,11 +1236,11 @@
     body.innerHTML=rows.map(order=>{
       const customer=(data.customers||[]).find(item=>item.id===order.customerId),rental=isRental(order),term=rental?(Number(order.rentalMonths||0)+' tháng'+(order.rentalEndsAt?' · đến '+fmtDate(order.rentalEndsAt):'')):'Vĩnh viễn';
       const col=netCollected(order);
-      const rem=Math.max(0,Number(order.subtotal||order.total||0)-col);
+      const rem=OrderPayments.balance(order);
       const isPaid=['PAID','COURSE_GRANTED'].includes(order.status)||rem<=0;
       const remHtml=rem<=0?'<span class="chip chip-green" style="font-size:10px;">0 đ (Đủ)</span>':'<b style="color:#dc2626;font-family:var(--font-mono);font-size:12px;">'+money(rem)+'</b>';
-      const vatBtn=isPaid?'<button type="button" class="btn-action btn-primary" style="background:#7c3aed;margin-right:4px;font-size:11px;padding:3px 8px;" data-order-vat="'+esc(order.id)+'" title="Khách thanh toán đủ 100%, sẵn sàng xuất VAT">🧾 Xuất VAT</button>':'<button type="button" class="btn-action btn-secondary" disabled style="opacity:0.5;margin-right:4px;font-size:11px;padding:3px 8px;cursor:not-allowed;" title="Khách mới cọc, cần thanh toán đủ 100% để xuất VAT">🧾 Xuất VAT</button>';
-      return '<tr data-order-group="'+(rental?'rent':'sale')+'" data-order-status="'+esc(paymentStatus(order))+'"><td><b style="font-family:var(--font-mono);color:#2563eb">'+esc(internalCode(order.code||order.id))+'</b></td><td><span class="chip '+(rental?'chip-warm':'chip-orange')+'">'+(rental?'CHO THUÊ CHỈ BÁO':'BÊN BÁN')+'</span></td><td><b>'+esc(order.customerName||customer?.name||'—')+'</b><small>'+esc(customer?.phone||'')+'</small></td><td><b>'+esc(order.productName||'—')+'</b><small>'+esc(order.sku||'')+'</small></td><td><span class="chip chip-warm">'+esc(term)+'</span></td><td>'+esc(person(order.saleId))+'</td><td><b>'+money(order.subtotal)+'</b></td><td>'+money(order.vatAmount)+'</td><td><b style="color:#059669">'+money(col)+'</b></td><td>'+remHtml+'</td><td><span class="chip '+(isPaid?'chip-green':'chip-warm')+'">'+esc(paymentStatus(order))+'</span></td><td style="text-align:right">'+vatBtn+'<button type="button" class="btn-action btn-secondary" data-order-detail="'+esc(order.id)+'">Chi tiết</button>'+(orderDeleteAllowed(order)?' <button type="button" class="btn-action btn-danger" data-order-delete="'+esc(order.id)+'">Xóa</button>':'')+'</td></tr>';
+
+      return '<tr data-order-group="'+(rental?'rent':'sale')+'" data-order-status="'+esc(paymentStatus(order))+'"><td><b style="font-family:var(--font-mono);color:#2563eb">'+esc(internalCode(order.code||order.id))+'</b>'+'</td><td><span class="chip '+(rental?'chip-warm':'chip-orange')+'">'+(rental?'CHO THUÊ CHỈ BÁO':'BÊN BÁN')+'</span></td><td><b>'+esc(order.customerName||customer?.name||'—')+'</b><small>'+esc(customer?.phone||'')+'</small></td><td><b>'+esc(order.productName||'—')+'</b></td><td><span class="chip chip-warm">'+esc(term)+'</span></td><td>'+esc(person(order.saleId))+'</td><td><b>'+money(order.subtotal)+'</b></td><td>'+money(order.vatAmount)+'</td><td><b style="color:#059669">'+money(col)+'</b></td><td>'+remHtml+'</td><td><span class="chip '+(isPaid?'chip-green':'chip-warm')+'">'+esc(OrderPayments.status(order,money))+'</span></td><td style="text-align:right"><button type="button" class="btn-action btn-secondary" data-order-detail="'+esc(order.id)+'">Chi tiết</button>'+(['ADMIN','ACCOUNTING','SALE','LEADER','MANAGER'].includes(data.user.actualRole||data.user.role)&&!order.paymentReconciled&&!order.vatIssued&&!['REFUNDED','CANCELLED','COURSE_GRANTED'].includes(order.status)?' <button type="button" class="btn-action btn-secondary" data-order-edit="'+esc(order.id)+'">Sửa đơn</button>':'')+(orderDeleteAllowed(order)?' <button type="button" class="btn-action btn-danger" data-order-delete="'+esc(order.id)+'">Xóa</button>':'')+'</td></tr>';
     }).join('')||'<tr><td colspan="12"><div class="empty"><b>Chưa có đơn hàng</b></div></td></tr>';
     // Tách SĐT khách thành một cột riêng và chỉ hiển thị mã đơn rút gọn.
     const orderTable=body.closest('table');
@@ -1248,7 +1251,7 @@
     }
     if(orderHead&&!orderHead.querySelector('[data-order-remaining-column]')){
       const collectedHeader=Array.from(orderHead.cells).find(cell=>/THỰC THU/i.test(cell.textContent||''));
-      if(collectedHeader){const remHeader=document.createElement('th');remHeader.dataset.orderRemainingColumn='1';remHeader.textContent='CÒN LẠI';remHeader.style.color='#dc2626';collectedHeader.after(remHeader);}
+      if(collectedHeader){const remHeader=document.createElement('th');remHeader.dataset.orderRemainingColumn='1';remHeader.textContent='SỐ TIỀN CẦN THU';remHeader.style.color='#dc2626';collectedHeader.after(remHeader);}
     }
     body.querySelectorAll('tr').forEach(row=>{
       const detail=row.querySelector('[data-order-detail]');
@@ -1266,16 +1269,7 @@
     });
     const emptyCell=body.querySelector('tr td[colspan]');
     if(emptyCell)emptyCell.colSpan=12;
-    body.querySelectorAll('[data-order-vat]').forEach(button=>{
-      button.onclick=()=>{
-        const order=data.orders.find(item=>item.id===button.dataset.orderVat);
-        if(!order)return;
-        const mst=prompt('Nhập Mã Số Thuế (MST) để xuất hóa đơn VAT điện tử:', '0108892112');
-        if(!mst)return;
-        button.outerHTML='<span class="chip chip-green" style="font-size:10px;margin-right:4px;">✓ Đã xuất VAT</span>';
-        alert('🎉 XUẤT HÓA ĐƠN VAT THÀNH CÔNG!\nMã đơn: '+(order.code||order.id)+'\nSố HĐ: HD-2026/'+Math.floor(100+Math.random()*900)+'\nMST: '+mst+'\nDoanh thu: '+money(order.subtotal)+'\nThuế VAT: '+money(order.vatAmount)+'\nĐã ký số điện tử và gửi hóa đơn về email khách hàng!');
-      };
-    });
+    body.querySelectorAll('[data-order-edit]').forEach(button=>button.onclick=()=>openReceiptOrderDetail(button.dataset.orderEdit,true));
     body.querySelectorAll('[data-order-detail]').forEach(button=>button.onclick=()=>workflow('order',button.dataset.orderDetail));
     body.querySelectorAll('[data-order-delete]').forEach(button=>button.onclick=()=>{const order=data.orders.find(item=>item.id===button.dataset.orderDelete);if(!order||!orderDeleteAllowed(order)){referenceNotice('Đơn hàng chỉ được xóa trong 3 ngày đầu.','error');return;}if(!confirm('Xóa đơn '+(order.code||order.id)+'?'))return;run(()=>api.deleteOrder(order.id),()=>referenceNotice('Đã xóa đơn '+(order.code||order.id)+' thành công.'));});
     if(rows.length)filterOrdersCombined();else text('orderCountSummary','0 đơn hàng');
@@ -2041,6 +2035,7 @@
   async function workflow(kind,id){
     if(working||workflowBusy)return;
     if(kind==='newOrder'){openAccountingOrderForm(id||'');return;}
+    if(kind==='order'||kind==='editOrder'){openReceiptOrderDetail(id,kind==='editOrder');return;}
     try{const result=await api.openWorkflow(kind,id);q('#referenceWorkflow')?.remove();const modal=document.createElement('div');modal.id='referenceWorkflow';modal.className='modal-overlay open';modal.style.zIndex='11000';modal.innerHTML=`<div class="modal-card" role="dialog" aria-modal="true" aria-label="${esc(result.title)}" style="width:min(1080px,calc(100vw - 24px));max-height:92dvh"><div class="modal-header"><h3>${esc(result.title)}</h3><button type="button" class="modal-close-btn" data-workflow-close aria-label="Đóng">×</button></div><div class="modal-body" data-workflow-body></div><div class="modal-footer" style="flex-wrap:wrap"><span role="status" data-workflow-notice style="flex:1;overflow-wrap:anywhere"></span><button type="button" class="btn-action btn-secondary" data-workflow-close>Đóng</button>${kind==='profile'?'<button type="submit" class="btn-action btn-primary" data-workflow-profile-save>Lưu hồ sơ</button>':''}</div></div>`;document.body.appendChild(modal);workflowModal=modal;workflowModal.dataset.workflowKind=kind;if(kind==='profile'){modal.querySelector('.modal-card').style.width='min(760px,calc(100vw - 24px))';}drawWorkflow();
       if(kind==='profile')modal.querySelector('.modal-card')?.classList.add('profile-modal-card');
       modal.querySelectorAll('[data-workflow-close]').forEach(b=>b.onclick=async()=>{if(workflowBusy)return;try{await api.closeWorkflow(true);modal.remove();workflowModal=null;refresh(true);}catch(e){modal.querySelector('[data-workflow-notice]').textContent=e.message;}});
@@ -2246,7 +2241,7 @@
   const brokerageRate=value=>(Number(value||0)*100).toLocaleString('vi-VN',{maximumFractionDigits:2})+'%';
   const brokerageProductType=order=>{const product=data.products.find(item=>item.id===order.productId)||{};const label=(product.category||order.productName||'').toLocaleLowerCase('vi-VN');return product.type==='RENTAL'||label.includes('chỉ báo')||label.includes('indicator')?'INDICATOR':label.includes('khóa học')||label.includes('khoa hoc')?'COURSE':'OTHER';};
   function brokerageSales(){const role=data.user.actualRole||data.user.role;if(role==='ADMIN')return data.members.filter(m=>m.role==='SALE'&&m.active!==false);if(role==='MANAGER')return (data.managerHierarchy?.members||[]).filter(m=>m.role==='SALE'&&m.active!==false);if(role==='LEADER')return data.members.filter(m=>m.role==='SALE'&&m.leaderId===data.user.leaderId&&m.active!==false);return data.members.filter(m=>m.role==='SALE'&&(m.id===data.user.saleId||m.id===data.user.id)&&m.active!==false);}
-  function brokerageRows(period){const sales=brokerageSales();return sales.map(member=>{const metric=data.brokerageMetrics?.find(item=>item.memberId===member.id&&item.period===period)||{basicLots:0,microLots:0,nanoLots:0,lotCommissionRate:0,indicatorCommissionRate:0,courseCommissionRate:0,bonus:0,vatRate:0};const paid=data.orders.filter(order=>order.saleId===member.id&&order.status==='PAID'&&String(order.paidAt||order.createdAt||'').slice(0,7)===period);const indicatorRevenue=paid.filter(order=>brokerageProductType(order)==='INDICATOR').reduce((sum,order)=>sum+Number(order.subtotal??order.total??0),0);const courseRevenue=paid.filter(order=>brokerageProductType(order)==='COURSE').reduce((sum,order)=>sum+Number(order.subtotal??order.total??0),0);const lots=Number(metric.basicLots||0)+Number(metric.microLots||0)*.1+Number(metric.nanoLots||0)*.01;const lotCommission=lots*Number(metric.lotCommissionRate||0),indicatorCommission=indicatorRevenue*Number(metric.indicatorCommissionRate||0),courseCommission=courseRevenue*Number(metric.courseCommissionRate||0),bonus=Number(metric.bonus||0),gross=lotCommission+indicatorCommission+courseCommission+bonus,vat=(indicatorCommission+courseCommission)*Number(metric.vatRate||0),net=gross-vat;return {member,metric,lots,indicatorRevenue,courseRevenue,lotCommission,indicatorCommission,courseCommission,bonus,gross,vat,net};}).sort((a,b)=>b.net-a.net||a.member.name.localeCompare(b.member.name,'vi'));}  function brokerageMetricEditor(row,period){const m=row.metric||{},modal=editor('Cập nhật lot, thưởng và hoa hồng · '+row.member.name,formField('Lot cơ bản',`<input id="brokerageBasic" type="number" min="0" step="0.01" value="${Number(m.basicLots||0)}">`)+formField('Micro lot',`<input id="brokerageMicro" type="number" min="0" step="0.01" value="${Number(m.microLots||0)}">`)+formField('Nano lot',`<input id="brokerageNano" type="number" min="0" step="0.01" value="${Number(m.nanoLots||0)}">`)+formField('Hoa hồng / lot chuẩn',`<input id="brokerageLotRate" type="number" min="0" step="1000" value="${Number(m.lotCommissionRate||0)}">`)+formField('Tỷ lệ HH chỉ báo',`<input id="brokerageIndicatorRate" type="number" min="0" max="100" step="0.01" value="${Number(m.indicatorCommissionRate||0)*100}">`)+formField('Tỷ lệ HH khóa học',`<input id="brokerageCourseRate" type="number" min="0" max="100" step="0.01" value="${Number(m.courseCommissionRate||0)*100}">`)+formField('Thưởng',`<input id="brokerageBonus" type="number" min="0" step="1000" value="${Number(m.bonus||0)}"><small style="display:block;margin-top:4px;color:var(--text-muted)">Nhập số tiền thưởng riêng cho Sale này</small>`)+formField('VAT chỉ báo / khóa học',`<input id="brokerageVatRate" type="number" min="0" max="100" step="0.01" value="${Number(m.vatRate||0)*100}">`),()=>api.saveBrokerageMetric({memberId:row.member.id,period,basicLots:q('#brokerageBasic').value,microLots:q('#brokerageMicro').value,nanoLots:q('#brokerageNano').value,lotCommissionRate:q('#brokerageLotRate').value,indicatorCommissionRate:Number(q('#brokerageIndicatorRate').value)/100,courseCommissionRate:Number(q('#brokerageCourseRate').value)/100,bonus:q('#brokerageBonus').value,vatRate:Number(q('#brokerageVatRate').value)/100}));modal.querySelector('.modal-card').style.width='min(760px,calc(100vw - 24px))';}  function toggleBrokeragePublication(period){const published=new Set(data.settings?.brokeragePublishedPeriods||[]);if(published.has(period))published.delete(period);else published.add(period);run(()=>api.settings({brokeragePublishedPeriods:Array.from(published).sort()}),()=>businessReport());}
+  function brokerageRows(period){const sales=brokerageSales();return sales.map(member=>{const metric=data.brokerageMetrics?.find(item=>item.memberId===member.id&&item.period===period)||{basicLots:0,microLots:0,nanoLots:0,lotCommissionRate:0,indicatorCommissionRate:0,courseCommissionRate:0,bonus:0,vatRate:0};const paid=data.orders.filter(order=>order.saleId===member.id).map(order=>({...order,subtotal:OrderPayments.events(order).filter(event=>String(event.occurredAt||'').slice(0,7)===period).reduce((sum,event)=>sum+event.netAmount,0)})).filter(order=>order.subtotal!==0);const indicatorRevenue=paid.filter(order=>brokerageProductType(order)==='INDICATOR').reduce((sum,order)=>sum+Number(order.subtotal??order.total??0),0);const courseRevenue=paid.filter(order=>brokerageProductType(order)==='COURSE').reduce((sum,order)=>sum+Number(order.subtotal??order.total??0),0);const lots=Number(metric.basicLots||0)+Number(metric.microLots||0)*.1+Number(metric.nanoLots||0)*.01;const lotCommission=lots*Number(metric.lotCommissionRate||0),indicatorCommission=indicatorRevenue*Number(metric.indicatorCommissionRate||0),courseCommission=courseRevenue*Number(metric.courseCommissionRate||0),bonus=Number(metric.bonus||0),gross=lotCommission+indicatorCommission+courseCommission+bonus,vat=(indicatorCommission+courseCommission)*Number(metric.vatRate||0),net=gross-vat;return {member,metric,lots,indicatorRevenue,courseRevenue,lotCommission,indicatorCommission,courseCommission,bonus,gross,vat,net};}).sort((a,b)=>b.net-a.net||a.member.name.localeCompare(b.member.name,'vi'));}  function brokerageMetricEditor(row,period){const m=row.metric||{},modal=editor('Cập nhật lot, thưởng và hoa hồng · '+row.member.name,formField('Lot cơ bản',`<input id="brokerageBasic" type="number" min="0" step="0.01" value="${Number(m.basicLots||0)}">`)+formField('Micro lot',`<input id="brokerageMicro" type="number" min="0" step="0.01" value="${Number(m.microLots||0)}">`)+formField('Nano lot',`<input id="brokerageNano" type="number" min="0" step="0.01" value="${Number(m.nanoLots||0)}">`)+formField('Hoa hồng / lot chuẩn',`<input id="brokerageLotRate" type="number" min="0" step="1000" value="${Number(m.lotCommissionRate||0)}">`)+formField('Tỷ lệ HH chỉ báo',`<input id="brokerageIndicatorRate" type="number" min="0" max="100" step="0.01" value="${Number(m.indicatorCommissionRate||0)*100}">`)+formField('Tỷ lệ HH khóa học',`<input id="brokerageCourseRate" type="number" min="0" max="100" step="0.01" value="${Number(m.courseCommissionRate||0)*100}">`)+formField('Thưởng',`<input id="brokerageBonus" type="number" min="0" step="1000" value="${Number(m.bonus||0)}"><small style="display:block;margin-top:4px;color:var(--text-muted)">Nhập số tiền thưởng riêng cho Sale này</small>`)+formField('VAT chỉ báo / khóa học',`<input id="brokerageVatRate" type="number" min="0" max="100" step="0.01" value="${Number(m.vatRate||0)*100}">`),()=>api.saveBrokerageMetric({memberId:row.member.id,period,basicLots:q('#brokerageBasic').value,microLots:q('#brokerageMicro').value,nanoLots:q('#brokerageNano').value,lotCommissionRate:q('#brokerageLotRate').value,indicatorCommissionRate:Number(q('#brokerageIndicatorRate').value)/100,courseCommissionRate:Number(q('#brokerageCourseRate').value)/100,bonus:q('#brokerageBonus').value,vatRate:Number(q('#brokerageVatRate').value)/100}));modal.querySelector('.modal-card').style.width='min(760px,calc(100vw - 24px))';}  function toggleBrokeragePublication(period){const published=new Set(data.settings?.brokeragePublishedPeriods||[]);if(published.has(period))published.delete(period);else published.add(period);run(()=>api.settings({brokeragePublishedPeriods:Array.from(published).sort()}),()=>businessReport());}
   function businessReport(){
     const host=q('#businessReportHost');if(!host)return;installBrokerageStyles();const period=brokeragePeriod||data.today.slice(0,7);brokeragePeriod=period;const role=data.user.actualRole||data.user.role,rows=brokerageRows(period),published=role==='ADMIN'||(data.settings?.brokeragePublishedPeriods||[]).includes(period),visibleRows=published?rows:rows.map(row=>({...row,lots:0,indicatorRevenue:0,courseRevenue:0,lotCommission:0,indicatorCommission:0,courseCommission:0,bonus:0,gross:0,vat:0,net:0,metric:{...row.metric,basicLots:0,microLots:0,nanoLots:0}})),sum=key=>visibleRows.reduce((total,row)=>total+Number(row[key]||0),0);
     host.innerHTML=`<div class="headline-row"><div><h1>Báo cáo kinh doanh</h1></div></div><div class="brokerage-toolbar"><label>Kỳ báo cáo<input id="brokeragePeriod" type="month" value="${esc(period)}"></label>${role==='ADMIN'?`<button type="button" class="btn-action ${published?'btn-secondary':'btn-primary'}" id="brokeragePublishBtn">${published?'Ẩn kỳ báo cáo':'Công bố tháng này'}</button>`:''}</div><div class="brokerage-grid"><article class="brokerage-kpi"><small>Lot chuẩn</small><b>${sum('lots').toFixed(2)}</b></article><article class="brokerage-kpi"><small>DS chỉ báo</small><b>${brokerageMoney(sum('indicatorRevenue'))}</b></article><article class="brokerage-kpi"><small>Tổng hoa hồng</small><b>${brokerageMoney(sum('gross'))}</b></article><article class="brokerage-kpi"><small>VAT chỉ báo / khóa học</small><b>${brokerageMoney(sum('vat'))}</b></article><article class="brokerage-kpi"><small>Thực nhận</small><b>${brokerageMoney(sum('net'))}</b></article></div><div class="brokerage-table-wrap"><table class="modern-table brokerage-table"><thead><tr><th>#</th><th>Nhân sự</th><th>Team</th><th>Lot cơ bản</th><th>Micro</th><th>Nano</th><th>Lot chuẩn</th><th>DS chỉ báo</th><th>DS khóa học</th><th>HH lot</th><th>HH chỉ báo</th><th>HH khóa học</th><th>Thưởng</th><th>Tổng thu</th><th>VAT</th><th>Thực nhận</th>${role==='ADMIN'?'<th></th>':''}</tr></thead><tbody>${visibleRows.map((row,index)=>`<tr><td>${index+1}</td><td><b>${esc(row.member.name)}</b><div style="font-size:10px;color:var(--text-muted)">${esc(row.member.accountId||row.member.phone||'')}</div></td><td>${esc(row.member.teamId||'—')}</td><td>${Number(row.metric.basicLots||0)}</td><td>${Number(row.metric.microLots||0)}</td><td>${Number(row.metric.nanoLots||0)}</td><td><b>${row.lots.toFixed(2)}</b></td><td>${brokerageMoney(row.indicatorRevenue)}</td><td>${brokerageMoney(row.courseRevenue)}</td><td>${brokerageMoney(row.lotCommission)}</td><td>${brokerageMoney(row.indicatorCommission)}<div style="font-size:10px;color:var(--text-muted)">${brokerageRate(row.metric.indicatorCommissionRate)}</div></td><td>${brokerageMoney(row.courseCommission)}<div style="font-size:10px;color:var(--text-muted)">${brokerageRate(row.metric.courseCommissionRate)}</div></td><td>${brokerageMoney(row.bonus)}</td><td><b>${brokerageMoney(row.gross)}</b></td><td>${brokerageMoney(row.vat)}<div style="font-size:10px;color:var(--text-muted)">${brokerageRate(row.metric.vatRate)}</div></td><td><b>${brokerageMoney(row.net)}</b></td>${role==='ADMIN'?`<td><button class="btn-action btn-secondary" data-brokerage-edit="${esc(row.member.id)}">Lot / tỷ lệ</button></td>`:''}</tr>`).join('')||'<tr><td colspan="17"><div class="empty"><b>Chưa có Sale trong phạm vi</b></div></td></tr>'}</tbody></table></div>`;
@@ -2277,7 +2272,7 @@
       const product=products.find(item=>String(item.id)===String(order.productId));
       return productKind(product||{name:order.productName,category:order.productCategory});
     };
-    const periodOrders=orders.filter(order=>order&&order.status==='PAID'&&String(order.paidAt||order.createdAt||'').slice(0,7)===selectedPeriod);
+    const periodOrders=orders.filter(Boolean).map(order=>({...order,subtotal:OrderPayments.events(order).filter(event=>String(event.occurredAt||'').slice(0,7)===selectedPeriod).reduce((sum,event)=>sum+event.netAmount,0)})).filter(order=>order.subtotal!==0);
     const parentFor=member=>member.role==='LEADER'?member.managerId||null:member.role==='SALE'?(member.leaderId||member.managerId||null):null;
     const lotConfig=data.settings?.accountingLotConfig||{};
     const roleMeta={MANAGER:{level:'LV1',title:'Manager',rate:Number(lotConfig.rateLv1)||90000},LEADER:{level:'LV2',title:'Leader',rate:Number(lotConfig.rateLv2)||70000},SALE:{level:'LV3',title:'Sale',rate:Number(lotConfig.rateLv3)||50000}};
@@ -2328,7 +2323,7 @@
 
     let iframe = host.querySelector('#accountingIframe');
     if (!iframe) {
-      host.innerHTML = `<iframe id="accountingIframe" src="commission_tree_demo.html?embedded=1&tab=${encodeURIComponent(targetTab)}&v=20261003-mindmap-save-1" title="Kế toán & Hoa hồng APEX" loading="eager"></iframe>`;
+      host.innerHTML = `<iframe id="accountingIframe" src="commission_tree_demo.html?embedded=1&tab=${encodeURIComponent(targetTab)}&v=20261003-accounting-sql-5" title="Kế toán & Hoa hồng APEX" loading="eager"></iframe>`;
       iframe = host.querySelector('#accountingIframe');
       iframe?.addEventListener('load',()=>{host.classList.add('is-ready');syncMembersToAccountingMindmap();},{once:true});
     } else {
@@ -2360,6 +2355,7 @@
   });
 
   window.addEventListener('message', function(event) {
+    if(event.data?.type==='OPEN_CRM_ORDER'&&event.origin===location.origin&&event.source===q('#accountingIframe')?.contentWindow){if(event.data.create){openAccountingOrderForm('');return;}const id=String(event.data.orderId||'');if(event.data.reconcile)openOrderReconciliation(id);else if(event.data.collect)openReceiptPaymentForm(id,event.data.full===true);else openReceiptOrderDetail(id);return;}
     if (event.data && event.data.type === 'CREATE_ACCOUNTING_ORDER') {
       createAccountingOrderFromIframe(event.data.payload || {}, event.source).catch(error => {
         (event.source || q('#accountingIframe')?.contentWindow)?.postMessage({type:'ACCOUNTING_ORDER_RESULT',ok:false,error:error.message||'Không tạo được đơn hàng.'},'*');
@@ -2489,6 +2485,7 @@
     const view=id.replace(/^tab-/,'');
     const role=data.user.actualRole||data.user.role;
     const alias={data:role==='LEADER'?'pool':role==='SALE'?'accept':'distribution'};
+    if(role==='ACCOUNTING')return view==='accounting';
     return sharedOrganizationTabs.has(view)||data.navigation.includes(alias[view]||view);
   };
   function paintTab(id,force=false){
@@ -2576,7 +2573,7 @@
     // Chỉ dựng tab đang xem; số thông báo vẫn cập nhật độc lập.
     if(first||readinessChanged)renderedTabs.clear();
     const storedTab=savedActiveTab();
-    const initialTab=tabAllowedForSnapshot(storedTab)?storedTab:'tab-customers';
+    const initialTab=tabAllowedForSnapshot(storedTab)?storedTab:((data.user.actualRole||data.user.role)==='ACCOUNTING'?'tab-accounting':'tab-customers');
     paintTab('tab-notifications');
     paintTab(initialTab);wireParity();
     // Restore the outer tab after the runtime snapshot is ready. The static HTML
@@ -2654,7 +2651,7 @@
     modal.innerHTML='<div class="modal-card order-success-card" role="dialog" aria-modal="true" aria-labelledby="orderSuccessTitle"><div class="modal-header"><h3 id="orderSuccessTitle">Tạo đơn hàng thành công</h3><button type="button" class="modal-close-btn" data-order-success-close aria-label="Đóng">×</button></div><div class="modal-body order-success-body"><div class="order-success-icon" aria-hidden="true">✓</div><h4>Đơn hàng đã được lưu</h4><p>Mã đơn: <b data-order-success-code></b></p><p class="order-success-note">Đơn đang chờ xác nhận thanh toán.</p></div><div class="modal-footer"><button type="button" class="btn-action btn-primary" data-order-success-close>Đã hiểu</button></div></div>';
     document.body.appendChild(modal);
     const code=modal.querySelector('[data-order-success-code]');
-    if(code)code.textContent=shortOrderCode(result?.code||result?.id);
+    if(code)code.textContent=shortOrderCode(result?.code||result?.order?.code||result?.id||result?.order?.id);
     modal.querySelectorAll('[data-order-success-close]').forEach(button=>button.onclick=()=>modal.remove());
     modal.onclick=event=>{if(event.target===modal)modal.remove();};
   }
@@ -2677,93 +2674,204 @@
     if(!file||!/^image\//.test(file.type))return reject(Error('Bill đính kèm phải là ảnh.'));
     const reader=new FileReader();reader.onerror=()=>reject(Error('Không đọc được ảnh bill.'));
     reader.onload=()=>{const img=new Image();img.onerror=()=>reject(Error('Ảnh bill không hợp lệ.'));img.onload=()=>{
-      const scale=Math.min(1,1400/Math.max(img.width,img.height)),canvas=document.createElement('canvas');
+      const scale=Math.min(1,1200/Math.max(img.width,img.height)),canvas=document.createElement('canvas');
       canvas.width=Math.max(1,Math.round(img.width*scale));canvas.height=Math.max(1,Math.round(img.height*scale));
       canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
-      let quality=.82,out=canvas.toDataURL('image/jpeg',quality);while(out.length>2700000&&quality>.4){quality-=.12;out=canvas.toDataURL('image/jpeg',quality);}
+      let quality=.82,out=canvas.toDataURL('image/jpeg',quality);while(out.length>900000&&quality>.4){quality-=.12;out=canvas.toDataURL('image/jpeg',quality);}
       if(out.length>2700000)reject(Error('Ảnh bill quá lớn, hãy chọn ảnh nhỏ hơn.'));else resolve(out);};img.src=reader.result;};
     reader.readAsDataURL(file);
   });
-  function openAccountingOrderForm(customerId){
+  const canChangeReceiptOrder=order=>['ADMIN','ACCOUNTING','SALE','LEADER','MANAGER'].includes(data.user.actualRole||data.user.role)&&!order.paymentReconciled&&!order.vatIssued&&!['REFUNDED','CANCELLED','COURSE_GRANTED'].includes(order.status);
+  function receiptHistoryMarkup(order,editable=false){
+    return '<div class="ao-receipt-list">'+(OrderPayments.receipts(order).map((receipt,index)=>'<article class="ao-receipt"><div><b>'+esc(receipt.kind==='DEPOSIT'?'Bill cọc':receipt.kind==='FULL'?'Bill thanh toán đủ':'Bill thanh toán bổ sung')+' · '+money(receipt.amount)+'</b><p>Lần '+(index+1)+' · '+esc(fmtDate(receipt.at))+'</p><small>'+esc(receipt.bankReference||'Chuyển khoản')+'</small>'+(receipt.note?'<p>Ghi chú lần thu: '+esc(receipt.note)+'</p>':'')+(editable?'<p><button type="button" class="btn-action btn-secondary" data-receipt-manage="'+index+'">Thêm bill / Sửa bill</button></p>':'')+'</div><div class="receipt-images">'+(OrderPayments.images(receipt).map((image,imageIndex)=>'<div><button class="ao-bill-zoom" type="button" data-receipt-image="'+index+':'+imageIndex+'"><img src="'+esc(image.imageData)+'" alt="Bill lần '+(index+1)+' ảnh '+(imageIndex+1)+'"><span>Xem ảnh đầy đủ</span></button><p>'+esc(image.note||'Chưa có ghi chú ảnh')+'</p>'+(editable?'<button type="button" class="btn-action btn-danger" data-receipt-delete="'+index+':'+imageIndex+'">Xóa bill</button>':'')+'</div>').join('')||'<p>Chưa có ảnh bill.</p>')+'</div>'+(receipt.imageRevisions?.length?'<details style="grid-column:1/-1"><summary>Lịch sử sửa ảnh ('+receipt.imageRevisions.length+')</summary>'+receipt.imageRevisions.map(revision=>'<p>'+esc(fmtDate(revision.at))+' · '+esc(person(revision.by))+' · '+(revision.images||[]).length+' ảnh trước khi sửa</p>').join('')+'</details>':'')+'</article>').join('')||'<p>Chưa có thanh toán.</p>')+'</div>';
+  }
+  function bindReceiptImages(modal,order){
+    modal.querySelectorAll('[data-receipt-manage]').forEach(button=>button.onclick=()=>openReceiptImageEditor(order.id,OrderPayments.receipts(order)[Number(button.dataset.receiptManage)].id));
+    modal.querySelectorAll('[data-receipt-delete]').forEach(button=>button.onclick=()=>{
+      const [receiptIndex,imageIndex]=button.dataset.receiptDelete.split(':').map(Number),receipt=OrderPayments.receipts(order)[receiptIndex],images=OrderPayments.images(receipt);
+      if(!confirm('Xóa ảnh bill '+(imageIndex+1)+' của lần thu '+money(receipt.amount)+'? Số tiền đã thu giữ nguyên.'))return;
+      images.splice(imageIndex,1);run(()=>api.updateOrderAccounting(order.id,{action:'SAVE_RECEIPT_IMAGES',receiptId:receipt.id,images}),result=>{Object.assign(order,result?.order||{});openReceiptOrderDetail(order.id,true);});
+    });
+    modal.querySelectorAll('[data-receipt-image]').forEach(button=>button.onclick=()=>{
+      const [receiptIndex,imageIndex]=button.dataset.receiptImage.split(':').map(Number),receipt=OrderPayments.receipts(order)[receiptIndex],image=OrderPayments.images(receipt)[imageIndex];
+      const viewer=document.createElement('div');viewer.className='modal-overlay open';viewer.style.zIndex='15000';viewer.innerHTML='<div class="modal-card" style="max-width:960px;width:95vw;max-height:95vh"><div class="modal-header"><h3>Bill '+money(receipt.amount)+'</h3><button type="button" class="modal-close-btn">×</button></div><div class="modal-body"><p>'+esc(image.note||'')+'</p><img src="'+esc(image.imageData)+'" alt="Bill chuyển khoản đầy đủ" style="max-width:100%;display:block;margin:auto"></div></div>';document.body.appendChild(viewer);viewer.querySelector('button').onclick=()=>viewer.remove();viewer.onclick=e=>{if(e.target===viewer)viewer.remove();};
+    });
+  }
+  function openReceiptImageEditor(orderId,receiptId){
+    const order=data.orders.find(o=>o.id===orderId);if(!order||!canChangeReceiptOrder(order))return;
+    const receipt=OrderPayments.receipts(order).find(r=>r.id===receiptId);if(!receipt)return;
+    const images=OrderPayments.images(receipt),originals=new Map(images.map(image=>[image.id,image.imageData]));let uploading=0;
+    const modal=editor('Quản lý ảnh bill','<div class="ao-help"><b>'+esc(order.customerName)+' · Đã thu '+money(receipt.amount)+'</b><p>Ảnh bên dưới thuộc cùng một lần chuyển khoản. Thêm hoặc thay ảnh không ghi nhận thêm tiền.</p></div><div id="receiptImageRows" class="ao-image-editor"></div><div class="ao-image-upload"><label for="receiptImageAdd" class="crm-file-button">+ Thêm ảnh cho lần thu này</label><input id="receiptImageAdd" class="ao-file" type="file" accept="image/*" multiple><p>Có thể chọn nhiều ảnh, tối đa 10 ảnh. Viết ghi chú dưới từng ảnh, rồi bấm Lưu ảnh &amp; ghi chú.</p></div><p id="receiptImageError" role="status" aria-live="polite"></p>',async()=>{
+      if(uploading)throw Error('Đang xử lý ảnh, vui lòng chờ.');
+      const result=await api.updateOrderAccounting(orderId,{action:'SAVE_RECEIPT_IMAGES',receiptId,images});Object.assign(order,result.order||{});referenceNotice('Đã lưu ảnh và ghi chú. Số tiền đã thu giữ nguyên.');setTimeout(()=>openReceiptOrderDetail(orderId,true),0);
+    });modal.style.zIndex='12000';modal.querySelector('.modal-card').classList.add('ao-card');modal.querySelector('.modal-footer [type=submit]').textContent='Lưu ảnh & ghi chú';
+    const draw=()=>{
+      q('#receiptImageRows').innerHTML=images.map((image,index)=>'<article class="ao-image-edit"><div class="ao-image-edit-head"><b>Ảnh '+(index+1)+'</b><small>'+(!originals.has(image.id)?'Ảnh mới · chưa lưu':originals.get(image.id)!==image.imageData?'Đã thay ảnh · chưa lưu':'Ảnh đã lưu')+'</small></div><img src="'+esc(image.imageData)+'" alt="Ảnh bill '+(index+1)+'"><label class="crm-field"><span>Ghi chú ảnh <small>Không bắt buộc</small></span><textarea data-image-note="'+index+'" maxlength="500" placeholder="Ví dụ: Bill cọc 500.000đ, khách chuyển ngày 03/10">'+esc(image.note||'')+'</textarea></label><label for="receiptReplace'+index+'" class="crm-file-button">Thay ảnh '+(index+1)+'</label><input id="receiptReplace'+index+'" class="ao-file" type="file" accept="image/*" data-image-replace="'+index+'">'+('<button type="button" class="btn-action btn-danger" data-image-discard="'+index+'">Xóa bill này</button>')+'</article>').join('')||'<p>Chưa có ảnh. Bấm Thêm ảnh cho lần thu này để chọn bill.</p>';
+      modal.querySelectorAll('[data-image-note]').forEach(input=>input.oninput=()=>{images[Number(input.dataset.imageNote)].note=input.value;});
+      modal.querySelectorAll('[data-image-discard]').forEach(button=>button.onclick=()=>{if(uploading)return;images.splice(Number(button.dataset.imageDiscard),1);draw();});
+      modal.querySelectorAll('[data-image-replace]').forEach(input=>input.onchange=async()=>{if(!input.files[0]||uploading)return;uploading++;q('#receiptImageError').textContent='Đang xử lý ảnh…';try{images[Number(input.dataset.imageReplace)].imageData=await compressBill(input.files[0]);draw();q('#receiptImageError').textContent='Đã chọn ảnh thay thế. Bấm Lưu ảnh & ghi chú để cập nhật.';}catch(e){q('#receiptImageError').textContent=e.message;}finally{uploading--;}});
+    };draw();q('#receiptImageAdd').onchange=async event=>{if(uploading)return;uploading++;q('#receiptImageError').textContent='Đang xử lý ảnh…';try{for(const file of event.target.files){if(images.length>=10)throw Error('Tối đa 10 ảnh cho một lần thu.');images.push({id:'IMG-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2),imageData:await compressBill(file),note:''});}draw();q('#receiptImageError').textContent='Ảnh đã sẵn sàng. Bấm Lưu ảnh & ghi chú để hoàn tất.';}catch(e){q('#receiptImageError').textContent=e.message;draw();}finally{uploading--;event.target.value='';}};
+  }
+  function openOrderReconciliation(id){
+    const order=data.orders.find(o=>o.id===id);if(!order||!['ADMIN','ACCOUNTING'].includes(data.user.actualRole||data.user.role))return;
+    const modal=editor('Kế toán kiểm tra & Đối soát', '<p><b>'+esc(order.customerName)+'</b> · '+esc(order.productName)+'</p><p>Sale đã ghi nhận: <b>'+money(OrderPayments.paid(order))+'</b> / Tổng đơn: <b>'+money(order.total)+'</b></p><p>Đối soát xác nhận bill khớp tiền vào ngân hàng. Thao tác này không cộng thêm tiền và không tạo bill mới.</p>'+receiptHistoryMarkup(order)+'<label class="crm-field"><span>Ghi chú đối soát</span><textarea id="reconcileNote" maxlength="1000"></textarea></label><label class="ao-vat-check"><input type="checkbox" id="reconcileConfirm" required> Tôi đã kiểm tra tất cả bill và xác nhận đủ tiền vào ngân hàng</label>',async()=>{
+      await api.updateOrderAccounting(id,{action:'RECONCILE',confirmed:q('#reconcileConfirm').checked,note:q('#reconcileNote').value});referenceNotice('Đã đối soát đủ. Tổng thực thu và doanh thu giữ nguyên.');
+    });modal.style.zIndex='12000';bindReceiptImages(modal,order);modal.querySelector('.modal-footer [type=submit]').textContent='Kế toán xác nhận đối soát đủ';
+  }
+  function openReceiptOrderDetail(id,editing=false){
+    const order=data.orders.find(o=>o.id===id);if(!order)return;ensureAccountingOrderStyles();
+    const balance=OrderPayments.balance(order),paid=OrderPayments.paid(order),canEdit=canChangeReceiptOrder(order),billing=order.billing||{};
+    const modal=editor((editing?'Sửa đơn · ':'Chi tiết đơn · ')+shortOrderCode(order.code||order.id),
+      '<div class="ao-detail-summary"><h3>'+esc(OrderPayments.status(order,money))+'</h3><div class="crm-form-grid"><p>Tiền cần thu trước VAT<br><b>'+money(order.subtotal)+'</b></p><p>VAT 10%<br><b>'+money(order.vatAmount)+'</b></p><p>Tổng thanh toán<br><b>'+money(order.total)+'</b></p><p>Đã thu<br><b style="color:#059669">'+money(paid)+'</b></p><p>Còn cần thu<br><b style="color:#dc2626">'+money(balance)+'</b></p><p>Đối soát<br><b>'+(order.paymentReconciled?'Đã đối soát':'Chờ kế toán đối soát')+'</b></p></div></div>'+
+      '<div class="crm-form-grid"><p>Khách hàng<br><b>'+esc(order.customerName)+'</b><br>'+esc(order.customerPhone||billing.phone||'')+'</p><p>Sản phẩm<br><b>'+esc(order.productName)+'</b><br><small>Mã sản phẩm: '+esc(order.sku||'—')+'</small></p><p>Sale phụ trách<br><b>'+esc(person(order.saleId))+'</b></p><p>Nội dung chuyển khoản<br><b>'+esc(order.paymentReference||order.code)+'</b></p><p>CCCD: '+esc(billing.cccd||'—')+'</p><p>Địa chỉ: '+esc(billing.address||'—')+'</p></div><div class="ao-detail-summary"><h3>Thông tin xuất hóa đơn</h3><p>Yêu cầu xuất hóa đơn: <b>'+(order.requireVat?'Có':'Không')+'</b></p><p>Mã số thuế: <b>'+esc(order.taxCode||billing.taxId||'—')+'</b></p><p>Tên công ty: <b>'+esc(order.companyName||'—')+'</b></p><p>Email: '+esc(billing.email||'—')+'</p></div><p>Ghi chú đơn: '+esc(order.saleNote||'—')+'</p><p>Ghi chú kế toán: '+esc(order.reconciliationNote||'—')+'</p>'+
+      (canEdit?'<div class="ao-detail-actions"><button type="button" class="btn-action btn-secondary" id="receiptEditInfo">Sửa thông tin đơn</button>'+(balance>0?'<button type="button" class="btn-action btn-primary" id="receiptAdd">Ghi nhận tiền thu thêm</button><button type="button" class="btn-action btn-primary" id="receiptFull">Thu hết phần còn lại '+money(balance)+'</button>':'<b style="color:#059669">Đã thanh toán đủ</b>')+'</div>':'<p>Đơn đã khóa sửa sau đối soát hoặc kết thúc.</p>')+
+      (['ADMIN','ACCOUNTING'].includes(data.user.actualRole||data.user.role)&&['PAID','COURSE_GRANTED'].includes(order.status)&&paid===Number(order.total)&&balance===0&&!order.paymentReconciled?'<p><button type="button" class="btn-action btn-primary" id="receiptReconcile">Kế toán kiểm tra & Đối soát đủ</button></p>':'')+
+      '<h3>Lịch sử thanh toán &amp; bill ('+OrderPayments.receipts(order).length+')</h3><p class="ao-help">Khách chuyển thêm tiền: chọn <b>Ghi nhận tiền thu thêm</b>. Chỉ bổ sung hoặc thay ảnh cho khoản đã thu: chọn <b>Thêm bill / Sửa bill</b> bên dưới.</p>'+receiptHistoryMarkup(order,canEdit));
+    modal.style.zIndex='12000';bindReceiptImages(modal,order);
+    modal.querySelector('#receiptEditInfo')?.addEventListener('click',()=>openAccountingOrderForm(order.customerId,order));
+    modal.querySelector('#receiptAdd')?.addEventListener('click',()=>openReceiptPaymentForm(id,false));
+    modal.querySelector('#receiptReconcile')?.addEventListener('click',()=>openOrderReconciliation(id));
+    modal.querySelector('#receiptFull')?.addEventListener('click',()=>openReceiptPaymentForm(id,true));
+  }
+  function bindBillPicker(modal,fileId,previewId,statusId,images){
+    let uploading=false;
+    const draw=()=>{
+      q('#'+statusId).textContent=images.length?images.length+' ảnh bill đã chọn · bấm Lưu để hoàn tất':'Chưa có ảnh bill. Có thể chọn nhiều ảnh.';
+      q('#'+previewId).innerHTML=images.map((image,index)=>'<article class="ao-image-edit"><b>Bill '+(index+1)+'</b><img src="'+esc(image.imageData)+'" alt="Bill '+(index+1)+'"><label class="crm-field"><span>Ghi chú ảnh</span><textarea maxlength="500" data-bill-note="'+index+'" placeholder="Ghi chú không bắt buộc">'+esc(image.note||'')+'</textarea></label><button type="button" class="btn-action btn-danger" data-bill-remove="'+index+'">Xóa bill</button></article>').join('');
+      modal.querySelectorAll('[data-bill-remove]').forEach(button=>button.onclick=()=>{if(uploading)return;images.splice(Number(button.dataset.billRemove),1);draw();});
+      modal.querySelectorAll('[data-bill-note]').forEach(input=>input.oninput=()=>{images[Number(input.dataset.billNote)].note=input.value;});
+    };
+    q('#'+fileId).onchange=async event=>{if(uploading)return;uploading=true;try{const files=Array.from(event.target.files||[]);if(images.length+files.length>10)throw Error('Mỗi lần thu tối đa 10 ảnh bill.');const added=[];for(const file of files)added.push({id:'IMG-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2),imageData:await compressBill(file),note:''});images.push(...added);draw();}catch(error){q('#'+statusId).textContent=error.message;}finally{uploading=false;event.target.value='';}};
+    draw();return {get uploading(){return uploading;}};
+  }
+  function openReceiptPaymentForm(id,full=false){
+    const order=data.orders.find(o=>o.id===id);if(!order||!canChangeReceiptOrder(order))return;
+    const balance=OrderPayments.balance(order);if(balance<=0)return;const images=[];let picker;
+    const modal=editor(full?'Thu hết phần còn lại':'Ghi nhận tiền thu thêm',
+      '<p><b>'+esc(order.customerName)+'</b> · '+esc(order.productName)+'</p><p>Đã thu: '+money(OrderPayments.paid(order))+' · <b>Cần thu: '+money(balance)+'</b></p>'+
+      '<label class="crm-field"><span>Số tiền thu lần này *</span><input id="receiptAmount" type="number" required min="1" max="'+balance+'" step="1" value="'+(full?balance:'')+'" '+(full?'readonly':'')+'></label>'+
+      '<label class="crm-field"><span>Thêm bill của lần chuyển khoản này *</span><input type="file" id="receiptFile" accept="image/*" multiple></label><p id="receiptFileStatus"></p><div id="receiptPreview" class="ao-image-editor"></div>'+
+      '<label class="crm-field"><span>Mã giao dịch / Ngân hàng</span><input id="receiptBank" maxlength="240" placeholder="Ví dụ: MB · FT..."></label><label class="crm-field"><span>Ghi chú</span><input id="receiptNote" maxlength="500"></label>'+
+      '<label class="ao-vat-check"><input type="checkbox" id="receiptConfirm" required> Tôi xác nhận đã nhận khoản tiền này</label>',async()=>{
+        if(picker.uploading)throw Error('Đang xử lý ảnh bill, vui lòng chờ.');if(!images.length)throw Error('Tải ảnh bill của lần thanh toán này.');
+        await api.updateOrderAccounting(id,{action:'COLLECT',amount:Number(q('#receiptAmount').value),images,billImage:images[0].imageData,bankReference:q('#receiptBank').value,note:q('#receiptNote').value,confirmed:q('#receiptConfirm').checked});
+        referenceNotice('Đã lưu thanh toán và đồng bộ doanh thu / kế toán.');
+      });
+    modal.style.zIndex='12000';modal.querySelector('.modal-footer [type=submit]').textContent=full?'Xác nhận đủ & Lưu bill':'Lưu thanh toán';
+    picker=bindBillPicker(modal,'receiptFile','receiptPreview','receiptFileStatus',images);
+  }
+  function openAccountingOrderForm(customerId, editing=null){
     const products=(data.products||[]).filter(p=>p.active!==false),sales=orderSalesInScope();
     if(!products.length){alert('Chưa có sản phẩm đang bán.');return;}
     if(!sales.length){alert('Chưa có Sale đang hoạt động trong phạm vi của bạn.');return;}
     const customers=data.customers||[],picked=customers.find(c=>c.id===customerId)||null;
     const preSale=sales.find(s=>String(s.id)===String(picked?.saleId))||sales[0];
-    const body=`<p class="ao-lead">Nhập thông tin khách, chọn hình thức thanh toán (Đủ hoặc Cọc) và đính kèm bill chuyển khoản.</p>
+    const body=`<p class="ao-lead">Nhập thông tin khách, chọn hình thức thanh toán (Đủ hoặc Cọc) rồi tiếp tục để tạo phiếu thanh toán. Tổng tiền đã cộng VAT 10%.</p><div id="aoDetails">
       <datalist id="aoCustomerList">${customers.map(c=>`<option value="${esc(c.phone||'')}">${esc(c.name||'')}</option>`).join('')}</datalist>
       <div class="crm-form-grid">
         <label class="crm-field"><span>Tên Khách Hàng <em>*</em></span><input id="aoName" maxlength="160" required placeholder="Ví dụ: Nguyễn Văn Hải" value="${esc(picked?.name||'')}"></label>
         <label class="crm-field"><span>Số Điện Thoại KH <em>*</em></span><input id="aoPhone" class="ao-mono" list="aoCustomerList" inputmode="tel" maxlength="15" required placeholder="Ví dụ: 0918882345" value="${esc(picked?.phone||'')}"></label>
-        <label class="crm-field ao-manual"><span>Số CCCD / CMND <small>Sale up thủ công</small><em>*</em></span><input id="aoCccd" class="ao-mono" inputmode="numeric" maxlength="12" required placeholder="Nhập số CCCD (12 số)" value="${esc(picked?.cccd||'')}"></label>
-        <label class="crm-field ao-manual"><span>Địa Chỉ Khách Hàng <small>Sale up thủ công</small><em>*</em></span><input id="aoAddress" maxlength="240" required placeholder="Ví dụ: Số 12 Duy Tân, Cầu Giấy, Hà Nội" value="${esc(picked?.address||'')}"></label>
-        <label class="crm-field"><span>Sản Phẩm / Dịch Vụ <em>*</em></span><select id="aoProduct">${products.map(p=>`<option value="${esc(p.id)}" data-price="${Number(p.price)||0}">${esc(p.name)} (${esc(money(p.price))})</option>`).join('')}</select></label>
+        <label class="crm-field ao-manual"><span>Số CCCD / CMND <small>Không bắt buộc</small></span><input id="aoCccd" class="ao-mono" inputmode="numeric" maxlength="12" placeholder="Có thể để trống" value="${esc(picked?.cccd||'')}"></label>
+        <label class="crm-field ao-manual"><span>Địa Chỉ Khách Hàng <small>Không bắt buộc</small></span><input id="aoAddress" maxlength="240" placeholder="Có thể để trống" value="${esc(picked?.address||'')}"></label>
+        <label class="crm-field"><span>Sản Phẩm / Dịch Vụ <em>*</em></span><select id="aoProduct">${products.map(p=>`<option value="${esc(p.id)}" data-price="${Number(p.price)||0}">${esc(p.name)} (${esc(money(Number(p.price)+Math.round(Number(p.price)*.1)))} · gồm VAT)</option>`).join('')}</select></label>
         <label class="crm-field"><span>Sale Phụ Trách <em>*</em></span><select id="aoSale" ${sales.length===1?'disabled':''}>${sales.map(s=>`<option value="${esc(s.id)}" ${s===preSale?'selected':''}>${esc(s.name||s.accountId||s.id)}</option>`).join('')}</select></label>
       </div>
       <div class="ao-grid-3">
-        <label class="crm-field"><span>Doanh Thu (VNĐ) <em>*</em></span><input id="aoSubtotal" class="ao-mono" type="number" min="1" step="1" required></label>
-        <label class="crm-field"><span>Hình Thức Thu <em>*</em></span><select id="aoPayType" class="ao-paytype"><option value="FULL">Thanh toán đủ 100%</option><option value="50">Đặt cọc 50%</option><option value="30">Đặt cọc 30%</option><option value="CUSTOM">Cọc số tiền tùy chọn</option></select></label>
-        <label class="crm-field"><span class="ao-green">Thực Thu (Cọc) <em>*</em></span><input id="aoCollected" class="ao-mono ao-collected" type="number" min="1" step="1" required></label>
+        <label class="crm-field"><span>Tổng tiền (VNĐ, gồm VAT) <em>*</em></span><input id="aoTotal" class="ao-mono" type="number" min="1" step="1" required></label>
+        <label class="crm-field"><span>Hình Thức Thu <em>*</em></span><select id="aoPayType" class="ao-paytype"><option value="FULL">Thanh toán đủ</option><option value="CUSTOM">Cọc</option></select></label>
+        <label class="crm-field"><span class="ao-green">Thực thu <em>*</em></span><input id="aoCollected" class="ao-mono ao-collected" type="number" min="1" step="1" required><small id="aoCollectedHint">Thanh toán đủ: thực thu bằng tổng tiền.</small></label>
       </div>
       <div class="ao-remaining" role="status" aria-live="polite"><span>Số tiền còn lại khách phải thanh toán:</span><b id="aoRemaining">0 VND</b></div>
-      <div class="ao-bill">
-        <span class="ao-bill-title">Hóa Đơn / Bill Chuyển Khoản Ngân Hàng Đính Kèm <em>*</em></span>
-        <div class="ao-bill-row"><select id="aoBank" aria-label="Ngân hàng chuyển khoản">${ORDER_BANKS.map(b=>opt(b,'Bill '+b)).join('')}</select>
-          <input id="aoBillFile" type="file" accept="image/*" class="ao-file"><label class="crm-file-button" for="aoBillFile">📁 Tải ảnh bill</label></div>
-        <span class="crm-file-name" id="aoBillName">Chưa chọn ảnh bill</span><div class="crm-image-preview" id="aoBillPreview"></div>
-      </div>
       <label class="crm-field crm-field-full"><span>Ghi Chú Của Sale Khi Tạo Đơn</span><input id="aoNote" maxlength="1000" placeholder="Ví dụ: Khách cọc 50%, hẹn 28/09 đóng nốt..."></label>
       <label class="ao-vat-check"><input type="checkbox" id="aoRequireVat"> Khách hàng yêu cầu xuất hóa đơn VAT (Nhập MST &amp; Công ty)</label>
       <div class="crm-form-grid ao-vat" id="aoVatInputs" hidden>
         <label class="crm-field"><span>Mã số thuế (MST) <em>*</em></span><input id="aoTaxCode" class="ao-mono" inputmode="numeric" maxlength="13" placeholder="10 - 13 chữ số"></label>
         <label class="crm-field"><span>Tên công ty / Đơn vị <em>*</em></span><input id="aoCompany" maxlength="200" placeholder="Tên công ty xuất hóa đơn"></label>
+        <label class="crm-field crm-field-full"><span>Gmail / Email nhận hóa đơn <small>Không bắt buộc</small></span><input id="aoEmail" type="email" maxlength="254" placeholder="Ví dụ: tenkhach@gmail.com" value="${esc(editing?.billing?.email||picked?.email||'')}"></label>
       </div>
-      <p class="ao-summary" id="aoSummary"></p>`;
-    let bill='';
-    const amounts=()=>{const subtotal=Math.floor(Number(q('#aoSubtotal').value)||0),vatAmount=q('#aoRequireVat').checked?Math.round(subtotal*0.1):0,total=subtotal+vatAmount,collected=Math.floor(Number(q('#aoCollected').value)||0);return {subtotal,vatAmount,total,collected,remaining:Math.max(0,total-collected)};};
-    const modal=editor('➕ Tạo Đơn Hàng Mới (Sale / Kế Toán)',body,async()=>{
+      <p class="ao-summary" id="aoSummary"></p></div><div id="aoPayment" hidden><div id="aoInvoice"></div>      <div class="ao-bill">
+        <span class="ao-bill-title">Hóa Đơn / Bill Chuyển Khoản Ngân Hàng Đính Kèm <em>*</em></span>
+        <div class="ao-bill-row"><select id="aoBank" aria-label="Ngân hàng chuyển khoản">${ORDER_BANKS.map(b=>opt(b,'Bill '+b)).join('')}</select>
+          <input id="aoBillFile" type="file" accept="image/*" multiple class="ao-file"><label class="crm-file-button" for="aoBillFile">+ Thêm bill</label></div>
+        <span class="crm-file-name" id="aoBillName">Chưa chọn ảnh bill</span><div class="ao-image-editor" id="aoBillPreview"></div>
+      </div>
+<label class="ao-vat-check"><input type="checkbox" id="aoConfirmed"> Tôi xác nhận khách đã chuyển đúng số tiền thu lần này</label></div>`;
+    let manageBillsAfterSave=false;
+    const images=[];let picker,step=1;
+    const amounts=()=>{const total=Math.floor(Number(q('#aoTotal').value)||0),vatAmount=Math.round(total/11),subtotal=total-vatAmount,collected=Math.floor(Number(q('#aoCollected').value)||0);return {subtotal,vatAmount,total,collected,remaining:Math.max(0,total-collected)};};
+    const modal=editor('Tạo Đơn Hàng Mới',body,async()=>{
       const v=id=>q('#'+id).value.trim(),phone=v('aoPhone').replace(/[^0-9+]/g,''),digits=phone.replace(/\D/g,''),cccd=v('aoCccd').replace(/\D/g,''),a=amounts(),vat=q('#aoRequireVat').checked;
-      const taxCode=vat?v('aoTaxCode').replace(/\D/g,''):'',companyName=vat?v('aoCompany'):'';
+      const taxCode=v('aoTaxCode').replace(/\D/g,''),companyName=v('aoCompany');
       if(!v('aoName'))throw Error('Nhập tên khách hàng.');
       if(digits.length<9||digits.length>13)throw Error('Số điện thoại khách hàng không hợp lệ.');
-      if(cccd.length!==12)throw Error('CCCD phải đủ 12 chữ số.');
-      if(!v('aoAddress'))throw Error('Nhập địa chỉ khách hàng.');
-      if(!(a.subtotal>0))throw Error('Doanh thu phải lớn hơn 0.');
+      if(cccd&&!/^(\d{9}|\d{12})$/.test(cccd))throw Error('CMND gồm 9 số hoặc CCCD gồm 12 số; có thể để trống.');
+      if(!(a.subtotal>0))throw Error('Tiền cần thu phải lớn hơn 0.');
       if(!(a.collected>0)||a.collected>a.total)throw Error('Thực thu phải lớn hơn 0 và không vượt tổng đơn '+money(a.total)+'.');
-      if(!bill)throw Error('Đính kèm ảnh bill chuyển khoản.');
+
       if(vat&&!/^\d{10,13}$/.test(taxCode))throw Error('MST phải có 10 đến 13 chữ số.');
       if(vat&&!companyName)throw Error('Nhập tên công ty xuất hóa đơn VAT.');
-      const existing=customers.find(c=>phoneKey(c.phone)===phoneKey(phone)),email=existing?.email||'';
-      const payload={customerName:v('aoName'),phone,email,cccd,address:v('aoAddress'),productId:q('#aoProduct').value,saleId:q('#aoSale').value,subtotal:a.subtotal,vatRate:vat?0.1:0,amountPaid:a.collected,paymentMethod:'BANK_TRANSFER',bankReference:q('#aoBank').value,requireVat:vat,taxCode,companyName,saleNote:v('aoNote'),billImage:bill,billing:{name:v('aoName'),phone,email,cccd,address:v('aoAddress'),taxId:taxCode}};
-      const result=await api.createOrder({...payload,source:'accounting-iframe'});
+      const email=v('aoEmail');
+      if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw Error('Gmail / Email không hợp lệ; có thể để trống.');
+      if(!editing&&q('#aoPayType').value==='CUSTOM'&&a.collected>=a.total)throw Error('Tiền cọc phải nhỏ hơn tổng tiền. Chọn Thanh toán đủ nếu khách đã trả hết.');
+      const payload={customerName:v('aoName'),phone,email,cccd,address:v('aoAddress'),productId:q('#aoProduct').value,saleId:q('#aoSale').value,subtotal:a.subtotal,total:a.total,vatRate:0.1,amountPaid:a.collected,paymentMethod:'BANK_TRANSFER',bankReference:q('#aoBank').value,requireVat:vat,taxCode,companyName,saleNote:v('aoNote'),images,billImage:images[0]?.imageData||'',billing:{name:v('aoName'),phone,email,cccd,address:v('aoAddress'),taxId:taxCode}};
+      const paymentReference=payload.customerName.replace(/\s+/g,' ').trim()+' '+phone;
+      payload.paymentReference=paymentReference;
+      if(editing){
+        const result=await api.updateOrderAccounting(editing.id,{...payload,action:'UPDATE',customerPhone:phone,customerCccd:cccd,customerAddress:payload.address,customerEmail:email,amountPaid:OrderPayments.paid(editing)});
+        Object.assign(editing,result.order||{});referenceNotice('Đã cập nhật thông tin đơn. Lịch sử bill được giữ nguyên.');if(manageBillsAfterSave)setTimeout(()=>openReceiptOrderDetail(editing.id,true),0);return;
+      }
+      if(step===1){
+        const qr='https://qr.sepay.vn/img?acc=75725888888&bank=MBBank&amount='+a.collected+'&des='+encodeURIComponent(paymentReference);
+        q('#aoInvoice').innerHTML='<section class="ao-slip"><header><span>NVT AGENCY ACADEMY</span><h3>PHIẾU THANH TOÁN</h3><p>'+esc(payload.customerName)+' · '+esc(phone)+'</p></header><div class="ao-slip-product"><small>SẢN PHẨM / DỊCH VỤ</small><strong>'+esc(products.find(p=>p.id===payload.productId)?.name||'—')+'</strong></div><dl class="ao-slip-totals"><div><dt>Tiền hàng trước VAT</dt><dd>'+money(a.subtotal)+'</dd></div><div><dt>VAT 10%</dt><dd>'+money(a.vatAmount)+'</dd></div><div class="ao-slip-total"><dt>Tổng tiền <small>(gồm VAT)</small></dt><dd>'+money(a.total)+'</dd></div><div class="ao-slip-collect"><dt>Thực thu lần này <small>(chờ xác nhận)</small></dt><dd>'+money(a.collected)+'</dd></div><div><dt>Còn cần thu sau thanh toán</dt><dd>'+money(a.remaining)+'</dd></div></dl><div class="ao-slip-bank"><div><small>THÔNG TIN CHUYỂN KHOẢN</small><p>Ngân hàng <b>MB Bank</b></p><p>Số tài khoản <strong class="ao-slip-account">75725888888</strong></p><p class="ao-slip-owner">CONG TY TNHH NVT AGENCY ACADEMY</p><div class="ao-slip-description"><small>Nội dung chuyển khoản</small><b>'+esc(paymentReference)+'</b></div></div><img src="'+esc(qr)+'" alt="QR chuyển khoản MB theo số tiền thu lần này"></div><footer>Lưu đơn sau khi khách chuyển khoản và đính kèm bill. Phiếu này không phải hóa đơn VAT.</footer></section>';
+
+        step=2;q('#aoDetails').hidden=true;q('#aoPayment').hidden=false;q('#aoConfirmed').checked=false;
+        submit.textContent=editing?'✓ Lưu thay đổi đơn hàng':'✓ Đã chuyển khoản — Lưu đơn';back.hidden=false;
+        modal.querySelector('.modal-body').scrollTop=0;return false;
+      }
+      if(!q('#aoConfirmed').checked)throw Error('Xác nhận khách đã chuyển tiền trước khi lưu.');
+      if(picker.uploading)throw Error('Đang xử lý ảnh bill, vui lòng chờ.');
+      if(!images.length)throw Error('Đính kèm ảnh bill chuyển khoản trước khi lưu.');
+      const result=editing?await api.updateOrderAccounting(editing.id,{...payload,action:'UPDATE',customerPhone:phone,customerCccd:cccd,customerAddress:payload.address,customerEmail:email}):await api.createOrder({...payload,source:'accounting-iframe'});
       showOrderSuccess(result);
+      if(editing){q('#orderSuccessTitle').textContent='Cập nhật đơn hàng thành công';q('#referenceOrderSuccess h4').textContent='Đã lưu thay đổi đơn hàng';}
       const note=q('#referenceOrderSuccess .order-success-note'),order=result?.order;
-      if(note&&order)note.textContent=order.status==='PAID'?'Đã thu đủ 100%, đơn đã chuyển Kế toán đối soát và xuất VAT.':'Đã cọc '+money(order.amountPaid)+', còn lại '+money(order.balanceDue)+'. Xuất VAT mở khi thu đủ 100%.';
+      if(note&&order)note.textContent=order.status==='PAID'?'Đã ghi nhận thu đủ 100% (gồm VAT 10%). Đơn chờ Kế toán đối soát.':'Đã cọc '+money(order.amountPaid)+', còn lại '+money(order.balanceDue)+'. Xuất VAT mở khi thu đủ 100%.';
     });
     modal.querySelector('.modal-card').classList.add('ao-card');
-    const submit=modal.querySelector('.modal-footer [type=submit]');if(submit)submit.textContent='✓ Tạo Đơn Hàng & Gửi Kế Toán';
+    const submit=modal.querySelector('.modal-footer [type=submit]');if(submit)submit.textContent='Tiếp tục → Phiếu thanh toán';
+    const back=document.createElement('button');back.type='button';back.className='btn-action btn-secondary';back.textContent='← Sửa thông tin';back.hidden=true;submit.before(back);back.onclick=()=>{step=1;q('#aoDetails').hidden=false;q('#aoPayment').hidden=true;back.hidden=true;submit.textContent='Tiếp tục → Phiếu thanh toán';};
     const close=modal.querySelector('.modal-footer [data-editor-close]');if(close)close.textContent='Hủy Bỏ';
     const recalc=()=>{const a=amounts(),box=modal.querySelector('.ao-remaining');box.classList.toggle('is-paid',a.remaining<=0&&a.collected>0);
       q('#aoRemaining').textContent=a.remaining<=0?'0 VND (Đủ 100%)':money(a.remaining)+' (Còn thiếu '+Math.round(a.remaining/Math.max(1,a.total)*100)+'%)';
-      q('#aoSummary').textContent='Doanh thu '+money(a.subtotal)+(a.vatAmount?' · VAT 10% '+money(a.vatAmount):' · Không VAT')+' · Tổng đơn '+money(a.total);};
-    const applyPayType=()=>{const type=q('#aoPayType').value,a=amounts();if(type==='FULL')q('#aoCollected').value=a.total;else if(type!=='CUSTOM')q('#aoCollected').value=Math.round(a.total*Number(type)/100);recalc();};
-    const setProductPrice=()=>{q('#aoSubtotal').value=Number(q('#aoProduct').selectedOptions[0]?.dataset.price)||0;applyPayType();};
+      q('#aoSummary').textContent='Tiền hàng '+money(a.subtotal)+' · VAT 10% '+money(a.vatAmount)+' · Tổng tiền '+money(a.total);};
+    const applyPayType=()=>{const input=q('#aoCollected');if(editing){input.value=OrderPayments.paid(editing);q('#aoCollectedHint').textContent='Số đã thu được giữ nguyên. Ghi nhận tiền thu thêm trong chi tiết đơn.';recalc();return;}const full=q('#aoPayType').value==='FULL',a=amounts();input.readOnly=full;if(full)input.value=a.total;else if(a.collected>=a.total)input.value='';input.placeholder=full?'':'Nhập số tiền khách cọc';q('#aoCollectedHint').textContent=full?'Tự động bằng tổng tiền đã gồm VAT.':'Nhập số tiền cọc thực nhận, ví dụ 500000.';recalc();};
+    const setProductPrice=()=>{const net=Number(q('#aoProduct').selectedOptions[0]?.dataset.price)||0;q('#aoTotal').value=net+Math.round(net*.1);applyPayType();};
     q('#aoProduct').onchange=setProductPrice;
-    q('#aoSubtotal').oninput=applyPayType;q('#aoPayType').onchange=applyPayType;
-    q('#aoCollected').oninput=()=>{const a=amounts();q('#aoPayType').value=a.collected===a.total?'FULL':'CUSTOM';recalc();};
+    q('#aoTotal').oninput=applyPayType;q('#aoPayType').onchange=applyPayType;
+    q('#aoCollected').oninput=recalc;
     q('#aoRequireVat').onchange=e=>{q('#aoVatInputs').hidden=!e.target.checked;q('#aoTaxCode').required=q('#aoCompany').required=e.target.checked;applyPayType();};
     // Chọn SĐT khách có sẵn thì điền tên, CCCD, địa chỉ và Sale đang phụ trách.
     q('#aoPhone').onchange=()=>{const c=customers.find(item=>phoneKey(item.phone)===phoneKey(q('#aoPhone').value));if(!c)return;
-      q('#aoName').value=c.name||q('#aoName').value;if(c.cccd)q('#aoCccd').value=c.cccd;if(c.address)q('#aoAddress').value=c.address;
-      if(c.saleId&&sales.some(s=>String(s.id)===String(c.saleId)))q('#aoSale').value=c.saleId;};
-    q('#aoBillFile').onchange=async e=>{const file=e.target.files[0],err=modal.querySelector('[data-editor-error]');err.textContent='';
-      try{bill=await compressBill(file);q('#aoBillName').textContent=file.name;q('#aoBillPreview').innerHTML='<img alt="Bill chuyển khoản đã chọn" src="'+bill+'">';}
-      catch(error){bill='';e.target.value='';q('#aoBillName').textContent='Chưa chọn ảnh bill';q('#aoBillPreview').innerHTML='';err.textContent=error.message;}};
-    ensureAccountingOrderStyles();setProductPrice();q('#aoName').focus();
+      q('#aoName').value=c.name||q('#aoName').value;if(c.cccd)q('#aoCccd').value=c.cccd;if(c.address)q('#aoAddress').value=c.address;if(c.email&&!q('#aoEmail').value)q('#aoEmail').value=c.email;
+      if(!editing&&c.saleId&&sales.some(s=>String(s.id)===String(c.saleId)))q('#aoSale').value=c.saleId;};
+    picker=bindBillPicker(modal,'aoBillFile','aoBillPreview','aoBillName',images);
+    ensureAccountingOrderStyles();setProductPrice();
+    if(editing){
+      const values={aoName:editing.customerName,aoPhone:editing.customerPhone||editing.billing?.phone,aoCccd:editing.billing?.cccd,aoAddress:editing.billing?.address,aoProduct:editing.productId,aoSale:editing.saleId,aoTotal:editing.total,aoCollected:editing.amountPaid,aoNote:editing.saleNote,aoTaxCode:editing.taxCode,aoCompany:editing.companyName,aoEmail:editing.billing?.email};
+      Object.entries(values).forEach(([id,value])=>q('#'+id).value=value??'');
+      q('#aoCollected').value=OrderPayments.paid(editing);q('#aoCollected').readOnly=true;q('#aoPayType').disabled=true;submit.textContent='Lưu thông tin đơn';modal.querySelector('.ao-lead').textContent='Sửa thông tin khách và đơn hàng tại đây. Để bổ sung hoặc thay ảnh của khoản đã thu, chọn Lưu & mở bill.';const manageBills=document.createElement('button');manageBills.type='button';manageBills.className='btn-action btn-secondary';manageBills.textContent='Lưu & mở bill';manageBills.onclick=()=>{manageBillsAfterSave=true;modal.querySelector('form').requestSubmit();};submit.before(manageBills);q('#aoSale').disabled=true;q('#aoRequireVat').checked=editing.requireVat===true;q('#aoVatInputs').hidden=!editing.requireVat;
+      q('#aoPayType').value=editing.amountPaid===editing.total?'FULL':'CUSTOM';q('#aoBillName').textContent='Quản lý các bill đã lưu trong chi tiết đơn.';
+      q('#refEditorTitle').textContent='Chỉnh sửa đơn '+(editing.code||editing.id);recalc();
+    }q('#aoName').focus();
   }
   function ensureAccountingOrderStyles(){
     if(q('#accountingOrderStyles'))return;
     const style=document.createElement('style');style.id='accountingOrderStyles';style.textContent=`
+      .ao-receipt .btn-danger,.ao-image-edit .btn-danger{border:1px solid #fecaca;background:#fff1f2;color:#b91c1c;border-radius:7px;padding:7px 10px;font:600 12px var(--font-sans,Arial,sans-serif);cursor:pointer}.ao-receipt .btn-danger:hover,.ao-image-edit .btn-danger:hover{background:#ffe4e6}
+      .ao-help{padding:12px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;line-height:1.6}.ao-help p{margin:5px 0 0}.ao-image-editor{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.ao-image-edit{padding:12px;border:1px solid #dbe3ec;border-radius:10px;display:grid;gap:10px}.ao-image-edit-head{display:flex;flex-wrap:wrap;justify-content:space-between;gap:5px}.ao-image-edit-head small{color:#64748b}.ao-image-edit>img{width:100%;height:170px;object-fit:contain;background:#f8fafc;border-radius:6px}.ao-image-edit textarea{min-height:66px}.ao-image-upload{border:1px dashed #94a3b8;border-radius:10px;padding:16px;margin-top:14px}.ao-image-upload p{font-size:12px;line-height:1.5;color:#64748b;margin-bottom:0}@media(max-width:480px){.ao-image-editor{grid-template-columns:1fr}}
+      .ao-slip{border:1px solid #dbe3ec;border-radius:12px;overflow:hidden;background:#fff;color:#1e293b}.ao-slip header{padding:18px 22px;background:#f8fafc;border-bottom:1px solid #e2e8f0}.ao-slip header span,.ao-slip small{font-size:11px;color:#64748b}.ao-slip h3{margin:6px 0;font-size:19px;letter-spacing:.4px}.ao-slip p{margin:6px 0;font-size:13px}.ao-slip-product{padding:16px 22px 8px}.ao-slip-product strong{display:block;margin-top:5px;font-size:16px}.ao-slip-totals{margin:0;padding:8px 22px 16px}.ao-slip-totals>div{display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding:8px 0}.ao-slip dd{margin:0;text-align:right;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}.ao-slip dt{font-size:13px}.ao-slip-total{border-top:1px solid #e2e8f0;margin-top:4px;font-weight:700}.ao-slip-total dd{font-size:19px;color:#1d4ed8}.ao-slip-collect{color:#047857}.ao-slip-bank{display:grid;grid-template-columns:minmax(0,1fr) 170px;align-items:center;gap:18px;padding:18px 22px;border-top:1px solid #e2e8f0}.ao-slip-bank img{width:170px;max-width:100%;height:auto}.ao-slip-account{display:block;font-size:20px;letter-spacing:1px}.ao-slip-owner{font-weight:600;font-size:11px!important}.ao-slip-description{background:#eff6ff;border-radius:6px;padding:10px;margin-top:10px;overflow-wrap:anywhere}.ao-slip-description b{display:block;margin-top:4px;font-size:13px}.ao-slip footer{padding:12px 22px;background:#f8fafc;color:#64748b;font-size:11px;line-height:1.5}@media(max-width:480px){.ao-slip-bank{grid-template-columns:1fr}.ao-slip-bank img{justify-self:center}.ao-slip header,.ao-slip-product,.ao-slip-bank{padding:14px}.ao-slip-totals{padding:8px 14px}.ao-slip-totals>div{gap:8px}}
+      .ao-detail-summary{padding:16px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px}.ao-detail-actions{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}.receipt-images{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}.receipt-images p{white-space:pre-wrap;overflow-wrap:anywhere}.ao-receipt-list{display:grid;gap:14px;margin-top:12px}.ao-receipt{display:grid;grid-template-columns:1fr 180px;gap:16px;padding:16px;border:1px solid #dbe3ec;border-radius:12px}.ao-receipt p{margin:8px 0}.ao-bill-zoom{border:0;background:#f8fafc;cursor:zoom-in;padding:8px;border-radius:8px}.ao-bill-zoom img{width:100%;max-height:200px;object-fit:contain}.ao-bill-zoom span{display:block;font-size:11px;color:#2563eb}@media(max-width:500px){.ao-receipt{grid-template-columns:1fr}.ao-bill-zoom{max-width:240px}}
+      #aoDetails,#aoPayment{display:grid;gap:16px}#aoDetails[hidden],#aoPayment[hidden]{display:none!important}
       .ao-card{width:min(680px,calc(100vw - 28px))!important;max-height:min(880px,94dvh)!important}
       .ao-card .modal-header{background:var(--accent-soft,#eff6ff)!important;border-bottom-color:#bfdbfe!important}
       .ao-card .modal-header h3{color:var(--accent-dark,#1d4ed8)!important}
@@ -2800,12 +2908,12 @@
   // Khi bat tu dong, mac dinh dung che do ty trong cho data moi.
   toggleAutoDist=enabled=>run(()=>api.distribution(enabled,enabled?'BALANCED':data.settings.assignmentMode));
   updateAssignmentMode=mode=>run(()=>api.distribution(data.leaderDistribution.enabled,mode));
-  switchTab=function(id){document.getElementById('crm-preheat-tab-style')?.remove();if(data){const view=id.replace('tab-',''),alias={data:data.user.role==='LEADER'?'pool':data.user.role==='SALE'?'accept':'distribution'},target=alias[view]||view;if(!sharedOrganizationTabs.has(view)&&!data.navigation.includes(target)&&!data.navigation.includes(view))return;}rememberActiveTab(id);renders.switchTab(id);if(data){if(id==='tab-customers')clearAutofilledCustomerSearch();if(id==='tab-data'&&(data.user.actualRole||data.user.role)==='SALE'){const search=q('#dataQueueSearch');if(search)search.value='';}paintTab(id,id==='tab-data');if(id==='tab-audit'){renderUserLog();loadUserActivity();}reportUserActivity(id);wireParity();}};
+  switchTab=function(id){document.getElementById('crm-preheat-tab-style')?.remove();if(data&&(data.user.actualRole||data.user.role)==='ACCOUNTING'&&id!=='tab-accounting')return;if(data){const view=id.replace('tab-',''),alias={data:data.user.role==='LEADER'?'pool':data.user.role==='SALE'?'accept':'distribution'},target=alias[view]||view;if(!sharedOrganizationTabs.has(view)&&!data.navigation.includes(target)&&!data.navigation.includes(view))return;}rememberActiveTab(id);renders.switchTab(id);if(data){if(id==='tab-customers')clearAutofilledCustomerSearch();if(id==='tab-data'&&(data.user.actualRole||data.user.role)==='SALE'){const search=q('#dataQueueSearch');if(search)search.value='';}paintTab(id,id==='tab-data');if(id==='tab-audit'){renderUserLog();loadUserActivity();}reportUserActivity(id);wireParity();}};
   qa('.nav-link[data-tab]').forEach(button=>button.addEventListener('click',()=>rememberActiveTab(button.dataset.tab),true));
   filterTeamPeriod=(period,button)=>{q('#teamStartDate').value=fromDay(parseInt(period)||30);q('#teamEndDate').value=data.today;if(button){qa('.team-period-btn').forEach(b=>b.className='btn-secondary team-period-btn');button.className='btn-primary team-period-btn';}updateTeamDateLabel();};
   updateTeamDateLabel=()=>text('teamDateRangeLabel',fmtDate(q('#teamStartDate').value)+' - '+fmtDate(q('#teamEndDate').value));
   let revenuePeriod=30;
-  function renderRevenue(){if(!data)return;const actualRole=data.user.actualRole||data.user.role;const subtitle=q('#tab-revenue .headline-row > div:first-child > div');if(subtitle)subtitle.textContent=actualRole==='MANAGER'?`Chỉ hiển thị doanh thu Team ${data.user.teamId||'được chọn'} thuộc tuyến Manager`:actualRole==='LEADER'?`Chỉ hiển thị doanh thu Team ${data.user.teamId||''} do bạn quản lý`:actualRole==='SALE'?'Chỉ hiển thị doanh thu từ khách hàng bạn phụ trách':'Báo cáo doanh thu toàn hệ thống';const start=q('#revStartDate').value,end=q('#revEndDate').value;const events=data.financialEvents.filter(e=>(!start||e.occurredAt?.slice(0,10)>=start)&&(!end||e.occurredAt?.slice(0,10)<=end));const total=events.reduce((s,e)=>s+Number(e.amount||0),0);const rentalIds=new Set(data.orders.filter(o=>o.rentalMonths).map(o=>o.id));const rent=events.filter(e=>rentalIds.has(e.orderId)).reduce((s,e)=>s+Number(e.amount||0),0),sale=total-rent;const pct=total?Math.max(0,Math.min(100,sale/total*100)):0;const circle=q('#revSvgSaleCircle'),rentCircle=q('#revSvgRentCircle');circle?.setAttribute('stroke-dasharray',`${pct/100*326.73} 326.73`);rentCircle?.setAttribute('stroke-dasharray',`${total?(100-pct)/100*326.73:0} 326.73`);rentCircle?.setAttribute('transform',`rotate(${-90+pct*3.6} 80 80)`);text('revSvgSaleText',pct.toFixed(1)+'%');text('revSvgRentText',(total?100-pct:0).toFixed(1)+'%');text('revDonutCenterAmount',money(total));text('revDonutCenterPeriod',revenuePeriod+' NGÀY');text('revDonutTotalAmount',money(total));text('revStatSoldAmount',money(total));text('revDonutSalePercent',pct.toFixed(1)+'%');text('revDonutRentPercent',(total?100-pct:0).toFixed(1)+'%');text('revDonutSaleDetail',money(sale));text('revDonutRentDetail',money(rent));text('revDonutVatAmount',money(data.orders.filter(o=>o.status==='PAID'&&o.paidAt?.slice(0,10)>=start&&o.paidAt?.slice(0,10)<=end).reduce((s,o)=>s+Number(o.vatAmount||0),0)));table(q('#revenueSalesTableBody'),events.map(e=>{const o=data.orders.find(o=>o.id===e.orderId)||{};return [internalCode(e.code),fmtDate(e.occurredAt),e.customerName,o.productName,e.label,o.source||'—',person(o.saleId),money(o.subtotal),money(o.vatAmount),money(e.amount),o.status,''];}));Array.from(q('#revenueSalesTableBody')?.rows||[]).forEach((r,i)=>r.querySelectorAll('button').forEach(b=>{b.removeAttribute('onclick');b.onclick=()=>workflow('order',events[i].orderId);}));table(q('#rentalCustomersTableBody'),data.orders.filter(o=>o.rentalMonths).map(o=>[o.customerName,o.productName,fmtDate(o.rentalEndsAt),money(o.total),o.status,'']));Array.from(q('#rentalCustomersTableBody')?.rows||[]).forEach((r,i)=>r.querySelectorAll('button').forEach(b=>{b.removeAttribute('onclick');b.onclick=()=>workflow('order',data.orders.filter(o=>o.rentalMonths)[i].id);}));}
+  function renderRevenue(){if(!data)return;const actualRole=data.user.actualRole||data.user.role;const subtitle=q('#tab-revenue .headline-row > div:first-child > div');if(subtitle)subtitle.textContent=actualRole==='MANAGER'?`Chỉ hiển thị doanh thu Team ${data.user.teamId||'được chọn'} thuộc tuyến Manager`:actualRole==='LEADER'?`Chỉ hiển thị doanh thu Team ${data.user.teamId||''} do bạn quản lý`:actualRole==='SALE'?'Chỉ hiển thị doanh thu từ khách hàng bạn phụ trách':'Báo cáo doanh thu toàn hệ thống';const start=q('#revStartDate').value,end=q('#revEndDate').value;const events=data.financialEvents.filter(e=>(!start||e.occurredAt?.slice(0,10)>=start)&&(!end||e.occurredAt?.slice(0,10)<=end));const total=events.reduce((s,e)=>s+Number(e.amount||0),0);const rentalIds=new Set(data.orders.filter(o=>o.rentalMonths).map(o=>o.id));const rent=events.filter(e=>rentalIds.has(e.orderId)).reduce((s,e)=>s+Number(e.amount||0),0),sale=total-rent;const pct=total?Math.max(0,Math.min(100,sale/total*100)):0;const circle=q('#revSvgSaleCircle'),rentCircle=q('#revSvgRentCircle');circle?.setAttribute('stroke-dasharray',`${pct/100*326.73} 326.73`);rentCircle?.setAttribute('stroke-dasharray',`${total?(100-pct)/100*326.73:0} 326.73`);rentCircle?.setAttribute('transform',`rotate(${-90+pct*3.6} 80 80)`);text('revSvgSaleText',pct.toFixed(1)+'%');text('revSvgRentText',(total?100-pct:0).toFixed(1)+'%');text('revDonutCenterAmount',money(total));text('revDonutCenterPeriod',revenuePeriod+' NGÀY');text('revDonutTotalAmount',money(total));text('revStatSoldAmount',money(total));text('revDonutSalePercent',pct.toFixed(1)+'%');text('revDonutRentPercent',(total?100-pct:0).toFixed(1)+'%');text('revDonutSaleDetail',money(sale));text('revDonutRentDetail',money(rent));text('revDonutVatAmount',money(events.reduce((sum,event)=>sum+Number(event.vatAmount||0),0)));table(q('#revenueSalesTableBody'),events.map(e=>{const o=data.orders.find(o=>o.id===e.orderId)||{};return [internalCode(e.code),fmtDate(e.occurredAt),e.customerName,o.productName,e.label,o.source||'—',person(o.saleId),money(e.netAmount),money(e.vatAmount),money(e.amount),o.status,''];}));Array.from(q('#revenueSalesTableBody')?.rows||[]).forEach((r,i)=>r.querySelectorAll('button').forEach(b=>{b.removeAttribute('onclick');b.onclick=()=>workflow('order',events[i].orderId);}));table(q('#rentalCustomersTableBody'),data.orders.filter(o=>o.rentalMonths).map(o=>[o.customerName,o.productName,fmtDate(o.rentalEndsAt),money(o.total),o.status,'']));Array.from(q('#rentalCustomersTableBody')?.rows||[]).forEach((r,i)=>r.querySelectorAll('button').forEach(b=>{b.removeAttribute('onclick');b.onclick=()=>workflow('order',data.orders.filter(o=>o.rentalMonths)[i].id);}));}
   // Bổ sung URL Landing Page sau khi renderer cũ dựng bảng, để dữ liệu hiển thị
   // luôn truy ngược được về đúng website đã nạp khách và không dùng dữ liệu mẫu.
   const baseRenderRevenue=renderRevenue;

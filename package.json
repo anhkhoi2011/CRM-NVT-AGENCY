@@ -9,7 +9,8 @@
     "demo": "node tools/demo-server.cjs",
     "test": "node --test \"tests/*.cjs\"",
     "telegram:worker": "node telegram-worker.cjs",
-    "watchdog": "node watchdog.cjs"
+    "watchdog": "node watchdog.cjs",
+    "verify:sql": "node tools/verify-sql.cjs"
   },
   "engines": {
     "node": ">=18"

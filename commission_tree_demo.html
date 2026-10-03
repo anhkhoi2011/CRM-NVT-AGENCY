@@ -1287,6 +1287,7 @@ body.accounting-modal-open { overflow: hidden; }
     document.documentElement.classList.add('is-embedded');
   }
 </script>
+<script src="order-payments.js?v=20261003-accounting-sql-5"></script>
 </head>
 <body>
 
@@ -1768,7 +1769,7 @@ body.accounting-modal-open { overflow: hidden; }
                 <th>SẢN PHẨM / DỊCH VỤ</th>
                 <th style="width:110px;">GÓI / THỜI HẠN</th>
                 <th style="width:140px;">SALE PHỤ TRÁCH</th>
-                <th style="text-align:right; width:115px;">DOANH THU</th>
+                <th style="text-align:right; width:115px;">TIỀN CẦN THU<br><small>(trước VAT)</small></th>
                 <th style="text-align:right; width:100px;">VAT</th>
                 <th style="text-align:right; width:115px; color:#059669;">THỰC THU</th>
                 <th style="text-align:right; width:130px; background:#fef2f2; color:#dc2626;">CÒN LẠI</th>
@@ -1846,13 +1847,13 @@ body.accounting-modal-open { overflow: hidden; }
           <div class="kpi-card blue">
             <div class="kpi-label">1. Tổng Doanh Thu SP & Dịch Vụ</div>
             <div class="kpi-val" id="accTotalRevenue" style="color:#0284c7;">0 đ</div>
-            <div class="kpi-sub">Khóa học (231.5tr) + Chỉ báo (117tr) + VIP (100tr)</div>
+            <div class="kpi-sub">Thực thu trước VAT từ các bill trong kỳ</div><div class="kpi-sub" id="accCashSummary"></div>
           </div>
 
           <div class="kpi-card orange">
             <div class="kpi-label">2. Chi Phí Hoa Hồng (Nhân Sự CRM)</div>
             <div class="kpi-val" id="accTotalCommission" style="color:#ea580c;">0 đ</div>
-            <div class="kpi-sub">Lot (31.3tr) + SP (149.8tr) + Thưởng (10.3tr)</div>
+            <div class="kpi-sub">Lot + sản phẩm + thưởng theo dữ liệu CRM</div>
           </div>
 
           <div class="kpi-card purple">
@@ -3713,7 +3714,7 @@ function renderMindmapTree() {
   // Kỳ lưu lot luôn là YYYY-MM; khi đang xem "Tất cả" thì ghi vào tháng hiện tại.
   function accountingSavePeriod() {
     const month = String(currentGlobalMonth || '');
-    return /^d{4}-d{2}$/.test(month) ? month : new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' }).slice(0, 7);
+    return /^\d{4}-\d{2}$/.test(month) ? month : new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Ho_Chi_Minh' }).slice(0, 7);
   }
 
   // Lưu chỉ số của một nhân sự (mọi cấp LV1-LV3) vào CRM; báo kết quả khi server xác nhận.
@@ -4963,7 +4964,7 @@ function renderMindmapTree() {
         <td style="font-size:11px; color:#475569;">${person.directManager || 'Direct'}</td>
         <td style="text-align:center;">
           <input type="number" min="0" max="100" step="1" value="${sCount}"
-                 onchange="updateSaleStudentsInCourse('${person.id}', this.value)"
+                 readonly title="Số học viên được tổng hợp từ đơn CRM" onchange="updateSaleStudentsInCourse('${person.id}', this.value)"
                  title="Nhập số học viên ${person.name} bán được (ví dụ: 4, 2, 0...)"
                  style="width:50px; text-align:center; font-family:'JetBrains Mono'; font-weight:800; font-size:11.5px; color:#15803d; border:1px solid #86efac; border-radius:4px; padding:2px; background:#fff;">
         </td>
@@ -5098,6 +5099,7 @@ function renderMindmapTree() {
 
   function saveCoursePersonnelDetail() {
     const crs = COURSES_DATA.find(c => c.id === currentDetailCourseId);
+    if(window.parent!==window){persistCourseConfigs(crs?[crs]:[],'detail');return;}
     if (crs && crs.salesConfig) {
       // Sync student sales into APEX_DATA.courseRev
       Object.keys(crs.salesConfig).forEach(pId => {
@@ -5288,7 +5290,7 @@ function renderMindmapTree() {
             <input type="text"
                    id="inputRev_${crs.id}"
                    value="${Number(crs.totalRevenue || 0).toLocaleString('vi-VN')}"
-                   oninput="handleCourseRevenueInput(this, '${crs.id}')"
+                   readonly title="Tiền thu được tổng hợp từ bill đã lưu" oninput="handleCourseRevenueInput(this, '${crs.id}')"
                    style="width:105px; text-align:right; font-family:'JetBrains Mono', monospace; font-weight:800; font-size:12.5px; border:none; outline:none; background:transparent; color:#0f172a;"
                    placeholder="0">
             <span style="font-size:11.5px; font-weight:700; color:#64748b; margin-left:4px;">đ</span>
@@ -5364,7 +5366,15 @@ function renderMindmapTree() {
     alert('Đã đặt lại toàn bộ khóa học về cơ cấu chuẩn: Sale 15% • Leader 5% • Đào tạo 15% • Công ty 65%');
   }
 
+  function persistCourseConfigs(courses,view){
+    if(window.__PENDING_COURSE_CONFIG)return;
+    const payload=courses.map(course=>({courseKey:course.courseKey||course.id,trainerIds:(course.trainers||[]).map(p=>p.id),leaderIds:(course.leaders||[]).map(p=>p.id),trainerRates:Object.fromEntries((course.trainers||[]).map(p=>[p.id,Number(p.rate)||0])),leaderRates:Object.fromEntries((course.leaders||[]).map(p=>[p.id,Number(p.rate)||0])),saleRates:Object.fromEntries(Object.entries(course.salesConfig||{}).map(([id,cfg])=>[id,Number(cfg.rateSale)||0])),rateSale:course.rateSale,rateLeader:course.rateLeader,rateTrainer:course.rateTrainer,rateCompany:course.rateCompany,startDate:course.startDate||''}));
+    if(!payload.length){alert('Chưa có sản phẩm để lưu cấu hình.');return;}
+    window.__PENDING_COURSE_CONFIG=view;
+    postAccountingMessage('ACCOUNTING_COURSE_CONFIG_SAVE',{payload});
+  }
   function saveTrainingConfig() {
+    if(window.parent!==window){persistCourseConfigs(COURSES_DATA,'training');return;}
     closeTrainingConfigModal();
     renderAllViews();
     alert('Đã lưu thành công cấu hình khóa học, Người Đào Tạo và tính lại toàn bộ doanh thu, hoa hồng cho hệ thống!');
@@ -5462,6 +5472,10 @@ function _old_navigateAccountingMonth(direction) {
     COURSES_DATA.forEach(c => totalRevenue += Number(c.totalRevenue) || 0);
     APEX_DATA.forEach(p => totalCommission += calculatePersonnelFinance(p).netIncome);
 
+    const cashEvents=ACCOUNTING_CRM_STATE.orders.flatMap(order=>OrderPayments.events(order)).filter(event=>currentAccountingMonth==='ALL'||String(event.occurredAt||'').slice(0,7)===currentAccountingMonth);
+    const cashTotal=cashEvents.reduce((sum,event)=>sum+event.amount,0),taxTotal=cashEvents.reduce((sum,event)=>sum+event.vatAmount,0);
+    const outstanding=ACCOUNTING_CRM_STATE.orders.reduce((sum,order)=>sum+OrderPayments.balance(order),0);
+    const cashSummary=document.getElementById('accCashSummary');if(cashSummary)cashSummary.textContent='Thực thu gồm VAT trong kỳ: '+formatMoney(cashTotal)+' · VAT trong thực thu: '+formatMoney(taxTotal)+' · Công nợ hiện tại (mọi kỳ): '+formatMoney(outstanding);
     // 3. Tính tổng chi phí Admin của tháng được chọn
     let totalAdminExpense = expensesForMonth.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
@@ -5651,6 +5665,13 @@ function _old_navigateAccountingMonth(direction) {
       return;
     }
 
+    if(window.parent!==window){
+      if(window.__PENDING_EXPENSE)return;
+      const id=(idInput&&idInput.value)||('EXP_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,8));if(idInput)idInput.value=id;
+      window.__PENDING_EXPENSE={action:'save',month,id};
+      const button=document.querySelector('#expenseModal button[onclick="saveExpense()"]');if(button){button.disabled=true;button.textContent='Đang lưu…';}
+      postAccountingMessage('ACCOUNTING_EXPENSE_SAVE',{payload:{id,date,title,category,amount,month,payer,note}});return;
+    }
     const editId = idInput ? idInput.value : '';
     let savedExpenseId = editId;
     if (editId) {
@@ -5900,27 +5921,11 @@ function onOrderMonthSelectChange(val) {
 // Hàm chuẩn hóa tự động: Đảm bảo Thực Thu (tiền khách đã CK) của các đơn có VAT luôn bao gồm cả tiền thuế VAT 10%
 function recalculateAllVatOrdersData() {
   if (typeof VAT_ORDERS_DATA === 'undefined') return;
-  VAT_ORDERS_DATA.forEach(order => {
-    order.subtotal = Number(order.subtotal) || 0;
-    if (order.requireVat || order.vatStatus === 'ISSUED') {
-      order.vatAmount = Math.round(order.subtotal * 0.1);
-      order.total = order.subtotal + order.vatAmount;
-      if (order.paymentStatus === 'PAID') {
-        order.collected = order.total; // Khách đã chuyển khoản 100% bao gồm cả VAT
-        order.remaining = 0;
-      } else {
-        order.remaining = Math.max(0, order.total - (Number(order.collected) || 0));
-      }
-    } else {
-      order.vatAmount = order.vatAmount || Math.round(order.subtotal * 0.1);
-      order.total = order.subtotal;
-      if (order.paymentStatus === 'PAID') {
-        order.collected = order.subtotal;
-        order.remaining = 0;
-      } else {
-        order.remaining = Math.max(0, order.subtotal - (Number(order.collected) || 0));
-      }
-    }
+  VAT_ORDERS_DATA.forEach(order=>{
+    if(order.crmOrderId)return; // CRM is the source of truth for VAT and receipt totals.
+    order.subtotal=Number(order.subtotal)||0;order.vatAmount=Math.round(order.subtotal*.1);
+    order.total=order.subtotal+order.vatAmount;
+    order.remaining=Math.max(0,order.total-(Number(order.collected)||0));
   });
 }
 
@@ -6075,7 +6080,7 @@ function renderVatOrdersTable() {
     // Badge trạng thái thanh toán
     const isPaid = order.paymentStatus === 'PAID';
     const payBadgeClass = isPaid ? 'chip-green' : 'chip-yellow';
-    const payBadgeText = isPaid ? 'Thanh toán 100%' : (order.paymentStatus === 'DEPOSIT_50' ? 'Thanh toán 50%' : (order.paymentStatus === 'DEPOSIT_30' ? 'Đã cọc 30%' : 'Đã cọc'));
+    const payBadgeText = isPaid ? 'Thanh toán đủ' : order.collected>0?'Cọc '+formatCurrency(order.collected):'Chờ thanh toán';
 
     // Cột CÒN LẠI (Lỡ khách có cọc thì còn thanh toán còn lại bao nhiêu)
     let remainingCellHtml = '';
@@ -6109,16 +6114,16 @@ function renderVatOrdersTable() {
     let confirmBtnHtml = '';
     let vatBtnHtml = '';
 
-    if (isVatIssued) {
-      confirmBtnHtml = `<span style="font-size:10px; color:#059669; font-weight:700; background:#f0fdf4; border:1px solid #bbf7d0; padding:2px 5px; border-radius:4px; white-space:nowrap;">Đã đủ</span>`;
-      vatBtnHtml = `<span class="chip chip-green" style="font-size:10.5px; padding:3px 6px; white-space:nowrap;" title="Số HĐ: ${order.vatInvoiceNo || 'HD-2026/001'}">Đã Xuất VAT</span>`;
-    } else if (isPaid) {
-      confirmBtnHtml = `<span style="font-size:10px; color:#059669; font-weight:700; background:#f0fdf4; border:1px solid #bbf7d0; padding:2px 5px; border-radius:4px; white-space:nowrap;">Đã đủ</span>`;
-      vatBtnHtml = `<button type="button" class="btn-action btn-primary" onclick="event.stopPropagation(); issueVatInvoice('${order.id}')" style="background:#7c3aed; color:#fff; font-size:11px; padding:3px 8px; font-weight:700; border:none; border-radius:4px; cursor:pointer; white-space:nowrap; box-shadow:0 1px 3px rgba(124,58,237,0.3);" title="Đã thanh toán đủ 100%, sẵn sàng xuất hóa đơn VAT">Xuất VAT</button>`;
-    } else {
-      confirmBtnHtml = `<button type="button" class="btn-action" onclick="event.stopPropagation(); confirmFullPayment('${order.id}')" style="background:#059669; color:#fff; font-size:11px; padding:3px 7px; font-weight:700; border:none; border-radius:4px; cursor:pointer; white-space:nowrap; box-shadow:0 1px 3px rgba(5,150,105,0.25);" title="Bấm xác nhận khách đã nộp nốt ${formatCurrency(order.remaining)} để mở khóa nút Xuất VAT">Xác nhận đủ</button>`;
-      vatBtnHtml = `<button type="button" class="btn-action btn-secondary" disabled onclick="event.stopPropagation(); showToast('Đơn hàng chưa thanh toán đủ 100%. Vui lòng bấm [Xác nhận đủ] trước khi xuất hóa đơn VAT!', 'warning', 'Chưa Đủ Điều Kiện');" style="opacity:0.4; font-size:11px; padding:3px 7px; cursor:not-allowed; background:#f1f5f9; color:#94a3b8; border:1px solid #cbd5e1; border-radius:4px; white-space:nowrap;" title="Cần bấm [Xác nhận đủ] trước khi xuất VAT">Xuất VAT</button>`;
+    if(order.paymentReconciled){
+      confirmBtnHtml='<span class="chip chip-green">Đã đối soát</span>';
+    }else if(isPaid){
+      confirmBtnHtml=`<button type="button" class="btn-action btn-primary" onclick="event.stopPropagation(); confirmFullPayment('${order.id}')">Kiểm tra & đối soát</button>`;
+    }else{
+      confirmBtnHtml='<span class="chip chip-yellow">Chờ Sale ghi nhận đủ</span>';
     }
+    if(isVatIssued)vatBtnHtml='<span class="chip chip-green">Đã ghi nhận VAT</span>';
+    else if(isPaid&&order.paymentReconciled)vatBtnHtml=`<button type="button" class="btn-action btn-primary" onclick="event.stopPropagation(); issueVatInvoice('${order.id}')">Ghi nhận VAT</button>`;
+    else vatBtnHtml='<button type="button" class="btn-action btn-secondary" disabled title="Cần đủ tiền và Kế toán đối soát trước">VAT chờ đối soát</button>';
 
     // Hiển thị thông tin CCCD và Địa chỉ trực tiếp dưới tên khách
     const cccdBadge = order.customerCccd ? `<div style="font-size:10.5px; color:#1e40af; font-family:'JetBrains Mono';">🪪 ${order.customerCccd}</div>` : `<div style="font-size:10px; color:#94a3b8; font-style:italic;">🪪 Chưa có CCCD</div>`;
@@ -6200,6 +6205,7 @@ function renderVatOrdersTable() {
 // MODAL CHI TIẾT & CHỈNH SỬA TOÀN BỘ ĐƠN HÀNG (TẤT CẢ ĐỀU CHỈNH SỬA ĐƯỢC)
 // ====================================================================
 function openOrderDetailModal(orderId) {
+  const crmOrder=VAT_ORDERS_DATA.find(o=>o.id===orderId);if(crmOrder?.crmOrderId&&window.parent!==window){postAccountingMessage('OPEN_CRM_ORDER',{orderId:crmOrder.crmOrderId});return;}
   const order = VAT_ORDERS_DATA.find(o => o.id === orderId);
   if (!order) return;
   currentViewingOrderId = orderId;
@@ -6210,7 +6216,7 @@ function openOrderDetailModal(orderId) {
   const isPaid = order.paymentStatus === 'PAID';
   const payBadge = document.getElementById('modalOrderPayStatusBadge');
   payBadge.className = isPaid ? 'chip chip-green' : 'chip chip-yellow';
-  payBadge.textContent = isPaid ? 'Thanh toán 100% (Đủ)' : (order.paymentStatus === 'DEPOSIT_50' ? 'Thanh toán 50%' : 'Đã cọc');
+  payBadge.textContent = isPaid ? 'Thanh toán đủ' : 'Cọc '+formatCurrency(order.collected);
 
   const vatBadge = document.getElementById('modalOrderVatBadge');
   const isVatIssued = order.vatStatus === 'ISSUED';
@@ -6470,29 +6476,10 @@ function saveAllOrderDetailChanges() {
 
 // Hàm xác nhận đủ thanh toán 100% để mở khóa nút Xuất VAT
 function confirmFullPayment(orderId) {
-  const order = VAT_ORDERS_DATA.find(o => o.id === orderId);
-  if (!order) return;
-
-  order.vatAmount = order.requireVat ? Math.round(order.subtotal * 0.1) : 0;
-  order.total = order.subtotal + order.vatAmount;
-  const rem = Math.max(0, order.total - order.collected);
-  const msg = rem > 0
-    ? `Xác nhận khách hàng ${order.customerName} đã thanh toán đủ ${formatCurrency(rem)} còn lại (bao gồm cả VAT)?\n\nSau khi xác nhận, nút [Xuất VAT] sẽ được mở khóa ngay lập tức.`
-    : `Xác nhận đơn hàng ${order.id} đã hoàn tất thanh toán đủ 100%?`;
-
-  if (confirm(msg)) {
-    order.collected = order.total;
-    order.remaining = 0;
-    order.paymentStatus = 'PAID';
-    order.isSuccessNotified = true;
-    order.saleNote = (order.saleNote ? order.saleNote + ' ' : '') + `[Kế toán xác nhận đủ ${formatCurrency(rem)} ngày ${new Date().toLocaleDateString('vi-VN')}].`;
-
-    renderVatOrdersView();
-    if (currentViewingOrderId === orderId) {
-      openOrderDetailModal(orderId);
-    }
-    alert(`✓ Đã xác nhận thanh toán đủ 100% cho đơn hàng ${order.id}!\nNút [Xuất VAT] hiện đã sẵn sàng để xuất hóa đơn.`);
-  }
+  const order=VAT_ORDERS_DATA.find(o=>o.id===orderId);if(!order)return;
+  if(order.paymentStatus!=='PAID'){showToast('Sale cần ghi nhận đủ tiền trước khi Kế toán đối soát.','warning','Chưa đủ tiền');return;}
+  if(order.paymentReconciled){showToast('Đơn đã được đối soát.','success','Đã đối soát');return;}
+  if(order.crmOrderId&&window.parent!==window)postAccountingMessage('OPEN_CRM_ORDER',{orderId:order.crmOrderId,reconcile:true});
 }
 
 function confirmFullPaymentInModal() {
@@ -6558,7 +6545,7 @@ function submitIssueVatInModal() {
   const order = VAT_ORDERS_DATA.find(o => o.id === currentViewingOrderId);
   if (!order) return;
 
-  order.taxCode = document.getElementById('modalVatTaxCode')?.value.trim() || order.taxCode || '0108892112';
+  order.taxCode = document.getElementById('modalVatTaxCode')?.value.trim() || order.taxCode || '';
   order.companyName = document.getElementById('modalVatCompanyName')?.value.trim() || order.companyName || (order.customerName + ' Co.');
   order.address = document.getElementById('modalVatAddress')?.value.trim() || order.address || order.customerAddress;
   order.invoiceEmail = document.getElementById('modalVatEmail')?.value.trim() || order.invoiceEmail || order.customerEmail;
@@ -6646,6 +6633,7 @@ function handleBillUpload(event) {
 let customNewOrderBill = null;
 
 function openCreateOrderModal() {
+  if(window.parent!==window){postAccountingMessage('OPEN_CRM_ORDER',{create:true});return;}
   document.getElementById('newOrderCustName').value = '';
   document.getElementById('newOrderCustPhone').value = '';
   const cccdIn = document.getElementById('newOrderCustCccd');
@@ -6848,7 +6836,7 @@ function handleOrderTypeFilter(val) {
 
 function exportVatOrdersToCSV() {
   let csv = "\uFEFF"; // UTF-8 BOM
-  csv += "Mã Đơn,Phân Loại,Khách Hàng,SĐT KH,Sản Phẩm / Dịch Vụ,Gói,Sale Phụ Trách,Doanh Thu,VAT,Thực Thu (Cọc),Còn Lại,Trạng Thái Thanh Toán,Trạng Thái VAT,Số Hóa Đơn VAT\n";
+  csv += "Mã Đơn,Phân Loại,Khách Hàng,SĐT KH,Sản Phẩm / Dịch Vụ,Gói,Sale Phụ Trách,Tiền cần thu trước VAT,VAT,Thực Thu (Cọc),Còn Lại,Trạng Thái Thanh Toán,Trạng Thái VAT,Số Hóa Đơn VAT\n";
 
   VAT_ORDERS_DATA.forEach(o => {
     csv += `"${o.id}","${o.typeLabel}","${o.customerName}","${o.customerPhone}","${o.productName}","${o.term}","${o.saleName}",${o.subtotal},${o.vatAmount},${o.collected},${o.remaining},"${o.paymentStatus}","${o.vatStatus}","${o.vatInvoiceNo || ''}"\n`;
@@ -7055,6 +7043,7 @@ window.printOrderInvoice = printOrderInvoice;
   }
 
   function openCollectPaymentModal(orderId) {
+    const crmOrder=VAT_ORDERS_DATA.find(o=>o.id===orderId);if(crmOrder?.crmOrderId&&window.parent!==window){postAccountingMessage('OPEN_CRM_ORDER',{orderId:crmOrder.crmOrderId,collect:true});return;}
     const order = VAT_ORDERS_DATA.find(o => o.id === orderId);
     if (!order) return;
 
@@ -7141,8 +7130,8 @@ window.printOrderInvoice = printOrderInvoice;
     const order = VAT_ORDERS_DATA.find(o => o.id === orderId);
     if (!order) return;
 
-    if (order.paymentStatus !== 'PAID') {
-      showToast(`Đơn hàng ${order.id} còn thiếu ${formatCurrency(order.remaining)}. Khách cần thanh toán đủ 100% trước khi xuất hóa đơn VAT!`, 'warning', 'Chưa Đủ Điều Kiện Xuất VAT');
+    if (order.paymentStatus !== 'PAID'||!order.paymentReconciled) {
+      showToast(`Cần Kế toán đối soát trước khi ghi nhận hóa đơn. Đơn hàng ${order.id} còn thiếu ${formatCurrency(order.remaining)}. Khách cần thanh toán đủ 100% trước khi xuất hóa đơn VAT!`, 'warning', 'Chưa Đủ Điều Kiện Xuất VAT');
       return;
     }
 
@@ -7157,11 +7146,11 @@ window.printOrderInvoice = printOrderInvoice;
     document.getElementById('ivmTotal').textContent = formatCurrency(order.total);
 
     const randNum = Math.floor(10 + Math.random() * 90);
-    document.getElementById('ivmInvoiceNo').value = order.vatInvoiceNo || `HD-2026/00${randNum}`;
+    document.getElementById('ivmInvoiceNo').value = order.vatInvoiceNo || '';
     document.getElementById('ivmTaxCode').value = order.taxCode || '0108892112';
-    document.getElementById('ivmCompanyName').value = order.companyName || (`Công ty TNHH Đầu Tư ${order.customerName}`);
-    document.getElementById('ivmAddress').value = order.address || order.customerAddress || 'Số 12 Duy Tân, Cầu Giấy, Hà Nội';
-    document.getElementById('ivmEmail').value = order.invoiceEmail || order.customerEmail || 'ketoan.khachhang@gmail.com';
+    document.getElementById('ivmCompanyName').value = order.companyName || '';
+    document.getElementById('ivmAddress').value = order.address || order.customerAddress || '';
+    document.getElementById('ivmEmail').value = order.invoiceEmail || order.customerEmail || '';
     document.getElementById('ivmIssuedDate').value = new Date().toLocaleString('vi-VN');
 
     setAccountingModalOpen('issueVatDirectModal', true);
@@ -7188,6 +7177,10 @@ window.printOrderInvoice = printOrderInvoice;
       return;
     }
 
+    if(order.crmOrderId){
+      postAccountingMessage('ACCOUNTING_ORDER_ACTION',{orderId:order.crmOrderId,payload:{action:'ISSUE_VAT',invoiceNumber:invNo,taxCode:mst,companyName:compName,address:addr,email}});
+      closeIssueVatDirectModal();return;
+    }
     order.vatInvoiceNo = invNo;
     order.taxCode = mst;
     order.companyName = compName;
@@ -7207,14 +7200,17 @@ window.printOrderInvoice = printOrderInvoice;
       openOrderDetailModal(order.id);
     }
 
-    showToast(`Đã ký số và phát hành thành công Hóa đơn VAT điện tử ${order.vatInvoiceNo} cho ${compName}!`, 'success', 'Phát Hành Hóa Đơn VAT Thành Công');
+    showToast(`Đã ghi nhận thông tin hóa đơn VAT ${order.vatInvoiceNo} cho ${compName}!`, 'success', 'Phát Hành Hóa Đơn VAT Thành Công');
   }
 
   // ====================================================================
   // ĐÈ CÁC HÀM CŨ ĐỂ GỌI SANG MODAL FORM MỚI
   // ====================================================================
   function confirmFullPayment(orderId) {
-    openCollectPaymentModal(orderId);
+    const order=VAT_ORDERS_DATA.find(o=>o.id===orderId);if(!order)return;
+    if(order.paymentStatus!=='PAID'){showToast('Sale cần ghi nhận đủ tiền trước khi Kế toán đối soát.','warning','Chưa đủ tiền');return;}
+    if(order.paymentReconciled){showToast('Đơn đã đối soát.','success','Đã đối soát');return;}
+    postAccountingMessage('OPEN_CRM_ORDER',{orderId:order.crmOrderId||order.id,reconcile:true});
   }
 
   function quickCollectRemaining(orderId) {
@@ -7251,6 +7247,7 @@ window.printOrderInvoice = printOrderInvoice;
       confirmText: 'Xác Nhận Xóa Chi Phí',
       isDanger: true,
       onConfirm: () => {
+        if(window.parent!==window){if(window.__PENDING_EXPENSE)return;window.__PENDING_EXPENSE={action:'delete',id};postAccountingMessage('ACCOUNTING_EXPENSE_DELETE',{id});return;}
         ADMIN_EXPENSES_DATA = ADMIN_EXPENSES_DATA.filter(e => e.id !== id);
         renderAccountingView();
         postAccountingMessage('ACCOUNTING_EXPENSE_DELETE', { id });
@@ -7665,7 +7662,7 @@ window.printOrderInvoice = printOrderInvoice;
 
             <div class="form-grid-3" style="gap:8px; margin-bottom:8px;">
               <div class="form-group">
-                <label style="font-size:11px; font-weight:700; color:#334155;">Doanh Thu (Tổng Đơn)</label>
+                <label style="font-size:11px; font-weight:700; color:#334155;">Tiền cần thu trước VAT</label>
                 <div style="display:inline-flex; align-items:center; background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:3px 8px; width:100%;">
                   <input type="text" id="editModalSubtotal" oninput="handleEditModalFinanceInput(this, 'subtotal')" style="width:100%; text-align:right; font-family:'JetBrains Mono', monospace; font-weight:800; font-size:12.5px; border:none; outline:none; background:transparent; color:#0f172a;" placeholder="0">
                   <span style="font-size:11.5px; font-weight:700; color:#64748b; margin-left:4px;">đ</span>
@@ -7812,7 +7809,7 @@ window.printOrderInvoice = printOrderInvoice;
 
       <div class="form-grid-3" style="gap:10px; margin-bottom:10px;">
         <div class="form-group">
-          <label style="font-weight:700;">Doanh Thu (VNĐ) *</label>
+          <label style="font-weight:700;">Tiền cần thu trước VAT (VNĐ) *</label>
           <input type="number" id="newOrderSubtotal" value="5000000" step="500000" oninput="recalcNewOrderAmounts()" style="width:100%; padding:7px 10px; border-radius:6px; border:1px solid #cbd5e1; font-weight:800; font-family:'JetBrains Mono';">
         </div>
         <div class="form-group">
@@ -7909,7 +7906,7 @@ window.printOrderInvoice = printOrderInvoice;
     expenses: []
   };
 
-  // Chỉ tính doanh thu từ đơn CRM đã thanh toán trong kỳ.
+  // Doanh thu thực thu trước VAT theo từng bill, bao gồm cọc và thu bổ sung trong kỳ.
   function rebuildAccountingRevenueFromCRM() {
     const state = ACCOUNTING_CRM_STATE;
     const products = new Map(state.products.map(p => [String(p.id), p]));
@@ -7917,23 +7914,22 @@ window.printOrderInvoice = printOrderInvoice;
     const groups = new Map();
     const revenueBySale = new Map();
     for (const order of state.orders) {
-      if (!order || order.status !== 'PAID') continue;
-      const month = String(order.paidAt || order.createdAt || '').slice(0, 7);
-      if (currentGlobalMonth !== 'ALL' && month !== currentGlobalMonth) continue;
+      if (!order) continue;
+      const periodEvents=OrderPayments.events(order).filter(event=>currentGlobalMonth==='ALL'||String(event.occurredAt||'').slice(0,7)===currentGlobalMonth);
+      const amount=periodEvents.reduce((sum,event)=>sum+event.netAmount,0);
+      if(!amount)continue;
       const product = products.get(String(order.productId)) || {};
       const category = String(product.kind || order.productKind || 'OTHER').toLowerCase();
-      const amount = Number(order.subtotal ?? order.total ?? 0);
-      if (!Number.isFinite(amount)) continue;
       const key = String(order.productId || order.productName || order.id);
       if (!groups.has(key)) {
-        const cfg = configs.get(String(product.courseKey || '')) || {};
+        const cfg = configs.get(String(product.courseKey || key)) || {};
         groups.set(key, {
-          ...cfg, id: key, code: product.sku || '', name: product.name || order.productName || 'Sản phẩm',
+          ...cfg, courseKey:product.courseKey||key, id: key, code: product.sku || '', name: product.name || order.productName || 'Sản phẩm',
           category, categoryLabel: {course:'Khóa học',indicator:'Chỉ báo',vip:'Nhóm VIP'}[category] || 'Sản phẩm khác',
           courseGroup: product.name || order.productName || '', batchName: '',
           price: Number(product.price) || 0, studentsCount: 0, totalRevenue: 0, salesConfig: {},
-          trainers: (cfg.trainerIds || []).map(id => ({id, rate: Number(cfg.rateTrainer) || 0})),
-          leaders: (cfg.leaderIds || []).map(id => ({id, rate: Number(cfg.rateLeader) || 0})),
+          trainers: (cfg.trainerIds || []).map(id => ({id, name:(state.members||[]).find(p=>String(p.id)===String(id))?.name||id, rate: Number(cfg.trainerRates?.[id]??cfg.rateTrainer) || 0})),
+          leaders: (cfg.leaderIds || []).map(id => ({id, name:(state.members||[]).find(p=>String(p.id)===String(id))?.name||id, rate: Number(cfg.leaderRates?.[id]??cfg.rateLeader) || 0})),
           rateSale: Number(cfg.rateSale) || 0, rateTrainer: Number(cfg.rateTrainer) || 0,
           rateLeader: Number(cfg.rateLeader) || 0, rateCompany: Number(cfg.rateCompany) || 0
         });
@@ -7942,7 +7938,7 @@ window.printOrderInvoice = printOrderInvoice;
       group.totalRevenue += amount;
       group.studentsCount += 1;
       if (order.saleId) {
-        const saleConfig = group.salesConfig[String(order.saleId)] ||= { students: 0, revenue: 0, rateSale: group.rateSale };
+        const saleConfig = group.salesConfig[String(order.saleId)] ||= { students: 0, revenue: 0, rateSale: group.saleRates?.[String(order.saleId)]??group.rateSale };
         saleConfig.students += 1;
         saleConfig.revenue += amount;
       }
@@ -8118,7 +8114,7 @@ window.printOrderInvoice = printOrderInvoice;
       const total = Number(order.total ?? subtotal + vatAmount);
       const collected = Number(order.amountPaid ?? order.depositAmount ?? 0);
       const remaining = Number(order.balanceDue ?? Math.max(0, total - collected));
-      const paid = order.status === 'PAID';
+      const paid = ['PAID','COURSE_GRANTED'].includes(order.status);
       const createdAt = order.createdAt || order.paidAt || new Date().toISOString();
       const billing = order.billing || {};
       const label = String(product.category || product.name || order.productName || '').toLowerCase();
@@ -8142,9 +8138,11 @@ window.printOrderInvoice = printOrderInvoice;
         saleId: order.saleId || '',
         saleName: sale.name || sale.accountId || order.saleName || 'Chưa gán Sale',
         subtotal, vatAmount, total, collected, remaining,
-        paymentStatus: paid ? 'PAID' : (collected >= total * 0.5 ? 'DEPOSIT_50' : 'DEPOSIT_30'),
+        paymentStatus: paid ? 'PAID' : collected>0?'DEPOSIT':'PENDING',
         isSuccessNotified: paid,
-        requireVat: order.requireVat === true || vatRate > 0,
+        paymentReconciled: order.paymentReconciled===true,
+        reconciliationNote: order.reconciliationNote||'',
+        requireVat: order.requireVat === true,
         vatStatus: order.vatIssued ? 'ISSUED' : 'NOT_ISSUED',
         vatInvoiceNo: order.vatInvoiceNumber || '',
         vatIssuedDate: order.vatIssuedAt || '',
@@ -8152,7 +8150,7 @@ window.printOrderInvoice = printOrderInvoice;
         companyName: order.companyName || '',
         address: billing.address || customer.address || '',
         invoiceEmail: billing.email || customer.email || '',
-        billImage: order.billImage || '',
+        billImage: OrderPayments.receipts(order).flatMap(receipt=>OrderPayments.images(receipt))[0]?.imageData || '',
         billDate: order.paidAt || order.depositAt || createdAt,
         saleNote: order.saleNote || ''
       };
@@ -8193,11 +8191,18 @@ window.printOrderInvoice = printOrderInvoice;
       } else {
         if (typeof showToast === 'function') showToast(msg.error || 'Không thể tạo đơn hàng.', 'warning', 'Lỗi Tạo Đơn');
       }
+    } else if (msg.type === 'ACCOUNTING_COURSE_CONFIG_RESULT') {
+      const view=window.__PENDING_COURSE_CONFIG;window.__PENDING_COURSE_CONFIG=null;
+      if(msg.ok){if(view==='detail')closeCoursePersonnelDetailModal();else closeTrainingConfigModal();if(typeof showToast==='function')showToast('Máy chủ đã xác nhận lưu cấu hình hoa hồng.','success','Đã lưu');}
+      else if(typeof showToast==='function')showToast(msg.error||'Chưa lưu được cấu hình. Giữ cửa sổ để thử lại.','warning','Chưa lưu');
     } else if (msg.type === 'ACCOUNTING_EXPENSE_RESULT') {
+      const pending=window.__PENDING_EXPENSE;window.__PENDING_EXPENSE=null;
+      const button=document.querySelector('#expenseModal button[onclick="saveExpense()"]');if(button){button.disabled=false;button.textContent='Lưu khoản chi';}
       if (msg.ok) {
+        if(pending?.action==='save'){closeExpenseModal();if(currentAccountingMonth!=='ALL'&&pending.month!==currentAccountingMonth)setGlobalMonth(pending.month);}
         if (typeof showToast === 'function') showToast(msg.action === 'delete' ? 'Đã xóa khoản chi khỏi CRM.' : 'Đã lưu khoản chi vào CRM.', 'success', 'Thành Công');
       } else {
-        if (typeof showToast === 'function') showToast(msg.error || 'Không thể lưu khoản chi.', 'warning', 'Lỗi Lưu Khoản Chi');
+        if (typeof showToast === 'function') showToast(msg.error || 'Chưa lưu được khoản chi. Nội dung đã nhập được giữ lại để thử lại.', 'warning', 'Chưa lưu khoản chi');
       }
     } else if (msg.type === 'ACCOUNTING_ACTION_RESULT') {
       if (!msg.ok && typeof showToast === 'function') showToast(msg.error || 'Không thể lưu thao tác kế toán.', 'warning', 'Lỗi Kế Toán');

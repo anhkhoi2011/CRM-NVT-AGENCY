@@ -210,8 +210,8 @@ const STATUS_META = {
 };
 
 const ORDER_STATUS = {
-  PAID: ['Thanh toán đủ', 'paid'], PENDING: ['Thanh toán 50%', 'pending'],
-  DEPOSIT: ['Thanh toán 50%', 'deposit'],
+  PAID: ['Thanh toán đủ', 'paid'], PENDING: ['Chờ thanh toán', 'pending'],
+  DEPOSIT: ['Đã đặt cọc', 'deposit'],
   COURSE_GRANTED: ['Thanh toán đủ', 'done'],
   CANCELLED: ['Đã huỷ', 'cancelled'], REFUNDED: ['Đã hoàn tiền', 'refunded']
 };
@@ -258,10 +258,7 @@ const NAVIGATION = {
     ['Cá nhân', [['attendance', 'Điểm danh', '✓'], ['notifications', 'Thông báo', '●']]]
   ],
   ACCOUNTING: [
-    ['Kế toán', [['dashboard', 'Tổng quan', '◫'], ['orders', 'Đơn hàng', '▤'], ['revenue', 'Doanh thu', '₫'], ['products', 'Sản phẩm', '□']]],
-    ['Tra cứu', [['customers', 'Khách hàng', '♙']]],
-    ['Ch\u0103m s\u00f3c', [['care', 'Ch\u0103m s\u00f3c kh\u00e1ch', 'care']]],
-    ['Cá nhân', [['attendance', 'Điểm danh', '✓'], ['notifications', 'Thông báo', '●']]]
+    ['Kế toán & Hoa hồng', [['accounting', 'Kế toán & Hoa hồng', '₫']]]
   ],
   LEADER: [
     ['Vận hành', [['dashboard', 'Tổng quan đội', '◫'], ['customers', 'Khách hàng Team', '♙'], ['pool', 'Chia data cho Sale', '↔']] ],
@@ -1010,6 +1007,9 @@ let serverSaveRunning = false, serverReading = false, serverStateLoaded = false;
 let serverRecoveryPending = false;
 let serverSourceBaseline = new Map();
 let serverBaseline = new Map(), serverVersions = {}, serverPendingRequest = null;
+let serverSaveError='';
+let serverStorageMode='unknown';
+const savedStorageLabel=()=>serverStorageMode==='mysql'?'Đã lưu MySQL':serverStorageMode==='demo'?'Đã lưu demo · chưa ghi SQL':'Máy chủ đã xác nhận lưu';
 let serverConflict = false, serverMutationVersion = 0;
 let serverSavePromise = null;
 let liveNavigationCounts = null, navigationCountsReading = false;
@@ -1098,6 +1098,7 @@ async function resolveServerConflict() {
 }
 function applyServerSnapshot(payload, keepEdits=null, rebase=false) {
   serverAutomationStatus = payload.automation || null;
+  serverStorageMode=payload.storage?.mode||serverStorageMode;
   const defaults=initialState();
   const remote={...defaults,...payload.state,security:{twoFactorEnabled:false,loginHistory:[]}};
   const sourceRecords=new Map((remote.customers||[]).map(customer=>['customers/'+customer.id,structuredClone(customer)]));
@@ -1196,7 +1197,7 @@ async function flushServerPersistence(requestOptions = {}) {
     try {
       do {
         if(!serverPendingRequest) {
-          const changes=pendingChanges();if(!changes.length){setSaveStatus('Đã lưu MySQL');return true;}
+          const changes=pendingChanges();if(!changes.length){serverSaveError='';setSaveStatus(savedStorageLabel());return true;}
           // Chọn Level/cột chỉ gồm khách + lịch sử cột: không cần quét chia data dưới khóa ghi chung.
           const backgroundOnly=changes.length>0&&changes.every(change=>['customers','notes','audit','customerFieldHistory'].includes(change.key));
           const fastNote=changes.length>0&&changes.every(change=>['customers','notes','audit'].includes(change.key));
@@ -1232,7 +1233,7 @@ async function flushServerPersistence(requestOptions = {}) {
         forgetPendingWrite();
       }while(hasServerChanges());
       setSaveStatus('Đã lưu MySQL');return true;
-    }catch(error){setSaveStatus(error.message+' — chưa lưu, giữ trang mở',true);return false;}
+    }catch(error){serverSaveError=error.message||'Lỗi kết nối máy chủ';setSaveStatus(serverSaveError+' — chưa lưu, giữ trang mở',true);return false;}
     finally{serverSaveRunning=false;}
   })();
   try{return await serverSavePromise;}finally{serverSavePromise=null;}
@@ -1547,6 +1548,7 @@ function isRefundInPeriod(order, periodCheck) { return !!order.refundedAt && (!p
 // Thực thu đã bao gồm VAT trong `total`; không cộng VAT lần nữa cho đơn mới.
 // Với dữ liệu cũ chỉ lưu amountPaid trước VAT, total là giới hạn an toàn.
 function orderGrossCollected(order) {
+  if(order?.receiptsVersion===1)return OrderPayments.paid(order);
   const total = Math.max(0, Number(order?.total || 0));
   const paid = Number(order?.amountPaid);
   if (order?.status === 'DEPOSIT') return Math.min(total, Math.max(0, Number(order.depositAmount || 0)));
@@ -1566,12 +1568,7 @@ function orderNetCollected(order) {
   return Math.max(0, orderGrossCollected(order) - Math.max(0, Number(order?.refund || 0)));
 }
 function orderFinancialEvents(order) {
-  const events = [];
-  const depositAmount = Math.min(Number(order.depositAmount || 0), Number(order.total || 0));
-  if (order.depositAt && depositAmount > 0) events.push({ id: `DEP-${order.id}`, type: 'PAYMENT', label: 'Thu c\u1ecdc', orderId: order.id, code: order.code, customerName: order.customerName, paymentMethod: order.paymentMethod, occurredAt: order.depositAt, amount: depositAmount, reconciled: Boolean(order.paymentReconciled) });
-  if (order.paidAt) events.push({ id: `PAY-${order.id}`, type: 'PAYMENT', label: order.depositAt ? 'Thu ph\u1ea7n c\u00f2n l\u1ea1i' : 'Thu ti\u1ec1n', orderId: order.id, code: order.code, customerName: order.customerName, paymentMethod: order.paymentMethod, occurredAt: order.paidAt, amount: Math.max(0, Number(order.total || 0) - (order.depositAt ? depositAmount : 0)), reconciled: Boolean(order.paymentReconciled) });
-  if (order.refundedAt) events.push({ id: `REF-${order.id}`, type: 'REFUND', label: 'Ho\u00e0n ti\u1ec1n', orderId: order.id, code: order.code, customerName: order.customerName, paymentMethod: order.paymentMethod, occurredAt: order.refundedAt, amount: -Number(order.refund || 0), reconciled: Boolean(order.refundReconciled) });
-  return events;
+  return OrderPayments.events(order);
 }
 function netRevenue(orders, periodCheck = null) {
   return orders.flatMap(orderFinancialEvents).filter(event => !periodCheck || periodCheck(event.occurredAt)).reduce((sum, event) => sum + event.amount, 0);
@@ -3262,7 +3259,7 @@ function visibleNavigation() {
       : null;
   return groups.map(([name, items]) => [name, items.filter(item => !allowed || allowed.has(item[0]))]).filter(([, items]) => items.length);
 }
-function allowedViews() { return Array.from(new Set([...visibleNavigation().flatMap(([, items]) => items.map(item => item[0])), 'profile', 'feedback', 'processes'])); }
+function allowedViews() { if(effectivePermissionRole()==='ACCOUNTING')return ['accounting','profile'];return Array.from(new Set([...visibleNavigation().flatMap(([, items]) => items.map(item => item[0])), 'profile', 'feedback', 'processes'])); }
 function viewLabel(view) { return visibleNavigation().flatMap(([, items]) => items).find(item => item[0] === view)?.[1] || view; }
 
 function newCustomerCount() {

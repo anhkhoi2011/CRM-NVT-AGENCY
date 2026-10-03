@@ -1,4 +1,5 @@
 "use strict";
+const OrderPayments = require('./order-payments.js');
 // Kho dữ liệu nghiệp vụ: một giao dịch cho cả khách/đơn và lịch sử liên quan.
 const crypto = require('node:crypto');
 const distributionRounds = require('./distribution-rounds.js');
@@ -292,7 +293,7 @@ function readable(user,key,r,data){
  if(user.role==='ADMIN')return true;
  if(user.role==='MARKETING')return key==='attendance' ? r.accountId===user.id : ['customers','orders','products','customFieldDefinitions','productCategories','websites','traffic','careGroups'].includes(key) || (key==='notifications'&&(r.role==='ALL'||r.role==='MARKETING'||r.saleId===user.id));
  if(user.role==='UNASSIGNED')return key==='attendance' ? r.accountId===user.id : false;
- if(user.role==='ACCOUNTING')return key==='attendance' ? r.accountId===user.id : ['customers','orders','products','productCategories','careGroups'].includes(key) || (key==='notifications'&&(r.role==='ALL'||r.role==='ACCOUNTING'||r.saleId===user.id));
+ if(user.role==='ACCOUNTING')return key==='attendance' ? r.accountId===user.id : ['customers','orders','products','productCategories','customFieldDefinitions','brokerageMetrics','courseConfigs','expenses','settings'].includes(key) || (key==='members'&&['SALE','LEADER','MANAGER'].includes(r.role)) || (key==='notifications'&&(r.role==='ALL'||r.role==='ACCOUNTING'||r.saleId===user.id));
  if(!['LEADER','SALE'].includes(user.role))return false;
  if(key==='members')return r.id===user.id||r.id===user.leaderId||(user.role==='LEADER'&&r.teamId===user.teamId);
  if(key==='customers')return customerScope(user,r)||!!pendingOffer(data,user,r.id);
@@ -320,6 +321,7 @@ function publicValue(user,key,r,data){
   if(key==='settings')r={...r,saleAssignmentModes:Object.fromEntries(Object.entries(r.saleAssignmentModes||{}).filter(([id])=>ids.includes(id)))};
  }
 
+ if(key==='settings'&&user.role==='ACCOUNTING')return Object.fromEntries(Object.entries(r).filter(([k])=>['accountingLotConfig','brokeragePublishedPeriods','fontFamily','customAccent'].includes(k)));
  if(key==='settings'&&user.role!=='ADMIN')return Object.fromEntries(Object.entries(r).filter(([k])=>!['dataBotToken','memberBotToken','dataBotChatId','memberBotChatId'].includes(k)));
 
  // Offer dang cho nhan chi duoc xem ten, khong gui du lieu lien he qua snapshot.
@@ -356,7 +358,7 @@ function snapshot(user,data){
  state.members=state.members.filter(r=>['SALE','LEADER','MANAGER'].includes(r.role));
  const config=data.leaderDistribution.get('$')||{};
  const automation=user.role==='ADMIN'?{engine:'server-v1',enabled:config.enabled===true,mode:data.settings.get('$')?.assignmentMode||'MANUAL',eligibleLeaderCount:[...data.members.values()].filter(p=>p.role==='LEADER'&&p.active!==false&&p.teamId&&(config.enabledLeaderIds||[]).includes(p.id)).length}:undefined;
- return {state,versions,automation};
+ return {state,versions,automation,storage:{mode:'mysql',durable:true}};
 }
 function sameExcept(a,b,allowed){const clean=o=>Object.fromEntries(Object.entries(o||{}).filter(([k])=>!allowed.includes(k)));return canonical(clean(a))===canonical(clean(b));}
 function orderCreatedAtMs(value){
@@ -369,7 +371,55 @@ function orderLockedForStaff(order){
  const created=orderCreatedAtMs(order?.createdAt);
  return Number.isFinite(created)&&Date.now()-created>=3*24*60*60*1000;
 }
+
+// Sales record receipts for their own orders; reconciliation remains an accounting action.
+function authorizeReceiptOrder(user,old,next,data){
+ if(!next)error(403,'Không được xóa đơn qua luồng thanh toán');
+ const customer=data.customers.get(next.customerId),sale=data.members.get(next.saleId);
+ const owns=row=>user.role==='ACCOUNTING'||(user.role==='SALE'?row?.saleId===user.id:user.role==='LEADER'?customerScope(user,row):managerOwns(user,row,data));
+ if(!customer||!sale||sale.role!=='SALE'||!owns(customer)||!owns(next)||(old&&!owns(old)))error(403,'Đơn ngoài phạm vi');
+ if(!old&&(next.saleId!==customer.saleId||next.leaderId!==customer.leaderId||next.teamId!==customer.teamId))error(403,'Đơn không khớp người phụ trách khách');
+ if(!data.products.get(next.productId))error(400,'Sản phẩm không tồn tại');
+ if(old&&(old.paymentReconciled||old.vatIssued||['REFUNDED','CANCELLED','COURSE_GRANTED'].includes(old.status)))error(403,'Đơn đã khóa sau đối soát hoặc kết thúc');
+ if(old&&sameExcept(old,next,['paymentReceipts','receiptsVersion','updatedAt']))return;
+ const allowed=['customerName','customerPhone','productId','productName','sku','unitPrice','subtotal','vatRate','vatAmount','total','amountPaid','depositAmount','balanceDue','status','paidAt','paymentMode','billing','requireVat','taxCode','companyName','saleNote','billImage','updatedAt','paymentReceipts','receiptsVersion'];
+ if(old&&!sameExcept(old,next,allowed))error(403,'Không được đổi chủ đơn hoặc thông tin đối soát');
+ if(!old&&(next.paymentReconciled||next.vatIssued||Number(next.refund||0)||next.refundedAt||next.refundVouchers?.length))error(403,'Đơn mới không được tự đối soát hoặc hoàn tiền');
+ if(next.vatRate!==0.1||(next.vatAmount!==Math.round(next.subtotal*0.1)&&next.vatAmount!==Math.round(next.total/11))||next.total!==next.subtotal+next.vatAmount||!(next.subtotal>0)||!(next.amountPaid>0)||next.amountPaid>next.total||(!next.billImage&&!next.paymentReceipts?.some(r=>r.billImage)))error(400,'Kiểm tra VAT 10%, số tiền và bill chuyển khoản');
+ if(next.status!==(next.amountPaid===next.total?'PAID':'DEPOSIT'))error(400,'Trạng thái không khớp số tiền đã thu');
+}
 function authorize(user,key,old,next,data){
+ if(key==='orders'&&!old&&next?.receiptsVersion===1&&next.paymentReceipts.some(r=>r.legacy||r.createdBy!==user.id))error(403,'Bill mới không hợp lệ');
+ if(key==='orders'&&old?.receiptsVersion===1&&next&&next.receiptsVersion!==1)error(403,'Không được xóa lịch sử thanh toán');
+ if(key==='orders'&&old&&next&&next.receiptsVersion===1){
+  const before=OrderPayments.receipts(old),after=next.paymentReceipts||[];
+  if(after.slice(before.length).some(r=>r.legacy||r.createdBy!==user.id))error(403,'Bill mới phải do người hiện tại ghi nhận');
+  if(after.length<before.length)error(403,'Không được xóa lịch sử thu');
+  for(let i=0;i<before.length;i++){
+   const prior=before[i],current=after[i];
+   if(!sameExcept(prior,current,['images','imageRevisions']))error(403,'Không được sửa số tiền hoặc thời điểm của lần thu');
+   if(canonical(prior)!==canonical(current)){
+    const priorImages=OrderPayments.images(prior),images=OrderPayments.images(current),history=prior.imageRevisions||[],nextHistory=current.imageRevisions||[],revision=nextHistory.at(-1);
+    if(nextHistory.length!==history.length+1||history.some((r,index)=>canonical(r)!==canonical(nextHistory[index]))||revision?.by!==user.id||!Number.isFinite(Date.parse(revision?.at))||canonical(revision?.images)!==canonical(priorImages))error(403,'Sửa ảnh phải giữ lịch sử ảnh và người thay đổi');
+   }
+  }
+  if((old.paymentReconciled||old.vatIssued)&&canonical(before)!==canonical(after))error(403,'Đơn đã đối soát hoặc xuất hóa đơn');
+ }
+
+ if(key==='orders'&&old&&next&&old.paymentReconciled!==next.paymentReconciled){
+  if(!['ADMIN','ACCOUNTING'].includes(user.role)||old.paymentReconciled||next.paymentReconciled!==true||!['PAID','COURSE_GRANTED'].includes(old.status)||OrderPayments.paid(old)!==old.total||OrderPayments.balance(old)!==0||OrderPayments.receipts(old).some(r=>!OrderPayments.images(r).length)||next.paymentReconciledBy!==user.id||!Number.isFinite(Date.parse(next.paymentReconciledAt))||!sameExcept(old,next,['paymentReconciled','paymentReconciledAt','paymentReconciledBy','reconciliationNote']))error(403,'Đối soát chỉ xác nhận đơn đủ tiền, không thay đổi giao dịch');
+  return;
+ }
+ if(key==='orders'&&old&&next&&!old.vatIssued&&next.vatIssued&&user.role==='ACCOUNTING'){
+  if(!old.paymentReconciled||OrderPayments.balance(old)!==0||!next.vatInvoiceNumber||!next.taxCode||!next.companyName||!sameExcept(old,next,['vatIssued','vatIssuedAt','vatInvoiceNumber','requireVat','taxCode','companyName','billing']))error(403,'Chỉ ghi nhận VAT sau đối soát và đủ thông tin hóa đơn');
+  return;
+ }
+ if(['SALE','LEADER','MANAGER','ACCOUNTING'].includes(user.role)&&key==='orders'&&next&&(next.paymentReference||old?.paymentReference||next.receiptsVersion===1))return authorizeReceiptOrder(user,old,next,data);
+ if(user.role==='ACCOUNTING'&&key==='customers'&&!old&&next){const sale=data.members.get(next.saleId);if(sale?.role==='SALE'&&next.leaderId===sale.leaderId&&next.teamId===sale.teamId)return;error(403,'Sale phụ trách không hợp lệ');}
+ if(user.role==='ACCOUNTING'&&['expenses','courseConfigs','brokerageMetrics'].includes(key))return;
+ if(user.role==='ACCOUNTING'&&key==='settings'&&next&&sameExcept(publicValue(user,key,old||{},data),next,['accountingLotConfig','brokeragePublishedPeriods']))return;
+ if(user.role==='ACCOUNTING'&&key==='orders'&&old&&!next)return;
+ if(user.role==='ACCOUNTING'&&key==='audit'&&!old&&next?.actorId===user.id)return;
  if(key==='feedbacks'){
   if(user.role==='ADMIN')return;
   if(next&&next.authorId===user.id&&(!old||old.authorId===user.id))return;
@@ -453,6 +503,7 @@ function validate(key,value,id){
   if(typeof value.courseKey!=='string'||!value.courseKey.trim()||value.courseKey.length>120)error(400,'Khoá học không hợp lệ');
   for(const field of ['trainerIds','leaderIds'])if(!Array.isArray(value[field]??[])||(value[field]??[]).length>50||(value[field]??[]).some(item=>typeof item!=='string'||item.length>80))error(400,'Danh sách nhân sự khóa học không hợp lệ');
   for(const field of ['rateSale','rateLeader','rateTrainer','rateCompany'])if(!Number.isFinite(Number(value[field]??0))||Number(value[field]??0)<0||Number(value[field]??0)>100)error(400,'Tỷ lệ chia khóa học không hợp lệ');
+  for(const field of ['trainerRates','leaderRates','saleRates'])if(value[field]!==undefined&&(!value[field]||typeof value[field]!=='object'||Array.isArray(value[field])||Object.keys(value[field]).length>500||Object.values(value[field]).some(rate=>!Number.isFinite(Number(rate))||Number(rate)<0||Number(rate)>100)))error(400,'Tỷ lệ hoa hồng cá nhân không hợp lệ');
   if(Object.hasOwn(value,'startDate')&&value.startDate&&!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(String(value.startDate)))error(400,'Ngày khai giảng không hợp lệ');
  }
  if(key==='products'&&Object.hasOwn(value,'imageData')&&(typeof value.imageData!=='string'||(value.imageData!==''&&(!/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(value.imageData)||value.imageData.length>2_800_000))))error(400,'\u1ea2nh s\u1ea3n ph\u1ea9m kh\u00f4ng h\u1ee3p l\u1ec7 ho\u1eb7c qu\u00e1 l\u1edbn');
@@ -481,13 +532,26 @@ function validate(key,value,id){
  if(key==='orders'&&!['PENDING','PAID','DEPOSIT','COURSE_GRANTED','CANCELLED','REFUNDED'].includes(value.status))error(400,'Trạng thái đơn không hợp lệ');
  if(key==='orders'&&(!value.customerId||!value.code||!Number.isFinite(value.total)||value.total<0))error(400,'Đơn không hợp lệ');
  if(key==='orders'){
+  if(value.receiptsVersion===1){
+   const receipts=value.paymentReceipts;
+   if(!Array.isArray(receipts)||!receipts.length||receipts.length>20||JSON.stringify(receipts).length>6000000)error(400,'Lịch sử thanh toán không hợp lệ hoặc vượt dung lượng');
+   const ids=new Set();
+   for(const r of receipts){if(!r.id||ids.has(r.id)||!Number.isSafeInteger(r.amount)||r.amount<=0||!['DEPOSIT','PAYMENT','FULL'].includes(r.kind)||!Number.isFinite(Date.parse(r.at))||typeof r.billImage!=='string'||(!r.legacy&&!/^data:image\/(jpeg|png|webp);base64,/.test(r.billImage)))error(400,'Bill thanh toán không hợp lệ');ids.add(r.id);}
+   for(const r of receipts){
+    const images=OrderPayments.images(r);
+    if(images.length>10||new Set(images.map(i=>i.id)).size!==images.length||images.some(i=>!i.id||typeof i.note!=='string'||i.note.length>500||typeof i.imageData!=='string'||!/^data:image\/(jpeg|png|webp);base64,/.test(i.imageData)))error(400,'Ảnh hoặc ghi chú bill không hợp lệ');
+    if(r.imageRevisions&&(!Array.isArray(r.imageRevisions)||r.imageRevisions.length>30))error(400,'Lịch sử sửa ảnh không hợp lệ');
+   }
+   if(value.amountPaid!==OrderPayments.paid(value)||value.amountPaid>value.total)error(400,'Thực thu không khớp các bill thanh toán');
+   if(!['REFUNDED','CANCELLED','COURSE_GRANTED'].includes(value.status)&&value.status!==(value.amountPaid===value.total?'PAID':'DEPOSIT'))error(400,'Trạng thái không khớp thanh toán');
+  }
   for(const field of ['subtotal','vatAmount','discount','depositAmount','amountPaid','balanceDue'])if(Object.hasOwn(value,field)&&(!Number.isFinite(value[field])||value[field]<0))error(400,'Số tiền đơn hàng không hợp lệ');
   if(Object.hasOwn(value,'refund')&&(!Number.isFinite(Number(value.refund))||Number(value.refund)<0))error(400,'Số tiền hoàn không hợp lệ');
   if(Object.hasOwn(value,'refundReason')&&(typeof value.refundReason!=='string'||value.refundReason.length>500))error(400,'Lý do hoàn tiền không hợp lệ');
   if(Object.hasOwn(value,'refundVouchers')&&(!Array.isArray(value.refundVouchers)||value.refundVouchers.length>100))error(400,'Danh sách phiếu hoàn không hợp lệ');
   if(Object.hasOwn(value,'vatRate')&&(!Number.isFinite(value.vatRate)||value.vatRate<0||value.vatRate>1))error(400,'Thuế suất không hợp lệ');
   if(value.paymentMode&&!['FULL','DEPOSIT'].includes(value.paymentMode))error(400,'Hình thức thanh toán không hợp lệ');
-  if(value.paymentMode==='DEPOSIT'&&(!Number.isFinite(value.depositAmount)||value.depositAmount<=0||value.depositAmount>=value.total))error(400,'Tiền cọc không hợp lệ');
+  if(value.paymentMode==='DEPOSIT'&&(!Number.isFinite(value.depositAmount)||value.depositAmount<=0||value.depositAmount>value.total))error(400,'Tiền cọc không hợp lệ');
   if(value.billing&&((typeof value.billing!=='object'||Array.isArray(value.billing))||['name','cccd','phone','email','address','taxId'].some(field=>typeof (value.billing[field]??'')!=='string'||String(value.billing[field]??'').length>254)))error(400,'Thông tin hóa đơn không hợp lệ');
   if(value.rentalMonths!=null&&![1,3,6,12].includes(Number(value.rentalMonths)))error(400,'Kỳ thuê không hợp lệ');
   if(value.rentalEndsAt!=null&&!Number.isFinite(Date.parse(value.rentalEndsAt)))error(400,'Ngày hết hạn thuê không hợp lệ');

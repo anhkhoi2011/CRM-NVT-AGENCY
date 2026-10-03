@@ -74,7 +74,7 @@ test('F5: bấm thử lại liên tiếp chỉ có một request khôi phục đ
 test('HTML runtime có version vẫn phải kiểm tra lại cache khi deploy',()=>{
  const server=fs.readFileSync(ROOT+'/webhook-server.cjs','utf8');
  assert.match(server,/'Cache-Control':extension==='\.html' \? 'no-cache'/);
- assert.match(html,/crm-runtime\.html\?v=20261003-offline-save-1/);
+ assert.match(html,/crm-runtime\.html\?v=20261003-accounting-sql-5/);
 });
 test('Actions re-render immediately after save instead of waiting for the 15s poll',()=>{
  const src=require('node:fs').readFileSync('reference-crm.js','utf8');
