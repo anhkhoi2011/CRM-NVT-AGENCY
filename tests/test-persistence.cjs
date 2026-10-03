@@ -10,7 +10,7 @@ function fixture(){
  const c={async beginTransaction(){backup=structuredClone(db);events.push('begin');},async commit(){events.push('commit');},async rollback(){db=backup;events.push('rollback');},release(){events.push('release');},
  async query(sql){return this.execute(sql,[]);},
  async execute(sql,v){
-  queries.push({sql,values:v});
+  queries.push({sql,values:v,event:events.length});
   if(sql.includes('FROM crm_write_lock')){events.push('lock');return [[{id:1}]];}
   if(sql.startsWith('INSERT INTO webhook_events')){if(!db.webhookEvents.some(e=>e.dedupe===v[1]))db.webhookEvents.push({id:v[0],dedupe:v[1]});return [{}];}
   if(sql.includes('FROM webhook_events WHERE dedupe_key'))return [db.webhookEvents.filter(e=>e.dedupe===v[0])];
@@ -1684,6 +1684,16 @@ test('Lượt lưu nền trả về dữ liệu vừa ghi, không chạy chia t�
  const result=await f.api.write(sale,'bg',[{...change('customers',{...c1,customFields:{...c1.customFields,level:'L5'}},before.versions['customers/c1']),fields:['customFields.level']}],{skipAutomatic:true});
  assert.equal(result.state.customers[0].customFields.level,'L5');
  assert.equal((await f.api.read(admin,{passive:true})).state.customers[0].customFields.level,'L5');
+});
+test('Lượt lưu thường chỉ đọc toàn bộ bảng một lần khi giữ khóa ghi chung, rồi commit ngay',async()=>{
+ const f=fixture();await f.api.write(admin,'seed-lock',[change('customers',customer)]);
+ const before=await f.api.read(admin);const c1=before.state.customers[0];
+ const start=f.events.length;
+ const result=await f.api.write(sale,'status-lock',[change('customers',{...c1,status:'CONTACTED'},before.versions['customers/c1'])]);
+ assert.equal(result.ok,true);assert.equal(result.state.customers[0].status,'CONTACTED');
+ const lock=f.events.indexOf('lock',start),commit=f.events.indexOf('commit',lock);
+ const fullScans=f.queries.filter(q=>q.sql==='SELECT * FROM customers'&&q.event>lock&&q.event<=commit);
+ assert.equal(fullScans.length,1);
 });
 
 test('Mindmap lưu lot/định mức cho cả Manager, Leader, Sale và giữ sau F5',async()=>{

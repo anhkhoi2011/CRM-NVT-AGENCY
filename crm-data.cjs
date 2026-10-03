@@ -574,15 +574,10 @@ async function warnRentalExpiry(c,data){
 }
 
 // Chia trong giao dich dang giu crm_write_lock: webhook dong thoi khong trung luot.
-async function distributeAutomatic(c, data = null) {
- data ||= await allData(c);
- const config = data.leaderDistribution.get('$') || {};
- const settings = JSON.parse(JSON.stringify(data.settings.get('$') || {}));
- if (config.enabled !== true) return 0;
- const mode = settings.assignmentMode;
- const automatic = ['EQUAL','ROUND_ROBIN','BALANCED'].includes(mode);
+// Người nhận data tự động: Leader được bật + nhánh Manager có Sale trực tiếp.
+function automaticLeaders(data,config){
  const members = [...data.members.values()].filter(p => p.active !== false);
- const leaders = members.filter(p => p.role === 'LEADER' && p.teamId && (config.enabledLeaderIds || []).includes(p.id)).sort((a,b)=>a.id.localeCompare(b.id));
+ const leaders = members.filter(p => p.role === 'LEADER' && p.teamId && (config.enabledLeaderIds || []).includes(p.id));
  const saleConfigs = data.saleDistributionByLeader.get('$') || {};
  const directSales = managerId => members.filter(p=>p.role==='SALE'&&(p.leaderId===managerId||p.managerId===managerId&&!members.some(l=>l.role==='LEADER'&&l.id===p.leaderId)));
  for(const manager of members.filter(p=>p.role==='MANAGER')){
@@ -591,6 +586,25 @@ async function distributeAutomatic(c, data = null) {
   if(directSales(manager.id).some(p=>!ownConfigured||ownConfig.enabledSaleIds.includes(p.id)))leaders.push({...manager,directManagerBranch:true});
  }
  leaders.sort((a,b)=>a.id.localeCompare(b.id));
+ return {members,leaders,saleConfigs,directSales};
+}
+// distributeAutomatic chỉ ghi khi có khách đang chờ chia và có người nhận; ngoài ra nó trả 0 mà không đổi gì.
+// Kiểm tra trước trên dữ liệu đã có trong RAM để lượt lưu bình thường không phải quét lại DB khi giữ khóa.
+function automaticPending(data){
+ const config=data.leaderDistribution.get('$')||{};
+ if(config.enabled!==true)return false;
+ const offered=new Set([...data.dataOffers.values()].filter(o=>o.status==='PENDING').map(o=>o.customerId));
+ const waiting=[...data.customers.values()].some(row=>!row.saleId&&!row.leaderId&&!row.teamId&&!row.managerId&&row.status!=='ARCHIVED'&&!offered.has(row.id));
+ return waiting&&automaticLeaders(data,config).leaders.length>0;
+}
+async function distributeAutomatic(c, data = null) {
+ data ||= await allData(c);
+ const config = data.leaderDistribution.get('$') || {};
+ const settings = JSON.parse(JSON.stringify(data.settings.get('$') || {}));
+ if (config.enabled !== true) return 0;
+ const mode = settings.assignmentMode;
+ const automatic = ['EQUAL','ROUND_ROBIN','BALANCED'].includes(mode);
+ const {members,leaders,saleConfigs,directSales} = automaticLeaders(data,config);
  if(!leaders.length)return 0;
  const history = [];
  const at = new Date().toLocaleString('sv-SE',{timeZone:'Asia/Ho_Chi_Minh'}).slice(0,19);
@@ -815,10 +829,8 @@ async function writeFastCustomerNotes(user, requestId, changes, enabled = false)
   }
   await c.execute('INSERT INTO crm_changes(request_id,actor_id,changes_json) VALUES (?,?,?)', [requestId, user.id, JSON.stringify(history)]);
   await c.commit();
-  // Bỏ cache trước khi đọc: nếu không, snapshot trả về là bản cũ và ô vừa ghi nhảy về giá trị trước.
-  invalidateSnapshotCache();
-  const result = await read(user, {passive:true});
-  return {...result, ok:true, fastPath:'customer-note'};
+  // Bỏ cache trước khi đọc (trong dataAfterCommit): nếu không, snapshot trả về là bản cũ và ô vừa ghi nhảy về giá trị trước.
+  return {...snapshot(user, await dataAfterCommit()), ok:true, fastPath:'customer-note'};
  } catch (error) { await c.rollback().catch(() => {}); throw error; }
  finally { c.release(); }
 }
@@ -841,6 +853,18 @@ function mergeCustomerFields(old,next,fields){
  }
  return merged;
 }
+// Dữ liệu sau khi áp các thay đổi của lượt lưu (chỉ trong RAM, không đụng DB).
+function withChanges(data,changes){
+ const next={...data};
+ for(const {key,id,value} of changes){
+  if(!(data[key] instanceof Map))continue;
+  if(next[key]===data[key])next[key]=new Map(data[key]);
+  if(value)next[key].set(id,value);else next[key].delete(id);
+ }
+ return next;
+}
+// Đọc lại sau commit (ngoài khóa ghi): bỏ cache cũ rồi dùng chung một lượt tải với các người dùng khác.
+async function dataAfterCommit(){invalidateSnapshotCache();return sharedData();}
 async function writeLocked(user,requestId,changes,options={}){
  if(typeof requestId!=='string'||!/^[-\w]{1,96}$/.test(requestId)||!Array.isArray(changes)||changes.length>2000)error(400,'Gói lưu không hợp lệ');
  const fastResult = await writeFastCustomerNotes(user, requestId, changes, options.fastNote === true);
@@ -851,7 +875,7 @@ async function writeLocked(user,requestId,changes,options={}){
   await c.beginTransaction();
   await c.query('SELECT id FROM crm_write_lock WHERE id=1 FOR UPDATE');
   const [done]=await c.execute('SELECT actor_id FROM crm_changes WHERE request_id=?',[requestId]);
-  if(done.length){if(done[0].actor_id!==user.id)error(409,'Mã yêu cầu đã tồn tại');const result=snapshot(user,await allData(c));await c.commit();return {...result,ok:true,replayed:true};}
+  if(done.length){if(done[0].actor_id!==user.id)error(409,'Mã yêu cầu đã tồn tại');await c.commit();return {...snapshot(user,await dataAfterCommit()),ok:true,replayed:true};}
   const data=await allData(c),seen=new Set(),history=[];
   // Telegram và Web dùng chung khóa ghi: giữ lần điểm danh đầu tiên của mỗi ngày.
   const attendanceDays=new Set([...data.attendance.values()].map(row=>JSON.stringify([row.accountId,row.date])));
@@ -905,13 +929,14 @@ async function writeLocked(user,requestId,changes,options={}){
    await c.execute('INSERT INTO crm_documents(collection,id,body,deleted) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE body=VALUES(body),deleted=VALUES(deleted)',[key,id,JSON.stringify(value===null?data[key].get(id)||{}:value),value===null?1:0]);
   }
   await c.execute('INSERT INTO crm_changes(request_id,actor_id,changes_json) VALUES (?,?,?)',[requestId,user.id,JSON.stringify(history)]);
-  if(options.skipAutomatic===true){
-   // Lượt lưu nền (Level, cột, ghi chú): nhả khóa ghi ngay sau commit, dựng snapshot từ bộ đệm dùng chung.
-   // Trước đây còn quét lại toàn bộ dữ liệu khi vẫn giữ khóa, 20 người lưu cùng lúc phải xếp hàng tới timeout.
-   await c.commit();invalidateSnapshotCache();
-   return {...snapshot(user,await sharedData()),ok:true};
+  // Chỉ quét lại DB + chia data khi thật sự có khách đang chờ chia. Lượt lưu thường (đổi trạng thái,
+  // sửa đơn, cấu hình...) commit và nhả khóa ghi chung ngay: 20 người lưu cùng lúc không còn phải chờ
+  // nhau từng lượt đọc toàn bộ 6 bảng. Snapshot trả về dựng sau commit, ngoài khóa.
+  if(options.skipAutomatic!==true&&automaticPending(withChanges(data,changes))){
+   const updated=await allData(c);await distributeAutomatic(c,updated);
   }
-  const updated=await allData(c);const assigned=await distributeAutomatic(c,updated);const result=snapshot(user,assigned?await allData(c):updated);await c.commit();return {...result,ok:true};
+  await c.commit();
+  return {...snapshot(user,await dataAfterCommit()),ok:true};
  }catch(e){await c.rollback().catch(()=>{});throw e;}finally{c.release();}
 }
 // Mọi lượt ghi qua CRM làm mới bộ đệm snapshot dùng chung (kể cả khi lỗi giữa chừng).
